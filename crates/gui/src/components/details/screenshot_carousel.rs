@@ -1,28 +1,29 @@
-//! Carousel de screenshots — calque de `gs-screenshot-carousel.ui`.
+//! Screenshot carousel, a copy of `gs-screenshot-carousel.ui`.
 //!
 //! ```text
 //! GtkStack
 //! ├─ "carousel" → GtkBox vertical .frame .view
 //! │                ├─ GtkOverlay
 //! │                │   ├─ AdwCarousel (vexpand)
-//! │                │   ├─ overlay: GtkRevealer halign start ─ bouton ‹ (.osd .circular)
-//! │                │   └─ overlay: GtkRevealer halign end   ─ bouton › (.osd .circular)
+//! │                │   ├─ overlay: GtkRevealer halign start ─ button ‹ (.osd .circular)
+//! │                │   └─ overlay: GtkRevealer halign end   ─ button › (.osd .circular)
 //! │                └─ AdwCarouselIndicatorDots
 //! └─ "fallback"  → GtkBox vertical .screenshot-image .frame .view (h 423)
 //!                   ├─ GtkImage image-missing-symbolic 96
-//!                   └─ GtkLabel « Aucune capture d'écran » .title-2 .dim-label
+//!                   └─ GtkLabel "No Screenshots" .title-2 .dim-label
 //! ```
 //!
-//! Les révélateurs suivent la position, exactement comme
-//! `gs_screenshot_carousel_update_buttons` : ‹ si `position >= 0.5`,
-//! › si `position < n_pages - 1.5`.
+//! Revealers follow the position, exactly like
+//! `gs_screenshot_carousel_update_buttons`: ‹ when `position >= 0.5`,
+//! › when `position < n_pages - 1.5`.
 
+use crate::i18n::t;
 use adw::prelude::*;
 
 
-/// Hauteur de la page de repli. Choisie par GNOME pour se juxtaposer en 16:9.
+/// Fallback page height, chosen by GNOME to sit side by side at 16:9.
 const FALLBACK_HEIGHT: i32 = 423;
-/// Côté des boutons de navigation (`.ui` : width/height-request 64, marges 9).
+/// Navigation button size (`.ui`: width/height-request 64, margins 9).
 const NAV_BUTTON_SIZE: i32 = 64;
 const NAV_BUTTON_MARGIN: i32 = 9;
 
@@ -35,7 +36,7 @@ impl ScreenshotCarousel {
     pub fn new() -> Self {
         let carousel = adw::Carousel::new();
         carousel.set_vexpand(true);
-        // GNOME le désactive : la page détail est elle-même scrollable.
+        // GNOME disables it: the details page scrolls itself.
         carousel.set_allow_scroll_wheel(false);
 
         let overlay = gtk::Overlay::new();
@@ -64,7 +65,7 @@ impl ScreenshotCarousel {
         root.add_named(&fallback_page(), Some("fallback"));
         root.set_visible_child_name("fallback");
 
-        // Révélateurs et dots se recalculent à chaque changement de position.
+        // Revealers and dots update on every position change.
         let update = {
             let carousel = carousel.clone();
             let prev_rev = prev_rev.clone();
@@ -89,13 +90,13 @@ impl ScreenshotCarousel {
         &self.root
     }
 
-    /// Ajoute une page. La première bascule le stack sur le carousel.
+    /// Adds a page. The first one switches the stack to the carousel.
     pub fn append(&self, child: &impl IsA<gtk::Widget>) {
         self.carousel.append(child);
         self.root.set_visible_child_name("carousel");
     }
 
-    /// Aucune capture disponible → page de repli (« Aucune capture d'écran »).
+    /// No screenshot available: fallback page ("No Screenshots").
     pub fn show_fallback(&self) {
         self.root.set_visible_child_name("fallback");
     }
@@ -112,10 +113,10 @@ fn nav_revealer(align: gtk::Align, icon: &str) -> gtk::Revealer {
     btn.add_css_class("circular");
     btn.add_css_class("image-button");
     btn.add_css_class("osd");
-    btn.set_tooltip_text(Some(if align == gtk::Align::Start {
-        "Capture précédente"
+    btn.set_tooltip_text(Some(&if align == gtk::Align::Start {
+        t("Previous Screenshot")
     } else {
-        "Capture suivante"
+        t("Next Screenshot")
     }));
 
     let rev = gtk::Revealer::new();
@@ -126,7 +127,7 @@ fn nav_revealer(align: gtk::Align, icon: &str) -> gtk::Revealer {
     rev
 }
 
-/// Fait défiler d'une page au clic. `backwards` = bouton ‹.
+/// Scrolls one page on click. `backwards` = the ‹ button.
 fn connect_nav(carousel: &adw::Carousel, revealer: &gtk::Revealer, backwards: bool) {
     let Some(btn) = revealer.child().and_downcast::<gtk::Button>() else {
         return;
@@ -160,7 +161,7 @@ fn fallback_page() -> gtk::Box {
     img.add_css_class("dim-label");
     b.append(&img);
 
-    let l = gtk::Label::new(Some("Aucune capture d'écran"));
+    let l = gtk::Label::new(Some(&t("No Screenshots")));
     l.set_halign(gtk::Align::Center);
     l.set_valign(gtk::Align::Start);
     l.set_vexpand(true);

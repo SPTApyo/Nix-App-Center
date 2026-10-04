@@ -1,6 +1,6 @@
-//! `FeaturedCarousel` — la bannière vedette rotative de l'accueil (calquée sur
-//! `GsFeaturedCarousel` : AdwCarousel `.card`, height 318, boutons prev/next
-//! circulaires, points indicateurs). Slides = apps Flathub sur fond dégradé.
+//! `FeaturedCarousel`: the rotating featured banner of the home page (copy of
+//! `GsFeaturedCarousel`: AdwCarousel `.card`, height 318, round prev/next
+//! buttons, indicator dots). Slides are Flathub apps on a gradient background.
 
 use adw::prelude::*;
 use relm4::prelude::*;

@@ -1,11 +1,11 @@
-//! Notes ODRS (odrs.gnome.org) — la même source communautaire d'avis que GNOME
-//! Software, indexée par identifiant d'app (AppStream/desktop). Purement cosmétique.
+//! ODRS ratings (odrs.gnome.org), the same community review source as GNOME
+//! Software, indexed by app id (AppStream/desktop). Purely cosmetic.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/// Note d'une app : moyenne en étoiles (0–5) + nombre total d'avis + histogramme
-/// par étoile (pour le bloc « Évaluations », façon GsReviewHistogram).
+/// An app rating: average stars (0–5) + total review count + per-star
+/// histogram (for the "Ratings & Reviews" block, like GsReviewHistogram).
 #[derive(Debug, Clone, Copy)]
 pub struct Rating {
     pub stars: f32,
@@ -19,8 +19,8 @@ pub struct Rating {
 
 static ODRS: OnceLock<HashMap<String, Rating>> = OnceLock::new();
 
-/// Table complète des notes ODRS, récupérée une seule fois (bulk) puis cachée
-/// pour toute la session.
+/// Full ODRS ratings table, fetched once (bulk) then cached for the whole
+/// session.
 pub(crate) fn odrs_ratings() -> &'static HashMap<String, Rating> {
     ODRS.get_or_init(|| fetch_odrs_ratings().unwrap_or_default())
 }
@@ -48,10 +48,10 @@ fn fetch_odrs_ratings() -> Option<HashMap<String, Rating>> {
             star4: s4,
             star5: s5,
         };
-        // Clés ODRS = id desktop, à la casse parfois différente de Flathub
-        // (`org.mozilla.Firefox` vs `org.mozilla.firefox`). On indexe donc en
-        // minuscules, sans le suffixe `.desktop`, en gardant l'entrée la plus
-        // notée en cas de collision.
+        // ODRS keys are desktop ids, sometimes cased differently from Flathub
+        // (`org.mozilla.Firefox` vs `org.mozilla.firefox`). So they are indexed
+        // lowercase, without the `.desktop` suffix, keeping the most rated
+        // entry on collision.
         let key = id.strip_suffix(".desktop").unwrap_or(id).to_lowercase();
         map.entry(key)
             .and_modify(|e: &mut Rating| {
@@ -64,7 +64,7 @@ fn fetch_odrs_ratings() -> Option<HashMap<String, Rating>> {
     Some(map)
 }
 
-/// Note ODRS pour un `app_id` Flathub (matching insensible à la casse).
+/// ODRS rating for a Flathub `app_id` (case-insensitive match).
 pub fn rating_for(app_id: &str) -> Option<Rating> {
     if app_id.is_empty() {
         return None;

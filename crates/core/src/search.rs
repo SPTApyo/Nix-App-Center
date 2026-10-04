@@ -172,9 +172,15 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
 
     let _ = rate_handle.join();
 
+    // Variants (`gimp`, `gimp3`, `gimp-with-plugins`) share one AppStream entry:
+    // only the best ranked one takes the app identity, the rest stay packages.
+    let mut claimed = std::collections::HashSet::new();
     pkgs.into_iter()
         .map(|mut p| {
             if let Some(e) = appstream_db::lookup_package(&p) {
+                if !claimed.insert(e.app_id.clone()) {
+                    return variant(p, e.icon_url.clone());
+                }
                 if !e.name.is_empty() {
                     p.name = e.name.clone();
                 }
@@ -188,17 +194,34 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
             let hit = hits
                 .get(&p.attr.to_lowercase())
                 .or_else(|| hits.get(&sanitize(&p.name)));
+            if let Some(h) = hit.filter(|h| !claimed.insert(h.app_id.clone())) {
+                return variant(p, Some(h.icon.clone()));
+            }
             let icon_url = hit.map(|h| h.icon.clone());
             let rating = hit.and_then(|h| rating_for(&h.app_id));
             let recognized = hit.is_some();
-            if let Some(h) = hit {
-                if !h.name.trim().is_empty() {
-                    p.name = h.name.clone();
-                }
+            match hit {
+                Some(h) if !h.name.trim().is_empty() => p.name = h.name.clone(),
+                Some(_) => {}
+                None => p = named_by_attr(p),
             }
             SearchResult { package: p, icon_url, rating, recognized }
         })
         .collect()
+}
+
+/// A secondary package of an already listed app.
+fn variant(package: Package, icon_url: Option<String>) -> SearchResult {
+    SearchResult { package: named_by_attr(package), icon_url, rating: None, recognized: false }
+}
+
+/// Packages without app identity are named by attr: several attrs share one
+/// `pname` (`gimpPlugins.bimp`, `gimp3Plugins.bimp`), the attr is unique.
+fn named_by_attr(mut p: Package) -> Package {
+    if !p.name.eq_ignore_ascii_case(&p.attr) {
+        p.name = p.attr.clone();
+    }
+    p
 }
 
 /// Score de pertinence d'un paquet pour une requête (poids inspirés des champs
@@ -285,6 +308,17 @@ mod tests {
         in_desc.description = "a simple text editor".to_string();
         let t = toks("editor");
         assert!(search_score(&in_name, "editor", &t) > search_score(&in_desc, "editor", &t));
+    }
+
+    #[test]
+    fn named_by_attr_disambiguates_shared_pname() {
+        let mut p = Package::from_attr("gimp3Plugins.bimp");
+        p.name = "gimp-plugin-bimp".into();
+        assert_eq!(named_by_attr(p).name, "gimp3Plugins.bimp");
+
+        let mut p = Package::from_attr("superTux");
+        p.name = "SuperTux".into();
+        assert_eq!(named_by_attr(p).name, "SuperTux", "beautified case alias is kept");
     }
 
     // ── beautify_attr ─────────────────────────────────────────────────────

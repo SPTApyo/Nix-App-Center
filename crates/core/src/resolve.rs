@@ -1,28 +1,27 @@
-//! Le « DNS des apps » — résout un attribut nixpkgs vers un app-id AppStream/Flathub.
+//! The "app DNS": resolves a nixpkgs attribute to an AppStream/Flathub app id.
 //!
-//! nixpkgs et Flathub sont deux univers sans correspondance officielle. Le dataset auto
-//! (façon `nixos-appstream-data`) couvre ~825 attrs mais laisse des trous béants (Firefox,
-//! toutes les apps *unfree*) et se trompe parfois (`gimp` → un addon plutôt que
-//! `org.gimp.GIMP`). Cette couche **curée** comble et corrige, par ordre de priorité :
+//! nixpkgs and Flathub are two worlds with no official mapping. Name
+//! heuristics leave gaps (Firefox, every *unfree* app) and sometimes get it
+//! wrong (`gimp` to an add-on rather than `org.gimp.GIMP`). This **curated**
+//! layer fills and fixes them, by priority:
+//!   1. **user** overlay (`data_dir/app-mapping.json`): local fixes, backend of
+//!      the "Report an Issue" button;
+//!   2. **community** overlay (embedded, curated in the repo through PRs).
 //!
-//!   1. overlay **utilisateur** (`data_dir/app-mapping.json`) — corrections locales,
-//!      backend du bouton « Signaler un problème » ;
-//!   2. overlay **communautaire** (embarqué, curé dans le repo par PR).
-//!
-//! Si aucun ne connaît l'attr, la résolution rend `None` et l'appelant retombe sur le
-//! dataset auto puis l'heuristique historique. On ne mélange jamais identité (stable,
-//! ici) et contenu (icône/avis, récupérés en direct ailleurs à partir de l'app-id résolu).
+//! When neither knows the attr, resolution returns `None` and the caller falls
+//! back on the heuristic. Identity (stable, here) is never mixed with content
+//! (icon/reviews, fetched live elsewhere from the resolved app id).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-/// Overlay curé dans le dépôt, embarqué dans le binaire.
+/// Overlay curated in the repository, embedded in the binary.
 const COMMUNITY_OVERLAY: &str = include_str!("data/app_mapping.json");
 
-/// Format commun aux deux overlays. `note` documente le fichier (communautaire) ; les
-/// entrées vivent dans `mappings`. Un enrobage (plutôt qu'une map nue) laisse la place à
-/// des champs futurs (confiance, source d'un signalement) sans casser le format.
+/// Format shared by both overlays. `note` documents the file (community);
+/// entries live in `mappings`. A wrapper (rather than a bare map) leaves room
+/// for future fields (confidence, report source) without breaking the format.
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct Overlay {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -31,7 +30,7 @@ struct Overlay {
     mappings: HashMap<String, String>,
 }
 
-/// L'overlay communautaire, parsé une seule fois (indépendant de l'environnement).
+/// The community overlay, parsed once (independent of the environment).
 fn community() -> &'static HashMap<String, String> {
     static M: OnceLock<HashMap<String, String>> = OnceLock::new();
     M.get_or_init(|| {
@@ -41,7 +40,7 @@ fn community() -> &'static HashMap<String, String> {
     })
 }
 
-/// Overlay local modifiable (à côté de `kept.json`/`tried.json`).
+/// Editable local overlay (next to `kept.json`/`tried.json`).
 pub(crate) fn user_overlay_path() -> PathBuf {
     crate::paths::data_dir().join("app-mapping.json")
 }
@@ -53,12 +52,12 @@ fn user_overlay() -> Overlay {
         .unwrap_or_default()
 }
 
-/// Résout `attr` → app-id via les overlays curés. `None` si inconnu — l'appelant retombe
-/// alors sur le dataset auto / l'heuristique.
+/// Resolves `attr` to an app id through the curated overlays. `None` when
+/// unknown: the caller then falls back on the heuristic.
 pub fn resolve_app_id(attr: &str) -> Option<String> {
     let mut user = user_overlay();
     if let Some(id) = user.mappings.remove(attr) {
-        return Some(id); // la correction locale prime toujours
+        return Some(id); // the local fix always wins
     }
     community().get(attr).cloned()
 }
@@ -73,9 +72,9 @@ pub(crate) fn attr_for_app_id(app_id: &str) -> Option<String> {
     find(&user_overlay().mappings).or_else(|| find(community()))
 }
 
-/// Enregistre une correction/signalement local. **Placeholder** du bouton « Signaler un
-/// problème » : pour l'instant on écrit dans l'overlay utilisateur (pris en compte à la
-/// résolution suivante) ; l'envoi vers un dépôt communautaire partagé viendra plus tard.
+/// Records a local fix/report. **Placeholder** of the "Report an Issue" button:
+/// for now it writes to the user overlay (used on the next resolution); sending
+/// to a shared community repository will come later.
 pub fn report_mapping(attr: &str, app_id: &str) -> std::io::Result<()> {
     let mut o = user_overlay();
     o.mappings.insert(attr.to_string(), app_id.to_string());
@@ -92,11 +91,11 @@ mod tests {
         let _g = crate::env_lock();
         let dir = std::env::temp_dir().join(format!("onyx-resolve-c-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        std::env::set_var("XDG_DATA_HOME", &dir); // overlay utilisateur vide → tombe sur le communautaire
+        std::env::set_var("XDG_DATA_HOME", &dir); // empty user overlay, falls back on community
 
         assert_eq!(resolve_app_id("firefox").as_deref(), Some("org.mozilla.firefox"));
         assert_eq!(resolve_app_id("discord").as_deref(), Some("com.discordapp.Discord"));
-        // Désambiguïsation : gimp doit rendre l'app-id, pas un addon.
+        // Disambiguation: gimp must give the app id, not an add-on.
         assert_eq!(resolve_app_id("gimp").as_deref(), Some("org.gimp.GIMP"));
         assert_eq!(resolve_app_id("attr-inexistant-xyz"), None);
 
@@ -110,13 +109,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
 
-        assert_eq!(resolve_app_id("mon-app-perso"), None);
+        assert_eq!(resolve_app_id("my-own-app"), None);
 
-        // L'utilisateur signale une correspondance : elle persiste et se résout.
-        report_mapping("mon-app-perso", "com.example.MyApp").unwrap();
-        assert_eq!(resolve_app_id("mon-app-perso").as_deref(), Some("com.example.MyApp"));
+        // The user reports a mapping: it persists and resolves.
+        report_mapping("my-own-app", "com.example.MyApp").unwrap();
+        assert_eq!(resolve_app_id("my-own-app").as_deref(), Some("com.example.MyApp"));
 
-        // Et elle prime sur le communautaire.
+        // And it wins over the community overlay.
         report_mapping("firefox", "org.mozilla.firefox.custom").unwrap();
         assert_eq!(resolve_app_id("firefox").as_deref(), Some("org.mozilla.firefox.custom"));
 

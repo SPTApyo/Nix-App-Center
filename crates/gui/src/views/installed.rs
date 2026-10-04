@@ -1,10 +1,10 @@
-//! Onglet « Installées » — deux sections dans un même scroll.
+//! "Installed" tab: two sections in one scroll.
 //!
-//! • « Dans ma config » : paquets gardés (`kept.json`) — la config home-manager.
-//! • « Essayées »       : historique des `nix run` (`tried.json`) + bouton GC.
+//! • "In Your Configuration": kept packages (`kept.json`), i.e. the Nix config.
+//! • "Recently Tried": `nix run` history (`tried.json`) + a GC button.
 //!
-//! Rechargé à l'activation de l'onglet via `InstalledMsg::Reload`.
-//! Flux : skeleton → fetch AppStream parallèle (cached) → DataReady → tuiles.
+//! Reloaded when the tab is activated, through `InstalledMsg::Reload`.
+//! Flow: skeleton, parallel AppStream fetch (cached), DataReady, tiles.
 
 use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
@@ -12,6 +12,7 @@ use relm4::prelude::*;
 use onyx_core::Package;
 
 use crate::components::AppTile;
+use crate::i18n::t;
 use crate::util::{skeleton_grid, AppItem};
 
 pub struct InstalledModel {
@@ -28,7 +29,7 @@ pub struct InstalledModel {
 #[derive(Debug)]
 pub enum InstalledMsg {
     Reload,
-    DataReady(Vec<AppItem>, Vec<AppItem>), // (kept, tried) avec icon_url rempli
+    DataReady(Vec<AppItem>, Vec<AppItem>), // (kept, tried) with icon_url filled
     Open(Package),
     Gc,
     GcDone(String),
@@ -49,7 +50,7 @@ impl SimpleComponent for InstalledModel {
     }
 
     fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        // ── Grilles (FactoryVecDeque branchées sur un FlowBox) ────────────────
+        // ── Grids (FactoryVecDeque bound to a FlowBox) ────────────────────────
         let kept_tiles = FactoryVecDeque::builder()
             .launch(gtk::FlowBox::new())
             .forward(sender.input_sender(), InstalledMsg::Open);
@@ -60,9 +61,9 @@ impl SimpleComponent for InstalledModel {
             .forward(sender.input_sender(), InstalledMsg::Open);
         configure_flow(tried_tiles.widget());
 
-        // ── Section « Dans ma config » ────────────────────────────────────────
+        // ── "In Your Configuration" section ───────────────────────────────────
         let kept_empty = gtk::Label::new(Some(
-            "Aucun paquet gardé — ouvrez une page détail et cliquez « Ajouter à ma config ».",
+            &t("No kept packages yet. Open an app and choose “Add to Configuration”."),
         ));
         kept_empty.add_css_class("dim-label");
         kept_empty.set_xalign(0.0);
@@ -73,16 +74,16 @@ impl SimpleComponent for InstalledModel {
             .orientation(gtk::Orientation::Vertical)
             .spacing(12)
             .build();
-        kept_section.append(&section_heading("Dans ma config"));
+        kept_section.append(&section_heading(&t("In Your Configuration")));
         kept_section.append(kept_tiles.widget());
         kept_section.append(&kept_empty);
 
-        // ── Section « Essayées » ──────────────────────────────────────────────
-        let gc_btn = gtk::Button::with_label("Libérer l'espace");
+        // ── "Recently Tried" section ──────────────────────────────────────────
+        let gc_btn = gtk::Button::with_label(&t("Free Up Space"));
         gc_btn.add_css_class("flat");
         gc_btn.set_valign(gtk::Align::Center);
         gc_btn.set_tooltip_text(Some(
-            "nix-collect-garbage : supprime du store les paquets non gardés",
+            &t("Runs nix-collect-garbage: removes packages you did not keep from the store"),
         ));
         gc_btn.connect_clicked({
             let s = sender.input_sender().clone();
@@ -95,14 +96,14 @@ impl SimpleComponent for InstalledModel {
             .orientation(gtk::Orientation::Horizontal)
             .spacing(8)
             .build();
-        tried_header.append(&section_heading("Essayées"));
+        tried_header.append(&section_heading(&t("Recently Tried")));
         let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         spacer.set_hexpand(true);
         tried_header.append(&spacer);
         tried_header.append(&gc_btn);
 
         let tried_empty = gtk::Label::new(Some(
-            "Aucun essai récent — lancez un paquet depuis la recherche pour qu'il apparaisse ici.",
+            &t("Nothing tried yet. Run a package from search and it will show up here."),
         ));
         tried_empty.add_css_class("dim-label");
         tried_empty.set_xalign(0.0);
@@ -123,7 +124,7 @@ impl SimpleComponent for InstalledModel {
         tried_section.append(&tried_empty);
         tried_section.append(&gc_label);
 
-        // ── Page « content » ─────────────────────────────────────────────────
+        // ── "content" page ────────────────────────────────────────────────────
         let content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(24)
@@ -140,15 +141,15 @@ impl SimpleComponent for InstalledModel {
         content_clamp.set_margin_end(12);
         content_clamp.set_child(Some(&content));
 
-        // ── Page « loading » (skeleton calqué sur le contenu) ────────────────
+        // ── "loading" page (skeleton mirroring the content) ───────────────────
         let loading_content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(24)
             .margin_top(24)
             .margin_bottom(24)
             .build();
-        loading_content.append(&skeleton_section(160)); // « Dans ma config »
-        loading_content.append(&skeleton_section(120)); // « Essayées »
+        loading_content.append(&skeleton_section(160)); // "In Your Configuration"
+        loading_content.append(&skeleton_section(120)); // "Recently Tried"
 
         let loading_clamp = adw::Clamp::new();
         loading_clamp.set_maximum_size(1000);
@@ -157,7 +158,7 @@ impl SimpleComponent for InstalledModel {
         loading_clamp.set_margin_end(12);
         loading_clamp.set_child(Some(&loading_content));
 
-        // ── Stack skeleton / content ──────────────────────────────────────────
+        // ── Skeleton / content stack ──────────────────────────────────────────
         let stack = gtk::Stack::new();
         stack.set_transition_type(gtk::StackTransitionType::Crossfade);
         stack.set_transition_duration(150);
@@ -239,14 +240,14 @@ impl SimpleComponent for InstalledModel {
                 }
                 self.gc_running = true;
                 self.gc_btn.set_sensitive(false);
-                self.gc_label.set_label("Nettoyage du store en cours…");
+                self.gc_label.set_label(&t("Cleaning up the store…"));
                 self.gc_label.set_visible(true);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let msg = match onyx_core::garbage_collect() {
                         Ok(s) if !s.is_empty() => s,
-                        Ok(_) => "Terminé.".to_string(),
-                        Err(e) => format!("Échec : {e}"),
+                        Ok(_) => t("Done."),
+                        Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
                     };
                     let _ = s.send(InstalledMsg::GcDone(msg));
                 });
@@ -260,10 +261,10 @@ impl SimpleComponent for InstalledModel {
     }
 }
 
-/// Résout les `AppMeta` d'un lot de paquets avec un parallélisme borné (vagues
-/// de `MAX_PAR` threads) : un historique fourni ne doit pas lancer des
-/// centaines de threads, chacun pouvant faire du réseau + `nix eval`.
-/// À appeler depuis un thread de fond, jamais du thread GTK.
+/// Resolves the `AppMeta` of a batch of packages with bounded parallelism
+/// (waves of `MAX_PAR` threads): a long history must not spawn hundreds of
+/// threads, each of which may hit the network and `nix eval`.
+/// Call from a background thread, never from the GTK thread.
 fn fetch_items(pkgs: Vec<Package>, target_w: u32) -> Vec<AppItem> {
     const MAX_PAR: usize = 16;
     let mut out = Vec::with_capacity(pkgs.len());
@@ -301,8 +302,8 @@ fn section_heading(text: &str) -> gtk::Label {
     l
 }
 
-/// Section skeleton : titre shimmer + grille de tuiles fantômes, calquée sur le
-/// contenu réel (même heading height + même FlowBox config) pour éviter tout saut.
+/// Skeleton section: shimmering title + ghost tile grid, mirroring the real
+/// content (same heading height, same FlowBox config) to avoid any jump.
 fn skeleton_section(heading_px: i32) -> gtk::Box {
     let sec = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)

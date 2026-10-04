@@ -1,21 +1,21 @@
-/* Feuille de style d'Onyx.
+/* Onyx stylesheet.
  *
- * Les blocs marqués « ← gnome-software src/style.css:N » sont portés verbatim
- * du clone. Ne pas les reformater : un `diff` avec la source doit rester lisible.
+ * Blocks marked "← gnome-software src/style.css:N" are ported verbatim from
+ * the clone. Do not reformat them: a `diff` against the source must stay readable.
  *
- * Seule adaptation systématique : GNOME cible des noms de NŒUD (`app-context-bar`,
- * `screenshot-carousel`) déclarés par ses GObject custom. Onyx n'ayant pas de
- * sous-classes GTK, on utilise des CLASSES de style équivalentes (`.app-context-bar`).
+ * Only systematic adaptation: GNOME targets NODE names (`app-context-bar`,
+ * `screenshot-carousel`) declared by its custom GObjects. Onyx has no GTK
+ * subclasses, so it uses equivalent style CLASSES (`.app-context-bar`).
  */
 
-/* Couleur de packaging. GNOME déclare `@define-color flatpak_packaging_color @blue_4;`
- * (style.css:1) puis l'applique en code à l'icône d'origine, à l'icône « vérifié »
- * et à son label (gs-details-page.c:299-306). Même mécanisme, source nixpkgs. */
+/* Packaging color. GNOME declares `@define-color flatpak_packaging_color @blue_4;`
+ * (style.css:1) then applies it in code to the origin icon, the "verified" icon
+ * and its label (gs-details-page.c:299-306). Same mechanism, nixpkgs source. */
 @define-color nix_packaging_color @blue_4;
 .nix-packaging-color { color: @nix_packaging_color; }
 
 
-/* ══ Page détail ═══════════════════════════════════════════════════════════ */
+/* ══ Details page ═════════════════════════════════════════════════════════ */
 
 /* ← style.css:3 */
 .details-page {
@@ -35,10 +35,10 @@ window.narrow .app-developer {
 .origin-button > button { padding: 2px 8px; }
 
 
-/* ══ Carousel de screenshots (GsScreenshotCarousel) ════════════════════════ */
+/* ══ Screenshot carousel (GsScreenshotCarousel) ════════════════════════════ */
 
-/* ← style.css:15-22. `.view` fournit déjà @view_bg_color ; on ne garde que la
-   bordure 1px haut/bas, sans arrondi, pour le rendu pleine largeur. */
+/* ← style.css:15-22. `.view` already provides @view_bg_color; only the 1px
+   top/bottom border is kept, without rounding, for the full width rendering. */
 .screenshot-carousel.frame {
 	border-width: 1px 0;
 	border-radius: 0;
@@ -46,10 +46,10 @@ window.narrow .app-developer {
 
 .screenshot-carousel button.osd { margin: 12px; }
 
-/* Screenshots cliquables : bouton sans chrome ni padding (addition Onyx). */
+/* Clickable screenshots: button without chrome or padding (Onyx addition). */
 button.screenshot-button { padding: 0; }
 
-/* Lightbox (addition Onyx) : couche sombre plein écran, image centrée sans cadre. */
+/* Lightbox (Onyx addition): dark full screen layer, centered frameless image. */
 button.lightbox {
 	background-color: rgba(0, 0, 0, 0.85);
 	background-image: none;
@@ -63,9 +63,9 @@ button.lightbox:hover { background-color: rgba(0, 0, 0, 0.85); }
 
 /* ══ Context bar (GsAppContextBar) ═════════════════════════════════════════ */
 
-/* ← style.css:371-421. Le conteneur porte aussi `.card` (cadre arrondi + fond) ;
-   il contient DEUX sous-boîtes de 2 tuiles. Les tuiles n'ont qu'une bordure
-   GAUCHE = séparateurs internes, le cadre vient du card. */
+/* ← style.css:371-421. The container also carries `.card` (rounded frame +
+   background) and holds TWO sub-boxes of 2 tiles. Tiles only have a LEFT
+   border = inner separators, the frame comes from the card. */
 .app-context-bar .context-tile {
 	border: 1px solid @card_shade_color;
 	background-color: transparent;
@@ -99,14 +99,14 @@ button.lightbox:hover { background-color: rgba(0, 0, 0, 0.85); }
 
 /* ══ Lozenge (GsLozenge) ═══════════════════════════════════════════════════ */
 
-/* ← style.css:423-484. Les alias `.details-rating-N` sont ceux de la tuile d'âge. */
+/* ← style.css:423-484. `.details-rating-N` aliases are those of the age tile. */
 .context-tile-lozenge {
 	font-size: 18px;
 	font-weight: bold;
 	border-radius: 99999px;
 	padding: 9px 11px;
-	min-width: 18px;   /* 40px moins les paddings gauche/droite */
-	min-height: 22px;  /* 40px moins les paddings haut/bas */
+	min-width: 18px;   /* 40px minus left/right padding */
+	min-height: 22px;  /* 40px minus top/bottom padding */
 }
 
 .context-tile-lozenge.large {
@@ -116,8 +116,8 @@ button.lightbox:hover { background-color: rgba(0, 0, 0, 0.85); }
 	min-height: 30px;
 }
 
-/* GtkImage rend toujours un carré : pour une image large de même hauteur que les
-   autres, on la met à hauteur nulle et centrée verticalement. */
+/* GtkImage always renders a square: a wide image of the same height as the
+   others gets zero height and is vertically centered. */
 .context-tile-lozenge.wide-image image {
 	margin-top: -28px;
 	margin-bottom: -28px;
@@ -180,12 +180,12 @@ button.lightbox:hover { background-color: rgba(0, 0, 0, 0.85); }
 }
 
 
-/* ══ Historique des versions (GsAppVersionHistoryRow) ══════════════════════ */
+/* ══ Version history (GsAppVersionHistoryRow) ═════════════════════════════ */
 
-/* border-spacing GNOME de `.history-row-header`. */
+/* GNOME border-spacing of `.history-row-header`. */
 box.history-row-header { border-spacing: 12px 6px; }
 
-/* ← style.css (Adwaita) : badge « Installé » de la rangée de version. */
+/* ← style.css (Adwaita): "In nixpkgs" badge of the version row. */
 .installed-badge {
 	font-size: smaller;
 	background-color: @accent_bg_color;
@@ -195,7 +195,7 @@ box.history-row-header { border-spacing: 12px 6px; }
 }
 
 
-/* ══ Avis (GsReviewHistogram, GsReviewRow) ═════════════════════════════════ */
+/* ══ Reviews (GsReviewHistogram, GsReviewRow) ═════════════════════════════ */
 
 /* ← style.css:231-235 */
 .review-row > * {
@@ -204,7 +204,7 @@ box.history-row-header { border-spacing: 12px 6px; }
 
 .review-row button { font-size: smaller; }
 
-/* GsReviewBar : barre fine, arrondie, teintée du texte. */
+/* GsReviewBar: thin, rounded bar, tinted with the text color. */
 .review-histogram-bar > trough,
 .review-histogram-bar > trough > progress {
 	min-height: 6px;
@@ -220,20 +220,20 @@ box.history-row-header { border-spacing: 12px 6px; }
 .review-histogram image.star-on,
 .review-histogram image.star-off { color: alpha(@window_fg_color, 0.4); }
 
-/* Moyenne : `scale 5.0` + `weight light` du .ui, exprimés en CSS. */
+/* Average: the .ui `scale 5.0` + `weight light`, expressed in CSS. */
 .review-average {
 	font-size: 5em;
 	font-weight: 300;
 }
 
-/* GsStarWidget : étoiles pleines dorées, vides atténuées. */
+/* GsStarWidget: golden full stars, dimmed empty ones. */
 .app-stars image.star-on  { color: #e5a50a; }
 .app-stars image.star-off { color: alpha(@window_fg_color, 0.3); }
 
 
-/* ══ Cartes de catégories (accueil) ════════════════════════════════════════ */
+/* ══ Category cards (home) ════════════════════════════════════════════════ */
 
-/* ← style.css : .category-tile.category-* — géométrie et gradients verbatim. */
+/* ← style.css: .category-tile.category-*, geometry and gradients verbatim. */
 button.category-card {
 	border-radius: 12px;
 	padding: 20px 10px;
@@ -298,7 +298,7 @@ button.category-work {
 		                  linear-gradient(90deg, #C2C1BE 1px, transparent 1px);
 	}
 
-	/* ← style.css:584-610 : lozenges en thème sombre. */
+	/* ← style.css:584-610: lozenges in dark theme. */
 	.context-tile-lozenge.green,
 	.context-tile-lozenge.details-rating-0 {
 		color: @green_1;
@@ -327,20 +327,20 @@ button.category-work {
 }
 
 
-/* ══ Grilles, tuiles, lignes ═══════════════════════════════════════════════ */
+/* ══ Grids, tiles, rows ═══════════════════════════════════════════════════ */
 
-/* GNOME force ce padding à zéro sur les enfants de FlowBox. */
+/* GNOME forces this padding to zero on FlowBox children. */
 flowboxchild { padding: 0px; }
 
-/* Tuile d'app : nom légèrement plus grand, description éclaircie. */
+/* App tile: slightly larger name, lighter description. */
 label.app-tile-name { font-weight: bold; font-size: 1.1em; }
 label.app-tile-summary { opacity: 0.6; }
 
 
-/* ══ Chargement (additions Onyx) ═══════════════════════════════════════════ */
+/* ══ Loading (Onyx additions) ═════════════════════════════════════════════ */
 
-/* Placeholder « shimmer » pendant le chargement d'une icône : un dégradé qui
-   balaie en boucle pour masquer le fetch. */
+/* "Shimmer" placeholder while an icon loads: a gradient sweeping in a loop
+   to hide the fetch. */
 @keyframes icon-shimmer-sweep {
 	0%   { background-position: -150% 0; }
 	100% { background-position: 250% 0; }
@@ -359,9 +359,9 @@ label.app-tile-summary { opacity: 0.6; }
 .skeleton { border-radius: 7px; }
 .skeleton.large { border-radius: 12px; }
 
-/* Icône de repli (paquet sans AppStream) : vignette à fond coloré déterministe
-   + glyphe blanc. Divergence assumée vs GNOME (icône générique du thème) :
-   la plupart des paquets nixpkgs n'ont pas d'icône. */
+/* Fallback icon (package without AppStream): deterministic colored thumbnail
+   + white glyph. Deliberate divergence from GNOME (generic theme icon):
+   most nixpkgs packages have no icon. */
 .fallback-tile { border-radius: 14px; }
 .fallback-glyph { color: #ffffff; }
 .fb-0  { background: #1c71d8; }
@@ -378,7 +378,7 @@ label.app-tile-summary { opacity: 0.6; }
 .fb-11 { background: #5e5c64; }
 
 
-/* ══ Carousel vedette (accueil) ════════════════════════════════════════════ */
+/* ══ Featured carousel (home) ═════════════════════════════════════════════ */
 
 button.carousel-slide {
 	all: unset;

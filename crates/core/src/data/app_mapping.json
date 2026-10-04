@@ -1,5 +1,5 @@
 {
-  "note": "Overlay communautaire : attribut nixpkgs -> app-id Flathub. Comble les trous du dataset auto (apps unfree, apps absentes) et corrige les mauvaises correspondances. PRs bienvenues.",
+  "note": "Community overlay: nixpkgs attribute -> Flathub app id. Fills gaps of the name heuristic (unfree apps, missing apps) and fixes wrong matches. PRs welcome.",
   "mappings": {
     "firefox": "org.mozilla.firefox",
     "chromium": "org.chromium.Chromium",

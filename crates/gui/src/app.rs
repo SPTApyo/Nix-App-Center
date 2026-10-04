@@ -1,6 +1,6 @@
-//! `AppModel` — la coquille : fenêtre, header (ViewSwitcher + recherche + burger),
-//! pile accueil/résultats, onglets, et navigation (push catégorie/détail/essayées).
-//! N'orchestre que des composants : il ne dessine aucune liste/grille lui-même.
+//! `AppModel`: the shell. Window, header (view switcher + search), home/results
+//! stack, tabs, and navigation (pushing category and details pages).
+//! It only orchestrates components and never draws a list or grid itself.
 
 use adw::prelude::*;
 use relm4::prelude::*;
@@ -14,13 +14,13 @@ use crate::views::installed::InstalledMsg;
 use crate::views::updates::UpdatesMsg;
 use crate::views::{CategoryModel, DetailModel, HomeModel, InstalledModel, UpdatesModel};
 
-/// Feuille de style de l'app : `crates/gui/data/style.css`. Les règles portées
-/// de GNOME Software y sont annotées avec leur ligne source.
+/// App stylesheet: `crates/gui/data/style.css`. Rules ported from GNOME
+/// Software are annotated with their source line.
 const APP_CSS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/style.css"));
 
 pub struct AppModel {
-    // Gardés vivants pour la durée de l'app (widgets placés dans le stack/onglets) ;
-    // pilotés à l'init ou via senders clonés.
+    // Kept alive for the app lifetime (their widgets live in the stack/tabs),
+    // driven at init or through cloned senders.
     #[allow(dead_code)]
     home: Controller<HomeModel>,
     results: Controller<AppList>,
@@ -31,9 +31,9 @@ pub struct AppModel {
     #[cfg(feature = "dev-gallery")]
     #[allow(dead_code)]
     gallery: Controller<crate::views::gallery::GalleryModel>,
-    stack: gtk::Stack,          // home / results (onglet Explorer)
-    view_stack: adw::ViewStack, // Explorer / Installées / Mises à jour
-    nav: adw::NavigationView,   // racine "main" + pages poussées
+    stack: gtk::Stack,          // home / results (Explore tab)
+    view_stack: adw::ViewStack, // Explore / Installed / Updates
+    nav: adw::NavigationView,   // "main" root + pushed pages
     search_entry: gtk::SearchEntry,
     search_btn: gtk::ToggleButton,
     details: Vec<Controller<DetailModel>>,
@@ -48,7 +48,7 @@ pub enum AppMsg {
     Home(HomeOutput),
     OpenCategory(&'static [&'static str], &'static str),
     OpenDetail(Package),
-    /// Une page a été dépilée (flèche retour) : libère son contrôleur.
+    /// A page was popped (back arrow): release its controller.
     PagePopped,
     GoHome,
 }
@@ -68,9 +68,8 @@ impl SimpleComponent for AppModel {
     }
 
     fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        // Lance le chargement de la base AppStream locale en arrière-plan (Flatpak
-        // cache). Dès que prête, toutes les recherches et pages détail sont
-        // instantanées — aucune requête réseau Flathub.
+        // Load the AppStream database in the background. Once ready, searches
+        // and details pages need no Flathub request.
         onyx_core::init_appstream_db();
 
         // ── CSS ───────────────────────────────────────────────────────────────
@@ -82,17 +81,17 @@ impl SimpleComponent for AppModel {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        // Icônes empruntées à GNOME Software (onglets + catégories), bundlées dans
-        // crates/gui/data/icons → résolues par nom via ce chemin de recherche.
+        // Icons borrowed from GNOME Software (tabs + categories), bundled in
+        // crates/gui/data/icons and resolved by name through this search path.
         if let Some(display) = gtk::gdk::Display::default() {
             gtk::IconTheme::for_display(&display)
                 .add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
         }
-        // Icône de la fenêtre / de la barre des tâches : résolue par app-id depuis le
-        // chemin ajouté ci-dessus (data/icons/hicolor/scalable/apps/dev.onyx.Onyx.svg).
+        // Window / taskbar icon, resolved by app id from the path added above
+        // (data/icons/hicolor/scalable/apps/dev.onyx.Onyx.svg).
         gtk::Window::set_default_icon_name("dev.onyx.Onyx");
 
-        // ── Composants enfants ────────────────────────────────────────────────
+        // ── Child components ──────────────────────────────────────────────────
         let home = HomeModel::builder()
             .launch(())
             .forward(sender.input_sender(), AppMsg::Home);
@@ -115,13 +114,13 @@ impl SimpleComponent for AppModel {
                 crate::views::gallery::GalleryOutput::Category(c, l) => AppMsg::OpenCategory(c, l),
             });
 
-        // ── ViewStack + Header ────────────────────────────────────────────────
+        // ── View stack + header ───────────────────────────────────────────────
         let view_stack = adw::ViewStack::new();
         let header = adw::HeaderBar::new();
 
         let search_btn = gtk::ToggleButton::builder()
             .icon_name("system-search-symbolic")
-            .tooltip_text(t("Rechercher"))
+            .tooltip_text(t("Search"))
             .build();
         header.pack_start(&search_btn);
 
@@ -130,11 +129,11 @@ impl SimpleComponent for AppModel {
         switcher.set_stack(Some(&view_stack));
         header.set_title_widget(Some(&switcher));
 
-        // ── Barre de recherche ────────────────────────────────────────────────
-        // Barre de recherche : mêmes dimensions que GNOME Software (gs-shell.ui) —
-        // AdwClamp hexpand, maximum-size 500, tightening 500.
+        // ── Search bar ────────────────────────────────────────────────────────
+        // Same dimensions as GNOME Software (gs-shell.ui): AdwClamp hexpand,
+        // maximum-size 500, tightening 500.
         let search_entry = gtk::SearchEntry::builder()
-            .placeholder_text(t("Rechercher des paquets Nix…"))
+            .placeholder_text(t("Search Nix packages…"))
             .hexpand(true)
             .build();
         let entry_clamp = adw::Clamp::new();
@@ -145,8 +144,8 @@ impl SimpleComponent for AppModel {
         let search_bar = gtk::SearchBar::new();
         search_bar.set_child(Some(&entry_clamp));
         search_bar.connect_entry(&search_entry);
-        // Type-to-search : n'importe quelle frappe dans la fenêtre ouvre la barre
-        // et y route la saisie (comme GNOME : key-capture-widget = la fenêtre).
+        // Type-to-search: any key press in the window opens the bar and routes
+        // the input there (GNOME uses the window as key-capture-widget).
         search_bar.set_key_capture_widget(Some(&root));
 
         search_btn.connect_toggled({
@@ -182,11 +181,11 @@ impl SimpleComponent for AppModel {
                 }
             }
         });
-        // NB : pas de GoHome sur search-changed — à l'ouverture (type-to-search)
-        // l'entry est transitoirement vide, ce qui refermait tout. Le retour à
-        // l'accueil se fait à la fermeture de la barre (search-mode-enabled=false).
+        // No GoHome on search-changed: when type-to-search opens the bar the
+        // entry is briefly empty, which used to close everything. Going home
+        // happens when the bar closes (search-mode-enabled=false).
 
-        // ── Pile accueil / résultats (onglet Explorer) ────────────────────────
+        // ── Home / results stack (Explore tab) ────────────────────────────────
         let stack = gtk::Stack::builder()
             .transition_type(gtk::StackTransitionType::Crossfade)
             .transition_duration(150)
@@ -195,28 +194,28 @@ impl SimpleComponent for AppModel {
         stack.add_named(results.widget(), Some("results"));
         stack.set_visible_child_name("home");
 
-        // ── Onglets ───────────────────────────────────────────────────────────
-        let explorer_page = view_stack.add_titled(&stack, Some("explorer"), &t("Explorer"));
+        // ── Tabs ──────────────────────────────────────────────────────────────
+        let explorer_page = view_stack.add_titled(&stack, Some("explorer"), &t("Explore"));
         explorer_page.set_icon_name(Some("software-explore-symbolic"));
 
         let installed_page =
-            view_stack.add_titled(installed.widget(), Some("installed"), &t("Installées"));
+            view_stack.add_titled(installed.widget(), Some("installed"), &t("Installed"));
         installed_page.set_icon_name(Some("software-installed-symbolic"));
 
         let updates_page =
-            view_stack.add_titled(updates.widget(), Some("updates"), &t("Mises à jour"));
+            view_stack.add_titled(updates.widget(), Some("updates"), &t("Updates"));
         updates_page.set_icon_name(Some("software-updates-symbolic"));
 
         #[cfg(feature = "dev-gallery")]
         {
-            // Icône dev quelconque du thème système ; si absente, l'onglet
-            // s'affiche sans icône (sans conséquence, c'est du dev).
+            // Any developer icon from the system theme; when missing the tab
+            // simply has no icon (dev only).
             let gallery_page =
-                view_stack.add_titled(gallery.widget(), Some("gallery"), "Galerie");
+                view_stack.add_titled(gallery.widget(), Some("gallery"), "Gallery");
             gallery_page.set_icon_name(Some("applications-engineering-symbolic"));
         }
 
-        // Recharge les onglets Installées / Mises à jour quand on y entre.
+        // Reload the Installed / Updates tabs when entering them.
         view_stack.connect_visible_child_notify({
             let si = installed.sender().clone();
             let su = updates.sender().clone();
@@ -231,7 +230,7 @@ impl SimpleComponent for AppModel {
             }
         });
 
-        // ── ToolbarView + NavigationView ──────────────────────────────────────
+        // ── Toolbar view + navigation view ────────────────────────────────────
         let toolbar_view = adw::ToolbarView::new();
         toolbar_view.add_top_bar(&header);
         toolbar_view.add_top_bar(&search_bar);
@@ -245,8 +244,8 @@ impl SimpleComponent for AppModel {
             .build();
         nav.add(&root_page);
 
-        // Sans ça, les contrôleurs des pages dépilées (flèche retour) restaient
-        // vivants jusqu'au prochain GoHome — textures de screenshots comprises.
+        // Without this, controllers of popped pages (back arrow) stayed alive
+        // until the next GoHome, screenshot textures included.
         nav.connect_popped({
             let sender = sender.clone();
             move |_, _| sender.input(AppMsg::PagePopped)
@@ -321,8 +320,8 @@ impl SimpleComponent for AppModel {
                 self.categories.push(controller);
             }
             AppMsg::OpenDetail(pkg) => {
-                // forward (≠ detach) : la page détail peut demander l'ouverture
-                // d'une autre app (tuiles « Autres applications par X »).
+                // forward (not detach): a details page may open another app
+                // ("Other apps by X" tiles).
                 let controller = DetailModel::builder()
                     .launch(pkg)
                     .forward(sender.input_sender(), AppMsg::OpenDetail);
@@ -330,8 +329,8 @@ impl SimpleComponent for AppModel {
                 self.details.push(controller);
             }
             AppMsg::PagePopped => {
-                // Une page dépilée est retirée de la NavigationView (plus de
-                // parent) : c'est le critère pour libérer son contrôleur.
+                // A popped page is removed from the NavigationView (no parent
+                // anymore): that is the signal to release its controller.
                 self.details.retain(|c| c.widget().parent().is_some());
                 self.categories.retain(|c| c.widget().parent().is_some());
             }

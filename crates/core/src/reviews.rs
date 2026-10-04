@@ -1,10 +1,10 @@
-//! Avis ODRS (odrs.gnome.org) — le texte des avis, là où `ratings` ne récupère
-//! que les notes agrégées. Même endpoint que GNOME Software
-//! (`lib/gs-odrs-provider.c:889-915`) : `POST /1.0/reviews/api/fetch` avec un
-//! corps `{user_hash, app_id, locale, distro, version, limit}`.
+//! ODRS reviews (odrs.gnome.org): the review texts, where `ratings` only
+//! fetches aggregated ratings. Same endpoint as GNOME Software
+//! (`lib/gs-odrs-provider.c:889-915`): `POST /1.0/reviews/api/fetch` with a
+//! `{user_hash, app_id, locale, distro, version, limit}` body.
 //!
-//! Purement cosmétique : en cas d'échec réseau on rend une liste vide et la
-//! section « Évaluations » reste masquée.
+//! Purely cosmetic: on network failure an empty list is returned and the
+//! "Ratings & Reviews" section stays hidden.
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
@@ -12,11 +12,11 @@ use std::sync::{LazyLock, Mutex};
 const ENDPOINT: &str = "https://odrs.gnome.org/1.0/reviews/api/fetch";
 const LIMIT: u32 = 10;
 
-/// GNOME dérive un SHA-1 salé de l'utilisateur pour pouvoir rattacher ses propres
-/// avis. Onyx ne fait que lire : un hash constant suffit, et n'identifie personne.
+/// GNOME derives a salted SHA-1 of the user to link their own reviews. Onyx
+/// only reads: a constant hash is enough and identifies nobody.
 const USER_HASH: &str = "0000000000000000000000000000000000000000";
 
-/// Un avis ODRS. `stars` est déjà converti depuis le `rating` 0–100 de l'API.
+/// An ODRS review. `stars` is already converted from the API's 0–100 `rating`.
 #[derive(Debug, Clone)]
 pub struct Review {
     pub summary: String,
@@ -24,14 +24,14 @@ pub struct Review {
     pub author: Option<String>,
     pub stars: f32,
     pub timestamp: i64,
-    /// Pertinence calculée par ODRS (karma, ancienneté…) — sert à élire l'avis vedette.
+    /// Relevance computed by ODRS (karma, age…), used to pick the featured review.
     pub score: i64,
 }
 
 static CACHE: LazyLock<Mutex<HashMap<String, Vec<Review>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Avis d'une app, mis en cache pour la session (comme les métadonnées).
+/// An app's reviews, cached for the session (like metadata).
 pub fn reviews_for(app_id: &str) -> Vec<Review> {
     if app_id.is_empty() {
         return Vec::new();
@@ -46,8 +46,8 @@ pub fn reviews_for(app_id: &str) -> Vec<Review> {
     fetched
 }
 
-/// L'avis vedette = le mieux classé par ODRS, comme `get_featured_review`
-/// (gs-details-page.c). Fonction pure, testée.
+/// The featured review = the best ranked by ODRS, like `get_featured_review`
+/// (gs-details-page.c). Pure function, tested.
 pub fn featured_review(reviews: &[Review]) -> Option<&Review> {
     reviews.iter().max_by_key(|r| r.score)
 }
@@ -64,7 +64,7 @@ fn fetch_reviews(app_id: &str) -> Option<Vec<Review>> {
     crate::http::post_json(ENDPOINT, &body).map(|v| parse_reviews(&v))
 }
 
-/// Locale au format ODRS (`fr_FR`), depuis l'environnement. `C` par défaut.
+/// Locale in ODRS format (`fr_FR`), from the environment. `C` by default.
 fn locale() -> String {
     std::env::var("LC_MESSAGES")
         .or_else(|_| std::env::var("LANG"))
@@ -74,8 +74,8 @@ fn locale() -> String {
         .unwrap_or_else(|| "C".to_string())
 }
 
-/// Parse la réponse ODRS (une erreur `{…}` au lieu d'une liste → vide).
-/// Séparé de l'appel réseau pour être testable.
+/// Parses the ODRS response (an error `{…}` instead of a list gives empty).
+/// Kept apart from the network call to be testable.
 fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
     let Some(items) = v.as_array() else {
         return Vec::new();
@@ -95,7 +95,7 @@ fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
                 summary: str_of("summary"),
                 description,
                 author,
-                // ODRS note sur 100 (20/40/60/80/100) ; AppStream aussi. → /20.
+                // ODRS rates out of 100 (20/40/60/80/100), like AppStream: /20.
                 stars: int_of("rating") as f32 / 20.0,
                 timestamp: int_of("date_created"),
                 score: int_of("score"),
@@ -109,10 +109,10 @@ mod tests {
     use super::*;
 
     const FIXTURE: &str = r#"[
-        {"app_id":"org.gnome.gedit","summary":"Correct","description":"Fait le travail.",
+        {"app_id":"org.gnome.gedit","summary":"Decent","description":"Does the job.",
          "user_display":"Alice","rating":60,"date_created":1600000000,"score":3,
          "karma_up":1,"karma_down":0},
-        {"app_id":"org.gnome.gedit","summary":"Excellent","description":"Rien à redire.",
+        {"app_id":"org.gnome.gedit","summary":"Excellent","description":"Nothing to add.",
          "user_display":"Bob","rating":100,"date_created":1700000000,"score":12,
          "karma_up":9,"karma_down":0},
         {"app_id":"org.gnome.gedit","summary":"Vide","description":"   ",
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn parse_converts_rating_to_stars() {
         let r = parse(FIXTURE);
-        assert_eq!(r.len(), 2, "l'avis sans description est écarté");
+        assert_eq!(r.len(), 2, "the review without description is dropped");
         assert_eq!(r[0].stars, 3.0);
         assert_eq!(r[1].stars, 5.0);
         assert_eq!(r[1].author.as_deref(), Some("Bob"));
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn featured_is_highest_score() {
         let r = parse(FIXTURE);
-        // Carol a le meilleur score (40) mais pas de description → écartée au parse.
+        // Carol has the best score (40) but no description, dropped at parse time.
         assert_eq!(featured_review(&r).unwrap().summary, "Excellent");
     }
 

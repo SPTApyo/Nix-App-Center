@@ -1,8 +1,8 @@
-//! Galerie de développement (feature `dev-gallery`) — onglet listant des
-//! scénarios réels étiquetés qui ouvrent les vraies vues recherche/détail, plus
-//! l'accueil réel intégré. Harnais visuel : voir chaque type d'app côte à côte
-//! (cliquable ou non, avec/sans icône, sections conditionnelles) pour éviter les
-//! erreurs d'inattention. Jamais compilé en release.
+//! Development gallery (`dev-gallery` feature): a tab listing labeled real
+//! scenarios that open the real search/details views, plus the real home
+//! embedded. A visual harness to see each kind of app side by side
+//! (clickable or not, with or without icon, conditional sections) and catch
+//! careless mistakes. Never compiled in release.
 
 use adw::prelude::*;
 use relm4::prelude::*;
@@ -10,57 +10,57 @@ use onyx_core::Package;
 
 use crate::views::home::{HomeModel, HomeOutput};
 
-/// (label, requête réelle, comportement attendu à vérifier).
+/// (label, real query, expected behavior to check).
 const SEARCH_SCENARIOS: &[(&str, &str, &str)] = &[
-    ("App avec icône + note", "firefox",
-     "Section « Applications », icône, étoiles, cliquable"),
-    ("Mix reconnu / non-reconnu", "editor",
-     "« Applications » (avec icônes) ET « Autres paquets »"),
-    ("Filtre jeu de paquets", "aeson",
-     "Menu déroulant « haskellPackages » apparaît"),
-    ("Fournit une commande", "rg",
-     "Section « Fournit la commande rg » (nix-locate)"),
-    ("Zéro résultat", "zzqxnonexistent",
-     "Page « Aucun résultat »"),
+    ("App with icon + rating", "firefox",
+     "“Applications” section, icon, stars, clickable"),
+    ("Recognized / unrecognized mix", "editor",
+     "“Applications” (with icons) AND “Other Packages”"),
+    ("Package set filter", "aeson",
+     "A “haskellPackages” dropdown shows up"),
+    ("Provides a command", "rg",
+     "“Provides the rg command” section (nix-locate)"),
+    ("No results", "zzqxnonexistent",
+     "“No Results” page"),
 ];
 
-/// (label, attr réel, comportement attendu à vérifier).
+/// (label, real attr, expected behavior to check).
 const DETAIL_SCENARIOS: &[(&str, &str, &str)] = &[
-    ("Fiche complète", "steam",
-     "Screenshots ; Extensions = grille NON cliquable ; Autres applications = grille CLIQUABLE ; tuile Âge ; licence propriétaire"),
-    ("Libre + avis", "firefox",
-     "Tuile « Logiciel libre » ; histogramme d'avis ; historique des versions"),
-    ("Nix pur runnable", "ripgrep",
-     "Peu de métadonnées ; bouton Lancer ; pas de screenshots"),
-    ("Keep-only / sans méta", "zlib",
-     "Pas de mainProgram ; carte « Aucune métadonnée »"),
-    // python27 est vérifié meta.insecure=true ; même rendu (tuile rouge +
-    // bandeau problèmes) que broken. À rafraîchir s'il cesse d'être insecure.
-    ("Vulnérable (insecure)", "python27",
-     "Tuile rouge « Vulnérable » + bandeau problèmes"),
+    ("Full listing", "steam",
+     "Screenshots; Add-ons = NON clickable grid; Other apps = CLICKABLE grid; age tile; proprietary license"),
+    ("Free software + reviews", "firefox",
+     "“Free Software” tile; review histogram; version history"),
+    ("Plain runnable Nix", "ripgrep",
+     "Little metadata; Run button; no screenshots"),
+    ("Keep-only / no metadata", "zlib",
+     "No mainProgram; “No metadata” card"),
+    // python27 is checked meta.insecure=true; same rendering (red tile +
+    // problems banner) as broken. Refresh if it stops being insecure.
+    ("Vulnerable (insecure)", "python27",
+     "Red “Vulnerable” tile + problems banner"),
 ];
 
 pub struct GalleryModel {
-    // Gardé vivant : l'accueil réel est intégré dans la galerie.
+    // Kept alive: the real home is embedded in the gallery.
     #[allow(dead_code)]
     home: Controller<HomeModel>,
 }
 
 #[derive(Debug)]
 pub enum GalleryMsg {
-    /// Clic de tuile dans l'accueil intégré → re-émis vers le parent.
+    /// Tile click in the embedded home, re-emitted to the parent.
     HomeOpen(Package),
-    /// Clic de carte-catégorie dans l'accueil intégré → re-émis vers le parent.
+    /// Category card click in the embedded home, re-emitted to the parent.
     HomeCategory(&'static [&'static str], &'static str),
 }
 
 #[derive(Debug)]
 pub enum GalleryOutput {
-    /// Lance une recherche réelle pré-remplie (→ AppMsg::Search).
+    /// Runs a real prefilled search (AppMsg::Search).
     Search(String),
-    /// Ouvre la vraie fiche détail d'un attr (→ AppMsg::OpenDetail).
+    /// Opens the real details page of an attr (AppMsg::OpenDetail).
     OpenDetail(Package),
-    /// Ouvre une page catégorie (→ AppMsg::OpenCategory), depuis l'accueil intégré.
+    /// Opens a category page (AppMsg::OpenCategory) from the embedded home.
     Category(&'static [&'static str], &'static str),
 }
 
@@ -79,7 +79,7 @@ impl SimpleComponent for GalleryModel {
     }
 
     fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        // L'accueil réel, intégré : ses sorties sont re-routées vers le parent.
+        // The real home, embedded: its outputs are routed to the parent.
         let home = HomeModel::builder()
             .launch(())
             .forward(sender.input_sender(), |o| match o {
@@ -116,16 +116,16 @@ impl SimpleComponent for GalleryModel {
     }
 }
 
-/// Construit l'index : trois sections (Recherche / Détail / Accueil).
-/// `home_widget` = la racine de `HomeModel`, un `gtk::ScrolledWindow`.
+/// Builds the index: three sections (Search / Details / Home).
+/// `home_widget` is the root of `HomeModel`, a `gtk::ScrolledWindow`.
 fn build_index(
     sender: &ComponentSender<GalleryModel>,
     home_widget: &gtk::ScrolledWindow,
 ) -> gtk::Box {
     let content = gtk::Box::new(gtk::Orientation::Vertical, 24);
 
-    // ── Recherche ─────────────────────────────────────────────────────────
-    content.append(&heading("Recherche"));
+    // ── Search ────────────────────────────────────────────────────────────
+    content.append(&heading("Search"));
     let search_list = boxed_list();
     for (label, query, expected) in SEARCH_SCENARIOS {
         let row = scenario_row(label, expected);
@@ -138,8 +138,8 @@ fn build_index(
     }
     content.append(&search_list);
 
-    // ── Détail ────────────────────────────────────────────────────────────
-    content.append(&heading("Détail"));
+    // ── Details ───────────────────────────────────────────────────────────
+    content.append(&heading("Details"));
     let detail_list = boxed_list();
     for (label, attr, expected) in DETAIL_SCENARIOS {
         let row = scenario_row(label, expected);
@@ -152,18 +152,18 @@ fn build_index(
     }
     content.append(&detail_list);
 
-    // ── Accueil (intégré) ─────────────────────────────────────────────────
-    content.append(&heading("Accueil"));
+    // ── Home (embedded) ───────────────────────────────────────────────────
+    content.append(&heading("Home"));
     let note = gtk::Label::new(Some(
-        "États d'icône à vérifier : chargement (shimmer) → repli coloré → icône réelle.",
+        "Icon states to check: loading (shimmer), colored fallback, real icon.",
     ));
     note.set_xalign(0.0);
     note.set_wrap(true);
     note.add_css_class("dim-label");
     content.append(&note);
-    // L'accueil est lui-même un ScrolledWindow (vexpand) : borné en hauteur et
-    // vexpand désactivé, il devient un panneau à hauteur fixe dans le scroll de
-    // la galerie (sinon deux scrollers imbriqués se disputent la hauteur).
+    // The home is itself a ScrolledWindow (vexpand): bounded in height and
+    // without vexpand it becomes a fixed height panel in the gallery scroll
+    // (otherwise two nested scrollers fight over the height).
     home_widget.set_vexpand(false);
     home_widget.set_height_request(700);
     content.append(home_widget);
@@ -186,14 +186,14 @@ fn boxed_list() -> gtk::ListBox {
     lb
 }
 
-/// Une ligne de scénario : titre + sous-titre = comportement attendu.
+/// A scenario row: title + subtitle = expected behavior.
 fn scenario_row(label: &str, expected: &str) -> adw::ActionRow {
     let row = adw::ActionRow::builder()
         .title(label)
         .subtitle(expected)
         .activatable(true)
         .build();
-    row.set_subtitle_lines(0); // pas de troncature du comportement attendu
+    row.set_subtitle_lines(0); // do not truncate the expected behavior
     row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
     row
 }

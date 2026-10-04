@@ -1,21 +1,21 @@
-//! Lancer un paquet sans l'installer (*try-first*, l'action vedette d'Onyx) :
-//! `nix run` pour une app, `nix shell` (dans un terminal) pour un outil CLI.
+//! Running a package without installing it (*try-first*, Onyx's headline
+//! action): `nix run` for an app, `nix shell` (in a terminal) for a CLI tool.
 
 use crate::package::Package;
 use crate::tried::record_tried;
 use std::process::Command;
 
-/// Les features expérimentales à activer sur chaque appel `nix` moderne.
+/// Experimental features to enable on every modern `nix` call.
 const NIX_FEATURES: [&str; 2] = ["--extra-experimental-features", "nix-command flakes"];
 
-/// La commande `nix run` correspondante (pour affichage / copie).
+/// The matching `nix run` command (for display / copy).
 pub fn run_command(pkg: &Package) -> String {
     format!("nix run nixpkgs#{}", pkg.attr)
 }
 
-/// Lance `nix run nixpkgs#<attr>` en sous-processus détaché : ne bloque pas sur
-/// la sortie de l'application. Le premier lancement peut télécharger (lent).
-/// Journalise le paquet dans l'historique « essayés » (try-first) au passage.
+/// Spawns `nix run nixpkgs#<attr>` as a detached subprocess: does not block on
+/// the application output. The first run may download (slow).
+/// Records the package in the "tried" history (try-first) along the way.
 pub fn run(pkg: &Package) -> std::io::Result<()> {
     let child = Command::new("nix")
         .arg("run")
@@ -24,7 +24,7 @@ pub fn run(pkg: &Package) -> std::io::Result<()> {
         .spawn();
 
     if child.is_ok() {
-        // Le journal ne doit jamais faire échouer le lancement.
+        // The log must never make the launch fail.
         let _ = record_tried(pkg);
     }
     child.map(|_| ())
@@ -32,31 +32,31 @@ pub fn run(pkg: &Package) -> std::io::Result<()> {
 
 // ── nix shell ─────────────────────────────────────────────────────────────────
 
-/// La commande `nix shell` correspondante (pour affichage / copie).
+/// The matching `nix shell` command (for display / copy).
 pub fn shell_command(pkg: &Package) -> String {
     format!("nix shell nixpkgs#{}", pkg.attr)
 }
 
-/// Ce qu'il est advenu d'une demande de shell.
+/// What happened to a shell request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShellOutcome {
-    /// Un terminal a été lancé avec le paquet dans le `PATH`.
+    /// A terminal was spawned with the package in `PATH`.
     Spawned,
-    /// Aucun émulateur trouvé : rien n'a été exécuté. À la façade de copier
-    /// [`shell_command`] dans le presse-papier et de le dire à l'utilisateur.
+    /// No emulator found: nothing ran. The front end copies
+    /// [`shell_command`] to the clipboard and tells the user.
     NoTerminal,
 }
 
-/// Un émulateur de terminal et sa syntaxe pour « exécute cette commande ».
+/// A terminal emulator and its syntax for "run this command".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Terminal {
     pub bin: &'static str,
-    /// Séparateur avant la commande (`--`, `-e`…). `None` = commande passée directement.
+    /// Separator before the command (`--`, `-e`…). `None` = command passed directly.
     pub exec_arg: Option<&'static str>,
 }
 
-/// Par ordre de préférence. `xdg-terminal-exec` est la voie spécifiée (freedesktop) ;
-/// le reste est un repli sur les émulateurs courants.
+/// By preference. `xdg-terminal-exec` is the specified (freedesktop) way; the
+/// rest is a fallback on common emulators.
 const TERMINALS: [Terminal; 7] = [
     Terminal { bin: "xdg-terminal-exec", exec_arg: None },
     Terminal { bin: "ptyxis", exec_arg: Some("--") },
@@ -67,20 +67,20 @@ const TERMINALS: [Terminal; 7] = [
     Terminal { bin: "xterm", exec_arg: Some("-e") },
 ];
 
-/// Premier terminal disponible selon `exists`. Pur : `exists` est injecté pour que le
-/// test ne dépende pas des binaires réellement installés sur la machine.
+/// First terminal available according to `exists`. Pure: `exists` is injected
+/// so the test does not depend on binaries installed on the machine.
 pub(crate) fn pick_terminal(exists: impl Fn(&str) -> bool) -> Option<Terminal> {
     TERMINALS.into_iter().find(|t| exists(t.bin))
 }
 
-/// Vrai si `bin` est un fichier présent dans le `PATH`.
+/// True when `bin` is a file present in `PATH`.
 pub(crate) fn in_path(bin: &str) -> bool {
     std::env::var_os("PATH")
         .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
         .unwrap_or(false)
 }
 
-/// Construit l'argv complet : terminal + séparateur + commande.
+/// Builds the full argv: terminal + separator + command.
 fn terminal_argv(term: Terminal, command: &[String]) -> Vec<String> {
     let mut argv = vec![term.bin.to_string()];
     argv.extend(term.exec_arg.map(str::to_string));
@@ -88,11 +88,11 @@ fn terminal_argv(term: Terminal, command: &[String]) -> Vec<String> {
     argv
 }
 
-/// Lance `command` dans un émulateur de terminal, s'il en existe un.
+/// Runs `command` in a terminal emulator, if one exists.
 ///
-/// Sert à deux choses : `nix shell` (ici) et, plus tard, le `nixos-rebuild switch` du
-/// moteur de config — un build long qui doit rester visible et interruptible plutôt que
-/// caché derrière un `pkexec` opaque.
+/// Used for two things: `nix shell` (here) and the config engine's
+/// `nixos-rebuild switch`, a long build that must stay visible and
+/// interruptible rather than hidden behind an opaque `pkexec`.
 pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutcome> {
     let Some(term) = pick_terminal(in_path) else {
         return Ok(ShellOutcome::NoTerminal);
@@ -100,8 +100,8 @@ pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutc
     let argv = terminal_argv(term, command);
     Command::new(&argv[0])
         .args(&argv[1..])
-        // Le terminal a son propre tty : lui laisser hériter de nos pipes les maintient
-        // ouverts tant qu'il vit, et fait croire à l'appelant qu'il n'a pas fini.
+        // The terminal has its own tty: inheriting our pipes keeps them open
+        // while it lives and makes the caller think it has not finished.
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -109,11 +109,12 @@ pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutc
     Ok(ShellOutcome::Spawned)
 }
 
-/// Ouvre un terminal avec le paquet dans le `PATH` (`nix shell nixpkgs#<attr>`).
+/// Opens a terminal with the package in `PATH` (`nix shell nixpkgs#<attr>`).
 ///
-/// `nix run` lance le *main program* et rend la main : sans argument, c'est inutile pour
-/// un outil CLI, qui veut un shell où le binaire est disponible. C'est ce trou que
-/// comble `shell` — le geste *try-first* pour tout ce qui n'est pas une app graphique.
+/// `nix run` launches the *main program* and returns: without arguments that
+/// is useless for a CLI tool, which wants a shell where the binary is
+/// available. `shell` fills that gap, the *try-first* gesture for anything
+/// that is not a graphical app.
 pub fn shell(pkg: &Package) -> std::io::Result<ShellOutcome> {
     let command: Vec<String> = ["nix", "shell", &format!("nixpkgs#{}", pkg.attr)]
         .iter()
@@ -144,7 +145,7 @@ mod tests {
 
     #[test]
     fn pick_terminal_honours_preference_order() {
-        // xterm ET ptyxis présents → ptyxis gagne (plus haut dans la liste).
+        // xterm AND ptyxis present: ptyxis wins (higher in the list).
         let picked = pick_terminal(|b| b == "xterm" || b == "ptyxis").unwrap();
         assert_eq!(picked.bin, "ptyxis");
         assert_eq!(picked.exec_arg, Some("--"));

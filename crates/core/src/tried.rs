@@ -1,8 +1,7 @@
-//! Historique « essayés » (try-first). Nix ne tient AUCUN registre des
-//! `nix run` passés (le store contient des milliers de chemins, sans lien
-//! avec « ce que l'utilisateur a essayé »). C'est donc Onyx qui journalise
-//! chaque lancement → matérialise l'entonnoir try → keep. Le journal liste
-//! les paquets du plus récent au plus ancien (dédup par `attr`).
+//! "Tried" history (try-first). Nix keeps NO record of past `nix run`s (the
+//! store holds thousands of paths, unrelated to "what the user tried"). So
+//! Onyx logs every launch, which materializes the try → keep funnel. The log
+//! lists packages from most to least recent (deduplicated by `attr`).
 
 use crate::package::Package;
 use crate::paths::data_dir;
@@ -13,7 +12,7 @@ use std::process::Command;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriedEntry {
     pub package: Package,
-    /// Dernier lancement (secondes Unix), pour l'ordre et l'affichage.
+    /// Last launch (Unix seconds), for ordering and display.
     pub last_tried: u64,
 }
 
@@ -33,7 +32,7 @@ fn now_unix() -> u64 {
         .unwrap_or(0)
 }
 
-/// Charge l'historique ; vide si absent ou illisible.
+/// Loads the history; empty when missing or unreadable.
 pub fn load_tried() -> TriedLog {
     match std::fs::read(tried_path()) {
         Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
@@ -46,7 +45,7 @@ fn save_tried(log: &TriedLog) -> std::io::Result<()> {
     crate::paths::write_atomic(&tried_path(), &json)
 }
 
-/// Enregistre (ou remonte en tête) un paquet dans l'historique des essais.
+/// Records (or moves to the top) a package in the tried history.
 pub fn record_tried(pkg: &Package) -> std::io::Result<()> {
     let mut log = load_tried();
     log.tried.retain(|e| e.package.attr != pkg.attr);
@@ -60,10 +59,10 @@ pub fn record_tried(pkg: &Package) -> std::io::Result<()> {
     save_tried(&log)
 }
 
-/// Lance le ramasse-miettes Nix (`nix-collect-garbage`) : supprime du store tous
-/// les chemins non référencés (donc les apps seulement « essayées »). C'est une
-/// opération SYSTÈME (pas limitée à Onyx). Retourne la dernière ligne de sortie
-/// (typiquement « … freed »).
+/// Runs the Nix garbage collector (`nix-collect-garbage`): removes every
+/// unreferenced path from the store (so apps that were only "tried"). This is
+/// a SYSTEM operation (not limited to Onyx). Returns the last output line
+/// (typically "… freed").
 pub fn garbage_collect() -> std::io::Result<String> {
     let out = Command::new("nix-collect-garbage").output()?;
     let text = if out.stderr.is_empty() {

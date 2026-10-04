@@ -1,28 +1,28 @@
-//! Context bar — calque de `gs-app-context-bar.ui`.
+//! Context bar, a copy of `gs-app-context-bar.ui`.
 //!
-//! `GtkBox homogeneous .card .app-context-bar .horizontal` contenant DEUX
-//! `GtkBox homogeneous` de deux `GtkButton .context-tile .flat` chacune :
+//! `GtkBox homogeneous .card .app-context-bar .horizontal` holding TWO
+//! `GtkBox homogeneous`, each with two `GtkButton .context-tile .flat`:
 //!
 //! ```text
 //! ┌───────────────┬───────────────┬───────────────┬───────────────┐
-//! │   Stockage    │   Sécurité    │   Matériel    │     Âge       │
+//! │   Storage     │   Safety      │   Hardware    │     Age       │
 //! └───────────────┴───────────────┴───────────────┴───────────────┘
 //!  └── box 1 (homogeneous) ──┘ └── box 2 (homogeneous) ──┘
 //! ```
 //!
-//! Le cadre arrondi vient de `.card` ; les tuiles n'ont qu'une bordure gauche,
-//! qui joue le rôle de séparateur interne.
+//! The rounded frame comes from `.card`; tiles only have a left border, which
+//! acts as the inner separator.
 //!
-//! Le contenu des quatre tuiles est spécifique à Nix (taille de fermeture,
-//! `broken`/`insecure`, mainteneurs) — c'est la divergence assumée de la spec :
-//! on copie le contenant, pas la source de données.
+//! The content of the four tiles is Nix specific (closure size,
+//! `broken`/`insecure`, maintainers): a deliberate divergence, the container is
+//! copied, not the data source.
 
 use gtk::prelude::*;
 
 use super::lozenge::{lozenge, Content};
 
-/// Corps d'une tuile : `GtkBox vertical spacing 8` → lozenge, titre `.heading`,
-/// description `.caption` sur 3 lignes maximum.
+/// Tile body: vertical `GtkBox` spacing 8 holding a lozenge, a `.heading`
+/// title and a `.caption` description of 3 lines at most.
 pub fn tile(content: Content, color: &str, title: &str, description: &str) -> gtk::Button {
     let v = gtk::Box::new(gtk::Orientation::Vertical, 8);
     v.append(&lozenge(content, color));
@@ -49,7 +49,7 @@ pub fn tile(content: Content, color: &str, title: &str, description: &str) -> gt
     btn
 }
 
-/// Le conteneur vide, à créer une fois puis remplir via [`fill`].
+/// The empty container, created once then filled through [`fill`].
 pub fn container() -> gtk::Box {
     let b = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     b.set_homogeneous(true);
@@ -59,8 +59,8 @@ pub fn container() -> gtk::Box {
     b
 }
 
-/// Remplace les quatre tuiles. L'ordre est celui du `.ui` : stockage, sécurité,
-/// matériel, âge — regroupées deux par deux.
+/// Replaces the four tiles. Order follows the `.ui`: storage, safety,
+/// hardware, age, grouped two by two.
 pub fn fill(container: &gtk::Box, tiles: [gtk::Button; 4]) {
     while let Some(c) = container.first_child() {
         container.remove(&c);

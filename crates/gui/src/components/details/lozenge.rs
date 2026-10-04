@@ -1,32 +1,32 @@
-//! Pastille de tuile — calque de `gs-lozenge.ui` / `gs-lozenge.c`.
+//! Tile badge, a copy of `gs-lozenge.ui` / `gs-lozenge.c`.
 //!
-//! `GtkBox .context-tile-lozenge` (halign/valign center, hexpand false) portant
-//! SOIT une `GtkImage` 16px, SOIT un `GtkLabel` — jamais les deux.
+//! `GtkBox .context-tile-lozenge` (halign/valign center, hexpand false) holding
+//! EITHER a 16 px `GtkImage` OR a `GtkLabel`, never both.
 //!
-//! GNOME implémente `circular` avec un `GtkLayoutManager` maison qui force
-//! largeur == hauteur (`gs_lozenge_layout_measure`). Sans sous-classe GTK côté
-//! Rust, on obtient le même résultat en imposant un `size_request` carré : le
-//! CSS donne déjà 40×40 pour une icône (`min-width 18 + padding 11×2`), donc
-//! seuls les lozenges à texte ont réellement besoin de la contrainte.
+//! GNOME implements `circular` with a custom `GtkLayoutManager` forcing
+//! width == height (`gs_lozenge_layout_measure`). Without a GTK subclass in
+//! Rust, a square `size_request` gives the same result: the CSS already makes
+//! an icon 40×40 (`min-width 18 + padding 11×2`), so only text lozenges really
+//! need the constraint.
 
 use gtk::prelude::*;
 
-/// Côté d'un lozenge circulaire, dérivé du CSS (`.context-tile-lozenge`).
+/// Side of a circular lozenge, derived from the CSS (`.context-tile-lozenge`).
 const CIRCULAR_SIZE: i32 = 40;
 
-/// Contenu d'un lozenge : une icône symbolique OU un texte court (« 35,5 Mo », « 12 »).
+/// Lozenge content: a symbolic icon OR a short text ("35.5 MB", "12").
 pub enum Content<'a> {
     Icon(&'a str),
     Text(&'a str),
 }
 
-/// Lozenge de context bar. `color` est une classe de teinte du CSS
-/// (`grey`/`green`/`blue`/`yellow`/`orange`/`red`, ou `details-rating-N`).
+/// Context bar lozenge. `color` is a CSS tint class
+/// (`grey`/`green`/`blue`/`yellow`/`orange`/`red`, or `details-rating-N`).
 pub fn lozenge(content: Content, color: &str) -> gtk::Box {
     build(content, color, false)
 }
 
-/// Lozenge circulaire (tuile licence : trois pastilles rondes).
+/// Circular lozenge (license tile: three round badges).
 pub fn circular(content: Content, color: &str) -> gtk::Box {
     build(content, color, true)
 }

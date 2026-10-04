@@ -1,52 +1,54 @@
-//! Helpers partagés par les vues et composants (icônes, textures, init de ligne).
+//! Helpers shared by views and components (icons, textures, row setup).
 
+use crate::i18n::t;
+use gettextrs::ngettext;
 use onyx_core::Package;
 
-/// Affiche un toast simple sur un `AdwToastOverlay`.
+/// Shows a simple toast on an `AdwToastOverlay`.
 pub fn toast(overlay: &adw::ToastOverlay, text: &str) {
     overlay.add_toast(adw::Toast::new(text));
 }
 
-/// Met `text` dans le presse-papier. Le core n'y touche jamais (il ignore GTK) : c'est
-/// à la façade de décider quoi faire quand une action ne peut pas aboutir seule.
+/// Puts `text` on the clipboard. The core never touches it (it knows nothing of
+/// GTK): the front end decides what to do when an action cannot complete alone.
 pub fn copy_to_clipboard(text: &str) {
     if let Some(display) = gtk::gdk::Display::default() {
         display.clipboard().set_text(text);
     }
 }
 
-/// Traduit le résultat d'une application de config en message affichable, et effectue
-/// l'effet de bord qui incombe à la façade (copier la commande quand Onyx n'a pas pu
-/// l'exécuter lui-même). Partagé par la page détail et la vue des mises à jour.
+/// Turns a config apply result into a displayable message, and performs the side
+/// effect owned by the front end (copying the command when Onyx could not run it
+/// itself). Shared by the details page and the updates view.
 pub fn describe_apply(res: Result<onyx_core::ApplyOutcome, String>) -> String {
     use onyx_core::ApplyOutcome::*;
     match res {
-        Ok(Done(line)) if line.is_empty() => "Config appliquée.".to_string(),
-        Ok(Done(line)) => format!("Config appliquée : {line}"),
-        Ok(Launched) => "Application lancée dans un terminal — suis le build là-bas.".to_string(),
+        Ok(Done(line)) if line.is_empty() => t("Configuration applied."),
+        Ok(Done(line)) => t("Configuration applied: {}").replace("{}", &line),
+        Ok(Launched) => t("Applying in a terminal. Follow the build there."),
         Ok(NoTerminal(argv)) => {
             copy_to_clipboard(&argv.join(" "));
-            "Aucun terminal trouvé — commande d'application copiée.".to_string()
+            t("No terminal found. The apply command was copied.")
         }
         Ok(UnknownLayout) => {
-            "Onyx ne trouve pas ta config Nix : rien n'a été appliqué.".to_string()
+            t("Onyx cannot find your Nix configuration. Nothing was applied.")
         }
-        Err(e) => format!("Échec : {e}"),
+        Err(e) => t("Failed: {}").replace("{}", &e),
     }
 }
 
-/// Décode des octets d'image (PNG/JPEG…) en texture GTK. À appeler sur le thread
-/// principal (création de Texture). `None` si décodage impossible.
+/// Decodes image bytes (PNG/JPEG…) into a GTK texture. Call on the main thread
+/// (texture creation). `None` when decoding fails.
 pub fn texture_from_bytes(data: &[u8]) -> Option<gtk::gdk::Texture> {
     let pixbuf =
         gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
     Some(gtk::gdk::Texture::for_pixbuf(&pixbuf))
 }
 
-/// Idem mais redimensionne à `px`×`px`. Indispensable pour les icônes des tuiles :
-/// un `gtk::Picture` réclame la taille intrinsèque de l'image (128/256px), ce qui
-/// élargirait les tuiles (et, en FlowBox homogeneous, toutes les tuiles) → on
-/// borne donc la texture à la taille voulue.
+/// Same, resized to `px`×`px`. Required for tile icons: a `gtk::Picture`
+/// requests the image intrinsic size (128/256px), which would widen the tiles
+/// (and, in a homogeneous FlowBox, every tile), so the texture is bounded to
+/// the wanted size.
 pub fn texture_from_bytes_sized(data: &[u8], px: i32) -> Option<gtk::gdk::Texture> {
     let pixbuf =
         gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
@@ -60,31 +62,31 @@ use adw::prelude::*;
 use std::cell::Cell;
 use std::rc::Rc;
 
-// ── Scroll molette fluide ─────────────────────────────────────────────────────
+// ── Smooth wheel scrolling ────────────────────────────────────────────────────
 
-/// GTK4 scrolle par **crans discrets** à la molette (aucune animation), ce qui
-/// est visuellement désagréable. On intercepte les events molette et on anime
-/// l'ajustement vertical avec une `SpringAnimation` libadwaita → scroll inertiel
-/// lisse. Le pavé tactile / écran tactile (déjà fluides en natif) sont laissés
-/// au comportement par défaut.
+/// GTK4 scrolls the mouse wheel in **discrete steps** (no animation), which
+/// looks jarring. Wheel events are intercepted and the vertical adjustment is
+/// animated with a libadwaita `SpringAnimation` for smooth inertial scrolling.
+/// Touchpads and touch screens (already smooth natively) keep the default
+/// behavior.
 pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
     let vadj = scroller.vadjustment();
 
-    // Cible d'animation : pousser la valeur dans l'ajustement à chaque frame.
+    // Animation target: push the value into the adjustment every frame.
     let cb = adw::CallbackAnimationTarget::new({
         let vadj = vadj.clone();
         move |v| vadj.set_value(v)
     });
-    // damping_ratio=1.0 (critiquement amorti, zéro rebond), mass=1, stiffness=400.
+    // damping_ratio=1.0 (critically damped, no bounce), mass=1, stiffness=400.
     let params = adw::SpringParams::new(1.0, 1.0, 400.0);
     let anim = adw::SpringAnimation::new(scroller, 0.0, 0.0, params, cb);
-    anim.set_clamp(true); // jamais d'overshoot au-delà des bornes
+    anim.set_clamp(true); // never overshoot the bounds
     anim.set_epsilon(0.1);
 
     let target = Rc::new(Cell::new(0f64));
     let ctrl = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
     ctrl.connect_scroll(move |c, _dx, dy| {
-        // Laisse le pavé/écran tactile au scroll natif (déjà lisse).
+        // Touchpads and touch screens keep native scrolling.
         if let Some(ev) = c.current_event() {
             if let Some(dev) = ev.device() {
                 if dev.source() != gtk::gdk::InputSource::Mouse {
@@ -95,11 +97,11 @@ pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
 
         let page = vadj.page_size();
         let max = (vadj.upper() - page).max(vadj.lower());
-        // Si une animation tourne, on enchaîne depuis sa cible (les crans
-        // s'additionnent) ; sinon on part de la position réelle.
+        // While animating, chain from its target (steps add up);
+        // otherwise start from the real position.
         let playing = anim.state() == adw::AnimationState::Playing;
         let base = if playing { target.get() } else { vadj.value() };
-        let step = (page * 0.16).clamp(48.0, 180.0); // ~ quelques lignes par cran
+        let step = (page * 0.16).clamp(48.0, 180.0); // a few lines per step
         let to = (base + dy * step).clamp(vadj.lower(), max);
 
         target.set(to);
@@ -111,7 +113,7 @@ pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
     scroller.add_controller(ctrl);
 }
 
-// ── Skeletons (placeholders animés pendant le chargement) ─────────────────────
+// ── Skeletons (animated placeholders while loading) ───────────────────────────
 
 fn skeleton_box(w: i32, h: i32) -> gtk::Box {
     let b = gtk::Box::builder().width_request(w).height_request(h).build();
@@ -119,8 +121,8 @@ fn skeleton_box(w: i32, h: i32) -> gtk::Box {
     b
 }
 
-/// Contenu d'une ligne skeleton, calqué EXACTEMENT sur `PackageRow`
-/// (icône 64, marges/espacements identiques) → aucun saut de layout.
+/// Skeleton row content, mirroring `PackageRow` EXACTLY
+/// (64 px icon, same margins and spacing) so the layout never jumps.
 fn skeleton_row() -> gtk::Box {
     let text = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -144,8 +146,8 @@ fn skeleton_row() -> gtk::Box {
     row
 }
 
-/// Une tuile skeleton, calquée EXACTEMENT sur `AppTile`
-/// (carte, width 190, padding 17, gap 14, icône 64).
+/// A skeleton tile, mirroring `AppTile` EXACTLY
+/// (card, width 190, padding 17, gap 14, 64 px icon).
 pub fn skeleton_tile() -> gtk::Box {
     let text = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -179,7 +181,7 @@ pub fn skeleton_tile() -> gtk::Box {
     tile
 }
 
-/// Liste skeleton dans une `boxed-list` (même conteneur que les vraies listes).
+/// Skeleton list in a `boxed-list` (same container as the real lists).
 pub fn skeleton_list(n: usize) -> gtk::ListBox {
     let lb = gtk::ListBox::new();
     lb.add_css_class("boxed-list");
@@ -191,7 +193,7 @@ pub fn skeleton_list(n: usize) -> gtk::ListBox {
     lb
 }
 
-/// Grille skeleton, même config de FlowBox que les vraies grilles (3 colonnes).
+/// Skeleton grid, same FlowBox config as the real grids (3 columns).
 pub fn skeleton_grid(n: usize) -> gtk::FlowBox {
     let f = gtk::FlowBox::builder()
         .homogeneous(true)
@@ -209,19 +211,19 @@ pub fn skeleton_grid(n: usize) -> gtk::FlowBox {
     f
 }
 
-/// État d'affichage d'une icône (placeholder shimmer → icône réelle / générique).
+/// Icon display state (shimmer placeholder, then real or generic icon).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IconState {
-    /// Téléchargement en cours → on montre le shimmer animé.
+    /// Download in progress: show the animated shimmer.
     Loading,
-    /// Pas d'icône AppStream → icône générique du thème.
+    /// No AppStream icon: generic theme icon.
     Generic,
-    /// Icône réelle chargée.
+    /// Real icon loaded.
     Real,
 }
 
-/// Métriques de l'écran principal : `(largeur_physique_px, facteur_d_échelle)`.
-/// Largeur physique = largeur logique × échelle. Repli `(1920, 1)` si pas d'écran.
+/// Primary screen metrics: `(physical_width_px, scale_factor)`.
+/// Physical width = logical width × scale. Falls back to `(1920, 1)` without a screen.
 pub(crate) fn screen_metrics() -> (i32, i32) {
     if let Some(display) = gtk::gdk::Display::default() {
         if let Some(obj) = display.monitors().item(0) {
@@ -235,14 +237,14 @@ pub(crate) fn screen_metrics() -> (i32, i32) {
     (1920, 1)
 }
 
-/// Échappe le texte destiné aux widgets qui interprètent le markup Pango
-/// (`adw::ActionRow` titre/sous-titre) — sinon un `&` casse le parsing.
+/// Escapes text for widgets that parse Pango markup (`adw::ActionRow`
+/// title/subtitle), otherwise a `&` breaks parsing.
 pub fn esc(s: &str) -> String {
     gtk::glib::markup_escape_text(s).to_string()
 }
 
-/// Une rangée de 5 étoiles (calque de `GsStarWidget`) : pleines jusqu'à la
-/// moyenne arrondie, vides ensuite.
+/// A row of 5 stars (copy of `GsStarWidget`): filled up to the rounded
+/// average, empty after.
 pub fn stars_widget(stars: f32, size: i32) -> gtk::Box {
     let b = gtk::Box::new(gtk::Orientation::Horizontal, 2);
     b.add_css_class("app-stars");
@@ -256,9 +258,9 @@ pub fn stars_widget(stars: f32, size: i32) -> gtk::Box {
     b
 }
 
-/// Date relative en français (« Aujourd'hui », « Il y a 2 semaines »…), façon
-/// GNOME qui affiche l'ancienneté plutôt qu'une date sèche. `ts` = epoch en
-/// secondes ; 0 ou négatif → chaîne vide.
+/// Relative date ("Today", "2 weeks ago"…), like GNOME which shows age
+/// rather than a bare date. `ts` is epoch seconds; 0 or negative gives an
+/// empty string.
 pub fn format_relative(ts: i64) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -267,30 +269,32 @@ pub fn format_relative(ts: i64) -> String {
     format_relative_from(ts, now)
 }
 
-/// Cœur testable de [`format_relative`] : « maintenant » est un paramètre.
+/// Testable core of [`format_relative`]: "now" is a parameter.
 fn format_relative_from(ts: i64, now: i64) -> String {
     if ts <= 0 {
         return String::new();
     }
     let days = (now - ts).max(0) / 86_400;
     match days {
-        0 => "Aujourd'hui".to_string(),
-        1 => "Hier".to_string(),
-        2..=6 => format!("Il y a {days} jours"),
-        7..=13 => "Il y a une semaine".to_string(),
-        14..=29 => format!("Il y a {} semaines", days / 7),
-        30..=59 => "Il y a un mois".to_string(),
-        60..=364 => format!("Il y a {} mois", days / 30),
-        365..=729 => "Il y a un an".to_string(),
-        _ => format!("Il y a {} ans", days / 365),
+        0 => t("Today"),
+        1 => t("Yesterday"),
+        2..=6 => plural("{} day ago", "{} days ago", days),
+        7..=29 => plural("{} week ago", "{} weeks ago", days / 7),
+        30..=364 => plural("{} month ago", "{} months ago", days / 30),
+        _ => plural("{} year ago", "{} years ago", days / 365),
     }
+}
+
+/// `ngettext` with the count substituted for `{}`.
+pub fn plural(one: &str, many: &str, n: i64) -> String {
+    ngettext(one, many, n.clamp(0, u32::MAX as i64) as u32).replace("{}", &n.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::format_relative_from;
 
-    /// `now` arbitraire ; on décale `ts` de N jours en arrière.
+    /// Arbitrary `now`; `ts` is moved N days back.
     fn ago(days: i64) -> String {
         const NOW: i64 = 1_800_000_000;
         format_relative_from(NOW - days * 86_400, NOW)
@@ -298,17 +302,17 @@ mod tests {
 
     #[test]
     fn relative_dates_at_boundaries() {
-        assert_eq!(ago(0), "Aujourd'hui");
-        assert_eq!(ago(1), "Hier");
-        assert_eq!(ago(6), "Il y a 6 jours");
-        assert_eq!(ago(7), "Il y a une semaine");
-        assert_eq!(ago(13), "Il y a une semaine");
-        assert_eq!(ago(14), "Il y a 2 semaines");
-        assert_eq!(ago(29), "Il y a 4 semaines");
-        assert_eq!(ago(30), "Il y a un mois");
-        assert_eq!(ago(60), "Il y a 2 mois");
-        assert_eq!(ago(365), "Il y a un an");
-        assert_eq!(ago(730), "Il y a 2 ans");
+        assert_eq!(ago(0), "Today");
+        assert_eq!(ago(1), "Yesterday");
+        assert_eq!(ago(6), "6 days ago");
+        assert_eq!(ago(7), "1 week ago");
+        assert_eq!(ago(13), "1 week ago");
+        assert_eq!(ago(14), "2 weeks ago");
+        assert_eq!(ago(29), "4 weeks ago");
+        assert_eq!(ago(30), "1 month ago");
+        assert_eq!(ago(60), "2 months ago");
+        assert_eq!(ago(365), "1 year ago");
+        assert_eq!(ago(730), "2 years ago");
     }
 
     #[test]
@@ -319,14 +323,14 @@ mod tests {
 
     #[test]
     fn future_timestamp_is_today() {
-        // Une release datée dans le futur ne doit pas produire un nombre négatif.
-        assert_eq!(format_relative_from(1_900_000_000, 1_800_000_000), "Aujourd'hui");
+        // A release dated in the future must not give a negative count.
+        assert_eq!(format_relative_from(1_900_000_000, 1_800_000_000), "Today");
     }
 
     #[test]
     fn app_item_from_search_preserves_recognized_without_icon() {
-        // Une app reconnue par AppStream mais sans icône doit rester une
-        // « Application » (le split de la recherche lit `recognized`).
+        // An app recognized by AppStream but without icon must stay an
+        // "Application" (the search split reads `recognized`).
         let r = onyx_core::SearchResult {
             package: onyx_core::Package::from_attr("gedit"),
             icon_url: None,
@@ -339,12 +343,12 @@ mod tests {
     }
 }
 
-/// Glyphe de l'icône fallback (quand AppStream/Flathub ne fournit pas d'icône).
+/// Fallback icon glyph (when AppStream/Flathub provides no icon).
 pub const FALLBACK_GLYPH: &str = "application-x-executable-symbolic";
 
-/// Classe CSS de couleur **déterministe** (hash du nom) pour la vignette
-/// fallback : un fond coloré arrondi sur lequel on pose [`FALLBACK_GLYPH`] en
-/// blanc. Couleurs définies dans `APP_CSS` (`.fb-0`..`.fb-11`).
+/// **Deterministic** color CSS class (name hash) for the fallback thumbnail:
+/// a rounded colored background with [`FALLBACK_GLYPH`] in white on top.
+/// Colors are defined in `APP_CSS` (`.fb-0`..`.fb-11`).
 pub fn fallback_class(name: &str) -> &'static str {
     const C: [&str; 12] = [
         "fb-0", "fb-1", "fb-2", "fb-3", "fb-4", "fb-5",
@@ -354,24 +358,24 @@ pub fn fallback_class(name: &str) -> &'static str {
     C[(h as usize) % C.len()]
 }
 
-/// Une app affichable : le paquet nix + une URL d'icône Flathub optionnelle
-/// (renseignée pour catégorie/populaires, `None` pour la recherche texte) + une
-/// note ODRS optionnelle (renseignée seulement par la recherche, comme GNOME).
-/// Unité de donnée commune aux listes (`PackageRow`) et grilles (`AppTile`).
+/// A displayable app: the nix package + an optional Flathub icon URL (set for
+/// category/popular, `None` for text search) + an optional ODRS rating (set
+/// only by search, like GNOME).
+/// Shared data unit of lists (`PackageRow`) and grids (`AppTile`).
 #[derive(Debug, Clone)]
 pub struct AppItem {
     pub package: Package,
     pub icon_url: Option<String>,
     pub rating: Option<onyx_core::Rating>,
-    /// Apparié à une entrée AppStream — critère de la section « Applications »
-    /// de la recherche (une app reconnue sans icône reste une application).
+    /// Matched to an AppStream entry: the criterion of the search "Applications"
+    /// section (a recognized app without icon is still an application).
     pub recognized: bool,
 }
 
 impl AppItem {
     pub fn new(package: Package, icon_url: Option<String>) -> Self {
-        // Grilles accueil/catégories : tout vient de Flathub, l'icône vaut
-        // reconnaissance (le split de la recherche n'y passe pas).
+        // Home/category grids: everything comes from Flathub, so an icon
+        // means recognition (the search split does not apply here).
         let recognized = icon_url.is_some();
         Self { package, icon_url, rating: None, recognized }
     }

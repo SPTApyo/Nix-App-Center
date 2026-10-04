@@ -1,7 +1,7 @@
-//! Compile les catalogues `po/<lang>.po` en `.mo` dans `OUT_DIR/locale/…` pour que
-//! `cargo run` / `cargo test` trouvent les traductions sans installation système, et
-//! expose ce dossier via `ONYX_DEV_LOCALEDIR`. Le paquet Nix, lui, installe les `.mo`
-//! dans `share/locale` et pointe `ONYX_LOCALEDIR` dessus (le runtime préfère ce dernier).
+//! Compiles `po/<lang>.po` catalogs into `.mo` files under `OUT_DIR/locale/…` so that
+//! `cargo run` / `cargo test` find translations without a system install, and
+//! exposes that folder through `ONYX_DEV_LOCALEDIR`. The Nix package installs the `.mo`
+//! files in `share/locale` and points `ONYX_LOCALEDIR` there (preferred at runtime).
 
 use std::path::Path;
 use std::process::Command;
@@ -27,7 +27,7 @@ fn main() {
             let dest = dest_dir.join("onyx.mo");
             match Command::new("msgfmt").arg(&po).arg("-o").arg(&dest).status() {
                 Ok(s) if s.success() => {}
-                _ => println!("cargo:warning=msgfmt a échoué pour {}", po.display()),
+                _ => println!("cargo:warning=msgfmt failed for {}", po.display()),
             }
         }
     }

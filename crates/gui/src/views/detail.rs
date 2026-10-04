@@ -1,35 +1,35 @@
-//! Page détail — calque de `gs-details-page.ui` (GNOME Software).
+//! Details page, a copy of `gs-details-page.ui` (GNOME Software).
 //!
-//! Ce fichier est un **assembleur** : il reproduit l'arbre du `.ui` et pilote le
-//! chargement. Les widgets composites vivent dans `components::details`, un
-//! module par widget GNOME (cf. `docs/superpowers/specs/2026-07-09-page-detail-gnome-1-1-design.md`).
+//! This file is an **assembler**: it rebuilds the `.ui` tree and drives
+//! loading. Composite widgets live in `components::details`, one module per
+//! GNOME widget (see `docs/specs/details-page-design.md`).
 //!
 //! ```text
 //! GtkStack
 //! ├─ "spinner" → AdwStatusPage + AdwSpinnerPaintable
 //! ├─ "ready"   → GtkBox vertical
-//! │              ├─ AdwBanner (traduction — jamais révélée, pas de donnée Nix)
+//! │              ├─ AdwBanner (translation, never revealed: no Nix data)
 //! │              └─ GtkOverlay → GtkScrolledWindow → GtkBox .details-page (spacing 18)
-//! │                 ├─ Clamp → en-tête (icône 128 + titre/dev/étoiles + actions)
-//! │                 ├─ GsScreenshotCarousel  (PLEINE LARGEUR, hors clamp)
-//! │                 ├─ Clamp → résumé (title-2) + description repliable
-//! │                 ├─ Clamp → extensions
+//! │                 ├─ Clamp → header (128 icon + title/dev/stars + actions)
+//! │                 ├─ GsScreenshotCarousel  (FULL WIDTH, outside the clamp)
+//! │                 ├─ Clamp → summary (title-2) + collapsible description
+//! │                 ├─ Clamp → add-ons
 //! │                 ├─ Clamp → context bar
-//! │                 ├─ Clamp → historique des versions
-//! │                 ├─ Clamp → infobar « problèmes »
-//! │                 ├─ Clamp → licence + liens (côte à côte)
-//! │                 ├─ Clamp → avis (histogramme + avis vedette)
-//! │                 └─ Clamp → autres applis du développeur
+//! │                 ├─ Clamp → version history
+//! │                 ├─ Clamp → "problems" infobar
+//! │                 ├─ Clamp → license + links (side by side)
+//! │                 ├─ Clamp → reviews (histogram + featured review)
+//! │                 └─ Clamp → other apps by the developer
 //! └─ "failed"  → AdwStatusPage dialog-error-symbolic
 //! ```
 //!
-//! Un `GtkSizeGroup` horizontal lie toutes les sections, comme le `.ui` : c'est
-//! lui qui garantit qu'elles ont la même largeur quel que soit leur contenu.
+//! A horizontal `GtkSizeGroup` binds every section, like the `.ui`: it keeps
+//! them the same width whatever their content.
 //!
-//! **Sémantique Onyx** sous la disposition GNOME : l'action primaire reste
-//! `nix run` (« Lancer »), l'ajout permanent est secondaire. Les tuiles de la
-//! context bar portent des signaux Nix (taille de fermeture, `broken`/`insecure`).
-//! Divergences assumées, cf. spec §1.
+//! **Onyx semantics** under the GNOME layout: the primary action stays
+//! `nix run` ("Run"), keeping it permanently is secondary. Context bar tiles
+//! carry Nix signals (closure size, `broken`/`insecure`). Deliberate
+//! divergences.
 
 use adw::prelude::*;
 use onyx_core::{AppMeta, Package, Rating, Review};
@@ -41,20 +41,21 @@ use crate::components::details::{
     review_histogram, review_row, screenshot_carousel::ScreenshotCarousel, version_history_row,
 };
 use crate::components::AppTile;
+use crate::i18n::t;
 use crate::util::{
     esc, fallback_class, stars_widget, texture_from_bytes, texture_from_bytes_sized, AppItem,
     FALLBACK_GLYPH,
 };
 
-/// Clamp de section, répété à l'identique pour chaque enfant du `.ui`.
+/// Section clamp, repeated identically for every child of the `.ui`.
 const CLAMP_MAX: i32 = 860;
-/// ~⅔ de `CLAMP_MAX`, comme le commentaire du `.ui`.
+/// About ⅔ of `CLAMP_MAX`, as commented in the `.ui`.
 const CLAMP_TIGHTEN: i32 = 576;
 
-/// Icône de l'origine des paquets (bouton « nixpkgs »). Deux variantes livrées
-/// dans `data/icons/hicolor/scalable/apps` :
-/// - `nix-snowflake` : logo officiel bi-couleur, couleurs figées (celle en place) ;
-/// - `nix-snowflake-symbolic` : monochrome, recoloré par `.nix-packaging-color`.
+/// Icon of the package origin ("nixpkgs" button). Two variants ship in
+/// `data/icons/hicolor/scalable/apps`:
+/// - `nix-snowflake`: official two-tone logo, fixed colors (the one in use);
+/// - `nix-snowflake-symbolic`: monochrome, recolored by `.nix-packaging-color`.
 const ORIGIN_ICON: &str = "nix-snowflake";
 
 pub struct DetailModel {
@@ -63,29 +64,29 @@ pub struct DetailModel {
     loading: bool,
     kept: bool,
     icon_tex: Option<gtk::gdk::Texture>,
-    // Taille de la fermeture (tuile Stockage) et permissions (tuile Sécurité) :
-    // appels plus lents que les métadonnées, chargés à part. Les drapeaux
-    // `*_loaded` distinguent « pas encore su » de « su et inconnu ».
+    // Closure size (Storage tile) and permissions (Safety tile) are slower
+    // than metadata and load separately. The `*_loaded` flags tell "not known
+    // yet" from "known to be unknown".
     size_loaded: bool,
     closure_size: Option<u64>,
     safety_loaded: bool,
     safety: Option<onyx_core::Safety>,
-    // Description longue : repliable façon GsDescriptionBox.
+    // Long description, collapsible like GsDescriptionBox.
     desc_expanded: bool,
     desc_needs_toggle: bool,
-    // Facteur d'échelle écran (hi-DPI) : borne l'affichage des images à leur
-    // résolution native (anti-upscale → jamais flou).
+    // Screen scale factor (HiDPI): caps image display at native resolution
+    // (no upscaling, never blurry).
     scale: i32,
-    // La note alimente les étoiles d'en-tête ET l'histogramme ; les avis, la
-    // colonne droite. Les deux arrivent indépendamment.
+    // The rating feeds the header stars AND the histogram; reviews feed the
+    // right column. Both arrive independently.
     rating: Option<Rating>,
-    // Lightbox screenshots (addition Onyx).
+    // Screenshot lightbox (Onyx addition).
     shots: Vec<gtk::gdk::Texture>,
     shot_widths: Vec<i32>,
     lightbox_tex: Option<gtk::gdk::Texture>,
     lightbox_clamp: adw::Clamp,
     lightbox_visible: bool,
-    // Conteneurs peuplés au chargement.
+    // Containers filled while loading.
     stack: gtk::Stack,
     carousel: ScreenshotCarousel,
     star_box: gtk::Box,
@@ -96,8 +97,8 @@ pub struct DetailModel {
     license_box: gtk::Box,
     reviews_box: gtk::Box,
     dev_apps_box: gtk::Box,
-    // « Autres applications par X » : tuiles AppTile navigables (les DevApps
-    // AppStream sont résolues vers nixpkgs en arrière-plan, cf. DevAppsResolved).
+    // "Other Apps by X": navigable AppTiles (AppStream DevApps are resolved
+    // to nixpkgs in the background, see DevAppsResolved).
     dev_apps_heading: gtk::Label,
     dev_tiles: FactoryVecDeque<AppTile>,
     toast_overlay: adw::ToastOverlay,
@@ -114,41 +115,41 @@ pub enum DetailMsg {
     ShowShot(usize),
     DismissShot,
     Run,
-    /// Entrée unique du menu : garde si non gardé, retire sinon.
+    /// Single menu entry: keep when not kept, remove otherwise.
     ToggleKeep,
     Keep,
     Unkeep,
-    /// `nix shell` dans un terminal — le try-first des outils CLI.
+    /// `nix shell` in a terminal, the try-first path for CLI tools.
     Shell,
     CopyCommand,
-    /// Ouvre l'éditeur Nix avancé (options de service, port, surcharge…).
+    /// Opens the advanced Nix editor (service options, port, override…).
     AdvancedEdit,
-    /// Blocs édités enregistrés (via l'éditeur avancé) : Ok = l'app est gardée.
+    /// Edited blocks saved (from the advanced editor): Ok = the app is kept.
     BlocksSaved(Result<(), String>),
-    /// Ramasse-miettes du store (`nix-collect-garbage`), depuis le toast de retrait.
+    /// Store garbage collection (`nix-collect-garbage`), from the removal toast.
     CollectGarbage,
     GarbageCollected(Result<String, String>),
-    /// Apps du même développeur résolues vers nixpkgs (paquet + icône).
+    /// Same developer apps resolved to nixpkgs (package + icon).
     DevAppsResolved(Vec<(Package, Option<String>)>),
-    /// Clic sur une tuile « Autres applications » → remonte à AppModel.
+    /// Click on an "Other Apps" tile, forwarded to AppModel.
     OpenApp(Package),
     SizeLoaded(Option<u64>),
     SafetyLoaded(Option<onyx_core::Safety>),
     ToggleDescription,
-    /// Déclenche `home-manager switch` (depuis l'action du toast « Garder »).
+    /// Applies the configuration (from the "Apply" toast action).
     ApplyConfig,
     Applied(Result<onyx_core::ApplyOutcome, String>),
 }
 
 impl DetailModel {
-    /// Après avoir gardé une app (ou édité ses blocs) : si Onyx est déjà greffé sur la
-    /// config, un toast « applique » suffit. Sinon le fichier généré est un orphelin sans
-    /// effet → on propose la greffe consentie (diff affiché, rien d'écrit sans clic).
+    /// After keeping an app (or editing its blocks): when Onyx is already
+    /// connected to the config, an "apply" toast is enough. Otherwise the generated
+    /// file is an orphan with no effect, so offer the consented attach (diff shown).
     fn prompt_apply_or_attach(&self, sender: &ComponentSender<Self>) {
         let layout = onyx_core::detect_layout();
         if onyx_core::is_attached(&layout) {
-            let toast = adw::Toast::new("Ajouté à ta config. Applique pour installer.");
-            toast.set_button_label(Some("Appliquer"));
+            let toast = adw::Toast::new(&t("Added to your configuration. Apply it to install."));
+            toast.set_button_label(Some(&t("Apply")));
             let s = sender.input_sender().clone();
             toast.connect_button_clicked(move |_| {
                 let _ = s.send(DetailMsg::ApplyConfig);
@@ -163,10 +164,8 @@ impl DetailModel {
                     crate::util::toast(
                         &overlay,
                         &match res {
-                            Ok(()) => {
-                                "Greffé sur ta config. Applique pour installer.".to_string()
-                            }
-                            Err(e) => format!("Échec de la greffe : {e}"),
+                            Ok(()) => t("Connected to your configuration. Apply it to install."),
+                            Err(e) => t("Could not connect: {}").replace("{}", &e),
                         },
                     );
                 },
@@ -179,8 +178,8 @@ impl DetailModel {
 impl SimpleComponent for DetailModel {
     type Init = Package;
     type Input = DetailMsg;
-    /// Paquet à ouvrir en page détail (tuile « Autres applications » cliquée) —
-    /// AppModel pousse alors une nouvelle page, comme depuis n'importe quelle liste.
+    /// Package to open as a details page ("Other Apps" tile clicked); AppModel
+    /// pushes a new page, as from any list.
     type Output = Package;
 
     view! {
@@ -191,16 +190,16 @@ impl SimpleComponent for DetailModel {
             set_child = &adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {},
 
-                // Ce Box devient la page « ready » du GtkStack, monté en init().
+                // This Box becomes the "ready" page of the GtkStack, mounted in init().
                 #[wrap(Some)]
                 #[name(ready_page)]
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
-                    // GNOME propose d'aider à traduire quand la locale est mal
-                    // couverte. nixpkgs n'expose rien de tel → jamais révélée.
+                    // GNOME offers translation help for poorly covered
+                    // locales. nixpkgs has nothing like it: never revealed.
                     adw::Banner {
-                        set_button_label: Some("Aider à _traduire"),
+                        set_button_label: Some(&t("Help _Translate")),
                         set_revealed: false,
                     },
 
@@ -219,24 +218,24 @@ impl SimpleComponent for DetailModel {
                                 set_valign: gtk::Align::Start,
                                 set_vexpand: true,
 
-                                // ── 1. En-tête (clampé) ───────────────────────
+                                // ── 1. Header (clamped) ───────────────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
                                     set_margin_start: 12,
                                     set_margin_end: 12,
 
-                                    // `box_details_header` : spacing posé au runtime par
-                                    // GNOME (24 large / 12 étroit) ; pas de mode étroit ici.
+                                    // `box_details_header`: GNOME sets spacing at runtime
+                                    // (24 wide / 12 narrow); no narrow mode here.
                                     #[name(header_box)]
                                     gtk::Box {
                                         set_orientation: gtk::Orientation::Horizontal,
                                         set_spacing: 24,
 
-                                        // Icône 128. GNOME met un simple GtkImage ;
-                                        // Onyx garde sa vignette de repli colorée
-                                        // (divergence assumée : la plupart des paquets
-                                        // nixpkgs n'ont pas d'icône AppStream).
+                                        // 128 icon. GNOME uses a plain GtkImage;
+                                        // Onyx keeps its colored fallback thumbnail
+                                        // (deliberate: most nixpkgs packages have no
+                                        // AppStream icon).
                                         gtk::Box {
                                             set_width_request: 128,
                                             set_height_request: 128,
@@ -248,7 +247,7 @@ impl SimpleComponent for DetailModel {
                                                 set_visible: model.icon_tex.is_none(),
                                                 set_width_request: 128,
                                                 set_height_request: 128,
-                                                // Bloque la remontée du hexpand de l'image interne.
+                                                // Stops the inner image hexpand from propagating.
                                                 set_hexpand: false,
                                                 set_vexpand: false,
                                                 add_css_class: "fallback-tile",
@@ -257,8 +256,8 @@ impl SimpleComponent for DetailModel {
                                                 gtk::Image {
                                                     set_icon_name: Some(FALLBACK_GLYPH),
                                                     set_pixel_size: 96,
-                                                    // hexpand/vexpand : sinon halign Center est
-                                                    // ignoré sur l'axe principal.
+                                                    // hexpand/vexpand: else halign Center is
+                                                    // ignored on the main axis.
                                                     set_hexpand: true,
                                                     set_vexpand: true,
                                                     set_halign: gtk::Align::Center,
@@ -284,7 +283,7 @@ impl SimpleComponent for DetailModel {
                                             set_spacing: 6,
                                             set_hexpand: true,
 
-                                            // `box_details_header2` : titre / dev / vérifié / étoiles
+                                            // `box_details_header2`: title / dev / verified / stars
                                             gtk::Box {
                                                 set_orientation: gtk::Orientation::Vertical,
                                                 set_halign: gtk::Align::Fill,
@@ -300,6 +299,8 @@ impl SimpleComponent for DetailModel {
                                                     set_hexpand: true,
                                                     set_xalign: 0.0,
                                                     set_selectable: true,
+                                                    // Else it takes initial focus and opens fully selected.
+                                                    set_focusable: false,
                                                     set_wrap: true,
                                                     set_max_width_chars: 20,
                                                     add_css_class: "app-title",
@@ -329,9 +330,9 @@ impl SimpleComponent for DetailModel {
                                                     },
                                                 },
 
-                                                // Badge « Vérifié ». GNOME le colore avec la
-                                                // couleur de packaging (@blue_4 pour Flatpak) ;
-                                                // Onyx fait pareil via @nix_packaging_color.
+                                                // "Verified" badge. GNOME tints it with the
+                                                // packaging color (@blue_4 for Flatpak);
+                                                // Onyx does the same with @nix_packaging_color.
                                                 gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_spacing: 3,
@@ -344,11 +345,11 @@ impl SimpleComponent for DetailModel {
                                                         set_icon_name: Some("app-verified-symbolic"),
                                                         set_pixel_size: 16,
                                                         set_tooltip_text: Some(
-                                                            "L'identité du développeur est vérifiée"),
+                                                            &t("The developer identity is verified")),
                                                         add_css_class: "nix-packaging-color",
                                                     },
                                                     gtk::Label {
-                                                        set_label: "Vérifié",
+                                                        set_label: &t("Verified"),
                                                         set_xalign: 0.0,
                                                         set_yalign: 0.5,
                                                         set_hexpand: false,
@@ -356,7 +357,7 @@ impl SimpleComponent for DetailModel {
                                                     },
                                                 },
 
-                                                // `star_box` — rempli sur RatingLoaded.
+                                                // `star_box`, filled on RatingLoaded.
                                                 #[local_ref]
                                                 star_box -> gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
@@ -365,7 +366,7 @@ impl SimpleComponent for DetailModel {
                                                 },
                                             },
 
-                                            // `box_with_source` : actions + bouton d'origine.
+                                            // `box_with_source`: actions + origin button.
                                             gtk::Box {
                                                 set_orientation: gtk::Orientation::Vertical,
                                                 set_halign: gtk::Align::End,
@@ -374,16 +375,17 @@ impl SimpleComponent for DetailModel {
                                                 set_margin_top: 6,
                                                 set_spacing: 6,
 
-                                                // Le point UNIQUE où l'on agit sur un paquet : primaire
-                                                // = try-first (`nix run`), menu = tout le reste.
+                                                // The ONLY place to act on a package: primary
+                                                // = try-first (`nix run`), menu = everything else.
                                                 #[name(box_install_remove)]
                                                 gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_halign: gtk::Align::Center,
 
                                                     adw::SplitButton {
-                                                        set_label: "_Lancer",
+                                                        set_label: &t("_Run"),
                                                         set_use_underline: true,
+                                                        set_tooltip_text: Some(&t("Run without installing (nix run)")),
                                                         set_valign: gtk::Align::Center,
                                                         add_css_class: "suggested-action",
                                                         connect_clicked => DetailMsg::Run,
@@ -394,42 +396,42 @@ impl SimpleComponent for DetailModel {
                                                                 set_orientation: gtk::Orientation::Vertical,
                                                                 set_spacing: 4,
 
-                                                                // Garder / retirer : une seule entrée qui
-                                                                // bascule (remplace l'ancienne poubelle).
+                                                                // Keep / remove: one toggling entry
+                                                                // (replaces the old trash button).
                                                                 gtk::Button {
                                                                     #[watch]
-                                                                    set_label: if model.kept {
-                                                                        "Retirer de ma config"
+                                                                    set_label: &if model.kept {
+                                                                        t("Remove from Configuration")
                                                                     } else {
-                                                                        "Ajouter à ma config"
+                                                                        t("Add to Configuration")
                                                                     },
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ToggleKeep,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: "Essayer dans un shell",
+                                                                    set_label: &t("Try in a Shell"),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::Shell,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: "Copier la commande",
+                                                                    set_label: &t("Copy Command"),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::CopyCommand,
                                                                 },
-                                                                // Le chemin avancé : éditer le Nix brut de
-                                                                // l'app (options de service, port, surcharge).
+                                                                // The advanced path: edit the raw Nix of
+                                                                // the app (service options, port, override).
                                                                 gtk::Button {
-                                                                    set_label: "Options avancées…",
+                                                                    set_label: &t("Advanced Options…"),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Separator {
                                                                     set_orientation: gtk::Orientation::Horizontal,
                                                                 },
-                                                                // Jusqu'ici atteignable seulement via le bouton
-                                                                // d'un toast éphémère : raté = irrattrapable.
+                                                                // Was only reachable from an ephemeral
+                                                                // toast button: missed it, lost it.
                                                                 gtk::Button {
-                                                                    set_label: "Appliquer la config",
+                                                                    set_label: &t("Apply Configuration"),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ApplyConfig,
                                                                 },
@@ -480,7 +482,7 @@ impl SimpleComponent for DetailModel {
                                                                 set_selection_mode: gtk::SelectionMode::None,
                                                                 adw::ActionRow {
                                                                     set_title: "nixpkgs",
-                                                                    set_subtitle: "Collection de paquets Nix",
+                                                                    set_subtitle: &t("Nix package collection"),
                                                                 },
                                                             },
                                                         },
@@ -491,11 +493,11 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 2. Screenshots (PLEINE LARGEUR, hors clamp) ─
+                                // ── 2. Screenshots (FULL WIDTH, outside clamp) ─
                                 #[local_ref]
                                 carousel_widget -> gtk::Stack {},
 
-                                // ── 3. Résumé + description (clampé) ───────────
+                                // ── 3. Summary + description (clamped) ─────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -524,7 +526,7 @@ impl SimpleComponent for DetailModel {
                                             add_css_class: "title-2",
                                         },
 
-                                        // Skeleton pendant le chargement de la description.
+                                        // Skeleton while the description loads.
                                         gtk::Box {
                                             #[watch]
                                             set_visible: model.loading,
@@ -550,7 +552,7 @@ impl SimpleComponent for DetailModel {
                                             #[watch]
                                             set_visible: !model.loading && model.desc_needs_toggle,
                                             #[watch]
-                                            set_label: if model.desc_expanded { "Afficher moins" } else { "Afficher davantage" },
+                                            set_label: &if model.desc_expanded { t("Show Less") } else { t("Show More") },
                                             add_css_class: "pill",
                                             set_halign: gtk::Align::Center,
                                             set_margin_bottom: 14,
@@ -559,7 +561,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 4. Extensions (masqué si aucune) ───────────
+                                // ── 4. Add-ons (hidden when none) ──────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -584,7 +586,7 @@ impl SimpleComponent for DetailModel {
                                     ctx_bar -> gtk::Box {},
                                 },
 
-                                // ── 6. Historique des versions ─────────────────
+                                // ── 6. Version history ─────────────────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -598,7 +600,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 7. Infobar « problèmes » (broken/insecure) ─
+                                // ── 7. "Problems" infobar (broken/insecure) ────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -612,7 +614,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 8. Licence + liens côte à côte ─────────────
+                                // ── 8. License + links side by side ────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -623,7 +625,7 @@ impl SimpleComponent for DetailModel {
                                     license_box -> gtk::Box {},
                                 },
 
-                                // ── 9. Évaluations (ODRS) ──────────────────────
+                                // ── 9. Ratings (ODRS) ──────────────────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -638,7 +640,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 10. Autres applis du développeur ───────────
+                                // ── 10. Other apps by the developer ────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -655,7 +657,7 @@ impl SimpleComponent for DetailModel {
                             }
                         },
 
-                        // Lightbox (addition Onyx) : fondu d'ouverture/fermeture.
+                        // Lightbox (Onyx addition): fade in/out.
                         add_overlay = &gtk::Revealer {
                             #[watch]
                             set_reveal_child: model.lightbox_visible,
@@ -683,10 +685,10 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // Clamp anti-upscale : maximum_size = largeur native /
-                                // scale → une image sous la résolution attendue est
-                                // affichée à sa taille native centrée (DPI net) plutôt
-                                // qu'étirée plein écran (flou).
+                                // Anti-upscale clamp: maximum_size = native width /
+                                // scale, so an image below the expected resolution is
+                                // shown centered at native size (sharp) rather than
+                                // stretched full screen (blurry).
                                 #[local_ref]
                                 lightbox_clamp -> adw::Clamp {
                                     set_margin_top: 48,
@@ -723,9 +725,9 @@ impl SimpleComponent for DetailModel {
         let reviews_box = gtk::Box::new(gtk::Orientation::Vertical, 18);
         let dev_apps_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
 
-        // Section « Autres applications » : titre + grille de tuiles AppTile
-        // (mêmes tuiles cliquables que l'accueil/les catégories). Peuplée sur
-        // DevAppsResolved ; la box reste invisible tant que rien n'est résolu.
+        // "Other Apps" section: title + AppTile grid (same clickable tiles as
+        // home and categories). Filled on DevAppsResolved; the box stays
+        // hidden until something resolves.
         let dev_apps_heading = gtk::Label::new(None);
         dev_apps_heading.set_xalign(0.0);
         dev_apps_heading.set_margin_top(21);
@@ -740,13 +742,13 @@ impl SimpleComponent for DetailModel {
         let lightbox_clamp = adw::Clamp::new();
         lightbox_clamp.set_maximum_size(i32::MAX);
 
-        // Résolution cible des screenshots = largeur écran × échelle (px physiques),
-        // bornée [1280, 3840] : assez pour un zoom plein écran net, jamais plus.
+        // Target screenshot resolution = screen width × scale (physical px),
+        // bounded to [1280, 3840]: enough for a sharp full screen zoom, no more.
         let (target_dev_w, scale) = crate::util::screen_metrics();
         let target_w = target_dev_w.clamp(1280, 3840) as u32;
 
-        // La tuile/ligne cliquée a déjà téléchargé cette icône : on la réutilise
-        // plutôt que d'afficher le glyphe générique le temps de tout re-résoudre.
+        // The clicked tile/row already downloaded this icon: reuse it rather
+        // than showing the generic glyph while everything resolves again.
         let icon_tex = onyx_core::known_icon_url(&pkg.attr)
             .and_then(|url| onyx_core::cached_bytes_if_present(&url))
             .and_then(|bytes| texture_from_bytes_sized(&bytes, 128));
@@ -788,7 +790,7 @@ impl SimpleComponent for DetailModel {
 
         crate::util::smooth_scroll(&widgets.scroller);
 
-        // Le SizeGroup terminal du `.ui` : toutes les sections partagent une largeur.
+        // The terminal SizeGroup of the `.ui`: all sections share one width.
         let sg = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         for w in [
             widgets.header_box.clone().upcast::<gtk::Widget>(),
@@ -803,19 +805,19 @@ impl SimpleComponent for DetailModel {
         ] {
             sg.add_widget(&w);
         }
-        // `sizegroup_origin_button` : le bouton d'origine s'aligne sur les actions.
+        // `sizegroup_origin_button`: the origin button aligns with the actions.
         let sg_origin = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         sg_origin.add_widget(&widgets.box_install_remove);
         sg_origin.add_widget(&widgets.origin_btn);
 
-        // Le label d'origine porte les attributs Pango du `.ui` (scale .85, weight normal).
+        // The origin label carries the `.ui` Pango attributes (scale .85, weight normal).
         let attrs = gtk::pango::AttrList::new();
         attrs.insert(gtk::pango::AttrFloat::new_scale(0.85));
         attrs.insert(gtk::pango::AttrInt::new_weight(gtk::pango::Weight::Normal));
         widgets.origin_label.set_attributes(Some(&attrs));
 
-        // Le Box « ready » produit par `view!` devient une page du GtkStack, qui
-        // prend sa place comme contenu de la ToolbarView.
+        // The "ready" Box produced by `view!` becomes a GtkStack page, which
+        // takes its place as the ToolbarView content.
         let toolbar = root.child().and_downcast::<adw::ToolbarView>();
         if let Some(toolbar) = &toolbar {
             toolbar.set_content(None::<&gtk::Widget>);
@@ -823,15 +825,15 @@ impl SimpleComponent for DetailModel {
             toolbar.set_content(Some(&stack));
         }
 
-        // NavigationPage ne supporte pas container_add : on insère le toast_overlay
-        // entre elle et la ToolbarView.
+        // NavigationPage has no container_add: the toast_overlay is inserted
+        // between it and the ToolbarView.
         if let Some(toolbar) = root.child() {
             root.set_child(None::<&gtk::Widget>);
             model.toast_overlay.set_child(Some(&toolbar));
             root.set_child(Some(&model.toast_overlay));
         }
 
-        // Métadonnées fusionnées (AppStream + Nix) en arrière-plan.
+        // Merged metadata (AppStream + Nix) in the background.
         let s = sender.input_sender().clone();
         let pkg_meta = pkg.clone();
         std::thread::spawn(move || {
@@ -864,17 +866,17 @@ impl SimpleComponent for DetailModel {
                 );
                 build_license_box(&self.license_box, &meta);
 
-                // Apps du même développeur : résolution AppStream → nixpkgs en
-                // arrière-plan (1 `nix search` caché) ; la section n'apparaît
-                // que si au moins une app existe dans nixpkgs (tuile morte
-                // = pire qu'une section absente).
+                // Same developer apps: AppStream to nixpkgs resolution in the
+                // background (one cached `nix search`); the section only shows
+                // when at least one app exists in nixpkgs (a dead tile is worse
+                // than no section).
                 if !meta.developer_apps.is_empty() {
                     let apps = meta.developer_apps.clone();
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        // Exclut l'attr courant : « Steam Link » retombe sur
-                        // l'attr `steam` et réaffichait Steam sur sa propre page.
+                        // Exclude the current attr: "Steam Link" falls back on
+                        // attr `steam` and showed Steam on its own page.
                         let resolved = onyx_core::resolve_dev_apps(&apps, &attr);
                         if !resolved.is_empty() {
                             let _ = s.send(DetailMsg::DevAppsResolved(resolved));
@@ -886,7 +888,7 @@ impl SimpleComponent for DetailModel {
                     self.carousel.show_fallback();
                 }
 
-                // Taille de la fermeture (`nix path-info`) : plus lent que le reste.
+                // Closure size (`nix path-info`): slower than the rest.
                 let attr = self.package.attr.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
@@ -894,13 +896,13 @@ impl SimpleComponent for DetailModel {
                 });
 
                 if let Some(app_id) = meta.app_id.clone() {
-                    // Permissions Flatpak (tuile Sécurité).
+                    // Flatpak permissions (Safety tile).
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
                         let _ = s.send(DetailMsg::SafetyLoaded(onyx_core::safety(&id)));
                     });
-                    // Note ODRS via l'app_id résolu (fiable, contrairement au nom nixpkgs).
+                    // ODRS rating through the resolved app_id (reliable, unlike the nixpkgs name).
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
@@ -908,7 +910,7 @@ impl SimpleComponent for DetailModel {
                             let _ = s.send(DetailMsg::RatingLoaded(r));
                         }
                     });
-                    // Texte des avis (colonne droite de la section « Évaluations »).
+                    // Review texts (right column of "Ratings & Reviews").
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
                         let reviews = onyx_core::reviews_for(&app_id);
@@ -953,9 +955,9 @@ impl SimpleComponent for DetailModel {
                     .trim()
                     .to_string();
                 self.dev_apps_heading.set_label(&if dev.is_empty() {
-                    "Autres applications".to_string()
+                    t("Other Apps")
                 } else {
-                    format!("Autres applications par {dev}")
+                    t("Other Apps by {}").replace("{}", &dev)
                 });
                 let mut g = self.dev_tiles.guard();
                 g.clear();
@@ -999,15 +1001,15 @@ impl SimpleComponent for DetailModel {
             DetailMsg::ScreenshotLoaded(bytes, caption) => {
                 if let Some(tex) = texture_from_bytes(&bytes) {
                     let idx = self.shots.len();
-                    // Anti-upscale : largeur logique max = px natifs / échelle écran.
+                    // Anti-upscale: max logical width = native px / screen scale.
                     let max_logical = (tex.width() / self.scale).max(1);
                     self.shots.push(tex.clone());
                     self.shot_widths.push(max_logical);
 
-                    // La `Picture` garde son ratio et se centre : une gouttière
-                    // apparaît dès que la page est plus large que l'image et grandit
-                    // avec la fenêtre. Les marges garantissent un écart minimal ;
-                    // le clamp borne la largeur à la résolution native (DPI net).
+                    // The `Picture` keeps its ratio and centers itself: a gutter
+                    // appears once the page is wider than the image and grows with
+                    // the window. Margins guarantee a minimal gap; the clamp caps
+                    // the width at native resolution (sharp).
                     let pic = gtk::Picture::for_paintable(&tex);
                     let clamp = adw::Clamp::new();
                     clamp.set_maximum_size(max_logical);
@@ -1018,8 +1020,8 @@ impl SimpleComponent for DetailModel {
                     btn.set_margin_start(18);
                     btn.set_margin_end(18);
                     btn.set_margin_top(18);
-                    // Légende AppStream en tooltip (comme GNOME), sinon « Agrandir ».
-                    btn.set_tooltip_text(Some(caption.as_deref().unwrap_or("Agrandir")));
+                    // AppStream caption as tooltip (like GNOME), else "Enlarge".
+                    btn.set_tooltip_text(Some(&caption.unwrap_or_else(|| t("Enlarge"))));
                     let s = sender.clone();
                     btn.connect_clicked(move |_| s.input(DetailMsg::ShowShot(idx)));
                     self.carousel.append(&btn);
@@ -1027,8 +1029,8 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::ShowShot(idx) => {
                 self.lightbox_tex = self.shots.get(idx).cloned();
-                // Zoom : ×2 la largeur native de CETTE image (fenêtre et marges
-                // bornent de toute façon l'agrandissement réel).
+                // Zoom: ×2 the native width of THIS image (window and margins
+                // bound the real enlargement anyway).
                 if let Some(w) = self.shot_widths.get(idx) {
                     self.lightbox_clamp.set_maximum_size(w.saturating_mul(2));
                 }
@@ -1040,17 +1042,16 @@ impl SimpleComponent for DetailModel {
             DetailMsg::Run => {
                 let name = meta_name(&self.meta, &self.package.name);
                 if self.meta.as_ref().map(|m| m.broken).unwrap_or(false) {
-                    // On n'empêche pas l'essai (l'utilisateur reste maître), mais on
-                    // prévient : nix refusera très probablement d'évaluer ce paquet.
+                    // Warn but let the user try anyway.
                     crate::util::toast(
                         &self.toast_overlay,
-                        &format!("{name} est marqué cassé dans nixpkgs — tentative de lancement quand même…"),
+                        &t("{} is marked broken in nixpkgs. Trying anyway…").replace("{}", &name),
                     );
                 } else {
-                    crate::util::toast(&self.toast_overlay, &format!("Lancement de {name}…"));
+                    crate::util::toast(&self.toast_overlay, &t("Starting {}…").replace("{}", &name));
                 }
                 if let Err(e) = onyx_core::run(&self.package) {
-                    crate::util::toast(&self.toast_overlay, &format!("Échec du lancement : {e}"));
+                    crate::util::toast(&self.toast_overlay, &t("Could not start: {}").replace("{}", &e.to_string()));
                 }
             }
             DetailMsg::ToggleKeep => {
@@ -1060,10 +1061,9 @@ impl SimpleComponent for DetailModel {
             DetailMsg::Shell => match onyx_core::shell(&self.package) {
                 Ok(onyx_core::ShellOutcome::Spawned) => crate::util::toast(
                     &self.toast_overlay,
-                    &format!("{} ouvert dans un terminal…", self.package.name),
+                    &t("{} opened in a terminal…").replace("{}", &self.package.name),
                 ),
-                // Le core ne touche pas au presse-papier : c'est la façade qui décide
-                // quoi faire quand aucun terminal n'existe.
+                // The front end owns the clipboard fallback.
                 Ok(onyx_core::ShellOutcome::NoTerminal) => {
                     if let Some(display) = gtk::gdk::Display::default() {
                         display
@@ -1072,35 +1072,35 @@ impl SimpleComponent for DetailModel {
                     }
                     crate::util::toast(
                         &self.toast_overlay,
-                        "Aucun terminal trouvé — commande copiée.",
+                        &t("No terminal found. Command copied."),
                     );
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &format!("Échec du shell : {e}")),
+                Err(e) => crate::util::toast(&self.toast_overlay, &t("Could not open a shell: {}").replace("{}", &e.to_string())),
             },
             DetailMsg::Keep => match onyx_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &format!("Échec : {e}")),
+                Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e.to_string())),
             },
             DetailMsg::Unkeep => match onyx_core::unkeep(&self.package.attr) {
                 Ok(()) => {
                     self.kept = false;
-                    let toast = adw::Toast::new(
-                        "Retiré de ta config. Applique, puis libère l'espace si tu veux.",
-                    );
-                    toast.set_button_label(Some("Libérer l'espace"));
+                    let toast = adw::Toast::new(&t(
+                        "Removed from your configuration. Apply it, then free up space if you like.",
+                    ));
+                    toast.set_button_label(Some(&t("Free Up Space")));
                     let s = sender.input_sender().clone();
                     toast.connect_button_clicked(move |_| {
                         let _ = s.send(DetailMsg::CollectGarbage);
                     });
                     self.toast_overlay.add_toast(toast);
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &format!("Échec : {e}")),
+                Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e.to_string())),
             },
             DetailMsg::CollectGarbage => {
-                crate::util::toast(&self.toast_overlay, "Nettoyage du store…");
+                crate::util::toast(&self.toast_overlay, &t("Cleaning up the store…"));
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let res = onyx_core::garbage_collect().map_err(|e| e.to_string());
@@ -1110,13 +1110,13 @@ impl SimpleComponent for DetailModel {
             DetailMsg::GarbageCollected(res) => crate::util::toast(
                 &self.toast_overlay,
                 &match res {
-                    Ok(summary) if summary.is_empty() => "Rien à libérer.".to_string(),
+                    Ok(summary) if summary.is_empty() => t("Nothing to free."),
                     Ok(summary) => summary,
-                    Err(e) => format!("Nettoyage impossible : {e}"),
+                    Err(e) => t("Cleanup failed: {}").replace("{}", &e),
                 },
             ),
             DetailMsg::AdvancedEdit => {
-                // Blocs Nix actuels de l'app (le cas échéant), pour préremplir l'éditeur.
+                // Current Nix blocks of the app, if any, to prefill the editor.
                 let m = onyx_core::load_manifest();
                 let (home, system) = m
                     .kept
@@ -1142,14 +1142,14 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::BlocksSaved(res) => match res {
                 Ok(()) => {
-                    // set_blocks garde l'app si besoin : l'éditer, c'est vouloir l'avoir.
+                    // set_blocks keeps the app: editing it means wanting it.
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &format!("Échec : {e}")),
+                Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e)),
             },
             DetailMsg::ApplyConfig => {
-                crate::util::toast(&self.toast_overlay, "Application de la config…");
+                crate::util::toast(&self.toast_overlay, &t("Applying configuration…"));
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let res = onyx_core::apply_config().map_err(|e| e.to_string());
@@ -1163,28 +1163,26 @@ impl SimpleComponent for DetailModel {
                 if let Some(display) = gtk::gdk::Display::default() {
                     display.clipboard().set_text(&onyx_core::run_command(&self.package));
                 }
-                crate::util::toast(&self.toast_overlay, "Commande copiée.");
+                crate::util::toast(&self.toast_overlay, &t("Command copied."));
             }
         }
     }
 }
 
 impl DetailModel {
-    /// Monte les trois pages du `GtkStack` : spinner / ready / failed.
+    /// Mounts the three `GtkStack` pages: spinner / ready / failed.
     fn build_stack(&self, ready: &gtk::Box) {
         let spinner = adw::StatusPage::new();
         spinner.set_paintable(Some(&adw::SpinnerPaintable::new(Some(&self.stack))));
-        spinner.set_title("Chargement des détails de l'application");
+        spinner.set_title(&t("Loading App Details"));
         self.stack.add_named(&spinner, Some("spinner"));
 
         self.stack.add_named(ready, Some("ready"));
 
         let failed = adw::StatusPage::new();
         failed.set_icon_name(Some("dialog-error-symbolic"));
-        failed.set_title("Impossible d'afficher les détails de l'application");
-        failed.set_description(Some(
-            "Aucune métadonnée n'a pu être récupérée pour ce paquet.",
-        ));
+        failed.set_title(&t("Unable to Show App Details"));
+        failed.set_description(Some(&t("No metadata could be retrieved for this package.")));
         self.stack.add_named(&failed, Some("failed"));
 
         self.stack.set_visible_child_name("spinner");
@@ -1216,8 +1214,8 @@ impl DetailModel {
         }
     }
 
-    /// Section « Évaluations ». Note et avis arrivent indépendamment : la colonne
-    /// gauche s'affiche dès la note, la droite se remplit quand les avis arrivent.
+    /// "Ratings & Reviews" section. Rating and reviews arrive independently: the
+    /// left column shows with the rating, the right one fills when reviews arrive.
     fn rebuild_reviews(&self, reviews: Option<&[Review]>) {
         match self.rating.filter(|r| r.total > 0) {
             Some(rating) => build_reviews(&self.reviews_box, &rating, reviews),
@@ -1236,7 +1234,7 @@ fn boxed_list() -> gtk::ListBox {
     l
 }
 
-/// Note d'en-tête : cinq étoiles + nombre d'avis (`label_review_count`).
+/// Header rating: five stars + review count (`label_review_count`).
 fn build_stars(container: &gtk::Box, rating: &Rating) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
@@ -1256,14 +1254,14 @@ fn build_stars(container: &gtk::Box, rating: &Rating) {
     container.set_visible(true);
 }
 
-/// `box_reviews` : titre `.title-2` puis deux `boxed-list` côte à côte
+/// `box_reviews`: `.title-2` title then two `boxed-list`s side by side
 /// (`spacing 12`, homogeneous).
 fn build_reviews(container: &gtk::Box, rating: &Rating, reviews: Option<&[Review]>) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
 
-    let title = gtk::Label::new(Some("Évaluations"));
+    let title = gtk::Label::new(Some(&t("Ratings & Reviews")));
     title.set_xalign(0.0);
     title.set_halign(gtk::Align::Start);
     title.set_valign(gtk::Align::Start);
@@ -1274,7 +1272,7 @@ fn build_reviews(container: &gtk::Box, rating: &Rating, reviews: Option<&[Review
     let inner = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     inner.set_homogeneous(true);
 
-    // Colonne gauche : histogramme + « Écrire un avis ».
+    // Left column: histogram + "Write a Review".
     let left = boxed_list();
     let hist_row = gtk::ListBoxRow::new();
     hist_row.set_activatable(false);
@@ -1289,23 +1287,23 @@ fn build_reviews(container: &gtk::Box, rating: &Rating, reviews: Option<&[Review
     left.append(&hist_row);
 
     let write = adw::ButtonRow::new();
-    write.set_title("Écrire un a_vis");
+    write.set_title(&t("_Write a Review"));
     write.set_use_underline(true);
     write.set_end_icon_name(Some("go-next-symbolic"));
-    // GNOME grise ce bouton hors ligne ou si l'app n'est pas installée. Onyx ne
-    // peut pas publier du tout : pas de compte ODRS, lecture seule (spec §8).
+    // GNOME greys this out offline or when not installed. Onyx cannot
+    // publish at all: no ODRS account, read only.
     write.set_sensitive(false);
-    write.set_tooltip_text(Some("Publier un avis nécessite un compte ODRS"));
+    write.set_tooltip_text(Some(&t("Publishing a review needs an ODRS account")));
     left.append(&write);
     inner.append(&left);
 
-    // Colonne droite : avis vedette + « Tous les avis ».
+    // Right column: featured review + "All Reviews".
     let right = boxed_list();
     if let Some(featured) = reviews.and_then(onyx_core::featured_review) {
         right.append(&review_row::row(featured));
     }
     let all = adw::ButtonRow::new();
-    all.set_title("Tous les avis");
+    all.set_title(&t("All Reviews"));
     all.set_end_icon_name(Some("go-next-symbolic"));
     match reviews.filter(|r| !r.is_empty()) {
         Some(list) => {
@@ -1322,7 +1320,7 @@ fn build_reviews(container: &gtk::Box, rating: &Rating, reviews: Option<&[Review
     container.set_visible(true);
 }
 
-/// Dialogue « Tous les avis » : une `GsReviewRow` par avis, du mieux classé au moins.
+/// "All Reviews" dialog: one `GsReviewRow` per review, best ranked first.
 fn show_reviews_dialog(reviews: &[Review], parent: &impl IsA<gtk::Widget>) {
     let list = boxed_list();
     let mut sorted: Vec<&Review> = reviews.iter().collect();
@@ -1330,10 +1328,10 @@ fn show_reviews_dialog(reviews: &[Review], parent: &impl IsA<gtk::Widget>) {
     for r in sorted {
         list.append(&review_row::row(r));
     }
-    present_dialog("Tous les avis", &list, 560, 640, parent);
+    present_dialog(&t("All Reviews"), &list, 560, 640, parent);
 }
 
-/// Un dialogue plein écran : liste clampée dans un scroll, sous une HeaderBar.
+/// A full dialog: clamped list in a scroll, under a HeaderBar.
 fn present_dialog(
     title: &str,
     child: &impl IsA<gtk::Widget>,
@@ -1364,13 +1362,13 @@ fn present_dialog(
     dialog.present(Some(parent));
 }
 
-/// Les quatre tuiles de la context bar, dans l'ordre du `.ui`.
+/// The four context bar tiles, in `.ui` order.
 ///
-/// - **Stockage** : taille de téléchargement de la fermeture (`closure_size`).
-/// - **Sécurité** : `broken`/`insecure` (nix) d'abord, puis les permissions
-///   Flatpak (comme GNOME), sinon la licence en repli.
-/// - **Matériel** : générique bureau (pas de `<relations>` exploitable).
-/// - **Âge** : classification OARS, comme GNOME.
+/// - **Storage**: closure download size (`closure_size`).
+/// - **Safety**: nix `broken`/`insecure` first, then Flatpak permissions
+///   (like GNOME), else the license as fallback.
+/// - **Hardware**: generic desktop (no usable `<relations>`).
+/// - **Age**: OARS rating, like GNOME.
 fn build_context_tiles(
     meta: &AppMeta,
     size_loaded: bool,
@@ -1378,62 +1376,63 @@ fn build_context_tiles(
     safety_loaded: bool,
     safety: Option<&onyx_core::Safety>,
 ) -> [gtk::Button; 4] {
-    let (storage_val, storage_desc): (String, &str) = if !size_loaded {
-        ("…".into(), "Calcul de la taille…")
+    let (storage_val, storage_desc) = if !size_loaded {
+        ("…".into(), t("Computing size…"))
     } else if let Some(bytes) = closure_size {
-        (format_size(bytes), "Téléchargement total avec dépendances")
+        (gtk::glib::format_size(bytes).to_string(), t("Total download including dependencies"))
     } else {
-        ("?".into(), "Nécessite une compilation locale")
+        ("?".into(), t("Needs a local build"))
     };
     let storage = context_bar::tile(
         Content::Text(&storage_val),
         "grey",
-        "Taille du téléchargement",
-        storage_desc,
+        &t("Download Size"),
+        &storage_desc,
     );
 
     let safety_tile = if meta.broken {
         context_bar::tile(
             Content::Icon("app-safety-unsafe-symbolic"),
             "red",
-            "Cassé",
-            "Marqué broken dans nixpkgs : le lancement échouera probablement",
+            &t("Broken"),
+            &t("Marked broken in nixpkgs: running it will probably fail"),
         )
     } else if meta.insecure || !meta.known_vulnerabilities.is_empty() {
         let d = if meta.known_vulnerabilities.is_empty() {
-            "Marqué non sécurisé dans nixpkgs".to_string()
+            t("Marked insecure in nixpkgs")
         } else {
-            format!("Vulnérabilités connues : {}", meta.known_vulnerabilities.join(", "))
+            t("Known vulnerabilities: {}").replace("{}", &meta.known_vulnerabilities.join(", "))
         };
-        context_bar::tile(Content::Icon("app-safety-unsafe-symbolic"), "red", "Vulnérable", &d)
+        context_bar::tile(Content::Icon("app-safety-unsafe-symbolic"), "red", &t("Vulnerable"), &d)
     } else if let Some(s) = safety {
-        context_bar::tile(Content::Icon(s.icon), s.color, s.title, &s.descriptions.join(" ; "))
+        let desc: Vec<String> = s.descriptions.iter().map(|d| t(d.as_str())).collect();
+        context_bar::tile(Content::Icon(s.icon), s.color, &t(s.title), &desc.join("; "))
     } else if !safety_loaded {
         context_bar::tile(
             Content::Icon("app-safety-unknown-symbolic"),
             "grey",
-            "Analyse…",
-            "Vérification des permissions…",
+            &t("Checking…"),
+            &t("Checking permissions…"),
         )
     } else {
         match meta.is_free_license {
             Some(true) => context_bar::tile(
                 Content::Icon("app-safety-ok-symbolic"),
                 "green",
-                "Logiciel libre",
-                "Code source public, licence libre",
+                &t("Free Software"),
+                &t("Public source code, free license"),
             ),
             Some(false) => context_bar::tile(
                 Content::Icon("app-safety-unsafe-symbolic"),
                 "orange",
-                "Propriétaire",
-                "Code source non public",
+                &t("Proprietary"),
+                &t("Source code is not public"),
             ),
             None => context_bar::tile(
                 Content::Icon("app-safety-unknown-symbolic"),
                 "grey",
-                "Inconnu",
-                "Licence non renseignée",
+                &t("Unknown"),
+                &t("License not stated"),
             ),
         }
     };
@@ -1441,31 +1440,32 @@ fn build_context_tiles(
     let hardware = context_bar::tile(
         Content::Icon("video-display-symbolic"),
         "grey",
-        "Ordinateur uniquement",
-        "Fonctionne sur les ordinateurs de bureau et les ordinateurs portables",
+        &t("Desktop Only"),
+        &t("Works on desktops and laptops"),
     );
 
     let age = match &meta.age_label {
         Some(label) => {
             let desc = if meta.age_descriptions.is_empty() {
-                "Aucun contenu inapproprié".to_string()
+                t("No inappropriate content")
             } else {
-                meta.age_descriptions.join(" ; ")
+                let d: Vec<String> = meta.age_descriptions.iter().map(|d| t(d.as_str())).collect();
+                d.join("; ")
             };
-            context_bar::tile(Content::Text(label), age_color(label), "Évaluation par âge", &desc)
+            context_bar::tile(Content::Text(label), age_color(label), &t("Age Rating"), &desc)
         }
         None => context_bar::tile(
             Content::Text("?"),
             "grey",
-            "Évaluation par âge",
-            "Aucune information de classification d'âge",
+            &t("Age Rating"),
+            &t("No age rating information"),
         ),
     };
 
     [storage, safety_tile, hardware, age]
 }
 
-/// Classe de teinte du lozenge d'âge — alias `details-rating-N` du CSS GNOME.
+/// Age lozenge tint class, the `details-rating-N` aliases of the GNOME CSS.
 fn age_color(label: &str) -> &'static str {
     let n: u32 = label.trim_end_matches('+').parse().unwrap_or(0);
     if n >= 18 {
@@ -1481,27 +1481,9 @@ fn age_color(label: &str) -> &'static str {
     }
 }
 
-/// Taille en octets façon FR (« 206,0 Mo »), unités décimales (1000, pas 1024 —
-/// comme `gs_utils_format_size` et `nix path-info`).
-fn format_size(bytes: u64) -> String {
-    const K: f64 = 1000.0;
-    let b = bytes as f64;
-    if b < K {
-        return format!("{bytes} o");
-    }
-    let (val, unit) = if b < K * K {
-        (b / K, "Ko")
-    } else if b < K * K * K {
-        (b / (K * K), "Mo")
-    } else {
-        (b / (K * K * K), "Go")
-    };
-    format!("{val:.1} {unit}").replace('.', ",")
-}
-
-/// `box_addons` : titre `.title-2` (`margin-bottom 12`) + grille de tuiles.
-/// Purement informative — les addons Flatpak n'ont pas d'équivalent nixpkgs à
-/// ouvrir, donc les tuiles sont non navigables (`info_tile`).
+/// `box_addons`: `.title-2` title (`margin-bottom 12`) + tile grid.
+/// Informative only: Flatpak add-ons have no nixpkgs equivalent to open, so
+/// the tiles are not navigable (`info_tile`).
 fn build_addons(container: &gtk::Box, meta: &AppMeta) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
@@ -1511,7 +1493,7 @@ fn build_addons(container: &gtk::Box, meta: &AppMeta) {
         return;
     }
 
-    let title = gtk::Label::new(Some("Extensions"));
+    let title = gtk::Label::new(Some(&t("Add-ons")));
     title.set_xalign(0.0);
     title.set_halign(gtk::Align::Start);
     title.set_valign(gtk::Align::Start);
@@ -1532,8 +1514,8 @@ fn build_addons(container: &gtk::Box, meta: &AppMeta) {
     container.set_visible(true);
 }
 
-/// `list_box_version_history` : la dernière release, puis un `AdwButtonRow` qui
-/// ouvre le dialogue plein historique (calque de `GsAppVersionHistoryDialog`).
+/// `list_box_version_history`: the latest release, then an `AdwButtonRow`
+/// opening the full history dialog (copy of `GsAppVersionHistoryDialog`).
 fn build_version_history(
     container: &gtk::Box,
     meta: &AppMeta,
@@ -1558,7 +1540,7 @@ fn build_version_history(
 
     if meta.releases.len() > 1 {
         let more = adw::ButtonRow::new();
-        more.set_title("Historique des versions");
+        more.set_title(&t("Version History"));
         more.set_end_icon_name(Some("go-next-symbolic"));
         let releases = meta.releases.clone();
         let installed = installed_version.map(str::to_string);
@@ -1572,7 +1554,7 @@ fn build_version_history(
                     installed.as_deref() == Some(r.version.as_str()),
                 ));
             }
-            present_dialog("Historique des versions", &list, 480, 560, &parent);
+            present_dialog(&t("Version History"), &list, 480, 560, &parent);
         });
         list.append(&more);
     }
@@ -1581,7 +1563,7 @@ fn build_version_history(
     container.set_visible(true);
 }
 
-/// `box_license` : tuile licence à gauche, `links_stack` à droite.
+/// `box_license`: license tile on the left, `links_stack` on the right.
 fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
@@ -1596,14 +1578,13 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
     };
     container.append(&tile);
 
-    // Ordre et icônes exacts de `gs-details-page.ui`. Pas de ligne « Contact » :
-    // ni AppStream Flathub ni nixpkgs n'exposent d'URL de contact développeur.
+    // Order and icons of `gs-details-page.ui`; no "Contact" source exists.
     let links = [
-        ("Site web du _projet", "webpage-symbolic", meta.homepage.clone()),
-        ("Faire un _don", "donate-symbolic", meta.donation.clone()),
-        ("Contribuer aux _traductions", "translations-symbolic", meta.translate.clone()),
-        ("_Signaler un problème", "computer-fail-symbolic", meta.bugtracker.clone()),
-        ("_Aide", "help-link-symbolic", meta.help.clone()),
+        (t("_Project Website"), "webpage-symbolic", meta.homepage.clone()),
+        (t("_Donate"), "donate-symbolic", meta.donation.clone()),
+        (t("Contribute _Translations"), "translations-symbolic", meta.translate.clone()),
+        (t("_Report an Issue"), "computer-fail-symbolic", meta.bugtracker.clone()),
+        (t("_Help"), "help-link-symbolic", meta.help.clone()),
     ];
     let present: Vec<_> = links
         .into_iter()
@@ -1612,7 +1593,7 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
         })
         .collect();
 
-    // Le `GtkStack` du `.ui` : page « links » ou page « empty ».
+    // The `.ui` GtkStack: "links" page or "empty" page.
     let stack = gtk::Stack::new();
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
@@ -1621,14 +1602,14 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
     } else {
         let list = boxed_list();
         for (label, icon, url) in present {
-            list.append(&link_row(label, icon, &url));
+            list.append(&link_row(&label, icon, &url));
         }
         stack.add_named(&list, Some("links"));
     }
     container.append(&stack);
 }
 
-/// Page « empty » du `links_stack` : grosse icône `?` et explication centrée.
+/// "empty" page of `links_stack`: big `?` icon and centered explanation.
 fn no_metadata_card() -> gtk::Box {
     let card = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     card.set_hexpand_set(true);
@@ -1648,14 +1629,13 @@ fn no_metadata_card() -> gtk::Box {
     img.set_margin_bottom(8);
     inner.append(&img);
 
-    let title = gtk::Label::new(Some("Aucune métadonnée"));
+    let title = gtk::Label::new(Some(&t("No Metadata")));
     title.add_css_class("heading");
     inner.append(&title);
 
-    let desc = gtk::Label::new(Some(
-        "Ce paquet ne fournit aucun lien vers un site web, un dépôt de code ou un \
-         suivi de bugs.",
-    ));
+    let desc = gtk::Label::new(Some(&t(
+        "This package provides no link to a website, code repository or issue tracker.",
+    )));
     desc.set_justify(gtk::Justification::Center);
     desc.set_wrap(true);
     desc.set_xalign(0.5);
@@ -1682,10 +1662,9 @@ fn link_row(label: &str, icon: &str, url: &str) -> adw::ActionRow {
     row
 }
 
-/// Tuile-carte informative : même gabarit visuel qu'`AppTile` (icône 64 chargée
-/// en asynchrone, vignette colorée de repli, nom + résumé 2 lignes) mais non
-/// navigable — les extensions n'ont pas d'équivalent nixpkgs vers lequel ouvrir
-/// une page détail.
+/// Informative card tile: same look as `AppTile` (64 icon loaded async,
+/// colored fallback thumbnail, name + 2 line summary) but not navigable:
+/// add-ons have no nixpkgs equivalent to open a details page for.
 fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk::Widget {
     let icon_slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     icon_slot.set_width_request(64);
@@ -1711,8 +1690,8 @@ fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk
     fallback.append(&glyph);
     icon_slot.append(&fallback);
 
-    // gtk::Image (≠ Picture) : `pixel_size` borne le layout à 64 tout en
-    // rendant la texture 128 en pleine résolution → net en HiDPI (cf. AppTile).
+    // gtk::Image (not Picture): `pixel_size` bounds the layout to 64 while
+    // rendering the 128 texture at full resolution, sharp on HiDPI (see AppTile).
     let img = gtk::Image::new();
     img.set_pixel_size(64);
     img.set_visible(false);
@@ -1778,8 +1757,8 @@ fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk
     card.upcast()
 }
 
-/// La grille des sections Extensions / Autres applications : même config de
-/// `FlowBox` que les grilles de l'accueil (3 colonnes max, spacing 14).
+/// Grid of the Add-ons / Other Apps sections: same `FlowBox` config as the
+/// home grids (3 columns max, spacing 14).
 fn tile_grid() -> gtk::FlowBox {
     let flow = gtk::FlowBox::new();
     flow.set_homogeneous(true);
@@ -1793,7 +1772,7 @@ fn tile_grid() -> gtk::FlowBox {
     flow
 }
 
-// ── Helpers de texte ──────────────────────────────────────────────────────────
+// ── Text helpers ──────────────────────────────────────────────────────────────
 
 fn meta_name(meta: &Option<AppMeta>, fallback: &str) -> String {
     meta.as_ref()
@@ -1808,14 +1787,14 @@ fn meta_description(meta: &Option<AppMeta>, fallback: &str) -> String {
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| {
             if fallback.is_empty() {
-                "Pas de description.".to_string()
+                t("No description.")
             } else {
                 fallback.to_string()
             }
         })
 }
 
-/// Longueur au-delà de laquelle on replie la description (≈ 4 lignes, façon
+/// Length beyond which the description collapses (about 4 lines, like
 /// `GsDescriptionBox::MAX_COLLAPSED_LINES`).
 const DESC_COLLAPSE_CHARS: usize = 300;
 
@@ -1823,8 +1802,8 @@ fn desc_needs_toggle(meta: &Option<AppMeta>, fallback: &str) -> bool {
     meta_description(meta, fallback).chars().count() > DESC_COLLAPSE_CHARS
 }
 
-/// Description à afficher : tronquée sur une frontière de mot (+ « … ») si
-/// repliée et trop longue, complète sinon.
+/// Description to display: cut on a word boundary (+ "…") when collapsed
+/// and too long, complete otherwise.
 fn desc_display(meta: &Option<AppMeta>, fallback: &str, expanded: bool) -> String {
     let full = meta_description(meta, fallback);
     if expanded || full.chars().count() <= DESC_COLLAPSE_CHARS {
@@ -1841,7 +1820,7 @@ fn desc_display(meta: &Option<AppMeta>, fallback: &str, expanded: bool) -> Strin
     format!("{}…", full[..end].trim_end())
 }
 
-/// Une fiche sans aucun contenu exploitable → page « failed », comme GNOME.
+/// A listing without any usable content goes to the "failed" page, like GNOME.
 fn is_empty_meta(meta: &AppMeta) -> bool {
     meta.summary.is_none() && meta.description.is_none() && meta.version.is_none()
 }
@@ -1849,18 +1828,6 @@ fn is_empty_meta(meta: &AppMeta) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn format_size_bytes_and_kilo() {
-        assert_eq!(format_size(42), "42 o");
-        assert_eq!(format_size(1_500), "1,5 Ko");
-    }
-
-    #[test]
-    fn format_size_mega_and_giga() {
-        assert_eq!(format_size(206_039_799), "206,0 Mo");
-        assert_eq!(format_size(1_640_000_000), "1,6 Go");
-    }
 
     #[test]
     fn age_color_matches_gnome_rating_classes() {
@@ -1873,24 +1840,24 @@ mod tests {
 
     #[test]
     fn desc_display_truncates_on_word_boundary() {
-        let long = "mot ".repeat(200);
+        let long = "word ".repeat(200);
         let out = desc_display(&None, &long, false);
         assert!(out.ends_with('…'));
         assert!(out.chars().count() <= DESC_COLLAPSE_CHARS + 1);
-        // Pas de coupe en plein milieu d'un mot.
-        assert!(out.trim_end_matches('…').ends_with("mot"));
+        // Never cut in the middle of a word.
+        assert!(out.trim_end_matches('…').ends_with("word"));
     }
 
     #[test]
     fn desc_display_expanded_returns_full_text() {
-        let long = "mot ".repeat(200);
+        let long = "word ".repeat(200);
         assert_eq!(desc_display(&None, &long, true), long);
     }
 
     #[test]
     fn desc_display_leaves_short_text_alone() {
-        assert_eq!(desc_display(&None, "court", false), "court");
-        assert_eq!(desc_display(&None, "", false), "Pas de description.");
+        assert_eq!(desc_display(&None, "short", false), "short");
+        assert_eq!(desc_display(&None, "", false), "No description.");
     }
 
     #[test]
@@ -1899,10 +1866,10 @@ mod tests {
         assert!(desc_needs_toggle(&None, &"a".repeat(DESC_COLLAPSE_CHARS + 1)));
     }
 
-    /// Vérifie l'arbre GTK réel contre `gs-details-page.ui`. Exige un display,
-    /// donc `#[ignore]` : `cargo test -p onyx-gui -- --ignored`.
+    /// Checks the real GTK tree against `gs-details-page.ui`. Needs a display,
+    /// hence `#[ignore]`: `cargo test -p onyx-gui -- --ignored`.
     #[test]
-    #[ignore = "nécessite un display GTK"]
+    #[ignore = "needs a GTK display"]
     fn widget_tree_matches_gnome_ui() {
         gtk::init().expect("gtk::init");
 
@@ -1910,34 +1877,34 @@ mod tests {
             attr: "hello".into(),
             name: "hello".into(),
             version: "2.12".into(),
-            description: "Programme de démonstration".into(),
+            description: "Demo program".into(),
         };
         let ctrl = <DetailModel as relm4::Component>::builder().launch(pkg);
         let widgets = ctrl.widgets();
 
-        // `box_details_header` n'a PAS de spacing dans le `.ui` : c'est
-        // `box_details_header_not_icon` (spacing 6) qui écarte.
+        // `box_details_header` has NO spacing in the `.ui`:
+        // `box_details_header_not_icon` (spacing 6) does the spacing.
         assert_eq!(widgets.header_box.spacing(), 0, "box_details_header");
-        // `application_details` : résumé ↔ description.
+        // `application_details`: summary ↔ description.
         assert_eq!(widgets.application_details.spacing(), 12);
-        // `box_install_remove` : spacing 9, centré.
+        // `box_install_remove`: spacing 9, centered.
         assert_eq!(widgets.box_install_remove.spacing(), 9);
         assert_eq!(widgets.box_install_remove.halign(), gtk::Align::Center);
 
-        // Le GtkStack porte les trois états du `.ui` et démarre sur « spinner ».
+        // The GtkStack holds the three `.ui` states and starts on "spinner".
         let stack = &ctrl.model().stack;
         for name in ["spinner", "ready", "failed"] {
-            assert!(stack.child_by_name(name).is_some(), "page « {name} » absente");
+            assert!(stack.child_by_name(name).is_some(), "page \"{name}\" missing");
         }
         assert_eq!(stack.visible_child_name().as_deref(), Some("spinner"));
 
-        // Le carousel démarre sur sa page de repli (aucune capture chargée).
+        // The carousel starts on its fallback page (no screenshot loaded).
         assert_eq!(
             ctrl.model().carousel.widget().visible_child_name().as_deref(),
             Some("fallback")
         );
 
-        // `box_details` : spacing 18, valign start, classe `.details-page`.
+        // `box_details`: spacing 18, valign start, `.details-page` class.
         let body = widgets
             .scroller
             .child()
@@ -1949,8 +1916,8 @@ mod tests {
         assert_eq!(body.spacing(), 18);
         assert_eq!(body.valign(), gtk::Align::Start);
 
-        // Chaque section est clampée 860/576 marges 12 — sauf le carousel, qui
-        // déborde en pleine largeur (donc hors clamp).
+        // Every section is clamped 860/576 with margins 12, except the
+        // carousel, which overflows full width (so outside any clamp).
         let mut clamps = 0;
         let mut child = body.first_child();
         while let Some(w) = child {
@@ -1963,25 +1930,25 @@ mod tests {
             }
             child = w.next_sibling();
         }
-        // en-tête, résumé, extensions, context bar, versions, infobar, licence,
-        // avis, autres applis — le carousel est le seul enfant non clampé.
-        assert_eq!(clamps, 9, "9 sections clampées attendues");
+        // header, summary, add-ons, context bar, versions, infobar, license,
+        // reviews, other apps: the carousel is the only unclamped child.
+        assert_eq!(clamps, 9, "9 clamped sections expected");
 
-        // Un SEUL #[test] GTK : le main context GLib reste acquis par le thread
-        // du premier test GTK, même en --test-threads=1 — un second #[test]
-        // échouerait sur « Failed to acquire default main context ». Les
-        // assertions supplémentaires vivent donc en helpers appelés ici.
+        // ONE GTK #[test] only: the GLib main context stays owned by the
+        // first GTK test thread, even with --test-threads=1, so a second
+        // #[test] would fail with "Failed to acquire default main context".
+        // Extra assertions therefore live in helpers called from here.
         assert_addons_render_as_tile_grid();
     }
 
-    /// Les extensions se rendent en **grille de tuiles-cartes** (`info_tile`),
-    /// même gabarit qu'`AppTile` mais non navigable (les addons Flatpak n'ont
-    /// pas d'équivalent nixpkgs à ouvrir).
+    /// Add-ons render as a **grid of card tiles** (`info_tile`), same look as
+    /// `AppTile` but not navigable (Flatpak add-ons have no nixpkgs
+    /// equivalent to open).
     fn assert_addons_render_as_tile_grid() {
         let meta = AppMeta {
             addons: vec![onyx_core::Addon {
                 name: "Highlighter".into(),
-                summary: Some("Coloration syntaxique".into()),
+                summary: Some("Syntax highlighting".into()),
                 icon_url: None,
             }],
             ..Default::default()
@@ -1994,14 +1961,14 @@ mod tests {
         let flow = container
             .last_child()
             .and_downcast::<gtk::FlowBox>()
-            .expect("la section doit se terminer par une grille FlowBox");
+            .expect("the section must end with a FlowBox grid");
         assert_eq!(flow.max_children_per_line(), 3);
 
         let tile = flow
             .first_child()
             .and_downcast::<gtk::FlowBoxChild>()
             .and_then(|c| c.child())
-            .expect("une tuile");
-        assert!(tile.has_css_class("card"), "la tuile doit être une carte");
+            .expect("a tile");
+        assert!(tile.has_css_class("card"), "the tile must be a card");
     }
 }

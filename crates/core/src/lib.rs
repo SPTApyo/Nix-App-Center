@@ -1,39 +1,38 @@
-//! Onyx core — logique pure (search / run / keep), sans dépendance UI.
+//! Onyx core: pure logic (search / run / keep), no UI dependency.
 //!
-//! Les façades (CLI, GUI relm4) consomment ce crate ; lui ne connaît ni GTK ni
-//! terminal. L'API est volontairement modelée en *données* (taxonomie + actions)
-//! pour que chaque façade rende la même logique à sa sauce, et qu'on étende sans
-//! casser : AppStream (icônes/catégories) et home-manager switch viendront se
-//! brancher sur ces coutures.
+//! Front ends (CLI, relm4 GUI) consume this crate; it knows neither GTK nor
+//! the terminal. The API is deliberately shaped as *data* (taxonomy + actions)
+//! so every front end renders the same logic its own way, and so it can grow
+//! without breaking.
 //!
-//! # Organisation des modules
+//! # Module layout
 //!
-//! Ce fichier n'est que la racine du crate : déclarations de modules et
-//! ré-exports publics. Chaque module a une seule responsabilité :
+//! This file is only the crate root: module declarations and public
+//! re-exports. Each module has a single responsibility:
 //!
-//! - [`package`] — modèle de paquet + taxonomie + actions (pur, zéro I/O)
-//! - [`search`] — recherche nixpkgs classée + enrichissement AppStream
-//! - [`appstream_db`] — base AppStream locale (cache Flatpak, instantané)
-//! - [`flathub`] — métadonnées Flathub par app (icône/description/releases)
-//! - [`detail`] — métadonnées via `nix eval <attr>.meta`
-//! - [`app_meta`] — fusion AppStream ↔ Nix pour la page détail
-//! - [`ratings`] / [`reviews`] — notes et avis ODRS
-//! - [`resolve`] — « DNS des apps » : attr nixpkgs → app-id (overlay curé + communautaire)
-//! - [`oars`] — classification d'âge (attributs OARS → « 12 » / « 12+ »)
-//! - [`permissions`] — tuile Sécurité (permissions du bundle Flatpak)
-//! - [`categories`] — collections Flathub (populaires/récentes/catégories) → nixpkgs
-//! - [`session_cache`] — mémoïsation en session de `app_meta`/icônes
-//! - [`cache`] — cache disque à TTL des résultats de recherche
-//! - [`manifest`] — manifeste « garder » (`keep`/`unkeep`)
-//! - [`tried`] — historique « essayés » (try-first) + ramasse-miettes
-//! - [`launch`] — `nix run` (l'action vedette) et `nix shell` (le try-first des CLI)
-//! - [`config_layout`] — détection de la disposition Nix (où écrire, comment appliquer)
-//! - [`config_attach`] — greffe consentie sur la config de l'utilisateur (plan → diff → commit)
-//! - [`nix_check`] — validation du Nix de l'utilisateur (parse instantané, dry-build)
-//! - [`config_gen`] — génération des fichiers Onyx + application de la config
-//! - [`updates`] — détection des mises à jour
-//! - [`locate`] — recherche par binaire (`nix-locate`)
-//! - [`http`] / [`util`] / [`paths`] — petits helpers partagés
+//! - [`package`]: package model + taxonomy + actions (pure, zero I/O)
+//! - [`search`]: ranked nixpkgs search + AppStream enrichment
+//! - [`appstream_db`]: local AppStream database (Flatpak cache or Flathub download)
+//! - [`flathub`]: per-app Flathub metadata (icon/description/releases)
+//! - [`detail`]: metadata through `nix eval <attr>.meta`
+//! - [`app_meta`]: AppStream ↔ Nix merge for the details page
+//! - [`ratings`] / [`reviews`]: ODRS ratings and reviews
+//! - [`resolve`]: "app DNS", nixpkgs attr to app id (curated + community overlay)
+//! - [`oars`]: age rating (OARS attributes to "12" / "12+")
+//! - [`permissions`]: Safety tile (Flatpak bundle permissions)
+//! - [`categories`]: Flathub collections (popular/recent/categories) to nixpkgs
+//! - [`session_cache`]: in-session memoization of `app_meta`/icons
+//! - [`cache`]: TTL disk cache of search results
+//! - [`manifest`]: "keep" manifest (`keep`/`unkeep`)
+//! - [`tried`]: "tried" history (try-first) + garbage collection
+//! - [`launch`]: `nix run` (the headline action) and `nix shell` (try-first for CLIs)
+//! - [`config_layout`]: Nix layout detection (where to write, how to apply)
+//! - [`config_attach`]: consented attach to the user's config (plan, diff, commit)
+//! - [`nix_check`]: validation of the user's Nix (instant parse, dry-build)
+//! - [`config_gen`]: generation of the Onyx files + applying the config
+//! - [`updates`]: update detection
+//! - [`locate`]: search by binary (`nix-locate`)
+//! - [`http`] / [`util`] / [`paths`]: small shared helpers
 
 mod app_meta;
 mod appstream_db;
@@ -90,10 +89,10 @@ pub use session_cache::{
 pub use tried::{garbage_collect, load_tried, record_tried, TriedEntry, TriedLog};
 pub use updates::{available_updates, Update};
 
-// ── Utilitaire de test : verrou global pour les tests qui mutent l'environnement
-// (`set_var`/`remove_var` sont process-globaux ; les tests Rust tournent en
-// parallèle → on sérialise ceux qui touchent ONYX_STORE_PACKAGES_PATH/XDG_*).
-// Cross-module (`manifest`, `config_gen`), donc à la racine du crate.
+// ── Test utility: global lock for tests that mutate the environment
+// (`set_var`/`remove_var` are process global and Rust tests run in
+// parallel, so tests touching ONYX_*/XDG_* variables are serialized).
+// Cross-module (`manifest`, `config_gen`), hence at the crate root.
 #[cfg(test)]
 pub(crate) fn env_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

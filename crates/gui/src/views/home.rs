@@ -1,6 +1,6 @@
-//! Vue accueil — copie de `gs-overview-page.ui` : carousel vedette → cartes de
-//! catégories → « Notre sélection » (Editor's Choice) → « Nouveautés et mises à
-//! jour ». Grilles de tuiles dans un seul scroll/clamp (max 1000, tightening 600).
+//! Home view, a copy of `gs-overview-page.ui`: featured carousel, category
+//! cards, "Editor's Choice", then "New & Updated". Tile grids share one
+//! scroll/clamp (max 1000, tightening 600).
 
 use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
@@ -8,24 +8,25 @@ use relm4::prelude::*;
 use onyx_core::Package;
 
 use crate::components::{AppTile, FeaturedCarousel, FeaturedInput};
+use crate::i18n::{n_, t};
 use crate::util::{skeleton_grid, AppItem};
 
 struct CategoryInfo {
     label: &'static str,
     icon_name: &'static str,
     css_class: &'static str,
-    /// Union de catégories freedesktop (cf. GNOME gs-desktop-data.c, groupe « all »).
+    /// Union of freedesktop categories (see GNOME gs-desktop-data.c, "all" group).
     cats: &'static [&'static str],
 }
 
-// Schéma exact de GNOME Software (ordre + libellés FR + unions).
+// Same scheme as GNOME Software (order, labels and unions).
 const CATEGORIES: &[CategoryInfo] = &[
-    CategoryInfo { label: "Créer",      icon_name: "org.gnome.Software.Create",    css_class: "category-create",    cats: &["graphics", "audiovideo"] },
-    CategoryInfo { label: "Travailler", icon_name: "org.gnome.Software.Work",      css_class: "category-work",      cats: &["office", "utility"] },
-    CategoryInfo { label: "Jouer",      icon_name: "org.gnome.Software.Play",      css_class: "category-play",      cats: &["game"] },
-    CategoryInfo { label: "Socialiser", icon_name: "org.gnome.Software.Socialize", css_class: "category-socialize", cats: &["network"] },
-    CategoryInfo { label: "Apprendre",  icon_name: "org.gnome.Software.Learn",     css_class: "category-learn",     cats: &["education", "science"] },
-    CategoryInfo { label: "Développer", icon_name: "org.gnome.Software.Develop",   css_class: "category-develop",   cats: &["development"] },
+    CategoryInfo { label: n_("Create"),    icon_name: "org.gnome.Software.Create",    css_class: "category-create",    cats: &["graphics", "audiovideo"] },
+    CategoryInfo { label: n_("Work"),      icon_name: "org.gnome.Software.Work",      css_class: "category-work",      cats: &["office", "utility"] },
+    CategoryInfo { label: n_("Play"),      icon_name: "org.gnome.Software.Play",      css_class: "category-play",      cats: &["game"] },
+    CategoryInfo { label: n_("Socialize"), icon_name: "org.gnome.Software.Socialize", css_class: "category-socialize", cats: &["network"] },
+    CategoryInfo { label: n_("Learn"),     icon_name: "org.gnome.Software.Learn",     css_class: "category-learn",     cats: &["education", "science"] },
+    CategoryInfo { label: n_("Develop"),   icon_name: "org.gnome.Software.Develop",   css_class: "category-develop",   cats: &["development"] },
 ];
 
 type Items = Vec<(Package, Option<String>)>;
@@ -49,7 +50,7 @@ pub enum HomeMsg {
 
 #[derive(Debug)]
 pub enum HomeOutput {
-    Category(&'static [&'static str], &'static str), // (slugs union, libellé)
+    Category(&'static [&'static str], &'static str), // (slug union, label)
     Open(Package),
 }
 
@@ -81,7 +82,7 @@ impl SimpleComponent for HomeModel {
                     set_valign: gtk::Align::Start,
                     set_spacing: 6,
 
-                    // Carousel vedette (skeleton tant que pas chargé)
+                    // Featured carousel (skeleton until loaded)
                     #[local_ref]
                     carousel_skeleton -> gtk::Box {
                         #[watch]
@@ -93,7 +94,7 @@ impl SimpleComponent for HomeModel {
                         set_visible: model.editor_loaded,
                     },
 
-                    // Cartes de catégories (3 colonnes), remplies en init
+                    // Category cards (3 columns), filled in init
                     #[name(cat_grid)]
                     gtk::Grid {
                         set_margin_top: 21,
@@ -103,11 +104,11 @@ impl SimpleComponent for HomeModel {
                         set_column_homogeneous: true,
                     },
 
-                    // Notre sélection (Editor's Choice)
+                    // Editor's Choice
                     gtk::Label {
                         #[watch]
                         set_visible: !model.editor_loaded || model.has_editor,
-                        set_label: "Notre sélection",
+                        set_label: &t("Editor's Choice"),
                         set_xalign: 0.0,
                         set_margin_top: 21,
                         set_margin_bottom: 6,
@@ -132,11 +133,11 @@ impl SimpleComponent for HomeModel {
                         set_selection_mode: gtk::SelectionMode::None,
                     },
 
-                    // Nouveautés et mises à jour
+                    // New & Updated
                     gtk::Label {
                         #[watch]
                         set_visible: !model.recent_loaded || model.has_recent,
-                        set_label: "Nouveautés et mises à jour",
+                        set_label: &t("New & Updated"),
                         set_xalign: 0.0,
                         set_margin_top: 21,
                         set_margin_bottom: 6,
@@ -189,9 +190,8 @@ impl SimpleComponent for HomeModel {
         let editor_flow: &gtk::FlowBox = model.editor.widget();
         let recent_flow: &gtk::FlowBox = model.recent.widget();
 
-        // Skeletons de chargement.
-        // Le carousel réel = Box(spacing 12, height 318) { carte vexpand .card, points }.
-        // On reproduit la même structure pour un placeholder à l'identique.
+        // Loading skeletons. The real carousel is Box(spacing 12, height 318)
+        // { vexpand .card, dots }; the placeholder mirrors that structure.
         let carousel_skeleton = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(12)
@@ -214,7 +214,7 @@ impl SimpleComponent for HomeModel {
         let widgets = view_output!();
         crate::util::smooth_scroll(&widgets.scroller);
 
-        // Cartes de catégories.
+        // Category cards.
         for (i, cat) in CATEGORIES.iter().enumerate() {
             let btn = build_category_button(cat, &sender);
             widgets
@@ -222,7 +222,7 @@ impl SimpleComponent for HomeModel {
                 .attach(&btn, (i % 3) as i32, (i / 3) as i32, 1, 1);
         }
 
-        // Chargements en arrière-plan.
+        // Background loads.
         let s1 = sender.input_sender().clone();
         std::thread::spawn(move || {
             let _ = s1.send(HomeMsg::PopularLoaded(onyx_core::popular_packages(30)));
@@ -241,7 +241,7 @@ impl SimpleComponent for HomeModel {
                 let _ = sender.output(HomeOutput::Open(pkg));
             }
             HomeMsg::PopularLoaded(items) => {
-                // 6 premières → carousel ; 12 suivantes → « Notre sélection ».
+                // First 6 go to the carousel, next 12 to Editor's Choice.
                 let carousel_items: Vec<AppItem> = items
                     .iter()
                     .take(6)
@@ -274,7 +274,7 @@ fn build_category_button(cat: &CategoryInfo, sender: &ComponentSender<HomeModel>
     let img = gtk::Image::builder().icon_name(cat.icon_name).pixel_size(32).build();
     img.add_css_class("icon-dropshadow");
     let lbl = gtk::Label::builder()
-        .label(cat.label)
+        .label(t(cat.label))
         .ellipsize(gtk::pango::EllipsizeMode::End)
         .build();
 

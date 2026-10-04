@@ -1,18 +1,19 @@
-//! Infobar — calque des blocs `.card .infobox` de `gs-details-page.ui`.
+//! Infobar, a copy of the `.card .infobox` blocks of `gs-details-page.ui`.
 //!
-//! `GtkBox vertical .card .infobox .warning` : contenu centré (`justify center`,
-//! `wrap`), premier label en `.heading`. GNOME n'y met pas d'icône — ce sont du
-//! texte centré, rien d'autre.
+//! `GtkBox vertical .card .infobox .warning`: centered content (`justify center`,
+//! `wrap`), first label in `.heading`. GNOME puts no icon there, only centered
+//! text.
 //!
-//! GNOME en a six (EOL, problèmes, dépôt inclus/absent, paquet du système de
-//! base, effacer les données). Une seule a une source de données nixpkgs :
-//! `problems` (← `broken` / `insecure` / `known_vulnerabilities`). Les autres ne
-//! sont pas construites, faute d'équivalent Nix (cf. spec §3.4).
+//! GNOME has six of them (EOL, problems, repo included/missing, base system
+//! package, clear data). Only one has a nixpkgs data source: `problems`
+//! (from `broken` / `insecure` / `known_vulnerabilities`). The others are not
+//! built, for lack of a Nix equivalent.
 
+use crate::i18n::t;
 use gtk::prelude::*;
 
-/// Une infobar d'avertissement. `lines` = le titre (`.heading`) puis les
-/// paragraphes suivants, comme les `GtkLabel` empilés du `.ui`.
+/// A warning infobar. `lines` = the title (`.heading`) then the following
+/// paragraphs, like the stacked `GtkLabel`s of the `.ui`.
 fn warning(lines: &[&str]) -> gtk::Box {
     let b = gtk::Box::new(gtk::Orientation::Vertical, 0);
     b.add_css_class("card");
@@ -31,24 +32,22 @@ fn warning(lines: &[&str]) -> gtk::Box {
     b
 }
 
-/// L'infobar « problèmes ». `None` si nixpkgs ne signale rien sur ce paquet.
+/// The "problems" infobar. `None` when nixpkgs reports nothing for this package.
 pub fn problems(broken: bool, insecure: bool, vulnerabilities: &[String]) -> Option<gtk::Box> {
     if broken {
         return Some(warning(&[
-            "Paquet cassé",
-            "nixpkgs marque ce paquet comme broken : le lancement échouera probablement.",
+            &t("Broken Package"),
+            &t("nixpkgs marks this package as broken: running it will probably fail."),
         ]));
     }
     if insecure || !vulnerabilities.is_empty() {
         let detail = if vulnerabilities.is_empty() {
-            "Ce paquet est marqué non sécurisé dans nixpkgs.".to_string()
+            t("This package is marked insecure in nixpkgs.")
         } else {
-            format!(
-                "Ce paquet est marqué non sécurisé dans nixpkgs ({}).",
-                vulnerabilities.join(", ")
-            )
+            t("This package is marked insecure in nixpkgs ({}).")
+                .replace("{}", &vulnerabilities.join(", "))
         };
-        return Some(warning(&["Vulnérabilités connues", &detail]));
+        return Some(warning(&[&t("Known Vulnerabilities"), &detail]));
     }
     None
 }

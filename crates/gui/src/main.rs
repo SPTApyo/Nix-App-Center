@@ -1,10 +1,10 @@
-//! Onyx GUI — façade relm4 + libadwaita.
+//! Onyx GUI: relm4 + libadwaita front end.
 //!
-//! Architecture par modules :
-//!   - `app`        : la coquille (fenêtre, header, navigation, orchestration)
-//!   - `views`      : les pages (accueil, catégorie, détail)
-//!   - `components` : les briques remplissables (ligne de recherche, tuile)
-//!   - `util`       : helpers partagés (icônes, textures)
+//! Modules:
+//!   - `app`        : the shell (window, header, navigation, orchestration)
+//!   - `views`      : the pages (home, category, details)
+//!   - `components` : reusable building blocks (search row, tile)
+//!   - `util`       : shared helpers (icons, textures)
 
 mod app;
 mod components;
@@ -16,7 +16,7 @@ use app::AppModel;
 use relm4::RelmApp;
 
 fn main() {
-    // Avant tout widget : branche gettext sur la locale système (comme GNOME Software).
+    // Before any widget: bind gettext to the system locale.
     i18n::init();
     let app = RelmApp::new("dev.onyx.Onyx");
     app.run::<AppModel>(());

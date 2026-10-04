@@ -1,8 +1,8 @@
-//! Modèle de paquet + taxonomie + modèle d'actions. Pur : zéro I/O.
+//! Package model + taxonomy + action model. Pure: zero I/O.
 
 use serde::{Deserialize, Serialize};
 
-// ── Modèle de paquet ──────────────────────────────────────────────────────────
+// ── Package model ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
@@ -13,8 +13,8 @@ pub struct Package {
 }
 
 impl Package {
-    /// Construit un paquet minimal à partir de son seul attribut nixpkgs.
-    /// Utile pour les façades qui n'ont qu'un attr (ex. `onyx-cli run <attr>`).
+    /// Builds a minimal package from its nixpkgs attribute alone.
+    /// Useful for front ends that only have an attr (e.g. `onyx-cli run <attr>`).
     pub fn from_attr(attr: impl Into<String>) -> Self {
         let attr = attr.into();
         Self {
@@ -25,30 +25,30 @@ impl Package {
         }
     }
 
-    /// Jeu de paquets (préfixe de l'attr) : `haskellPackages.aeson` → `haskellPackages`.
-    /// `None` pour un paquet top-level (`firefox`). Gratuit (pas de `nix eval`).
+    /// Package set (attr prefix): `haskellPackages.aeson` gives `haskellPackages`.
+    /// `None` for a top-level package (`firefox`). Free (no `nix eval`).
     pub fn package_set(&self) -> Option<&str> {
         self.attr.split_once('.').map(|(prefix, _)| prefix)
     }
 }
 
-// ── Taxonomie ─────────────────────────────────────────────────────────────────
+// ── Taxonomy ──────────────────────────────────────────────────────────────────
 
-/// Nature d'un paquet, qui détermine son action primaire.
+/// Kind of package, which decides its primary action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    /// Application lançable (a un binaire / `meta.mainProgram`) → *try-first*.
+    /// Runnable application (has a binary / `meta.mainProgram`): *try-first*.
     App,
-    /// Extension, thème, bibliothèque → *keep-only* (pas de `nix run`).
+    /// Extension, theme, library: *keep-only* (no `nix run`).
     KeepOnly,
 }
 
 impl Package {
-    /// Couture d'inférence de la taxonomie.
+    /// Taxonomy inference seam.
     ///
-    /// Le JSON de `nix search` ne porte pas `meta.mainProgram` ; tant qu'on n'a
-    /// pas croisé AppStream / `nix eval`, on considère tout paquet comme `App`.
-    /// C'est ICI qu'on raffinera (Jalon 2+), sans toucher aux façades.
+    /// `nix search` JSON has no `meta.mainProgram`; until AppStream / `nix eval`
+    /// are cross-checked, every package is treated as `App`. This is where it
+    /// will be refined, without touching the front ends.
     pub fn kind(&self) -> Kind {
         Kind::App
     }
@@ -58,42 +58,42 @@ impl Package {
     }
 }
 
-// ── Modèle d'actions (le « split-button pilule » en données) ──────────────────
+// ── Action model (the "pill split button" as data) ────────────────────────────
 
-/// Une action proposée pour un paquet. Les façades décident du rendu (bouton
-/// principal, entrée de menu, raccourci…).
+/// An action offered for a package. Front ends decide how to render it (main
+/// button, menu entry, shortcut…).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
-    /// Lancer sans installer : `nix run nixpkgs#<attr>`. L'action vedette.
+    /// Run without installing: `nix run nixpkgs#<attr>`. The headline action.
     Run,
-    /// Ouvrir un terminal avec le paquet dans le `PATH` : `nix shell nixpkgs#<attr>`.
-    /// Le *try-first* des outils CLI, que `Run` (qui lance le main program et rend la
-    /// main) ne sert pas.
+    /// Open a terminal with the package in `PATH`: `nix shell nixpkgs#<attr>`.
+    /// The *try-first* path for CLI tools, which `Run` (launching the main
+    /// program and returning) does not serve.
     Shell,
-    /// Ajouter au manifeste Onyx (→ `store-packages.nix` + home-manager plus tard).
+    /// Add to the Onyx manifest (and so to the generated Nix files).
     Keep,
-    /// Copier la commande `nix run` (le presse-papier est géré par la façade).
+    /// Copy the `nix run` command (the front end owns the clipboard).
     CopyRunCommand,
 }
 
 impl Action {
     pub fn label(&self) -> &'static str {
         match self {
-            Action::Run => "Lancer",
-            Action::Shell => "Essayer dans un shell",
-            Action::Keep => "Ajouter à ma config",
-            Action::CopyRunCommand => "Copier la commande",
+            Action::Run => "Run",
+            Action::Shell => "Try in a Shell",
+            Action::Keep => "Add to Configuration",
+            Action::CopyRunCommand => "Copy Command",
         }
     }
 }
 
-/// L'ensemble des actions d'un paquet : 1 primaire + N secondaires.
+/// A package's actions: 1 primary + N secondary.
 pub struct Actions {
     pub primary: Action,
     pub secondary: Vec<Action>,
 }
 
-/// Modélise, par paquet, l'action primaire + les secondaires selon la taxonomie.
+/// Models, per package, the primary + secondary actions from the taxonomy.
 pub fn actions_for(pkg: &Package) -> Actions {
     if pkg.is_runnable() {
         Actions {

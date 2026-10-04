@@ -1,24 +1,24 @@
-//! Rangée d'avis — calque de `gs-review-row.ui`.
+//! Review row, a copy of `gs-review-row.ui`.
 //!
-//! `GtkListBoxRow .review-row` → `GtkBox vertical spacing 6` :
-//!  1. `GtkBox spacing 10` : étoiles, résumé `.heading` (ellipsize, hexpand),
-//!     date `.dim-label` alignée à droite ;
-//!  2. auteur `.dim-label`, `ellipsize end` ;
-//!  3. texte de l'avis (`wrap`, `max-width-chars 80`, marges 10/8).
+//! `GtkListBoxRow .review-row` holding a vertical `GtkBox` (spacing 6):
+//!  1. `GtkBox spacing 10`: stars, `.heading` summary (ellipsize, hexpand),
+//!     `.dim-label` date aligned right;
+//!  2. `.dim-label` author, `ellipsize end`;
+//!  3. review text (`wrap`, `max-width-chars 80`, margins 10/8).
 //!
-//! Les boutons de vote / signalement / suppression du `.ui` sont hors périmètre :
-//! ils exigent un compte ODRS, et Onyx ne fait que lire (cf. spec §8).
+//! The vote / report / delete buttons of the `.ui` are out of scope: they
+//! need an ODRS account, and Onyx is read only.
 
 use gtk::prelude::*;
 use onyx_core::Review;
 
 use crate::util::{format_relative, stars_widget};
 
-/// L'avis vedette, non activable (comme le `GsReviewRow` de la colonne droite).
+/// The featured review, non activatable (like the right column `GsReviewRow`).
 pub fn row(review: &Review) -> gtk::ListBoxRow {
     let vb = gtk::Box::new(gtk::Orientation::Vertical, 6);
 
-    // Ligne 1 : étoiles + résumé + date.
+    // Line 1: stars + summary + date.
     let head = gtk::Box::new(gtk::Orientation::Horizontal, 10);
     head.append(&stars_widget(review.stars, 16));
 
@@ -35,7 +35,7 @@ pub fn row(review: &Review) -> gtk::ListBoxRow {
     head.append(&date);
     vb.append(&head);
 
-    // Ligne 2 : auteur.
+    // Line 2: author.
     if let Some(author) = review.author.as_deref() {
         let a = gtk::Label::new(Some(author));
         a.set_xalign(0.0);
@@ -44,7 +44,7 @@ pub fn row(review: &Review) -> gtk::ListBoxRow {
         vb.append(&a);
     }
 
-    // Ligne 3 : le texte.
+    // Line 3: the text.
     let text = gtk::Label::new(Some(&review.description));
     text.set_xalign(0.0);
     text.set_wrap(true);

@@ -1,12 +1,12 @@
-//! Appels HTTP JSON partagés (Flathub, ODRS). Timeout court systématique et
-//! échec silencieux (`None`) : le réseau n'est jamais indispensable — l'UI
-//! dégrade en icône générique / section masquée.
+//! Shared JSON HTTP calls (Flathub, ODRS). Always a short timeout and a
+//! silent failure (`None`): the network is never required, the UI degrades
+//! to a generic icon or a hidden section.
 
 use std::time::Duration;
 
-/// Timeout global de chaque requête JSON. Sans lui, un réseau dégradé vers
-/// flathub.org bloquait l'appelant jusqu'au timeout système (60-120 s) — bug
-/// historique de « l'accueil figé sur ses skeletons pendant 1-2 minutes ».
+/// Global timeout of every JSON request. Without it, a degraded network to
+/// flathub.org blocked the caller until the system timeout (60-120 s), the
+/// historical bug of "home stuck on its skeletons for 1-2 minutes".
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(6);
 
 pub(crate) fn get_json(url: &str) -> Option<serde_json::Value> {

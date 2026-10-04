@@ -1,5 +1,5 @@
-//! Vues = les pages de l'app : accueil, recherche (dans l'app), catégorie,
-//! installées (inclut les essayées), mises à jour, détail.
+//! Views are the app pages: home, in-app search, category, installed
+//! (including tried apps), updates, details.
 
 pub mod category;
 pub mod detail;

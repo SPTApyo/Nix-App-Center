@@ -103,8 +103,11 @@ impl Db {
         self.by_extends
             .get(&app_id.to_lowercase())
             .map(|idxs| {
+                // GIMP 2 and 3 ship the same plug-ins under distinct ids.
+                let mut seen = std::collections::HashSet::new();
                 idxs.iter()
                     .filter_map(|&i| self.addons.get(i))
+                    .filter(|e| seen.insert(e.name.to_lowercase()))
                     .map(|e| Addon {
                         name: e.name.clone(),
                         summary: e.summary.clone(),
@@ -430,6 +433,27 @@ enum Collect {
     Caption,
 }
 
+/// Appends markup text the way HTML flows it: whitespace runs (XML
+/// indentation included) become one space, none at a line start.
+fn push_flowed(buf: &mut String, text: &str) {
+    for (i, word) in text.split_whitespace().enumerate() {
+        let at_line_start = buf.is_empty() || buf.ends_with('\n') || buf.ends_with("• ");
+        let glued = i == 0 && !text.starts_with(char::is_whitespace);
+        if !at_line_start && !glued {
+            buf.push(' ');
+        }
+        buf.push_str(word);
+    }
+    if text.ends_with(char::is_whitespace) && !text.trim().is_empty() {
+        buf.push(' ');
+    }
+}
+
+fn end_line(buf: &mut String) {
+    buf.truncate(buf.trim_end_matches(' ').len());
+    buf.push('\n');
+}
+
 fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     let mut xml = Reader::from_reader(reader);
     // Sans ça, quick-xml émet un unique `Event::Empty` (non géré par la boucle
@@ -514,6 +538,8 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 if in_desc && tag != "description" {
                     if has_lang {
                         skip = 1; // saute le paragraphe traduit
+                    } else if tag == "li" {
+                        desc_buf.push_str("• ");
                     }
                     // Sinon : on laisse le texte passer via Event::Text
                     continue;
@@ -521,6 +547,8 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 if in_rel_desc && tag != "description" {
                     if has_lang {
                         skip = 1;
+                    } else if tag == "li" {
+                        rel_desc_buf.push_str("• ");
                     }
                     continue;
                 }
@@ -757,14 +785,14 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 // Fin d'un enfant à l'intérieur d'une description
                 if in_desc && depth > desc_depth {
                     if matches!(tag, "p" | "li") {
-                        desc_buf.push('\n');
+                        end_line(&mut desc_buf);
                     }
                     depth -= 1;
                     continue;
                 }
                 if in_rel_desc && depth > rel_desc_depth {
                     if matches!(tag, "p" | "li") {
-                        rel_desc_buf.push('\n');
+                        end_line(&mut rel_desc_buf);
                     }
                     depth -= 1;
                     continue;
@@ -850,16 +878,15 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     Ok(c) => c,
                     Err(_) => continue,
                 };
-                let text = cow.trim();
-
                 if in_desc {
-                    desc_buf.push_str(text);
+                    push_flowed(&mut desc_buf, &cow);
                     continue;
                 }
                 if in_rel_desc {
-                    rel_desc_buf.push_str(text);
+                    push_flowed(&mut rel_desc_buf, &cow);
                     continue;
                 }
+                let text = cow.trim();
                 if text.is_empty() {
                     continue;
                 }
@@ -1124,6 +1151,19 @@ mod tests {
         assert_eq!(devapps[0].app_id, "org.gnome.gedit.Plugins");
     }
 
+    #[test]
+    fn addons_with_the_same_name_are_listed_once() {
+        let addon = |id: &str| Entry {
+            app_id: id.into(),
+            name: "G'MIC".into(),
+            extends: Some("org.gimp.GIMP".into()),
+            ..Entry::default()
+        };
+        let app = Entry { app_id: "org.gimp.GIMP".into(), name: "GIMP".into(), ..Entry::default() };
+        let db = build_db(vec![app, addon("org.gimp.GIMP.Plugin.GMic"), addon("org.gimp.GIMP.Plugin.GMic3")]);
+        assert_eq!(db.addons_for("org.gimp.GIMP").len(), 1);
+    }
+
     // ── Parser : texte (traductions ignorées) ─────────────────────────────────
 
     #[test]
@@ -1139,6 +1179,16 @@ mod tests {
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
         assert_eq!(e.summary.as_deref(), Some("A text editor"));
+    }
+
+    #[test]
+    fn description_text_flows_like_html() {
+        let xml = r#"<components><component type="desktop-application"><id>a.b</id><name>A</name>
+<description><p>GIMP is
+      an <em>image</em> editor.</p><ul><li>Fast</li><li>Free</li></ul></description>
+</component></components>"#;
+        let e = parse(std::io::Cursor::new(xml)).remove(0);
+        assert_eq!(e.description.as_deref(), Some("GIMP is an image editor.\n• Fast\n• Free"));
     }
 
     #[test]

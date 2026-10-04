@@ -1,19 +1,25 @@
-//! Petits helpers de normalisation de chaînes, partagés par `search`,
-//! `flathub` et `categories` (tous doivent, d'une façon ou d'une autre,
-//! rapprocher un nom nixpkgs d'un nom Flathub/AppStream).
+//! Small string normalization helpers shared by `search`, `flathub` and
+//! `categories` (all of them, one way or another, match a nixpkgs name with a
+//! Flathub/AppStream name).
 
-/// Normalise un nom pour comparaison approximative : minuscule + espaces retirés.
-/// (Distinct de `appstream_db::alnum`, qui retire aussi ponctuation/tirets — les
-/// deux normalisations ne sont PAS interchangeables, voir le commentaire dans
+/// Marks a user-visible string for translation extraction (`N_()` in C). The
+/// core has no gettext: front ends translate it where it is displayed.
+pub(crate) const fn n_(s: &'static str) -> &'static str {
+    s
+}
+
+/// Normalizes a name for loose comparison: lowercase, spaces removed.
+/// (Distinct from `appstream_db::alnum`, which also strips punctuation and
+/// dashes: the two normalizations are NOT interchangeable, see the comment in
 /// `appstream_db.rs`.)
 pub(crate) fn sanitize(name: &str) -> String {
     name.to_lowercase().replace(' ', "")
 }
 
-/// Les trois clés candidates pour rapprocher une app Flathub d'un attr nixpkgs :
-/// nom sans espaces, 1ᵉʳ mot du nom, dernier segment de l'app-id. Politique
-/// unique partagée par `categories` (collections ET apps du même développeur) —
-/// deux implémentations divergeraient silencieusement.
+/// The three candidate keys to match a Flathub app with a nixpkgs attr, most
+/// reliable first: name without spaces, last app-id segment, first word of the
+/// name. Single policy shared by `categories` (collections AND same developer
+/// apps): two implementations would silently diverge.
 pub(crate) fn matching_keys(name: &str, app_id: &str) -> [String; 3] {
     [
         sanitize(name),
@@ -22,7 +28,7 @@ pub(crate) fn matching_keys(name: &str, app_id: &str) -> [String; 3] {
     ]
 }
 
-/// Échappe les métacaractères regex pour un usage sûr dans un pattern `nix search`.
+/// Escapes regex metacharacters for safe use in a `nix search` pattern.
 pub(crate) fn regex_escape(s: &str) -> String {
     let mut out = String::new();
     for c in s.chars() {

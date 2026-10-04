@@ -1,13 +1,14 @@
-//! L'écran de greffe : le seul endroit où Onyx propose de modifier un fichier que
-//! l'utilisateur a écrit.
+//! The attach screen: the only place where Onyx offers to edit a file the user
+//! wrote.
 //!
-//! Règle absolue : **le diff exact est montré, et rien n'est écrit sans un clic
-//! explicite.** Pas de magie silencieuse — c'est la config de quelqu'un d'autre.
+//! Hard rule: **the exact diff is shown, and nothing is written without an
+//! explicit click.** No silent magic: this is someone else's configuration.
 //!
-//! Il y a toujours une porte de sortie : « Faire moi-même » ferme le dialogue et copie
-//! la ligne à coller. Onyx ne se rend jamais indispensable.
+//! There is always a way out: "Do It Myself" closes the dialog and copies the
+//! lines to paste. Onyx never makes itself indispensable.
 
 use adw::prelude::*;
+use crate::i18n::t;
 use onyx_core::AttachPlan;
 
 fn code_block(text: &str) -> gtk::ScrolledWindow {
@@ -27,53 +28,48 @@ fn code_block(text: &str) -> gtk::ScrolledWindow {
     scroller
 }
 
-/// Propose la greffe. `on_attached` n'est appelé que si l'utilisateur a validé ET que
-/// l'écriture a réussi.
+/// Offers to attach. `on_attached` is only called when the user accepted AND the
+/// write succeeded.
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     plan: AttachPlan,
     on_attached: impl Fn(Result<(), String>) + 'static,
 ) {
-    let (explication, corps, peut_patcher) = match &plan {
+    let (explanation, body, can_patch) = match &plan {
         AttachPlan::Patch { site, backup, diff, .. } => (
-            format!(
-                "Onyx a écrit ses propres fichiers, mais rien ne les importe encore : \
-                 tes apps gardées n'ont donc aucun effet réel.\n\n\
-                 Pour y remédier, il doit ajouter les lignes ci-dessous à\n{}\n\
-                 Une sauvegarde sera écrite dans\n{}\n\n\
-                 C'est la seule modification qu'Onyx fera jamais à tes fichiers.",
-                site.display(),
-                backup.display()
-            ),
+            t("Onyx wrote its own files, but nothing imports them yet, so your kept \
+               apps have no real effect.\n\n\
+               To fix this, Onyx needs to add the lines below to\n{site}\n\
+               A backup will be written to\n{backup}\n\n\
+               This is the only change Onyx will ever make to your files.")
+            .replace("{site}", &site.display().to_string())
+            .replace("{backup}", &backup.display().to_string()),
             diff.clone(),
             true,
         ),
         AttachPlan::Manual { site, snippet } => (
-            format!(
-                "Onyx ne trouve pas de liste « imports » au plus haut niveau de\n{}\n\n\
-                 Il refuse de deviner où écrire dans ton fichier. Ajoute ces lignes \
-                 toi-même, où tu le juges bon.",
-                site.display()
-            ),
+            t("Onyx cannot find a top-level “imports” list in\n{site}\n\n\
+               It will not guess where to write in your file. Add these lines \
+               yourself, wherever you see fit.")
+            .replace("{site}", &site.display().to_string()),
             snippet.clone(),
             false,
         ),
         AttachPlan::AlreadyAttached => (
-            "Onyx est déjà greffé sur ta config : il n'y a rien à faire.".to_string(),
+            t("Onyx is already connected to your configuration. Nothing to do."),
             String::new(),
             false,
         ),
         AttachPlan::NoLayout => (
-            "Onyx ne trouve pas ta config Nix (ni /etc/nixos, ni ~/.config/home-manager). \
-             Il ne devinera pas : tes apps restent dans le manifeste, mais aucun fichier \
-             n'est généré."
-                .to_string(),
+            t("Onyx cannot find your Nix configuration (neither /etc/nixos nor \
+               ~/.config/home-manager). It will not guess: your apps stay in the \
+               manifest, but no file is generated."),
             String::new(),
             false,
         ),
     };
 
-    let label = gtk::Label::new(Some(&explication));
+    let label = gtk::Label::new(Some(&explanation));
     label.set_xalign(0.0);
     label.set_wrap(true);
     label.set_selectable(true);
@@ -84,32 +80,32 @@ pub fn present(
     content.set_margin_start(12);
     content.set_margin_end(12);
     content.append(&label);
-    if !corps.is_empty() {
-        content.append(&code_block(&corps));
+    if !body.is_empty() {
+        content.append(&code_block(&body));
     }
 
     let header = adw::HeaderBar::new();
     let dialog = adw::Dialog::new();
-    dialog.set_title("Greffer Onyx sur ta config");
+    dialog.set_title(&t("Connect Onyx to Your Configuration"));
     dialog.set_content_width(760);
     dialog.set_content_height(560);
 
-    let close = gtk::Button::with_label(if peut_patcher { "Faire moi-même" } else { "Fermer" });
+    let close = gtk::Button::with_label(&if can_patch { t("Do It Myself") } else { t("Close") });
     header.pack_start(&close);
     {
         let dialog = dialog.clone();
-        let corps = corps.clone();
+        let body = body.clone();
         close.connect_clicked(move |_| {
-            // Toujours une porte de sortie : la ligne part dans le presse-papier.
-            if !corps.is_empty() {
-                crate::util::copy_to_clipboard(&corps);
+            // Always a way out: lines go to the clipboard.
+            if !body.is_empty() {
+                crate::util::copy_to_clipboard(&body);
             }
             dialog.close();
         });
     }
 
-    if peut_patcher {
-        let accept = gtk::Button::with_label("Ajouter la ligne d'import");
+    if can_patch {
+        let accept = gtk::Button::with_label(&t("Add Import Line"));
         accept.add_css_class("suggested-action");
         header.pack_end(&accept);
 

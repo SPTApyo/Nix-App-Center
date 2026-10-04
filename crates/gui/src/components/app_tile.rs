@@ -1,5 +1,5 @@
-//! `AppTile` — une tuile d'app dans la grille de catégorie (composant de
-//! `gtk::FlowBox`, façon GNOME Software). Clic → ouvre la page détail.
+//! `AppTile`: an app tile in category grids (child of a `gtk::FlowBox`, like
+//! GNOME Software). Click opens the details page.
 
 use adw::prelude::*;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
@@ -23,13 +23,13 @@ pub enum TileMsg {
 impl FactoryComponent for AppTile {
     type Init = AppItem;
     type Input = TileMsg;
-    type Output = Package; // clic → ouvre la page détail
+    type Output = Package; // click opens the details page
     type CommandOutput = ();
     type ParentWidget = gtk::FlowBox;
 
     view! {
-        // Dimensions calquées sur GsSummaryTile (GNOME Software) :
-        // preferred-width 270, padding 17, icône 64, gap 14.
+        // Dimensions copied from GsSummaryTile (GNOME Software):
+        // preferred-width 270, padding 17, 64 px icon, gap 14.
         #[root]
         gtk::Button {
             add_css_class: "card",
@@ -66,8 +66,8 @@ impl FactoryComponent for AppTile {
                         set_height_request: 64,
                         set_halign: gtk::Align::Center,
                         set_valign: gtk::Align::Center,
-                        // Bloque la remontée du hexpand de l'image interne (sinon la
-                        // tuile s'étire et désaligne la grille).
+                        // Stops the inner image hexpand from propagating (else the
+                        // tile stretches and misaligns the grid).
                         set_hexpand: false,
                         set_vexpand: false,
                         add_css_class: "fallback-tile",
@@ -76,9 +76,9 @@ impl FactoryComponent for AppTile {
                         gtk::Image {
                             set_icon_name: Some(FALLBACK_GLYPH),
                             set_pixel_size: 48,
-                            // hexpand/vexpand indispensables : dans une Box, halign
-                            // Center n'agit sur l'axe principal que si l'enfant prend
-                            // tout l'espace — sinon le glyphe se cale à gauche.
+                            // hexpand/vexpand are required: in a Box, halign Center
+                            // only acts on the main axis when the child takes all
+                            // the space, else the glyph sticks to the left.
                             set_hexpand: true,
                             set_vexpand: true,
                             set_halign: gtk::Align::Center,
@@ -86,9 +86,9 @@ impl FactoryComponent for AppTile {
                             add_css_class: "fallback-glyph",
                         },
                     },
-                    // gtk::Image (≠ Picture) : `pixel_size` borne la taille de
-                    // layout à 64 (pas de débordement FlowBox) tout en rendant la
-                    // texture 128 en pleine résolution → net en HiDPI.
+                    // gtk::Image (not Picture): `pixel_size` bounds the layout
+                    // size to 64 (no FlowBox overflow) while rendering the 128
+                    // texture at full resolution, sharp on HiDPI.
                     gtk::Image {
                         #[watch]
                         set_visible: self.icon_state == IconState::Real,
@@ -106,7 +106,7 @@ impl FactoryComponent for AppTile {
                     gtk::Label {
                         set_label: &self.package.name,
                         set_xalign: 0.0,
-                        // Largeur naturelle bornée → 3 colonnes dans le clamp 1000.
+                        // Bounded natural width: 3 columns in the 1000 clamp.
                         set_max_width_chars: 12,
                         set_width_chars: 0,
                         set_ellipsize: gtk::pango::EllipsizeMode::End,
@@ -117,8 +117,8 @@ impl FactoryComponent for AppTile {
                         set_xalign: 0.0,
                         set_yalign: 0.0,
                         set_wrap: true,
-                        // Coupure par caractère (pas par mot) → un mot long ne
-                        // gonfle pas la largeur minimale de la tuile.
+                        // Wrap by character (not word) so a long word does not
+                        // inflate the tile minimum width.
                         set_wrap_mode: gtk::pango::WrapMode::WordChar,
                         set_lines: 2,
                         set_max_width_chars: 16,
@@ -140,7 +140,7 @@ impl FactoryComponent for AppTile {
         };
         if let Some(url) = icon_url {
             onyx_core::remember_icon_url(&package.attr, &url);
-            // send() (≠ input()) ne panique pas si la tuile a été détruite.
+            // send() (unlike input()) does not panic if the tile was destroyed.
             let s = sender.input_sender().clone();
             std::thread::spawn(move || {
                 let _ = s.send(TileMsg::IconLoaded(onyx_core::cached_fetch_bytes(&url)));
@@ -170,7 +170,7 @@ impl FactoryComponent for AppTile {
     }
 }
 
-/// Tronque la description à un nombre de caractères et ajoute « … » si dépassé.
+/// Truncates the description to a number of characters, adding "…" when cut.
 fn truncate_desc(s: &str) -> String {
     const MAX: usize = 64;
     let s = s.trim();

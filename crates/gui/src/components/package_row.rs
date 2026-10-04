@@ -1,7 +1,7 @@
-//! `PackageRow` — la ligne d'app de la **recherche** (seul endroit en liste).
-//! Purement navigationnelle : cliquer n'importe où ouvre le détail. Les actions
-//! (lancer / garder / shell / copier) vivent toutes sur la page détail, dans un
-//! split-button unique — une ligne, un seul geste, une seule cible.
+//! `PackageRow`: the app row of **search** (the only list in the app).
+//! Purely navigational: clicking anywhere opens the details page. Actions
+//! (run / keep / shell / copy) all live on the details page, in a single
+//! split button: one row, one gesture, one target.
 
 use adw::prelude::*;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
@@ -26,13 +26,13 @@ pub enum RowMsg {
 impl FactoryComponent for PackageRow {
     type Init = AppItem;
     type Input = RowMsg;
-    type Output = Package; // activation → ouvre la page détail
+    type Output = Package; // activation opens the details page
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
 
     view! {
-        // `GsAppRow` (gs-app-row.ui) sans son bouton : [icône | vbox(nom, résumé,
-        // étoiles)]. Row activable (clic → détail) via un geste.
+        // `GsAppRow` (gs-app-row.ui) without its button: [icon | vbox(name,
+        // summary, stars)]. The row is activated (click to details) by a gesture.
         #[root]
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
@@ -48,7 +48,7 @@ impl FactoryComponent for PackageRow {
                 }
             },
 
-            // Icône 64 : shimmer (chargement) → vignette générique → icône réelle.
+            // 64 px icon: shimmer (loading), generic thumbnail, real icon.
             gtk::Box {
                 set_width_request: 64,
                 set_height_request: 64,
@@ -68,8 +68,8 @@ impl FactoryComponent for PackageRow {
                     set_height_request: 64,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
-                    // Bloque la remontée du hexpand de l'image interne : sinon la
-                    // colonne d'icônes s'étire et désaligne toute la ligne.
+                    // Stops the inner image hexpand from propagating, else the
+                    // icon column stretches and misaligns the whole row.
                     set_hexpand: false,
                     set_vexpand: false,
                     add_css_class: "fallback-tile",
@@ -78,8 +78,8 @@ impl FactoryComponent for PackageRow {
                     gtk::Image {
                         set_icon_name: Some(FALLBACK_GLYPH),
                         set_pixel_size: 48,
-                        // hexpand/vexpand : sans ça halign Center est ignoré sur
-                        // l'axe principal de la Box → glyphe collé à gauche.
+                        // hexpand/vexpand: without them halign Center is ignored
+                        // on the Box main axis and the glyph sticks to the left.
                         set_hexpand: true,
                         set_vexpand: true,
                         set_halign: gtk::Align::Center,
@@ -87,8 +87,8 @@ impl FactoryComponent for PackageRow {
                         add_css_class: "fallback-glyph",
                     },
                 },
-                // gtk::Image : `pixel_size` borne le layout à 64 tout en rendant
-                // la texture 128 en pleine résolution → net en HiDPI.
+                // gtk::Image: `pixel_size` bounds the layout to 64 while the
+                // 128 texture renders at full resolution, sharp on HiDPI.
                 gtk::Image {
                     #[watch]
                     set_visible: self.icon_state == IconState::Real,
@@ -98,7 +98,7 @@ impl FactoryComponent for PackageRow {
                 },
             },
 
-            // Nom · résumé · étoiles (empilés, façon GsAppRow).
+            // Name · summary · stars (stacked, like GsAppRow).
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_valign: gtk::Align::Center,
@@ -118,7 +118,7 @@ impl FactoryComponent for PackageRow {
                     add_css_class: "dim-label",
                 },
 
-                // Note ODRS (GsStarWidget) : 5 étoiles + nombre d'avis, SOUS le résumé.
+                // ODRS rating (GsStarWidget): 5 stars + review count, BELOW the summary.
                 gtk::Box {
                     set_visible: self.rating.is_some(),
                     set_margin_top: 3,
@@ -152,8 +152,8 @@ impl FactoryComponent for PackageRow {
         };
         if let Some(url) = icon_url {
             onyx_core::remember_icon_url(&package.attr, &url);
-            // input_sender().send() (≠ input()) ne panique pas si la ligne a été
-            // détruite entre-temps (clear lors d'une recherche/filtre).
+            // input_sender().send() (unlike input()) does not panic if the row
+            // was destroyed meanwhile (cleared by a new search or filter).
             let s = sender.input_sender().clone();
             std::thread::spawn(move || {
                 let _ = s.send(RowMsg::IconLoaded(onyx_core::cached_fetch_bytes(&url)));
@@ -184,8 +184,8 @@ impl FactoryComponent for PackageRow {
     }
 }
 
-/// Icône de la `pos`-ième étoile (1..5) pour une note, façon `GsStarWidget` :
-/// pleine si `note ≥ pos`, demi si `note ≥ pos-0.5`, vide sinon.
+/// Icon of the `pos`-th star (1..5) for a rating, like `GsStarWidget`:
+/// full if `rating ≥ pos`, half if `rating ≥ pos-0.5`, empty otherwise.
 fn star_icon(rating: Option<Rating>, pos: i32) -> &'static str {
     match rating {
         Some(r) if r.stars >= pos as f32 => "starred-symbolic",
@@ -194,8 +194,8 @@ fn star_icon(rating: Option<Rating>, pos: i32) -> &'static str {
     }
 }
 
-/// Classe CSS de la `pos`-ième étoile : dorée (`star-on`) si pleine/demi, sinon
-/// atténuée (`star-off`). Couleurs définies dans `APP_CSS`.
+/// CSS class of the `pos`-th star: golden (`star-on`) when full or half,
+/// dimmed (`star-off`) otherwise. Colors are defined in `APP_CSS`.
 fn star_class(rating: Option<Rating>, pos: i32) -> &'static str {
     match rating {
         Some(r) if r.stars >= pos as f32 - 0.5 => "star-on",
@@ -203,7 +203,7 @@ fn star_class(rating: Option<Rating>, pos: i32) -> &'static str {
     }
 }
 
-/// Nombre d'avis entre parenthèses (vide si pas de note).
+/// Review count in parentheses (empty without a rating).
 fn review_count(rating: Option<Rating>) -> String {
     rating.map(|r| format!("({})", r.total)).unwrap_or_default()
 }
@@ -218,7 +218,7 @@ fn row_subtitle(pkg: &Package) -> String {
     }
 }
 
-/// Tronque à `max` caractères avec « … » si dépassement (cf. tuiles).
+/// Truncates to `max` characters with "…" when longer (see tiles).
 fn truncate(s: &str, max: usize) -> String {
     let s = s.trim();
     if s.chars().count() <= max {

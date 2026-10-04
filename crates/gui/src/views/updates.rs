@@ -1,13 +1,14 @@
-//! Onglet « Mises à jour » : compare les versions gardées (manifeste) à celles de
-//! nixpkgs courant via `core::available_updates()` (lancé en thread, c'est N appels
-//! `nix search`). Skeleton pendant le chargement ; illustration « Tout est à jour »
-//! si rien ; sinon une boxed-list + bouton « Tout mettre à jour » (`apply_config`).
-//! Rechargé à chaque entrée dans l'onglet (depuis `app.rs`).
+//! "Updates" tab: compares kept versions (manifest) with current nixpkgs
+//! through `core::available_updates()` (run in a thread, it makes N `nix search`
+//! calls). Skeleton while loading, an "Everything is up to date" illustration
+//! when empty, otherwise a boxed list + an "Update All" button (`apply_config`).
+//! Reloaded every time the tab is entered (from `app.rs`).
 
 use adw::prelude::*;
 use relm4::prelude::*;
 use onyx_core::{Package, Update};
 
+use crate::i18n::t;
 use crate::util;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -26,15 +27,15 @@ pub struct UpdatesModel {
 
 #[derive(Debug)]
 pub enum UpdatesMsg {
-    /// (Re)lance la détection en arrière-plan.
+    /// (Re)starts detection in the background.
     Reload,
-    /// Résultat de la détection.
+    /// Detection result.
     Loaded(Vec<Update>),
-    /// L'utilisateur a cliqué « Tout mettre à jour » → `home-manager switch`.
+    /// The user clicked "Update All": apply the configuration.
     ApplyAll,
-    /// Résultat du switch (Ok = dernière ligne, Err = message).
+    /// Apply result (Ok = last line, Err = message).
     Applied(Result<onyx_core::ApplyOutcome, String>),
-    /// Clic sur une ligne → ouvrir le détail.
+    /// Row click: open the details page.
     Open(Package),
 }
 
@@ -42,7 +43,7 @@ pub enum UpdatesMsg {
 impl SimpleComponent for UpdatesModel {
     type Init = ();
     type Input = UpdatesMsg;
-    type Output = Package; // ligne ouverte → AppModel pousse le détail
+    type Output = Package; // opened row, AppModel pushes the details page
 
     view! {
         #[root]
@@ -105,7 +106,7 @@ impl SimpleComponent for UpdatesModel {
                     return;
                 }
                 self.applying = true;
-                self.status = Some("Application de la config…".to_string());
+                self.status = Some(t("Applying configuration…"));
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
@@ -116,7 +117,7 @@ impl SimpleComponent for UpdatesModel {
             UpdatesMsg::Applied(res) => {
                 self.applying = false;
                 self.status = Some(crate::util::describe_apply(res));
-                // Re-détecte après application (les versions ont pu changer).
+                // Detect again after applying (versions may have changed).
                 self.rebuild(&sender);
                 sender.input(UpdatesMsg::Reload);
             }
@@ -128,7 +129,7 @@ impl SimpleComponent for UpdatesModel {
 }
 
 impl UpdatesModel {
-    /// Vide `content` et le re-peuple selon l'état courant.
+    /// Clears `content` and fills it again from the current state.
     fn rebuild(&self, sender: &ComponentSender<Self>) {
         while let Some(child) = self.content.first_child() {
             self.content.remove(&child);
@@ -158,16 +159,15 @@ impl UpdatesModel {
 
     fn header(&self, sender: &ComponentSender<Self>) -> gtk::Box {
         let n = self.updates.len();
-        let title = gtk::Label::new(Some(&format!(
-            "{n} mise{} à jour disponible{}",
-            if n > 1 { "s" } else { "" },
-            if n > 1 { "s" } else { "" }
-        )));
+        let title = gtk::Label::new(Some(
+            &gettextrs::ngettext("{} update available", "{} updates available", n as u32)
+                .replace("{}", &n.to_string()),
+        ));
         title.add_css_class("title-2");
         title.set_xalign(0.0);
         title.set_hexpand(true);
 
-        let btn = gtk::Button::with_label("Tout mettre à jour");
+        let btn = gtk::Button::with_label(&t("Update All"));
         btn.add_css_class("suggested-action");
         btn.set_valign(gtk::Align::Center);
         btn.set_sensitive(!self.applying);
@@ -206,7 +206,7 @@ impl UpdatesModel {
             lb.append(&row);
         }
 
-        // row-activated → ouvrir le détail du paquet correspondant (par index).
+        // row-activated: open the matching package details (by index).
         let updates: Vec<Package> = self.updates.iter().map(|u| u.package.clone()).collect();
         let s = sender.input_sender().clone();
         lb.connect_row_activated(move |_, row| {
@@ -218,7 +218,7 @@ impl UpdatesModel {
     }
 }
 
-/// Illustration « Tout est à jour » (empruntée à GNOME Software), centrée.
+/// "Everything is up to date" illustration (borrowed from GNOME Software), centered.
 fn up_to_date_view() -> gtk::Box {
     let pic = gtk::Picture::for_filename(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -226,7 +226,7 @@ fn up_to_date_view() -> gtk::Box {
     ));
     pic.set_size_request(256, 192);
     pic.add_css_class("icon-dropshadow");
-    let title = gtk::Label::new(Some("Tout est à jour"));
+    let title = gtk::Label::new(Some(&t("Everything is up to date")));
     title.add_css_class("title-1");
 
     let b = gtk::Box::builder()

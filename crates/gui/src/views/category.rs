@@ -1,12 +1,13 @@
-//! Page catégorie : deux sections façon GNOME Software —
-//! « Nouveautés et mises à jour » (récemment mises à jour) et « Autres logiciels ».
-//! Deux `FlowBox` de tuiles `AppTile` dans un seul scroll/clamp. Page poussée.
+//! Category page with two sections, like GNOME Software: "New & Updated"
+//! (recently updated) and "Other Software". Two `FlowBox`es of `AppTile`s in
+//! one scroll/clamp. Pushed page.
 
 use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use onyx_core::Package;
 
+use crate::i18n::t;
 use crate::components::AppTile;
 use crate::util::{skeleton_grid, AppItem};
 
@@ -29,7 +30,7 @@ pub enum CategoryMsg {
 
 #[relm4::component(pub)]
 impl SimpleComponent for CategoryModel {
-    type Init = (&'static [&'static str], String); // (union de slugs, libellé)
+    type Init = (&'static [&'static str], String); // (slug union, label)
     type Input = CategoryMsg;
     type Output = Package;
 
@@ -69,14 +70,14 @@ impl SimpleComponent for CategoryModel {
                                 set_visible: !model.loading && !model.has_recent && !model.has_others,
                                 set_vexpand: true,
                                 set_icon_name: Some("edit-find-symbolic"),
-                                set_title: "Rien à afficher",
-                                set_description: Some("Aucune de ces apps n'est dans nixpkgs"),
+                                set_title: &t("Nothing to Show"),
+                                set_description: Some(&t("None of these apps are in nixpkgs")),
                             },
 
                             gtk::Label {
                                 #[watch]
                                 set_visible: model.has_recent,
-                                set_label: "Nouveautés et mises à jour",
+                                set_label: &t("New & Updated"),
                                 set_xalign: 0.0,
                                 add_css_class: "heading",
                             },
@@ -97,7 +98,7 @@ impl SimpleComponent for CategoryModel {
                             gtk::Label {
                                 #[watch]
                                 set_visible: model.has_others,
-                                set_label: "Autres logiciels",
+                                set_label: &t("Other Software"),
                                 set_xalign: 0.0,
                                 set_margin_top: 12,
                                 add_css_class: "heading",
@@ -135,7 +136,7 @@ impl SimpleComponent for CategoryModel {
             .forward(sender.input_sender(), CategoryMsg::Open);
 
         let model = CategoryModel {
-            label,
+            label: t(&label),
             recent,
             others,
             loading: true,

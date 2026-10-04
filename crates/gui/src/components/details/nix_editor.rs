@@ -1,27 +1,28 @@
-//! Le « chemin avancé » : éditer le Nix brut d'une app.
+//! The "advanced path": editing the raw Nix of an app.
 //!
-//! Une app gardée n'est qu'un nom dans une liste `home.packages`. Ici, l'utilisateur
-//! prend la main : il écrit le module qu'il veut (options de service, port, surcharge du
-//! paquet…), pour la portée utilisateur et/ou système.
+//! A kept app is only a name in a `home.packages` list. Here the user takes
+//! over and writes the module they want (service options, port, package
+//! override…), for the user and/or system scope.
 //!
-//! Deux filets, l'un instantané et l'autre à la demande :
-//! - la **syntaxe** est vérifiée à chaque frappe (~50 ms) et « Valider » reste
-//!   désactivé tant qu'elle est fausse ;
-//! - la **sémantique** (option inconnue, type faux) demande un `dry-build` complet, long
-//!   (30 s–2 min) : c'est le bouton « Vérifier », déclenché par l'utilisateur, jamais
-//!   imposé — l'imposer à chaque édition rendrait l'éditeur pénible.
+//! Two safety nets, one instant and one on demand:
+//! - **syntax** is checked on every keystroke (~50 ms) and "Save" stays disabled
+//!   while it is wrong;
+//! - **semantics** (unknown option, wrong type) need a full, slow `dry-build`
+//!   (30 s to 2 min): that is the "Check" button, triggered by the user and never
+//!   forced, since forcing it on every edit would make the editor painful.
 //!
-//! Onyx n'écrit **que** dans ses propres fichiers ; le Nix de l'utilisateur est repris
-//! tel quel, jamais reformaté.
+//! Onyx writes **only** to its own files; the user's Nix is kept verbatim, never
+//! reformatted.
 
+use crate::i18n::t;
 use adw::prelude::*;
 use gtk::glib;
 use onyx_core::Package;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Ce que l'éditeur rend quand l'utilisateur valide : les deux blocs, `None` pour une
-/// portée laissée vide (l'app redevient alors une simple entrée de liste).
+/// What the editor returns when the user saves: both blocks, `None` for a scope
+/// left empty (the app then becomes a plain list entry again).
 pub struct Blocks {
     pub home: Option<String>,
     pub system: Option<String>,
@@ -31,7 +32,7 @@ fn text_of(buf: &gtk::TextBuffer) -> String {
     buf.text(&buf.start_iter(), &buf.end_iter(), false).to_string()
 }
 
-/// Une portée vide n'est pas un bloc vide : c'est l'absence de bloc.
+/// An empty scope is not an empty block: it is no block at all.
 fn block_or_none(buf: &gtk::TextBuffer) -> Option<String> {
     let s = text_of(buf);
     (!s.trim().is_empty()).then_some(s)
@@ -52,8 +53,8 @@ fn editor_view(buf: &gtk::TextBuffer) -> gtk::ScrolledWindow {
     scroller
 }
 
-/// Ouvre l'éditeur. `on_save` reçoit les blocs validés — il n'est appelé que si la
-/// syntaxe des deux portées est bonne.
+/// Opens the editor. `on_save` receives the saved blocks; it is only called when
+/// both scopes have valid syntax.
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     package: &Package,
@@ -62,8 +63,7 @@ pub fn present(
     system_available: bool,
     on_save: impl Fn(Blocks) + 'static,
 ) {
-    // Promouvoir ne doit rien faire disparaître en silence : à défaut de bloc, on part
-    // de l'équivalent exact de ce que faisait l'entrée simple.
+    // Without a block, start from the plain entry equivalent.
     let home_buf = gtk::TextBuffer::new(None);
     home_buf.set_text(
         &home_nix.unwrap_or_else(|| onyx_core::default_home_block(&package.attr)),
@@ -72,24 +72,23 @@ pub fn present(
     system_buf.set_text(&system_nix.unwrap_or_default());
 
     let stack = adw::ViewStack::new();
-    let home_page = stack.add_titled(&editor_view(&home_buf), Some("home"), "Utilisateur");
+    let home_page = stack.add_titled(&editor_view(&home_buf), Some("home"), &t("User"));
     home_page.set_icon_name(Some("user-home-symbolic"));
 
     if system_available {
         let page =
-            stack.add_titled(&editor_view(&system_buf), Some("system"), "Système");
+            stack.add_titled(&editor_view(&system_buf), Some("system"), &t("System"));
         page.set_icon_name(Some("computer-symbolic"));
     } else {
-        // Un home-manager standalone n'a aucun moyen d'écrire du NixOS : mieux vaut le
-        // dire que laisser croire que ça marchera.
+        // Standalone home-manager cannot write NixOS options; say so.
         let msg = adw::StatusPage::new();
         msg.set_icon_name(Some("dialog-information-symbolic"));
-        msg.set_title("Portée système indisponible");
-        msg.set_description(Some(
-            "Ta config est en home-manager seul : Onyx ne peut pas y écrire d'options \
-             NixOS (pare-feu, services système).",
-        ));
-        let page = stack.add_titled(&msg, Some("system"), "Système");
+        msg.set_title(&t("System Scope Unavailable"));
+        msg.set_description(Some(&t(
+            "Your configuration uses standalone home-manager: Onyx cannot write NixOS \
+             options there (firewall, system services).",
+        )));
+        let page = stack.add_titled(&msg, Some("system"), &t("System"));
         page.set_icon_name(Some("computer-symbolic"));
     }
 
@@ -99,17 +98,17 @@ pub fn present(
     status.set_selectable(true);
     status.add_css_class("caption");
 
-    let save = gtk::Button::with_label("Valider");
+    let save = gtk::Button::with_label(&t("Save"));
     save.add_css_class("suggested-action");
 
-    let verify = gtk::Button::with_label("Vérifier");
-    verify.set_tooltip_text(Some(
-        "Évalue toute la config (dry-build) sans rien appliquer. Peut prendre 1–2 min.",
-    ));
+    let verify = gtk::Button::with_label(&t("Check"));
+    verify.set_tooltip_text(Some(&t(
+        "Evaluates the whole configuration (dry-build) without applying anything. May take 1 to 2 minutes.",
+    )));
 
-    let cancel = gtk::Button::with_label("Annuler");
+    let cancel = gtk::Button::with_label(&t("Cancel"));
 
-    // Vérification de syntaxe à chaque frappe, sur les deux portées.
+    // Syntax check on every keystroke, both scopes.
     let recheck = {
         let status = status.clone();
         let save = save.clone();
@@ -117,15 +116,15 @@ pub fn present(
         let system_buf = system_buf.clone();
         Rc::new(move || {
             let mut errs = Vec::new();
-            for (nom, buf) in [("utilisateur", &home_buf), ("système", &system_buf)] {
+            for (scope, buf) in [(t("User scope:"), &home_buf), (t("System scope:"), &system_buf)] {
                 if let Some(block) = block_or_none(buf) {
                     if let Err(e) = onyx_core::parse_block(&block) {
-                        errs.push(format!("Portée {nom} :\n{e}"));
+                        errs.push(format!("{scope}\n{e}"));
                     }
                 }
             }
             if errs.is_empty() {
-                status.set_label("✓ syntaxe valide");
+                status.set_label(&t("✓ Valid syntax"));
                 status.remove_css_class("error");
                 save.set_sensitive(true);
             } else {
@@ -136,7 +135,7 @@ pub fn present(
         })
     };
 
-    // Anti-rebond : sans lui, on lance un `nix-instantiate` par caractère tapé.
+    // Debounce: otherwise one `nix-instantiate` per keystroke.
     let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
     for buf in [&home_buf, &system_buf] {
         let recheck = recheck.clone();
@@ -182,7 +181,7 @@ pub fn present(
     toolbar.set_content(Some(&content));
 
     let dialog = adw::Dialog::new();
-    dialog.set_title(&format!("Options avancées — {}", package.name));
+    dialog.set_title(&t("Advanced Options: {}").replace("{}", &package.name));
     dialog.set_content_width(720);
     dialog.set_content_height(560);
     dialog.set_child(Some(&toolbar));
@@ -194,14 +193,14 @@ pub fn present(
         });
     }
 
-    // Le dry-build est long : il tourne hors du thread principal, sinon l'UI gèle.
+    // Slow dry-build runs off the main thread.
     {
         let status = status.clone();
         let verify_btn = verify.clone();
         verify.connect_clicked(move |_| {
             verify_btn.set_sensitive(false);
             status.remove_css_class("error");
-            status.set_label("⏳ Vérification de la config (dry-build)…");
+            status.set_label(&t("⏳ Checking the configuration (dry-build)…"));
 
             let (tx, rx) = async_channel::bounded(1);
             std::thread::spawn(move || {
@@ -215,14 +214,14 @@ pub fn present(
                     match res {
                         onyx_core::DryRun::Ok => {
                             status.remove_css_class("error");
-                            status.set_label("✓ la config entière évalue — options et types compris");
+                            status.set_label(&t("✓ The whole configuration evaluates, options and types included"));
                         }
                         onyx_core::DryRun::Failed(e) => {
                             status.add_css_class("error");
                             status.set_label(&e);
                         }
                         onyx_core::DryRun::Unavailable(e) => {
-                            status.set_label(&format!("Vérification impossible : {e}"));
+                            status.set_label(&t("Cannot check: {}").replace("{}", &e));
                         }
                     }
                 }

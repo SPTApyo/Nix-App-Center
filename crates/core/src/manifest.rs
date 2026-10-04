@@ -1,10 +1,10 @@
-//! Manifeste « garder » — source de vérité d'Onyx (jamais la config curée de
-//! l'utilisateur). `keep`/`unkeep` régénèrent les fichiers Onyx au passage
+//! "Keep" manifest: Onyx's source of truth (never the user's curated
+//! config). `keep`/`unkeep` regenerate the Onyx files along the way
 //! (`config_gen::sync_config`).
 //!
-//! Une entrée porte le paquet et, éventuellement, le **bloc Nix** que l'utilisateur a
-//! écrit pour lui (portée utilisateur et/ou système). Sans bloc, l'app est une simple
-//! ligne de `home.packages` ; avec, elle est promue en région délimitée.
+//! An entry holds the package and, optionally, the **Nix block** the user wrote
+//! for it (user and/or system scope). Without a block the app is a plain
+//! `home.packages` line; with one it is promoted to a delimited region.
 
 use crate::config_gen;
 use crate::package::Package;
@@ -12,17 +12,17 @@ use crate::paths::data_dir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Une app gardée. Le `flatten` du paquet garde le JSON **plat**, donc rétrocompatible :
-/// un ancien `kept.json` (une liste de `Package` nus) se relit tel quel, les blocs
-/// simplement absents. Aucune migration à écrire, aucune perte.
+/// A kept app. The package `flatten` keeps the JSON **flat**, hence backward
+/// compatible: an old `kept.json` (a list of bare `Package`s) reads as is, the
+/// blocks simply missing. No migration to write, no loss.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeptEntry {
     #[serde(flatten)]
     pub package: Package,
-    /// Bloc Nix de portée utilisateur. `None` = app simple (entrée de `home.packages`).
+    /// User scope Nix block. `None` = plain app (a `home.packages` entry).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub home_nix: Option<String>,
-    /// Bloc Nix de portée système. `None` = l'app ne touche à rien de système.
+    /// System scope Nix block. `None` = the app touches nothing system wide.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system_nix: Option<String>,
 }
@@ -32,7 +32,7 @@ impl KeptEntry {
         Self { package, home_nix: None, system_nix: None }
     }
 
-    /// Vrai si l'utilisateur a pris la main sur le Nix de cette app.
+    /// True when the user took over this app's Nix.
     pub fn is_promoted(&self) -> bool {
         self.home_nix.is_some() || self.system_nix.is_some()
     }
@@ -44,8 +44,8 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// Les paquets gardés, pour les consommateurs qui n'ont que faire des blocs
-    /// (mises à jour, vue « installés », `onyx-cli list`).
+    /// Kept packages, for consumers that do not care about blocks
+    /// (updates, "installed" view, `onyx-cli list`).
     pub fn packages(&self) -> Vec<Package> {
         self.kept.iter().map(|e| e.package.clone()).collect()
     }
@@ -59,7 +59,7 @@ fn manifest_path() -> PathBuf {
     data_dir().join("kept.json")
 }
 
-/// Charge le manifeste ; retourne un manifeste vide si absent ou illisible.
+/// Loads the manifest; returns an empty manifest when missing or unreadable.
 pub fn load_manifest() -> Manifest {
     match std::fs::read(manifest_path()) {
         Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
@@ -69,12 +69,11 @@ pub fn load_manifest() -> Manifest {
 
 fn save_manifest(m: &Manifest) -> std::io::Result<()> {
     let json = serde_json::to_vec_pretty(m).map_err(std::io::Error::other)?;
-    // Atomique : le manifeste est la source de vérité d'Onyx — un crash mi-écriture le
-    // remplaçait silencieusement par un état vide au chargement.
+    // Atomic: a crash mid-write used to leave an empty manifest.
     crate::paths::write_atomic(&manifest_path(), &json)
 }
 
-/// Ajoute un paquet au manifeste (idempotent sur `attr`).
+/// Adds a package to the manifest (idempotent on `attr`).
 pub fn keep(pkg: &Package) -> std::io::Result<()> {
     let mut m = load_manifest();
     if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
@@ -85,7 +84,7 @@ pub fn keep(pkg: &Package) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Retire un paquet du manifeste par son `attr`.
+/// Removes a package from the manifest by its `attr`.
 pub fn unkeep(attr: &str) -> std::io::Result<()> {
     let mut m = load_manifest();
     let before = m.kept.len();
@@ -97,11 +96,11 @@ pub fn unkeep(attr: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Remplace les blocs Nix d'une app (le « chemin avancé »). L'app est gardée si elle ne
-/// l'était pas : éditer le Nix d'une app, c'est vouloir l'avoir.
+/// Replaces an app's Nix blocks (the "advanced path"). The app is kept if it
+/// was not: editing an app's Nix means wanting it.
 ///
-/// Les blocs sont écrits **tels que l'utilisateur les a fournis**. Onyx ne réécrit ni ne
-/// reformate son Nix — c'est lui qui décide.
+/// Blocks are written **as the user provided them**. Onyx neither rewrites
+/// nor reformats their Nix: they decide.
 pub fn set_blocks(
     pkg: &Package,
     home_nix: Option<String>,
@@ -123,14 +122,14 @@ pub fn set_blocks(
 mod tests {
     use super::*;
 
-    /// Isole `XDG_DATA_HOME` (manifeste) et `ONYX_CONFIG_DIR` (fichiers générés) dans un
-    /// répertoire jetable. Aucun test ne touche au vrai `~` ni au vrai `/etc/nixos`.
+    /// Isolates `XDG_DATA_HOME` (manifest) and `ONYX_CONFIG_DIR` (generated files)
+    /// in a throwaway directory. No test touches the real `~` or `/etc/nixos`.
     fn sandbox(name: &str) -> PathBuf {
         let base =
             std::env::temp_dir().join(format!("onyx-manifest-{}-{}", std::process::id(), name));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
-        // Disposition NixOS classique minimale, pour que sync_config ait où écrire.
+        // Minimal classic NixOS layout, so sync_config has somewhere to write.
         std::fs::write(base.join("configuration.nix"), "{ imports = [ ]; }").unwrap();
         std::env::set_var("XDG_DATA_HOME", &base);
         std::env::set_var("ONYX_CONFIG_DIR", &base);
@@ -184,7 +183,7 @@ mod tests {
 
     #[test]
     fn old_flat_manifest_is_read_without_loss() {
-        // Ancien format : une liste de Package nus, sans champ de bloc.
+        // Old format: a list of bare Packages, without block fields.
         let _g = crate::env_lock();
         let base = sandbox("migration");
         let onyx = base.join("onyx");
