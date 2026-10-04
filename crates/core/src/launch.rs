@@ -3,31 +3,66 @@
 
 use crate::package::Package;
 use crate::tried::record_tried;
-use std::process::Command;
+use std::io::BufRead;
+use std::process::{Child, Command, Stdio};
 
 /// Experimental features to enable on every modern `nix` call.
 const NIX_FEATURES: [&str; 2] = ["--extra-experimental-features", "nix-command flakes"];
+
+/// Full argv to try `attr` with `nix <sub>` (`run` or `shell`).
+///
+/// The user asked to try this package from a page that already says whether it
+/// is proprietary or broken, so those nixpkgs gates are lifted (`--impure` lets
+/// nix read the variables). Insecure packages stay refused: that one needs an
+/// explicit opt-in. `env` keeps the variables when a terminal server spawns the
+/// command (ptyxis, gnome-terminal), which would drop the caller's environment.
+fn try_argv(sub: &str, attr: &str) -> Vec<String> {
+    ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1", "nix", sub, "--impure"]
+        .into_iter()
+        .map(str::to_string)
+        .chain([format!("nixpkgs#{attr}")])
+        .chain(NIX_FEATURES.iter().map(|s| s.to_string()))
+        .collect()
+}
 
 /// The matching `nix run` command (for display / copy).
 pub fn run_command(pkg: &Package) -> String {
     format!("nix run nixpkgs#{}", pkg.attr)
 }
 
-/// Spawns `nix run nixpkgs#<attr>` as a detached subprocess: does not block on
-/// the application output. The first run may download (slow).
-/// Records the package in the "tried" history (try-first) along the way.
-pub fn run(pkg: &Package) -> std::io::Result<()> {
-    let child = Command::new("nix")
-        .arg("run")
-        .arg(format!("nixpkgs#{}", pkg.attr))
-        .args(NIX_FEATURES)
-        .spawn();
+/// Spawns `nix run nixpkgs#<attr>` without waiting for the application. The
+/// first run may download (slow). Records the package in the "tried" history
+/// (try-first) along the way. Pass the child to [`run_failure`] from a
+/// background thread to learn whether it failed.
+pub fn run(pkg: &Package) -> std::io::Result<Child> {
+    let argv = try_argv("run", &pkg.attr);
+    let child = Command::new(&argv[0])
+        .args(&argv[1..])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    // The log must never make the launch fail.
+    let _ = record_tried(pkg);
+    Ok(child)
+}
 
-    if child.is_ok() {
-        // The log must never make the launch fail.
-        let _ = record_tried(pkg);
+/// Waits for a [`run`] child and returns the last line nix printed on stderr
+/// when it exits with an error (unknown attr, evaluation refused, build
+/// failure…). Blocks until the application exits: call it from a thread.
+pub fn run_failure(mut child: Child) -> Option<String> {
+    // Drain stderr while waiting, keeping only the last meaningful line.
+    let last = child.stderr.take().and_then(|err| {
+        std::io::BufReader::new(err)
+            .lines()
+            .map_while(Result::ok)
+            .filter(|l| !l.trim().is_empty())
+            .last()
+    });
+    match child.wait() {
+        Ok(status) if status.success() => None,
+        _ => Some(last.map(|l| l.trim().to_string()).unwrap_or_default()),
     }
-    child.map(|_| ())
 }
 
 // ── nix shell ─────────────────────────────────────────────────────────────────
@@ -116,13 +151,7 @@ pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutc
 /// available. `shell` fills that gap, the *try-first* gesture for anything
 /// that is not a graphical app.
 pub fn shell(pkg: &Package) -> std::io::Result<ShellOutcome> {
-    let command: Vec<String> = ["nix", "shell", &format!("nixpkgs#{}", pkg.attr)]
-        .iter()
-        .map(|s| s.to_string())
-        .chain(NIX_FEATURES.iter().map(|s| s.to_string()))
-        .collect();
-
-    let outcome = spawn_in_terminal(&command)?;
+    let outcome = spawn_in_terminal(&try_argv("shell", &pkg.attr))?;
     if outcome == ShellOutcome::Spawned {
         let _ = record_tried(pkg);
     }
@@ -141,6 +170,28 @@ mod tests {
     #[test]
     fn shell_command_targets_nixpkgs_attr() {
         assert_eq!(shell_command(&Package::from_attr("ripgrep")), "nix shell nixpkgs#ripgrep");
+    }
+
+    #[test]
+    fn try_argv_lifts_unfree_and_broken_but_not_insecure() {
+        let argv = try_argv("run", "spotify");
+        assert_eq!(argv[..3], ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1"]);
+        assert!(argv.contains(&"--impure".to_string()));
+        assert!(argv.contains(&"nixpkgs#spotify".to_string()));
+        assert!(!argv.iter().any(|a| a.contains("INSECURE")));
+    }
+
+    #[test]
+    fn run_failure_reports_the_last_stderr_line() {
+        let child = Command::new("sh")
+            .args(["-c", "echo first >&2; echo 'error: refused' >&2; exit 1"])
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        assert_eq!(run_failure(child).as_deref(), Some("error: refused"));
+
+        let ok = Command::new("true").stderr(Stdio::piped()).spawn().unwrap();
+        assert_eq!(run_failure(ok), None);
     }
 
     #[test]

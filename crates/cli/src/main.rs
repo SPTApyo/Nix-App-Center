@@ -66,8 +66,12 @@ fn main() -> ExitCode {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
                 eprintln!("→ {}", onyx_core::run_command(&pkg));
-                match onyx_core::run(&pkg) {
-                    Ok(()) => ExitCode::SUCCESS,
+                match onyx_core::run(&pkg).map(onyx_core::run_failure) {
+                    Ok(None) => ExitCode::SUCCESS,
+                    Ok(Some(err)) => {
+                        eprintln!("{attr} failed: {err}");
+                        ExitCode::FAILURE
+                    }
                     Err(e) => {
                         eprintln!("could not start: {e}");
                         ExitCode::FAILURE

@@ -6,19 +6,53 @@
 //! is the `imports` line added once by [`crate::config_attach`], with explicit
 //! consent.
 //!
-//! A **plain** app is an entry aggregated into `home.packages`. A **promoted** app
+//! A **plain** app is an entry aggregated into the user package list. A **promoted** app
 //! (the user edited its Nix block) is emitted as a region delimited by markers,
 //! which makes it individually findable, replaceable and removable.
 
-use crate::config_layout::{detect, Layout};
+use crate::config_layout::{current_user, detect, Layout, LayoutKind};
 use crate::manifest::KeptEntry;
 use std::process::Command;
+
+/// How the user scope file is written, decided by the layout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum HomeShape {
+    /// A home-manager module (standalone home-manager).
+    HomeManager,
+    /// A NixOS module wrapping home-manager options in `home-manager.users.<user>`.
+    NixosHm(String),
+    /// A NixOS module without home-manager: `home.packages` does not exist
+    /// there, packages go to `users.users.<user>.packages`.
+    NixosUser(String),
+}
+
+impl HomeShape {
+    pub(crate) fn of(layout: &Layout) -> Self {
+        let nixos = matches!(layout.kind, LayoutKind::NixosFlake { .. } | LayoutKind::NixosLegacy { .. });
+        match (nixos, &layout.hm_user) {
+            (true, Some(user)) => Self::NixosHm(user.clone()),
+            (true, None) => Self::NixosUser(current_user()),
+            (false, _) => Self::HomeManager,
+        }
+    }
+
+    fn packages_option(&self) -> String {
+        match self {
+            Self::NixosUser(user) => format!("users.users.\"{user}\".packages"),
+            _ => "home.packages".to_string(),
+        }
+    }
+}
 
 /// What a block holds when an app is promoted from a plain entry: exactly what
 /// the plain entry did. The user starts from what exists and edits it; nothing
 /// disappears without them seeing it.
-pub fn default_home_block(attr: &str) -> String {
-    format!("home.packages = [ pkgs.{attr} ];")
+pub fn default_home_block(layout: &Layout, attr: &str) -> String {
+    default_block(&HomeShape::of(layout), attr)
+}
+
+fn default_block(shape: &HomeShape, attr: &str) -> String {
+    format!("{} = [ pkgs.{attr} ];", shape.packages_option())
 }
 
 fn header(warn: &str) -> String {
@@ -85,7 +119,7 @@ fn regions(kept: &[KeptEntry], scope: fn(&KeptEntry) -> Option<&String>) -> Vec<
 
 /// Body of the user scope: modules of promoted apps, then the aggregated list
 /// of plain apps.
-fn home_body(kept: &[KeptEntry]) -> String {
+fn home_body(kept: &[KeptEntry], packages: &str) -> String {
     let mut simples: Vec<&str> = kept
         .iter()
         .filter(|e| e.home_nix.is_none())
@@ -100,9 +134,9 @@ fn home_body(kept: &[KeptEntry]) -> String {
     }
 
     if simples.is_empty() {
-        out.push_str("home.packages = with pkgs; [ ];\n");
+        out.push_str(&format!("{packages} = with pkgs; [ ];\n"));
     } else {
-        out.push_str("home.packages = with pkgs; [\n");
+        out.push_str(&format!("{packages} = with pkgs; [\n"));
         for attr in simples {
             out.push_str(&format!("  {attr}\n"));
         }
@@ -123,17 +157,18 @@ fn system_body(kept: &[KeptEntry]) -> String {
 /// file is a *NixOS* module wrapping its content in `home-manager.users.<user>`,
 /// which allows attaching it to the top-level `imports` of `configuration.nix`,
 /// the safest splice. With standalone home-manager, it is a plain HM module.
-pub(crate) fn render_home(kept: &[KeptEntry], hm_user: Option<&str>) -> String {
-    let body = home_body(kept);
-    let mut out = header("User scope (home-manager).");
+/// On NixOS without home-manager, it is a NixOS module using `users.users`.
+pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
+    let body = home_body(kept, &shape.packages_option());
+    let mut out = header("User scope.");
     out.push_str("{ pkgs, lib, config, ... }:\n{\n");
-    match hm_user {
-        Some(user) => {
+    match shape {
+        HomeShape::NixosHm(user) => {
             out.push_str(&format!("  home-manager.users.{user} = {{\n"));
             out.push_str(&indent(&body, 4));
             out.push_str("\n  };\n");
         }
-        None => {
+        HomeShape::HomeManager | HomeShape::NixosUser(_) => {
             out.push_str(&indent(&body, 2));
             out.push('\n');
         }
@@ -167,7 +202,7 @@ pub(crate) fn sync_config(kept: &[KeptEntry]) -> std::io::Result<()> {
 
 pub(crate) fn sync_to(layout: &Layout, kept: &[KeptEntry]) -> std::io::Result<()> {
     if let Some(home) = &layout.home {
-        let body = render_home(kept, layout.hm_user.as_deref());
+        let body = render_home(kept, &HomeShape::of(layout));
         crate::paths::write_atomic(&home.onyx_file, body.as_bytes())?;
     }
     if let Some(system) = &layout.system {
@@ -268,26 +303,62 @@ mod tests {
     #[test]
     fn home_aggregates_simple_entries_sorted() {
         let kept = vec![simple("ripgrep"), simple("firefox")];
-        let out = render_home(&kept, None);
+        let out = render_home(&kept, &HomeShape::HomeManager);
         assert!(out.contains("home.packages = with pkgs; ["));
         let fx = out.find("firefox").unwrap();
         let rg = out.find("ripgrep").unwrap();
         assert!(fx < rg, "rendering must be sorted for a stable diff");
-        assert!(!out.contains("onyx:begin"), "aucune app promue ici");
+        assert!(!out.contains("onyx:begin"), "no promoted app here");
     }
 
     #[test]
     fn home_wraps_in_hm_user_when_module() {
-        let out = render_home(&[simple("firefox")], Some("alice"));
+        let out = render_home(&[simple("firefox")], &HomeShape::NixosHm("alice".into()));
         assert!(out.contains("home-manager.users.alice = {"));
         assert!(out.contains("home.packages"));
     }
 
     #[test]
     fn home_is_plain_hm_module_when_standalone() {
-        let out = render_home(&[simple("firefox")], None);
+        let out = render_home(&[simple("firefox")], &HomeShape::HomeManager);
         assert!(!out.contains("home-manager.users"));
         assert!(out.contains("home.packages"));
+    }
+
+    #[test]
+    fn nixos_without_home_manager_uses_user_packages() {
+        // `home.packages` does not exist in NixOS: the rebuild would fail.
+        let out = render_home(&[simple("hello")], &HomeShape::NixosUser("alice".into()));
+        assert!(out.contains("users.users.\"alice\".packages = with pkgs; ["));
+        assert!(!out.contains("home.packages"));
+        assert_eq!(
+            default_block(&HomeShape::NixosUser("alice".into()), "hello"),
+            "users.users.\"alice\".packages = [ pkgs.hello ];"
+        );
+    }
+
+    #[test]
+    fn shape_follows_the_layout() {
+        let layout = |kind, hm_user: Option<&str>| Layout {
+            kind,
+            home: None,
+            system: None,
+            apply: vec![],
+            hm_user: hm_user.map(str::to_string),
+        };
+        let dir = std::path::PathBuf::from("/x");
+        assert_eq!(
+            HomeShape::of(&layout(LayoutKind::NixosLegacy { dir: dir.clone() }, Some("bob"))),
+            HomeShape::NixosHm("bob".into())
+        );
+        assert!(matches!(
+            HomeShape::of(&layout(LayoutKind::NixosLegacy { dir: dir.clone() }, None)),
+            HomeShape::NixosUser(_)
+        ));
+        assert_eq!(
+            HomeShape::of(&layout(LayoutKind::HmStandalone { dir }, None)),
+            HomeShape::HomeManager
+        );
     }
 
     #[test]
@@ -296,7 +367,7 @@ mod tests {
             simple("firefox"),
             promue("quickshare", Some("services.quickshare.enable = true;"), None),
         ];
-        let out = render_home(&kept, None);
+        let out = render_home(&kept, &HomeShape::HomeManager);
         assert!(out.contains("# onyx:begin quickshare"));
         assert!(out.contains("services.quickshare.enable = true;"));
         assert!(out.contains("# onyx:end quickshare"));
@@ -314,9 +385,9 @@ mod tests {
     fn promoted_block_does_not_redefine_the_aggregate_list() {
         let kept = vec![
             simple("firefox"),
-            promue("quickshare", Some(&default_home_block("quickshare")), None),
+            promue("quickshare", Some(&default_block(&HomeShape::HomeManager, "quickshare")), None),
         ];
-        let out = render_home(&kept, Some("alice"));
+        let out = render_home(&kept, &HomeShape::NixosHm("alice".into()));
 
         assert!(out.contains("imports = ["), "promoted apps go through imports");
         assert!(
@@ -340,7 +411,10 @@ mod tests {
     #[test]
     fn default_block_reproduces_what_the_simple_entry_did() {
         // Promoting must not make anything vanish silently: start from what exists.
-        assert_eq!(default_home_block("quickshare"), "home.packages = [ pkgs.quickshare ];");
+        assert_eq!(
+            default_block(&HomeShape::HomeManager, "quickshare"),
+            "home.packages = [ pkgs.quickshare ];"
+        );
     }
 
     #[test]
@@ -358,6 +432,6 @@ mod tests {
     #[test]
     fn empty_files_are_still_valid_nix() {
         assert!(render_system(&[]).contains("{ pkgs, lib, config, ... }:"));
-        assert!(render_home(&[], None).contains("home.packages = with pkgs; [ ];"));
+        assert!(render_home(&[], &HomeShape::HomeManager).contains("home.packages = with pkgs; [ ];"));
     }
 }

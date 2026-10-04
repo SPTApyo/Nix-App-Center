@@ -60,6 +60,11 @@ pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
         .collect()
 }
 
+/// nixpkgs' own test derivations (`tests.haskell.…`) are not installable apps.
+fn is_internal(attr: &str) -> bool {
+    attr.starts_with("tests.")
+}
+
 /// Searches nixpkgs packages, ranked by relevance like GNOME Software.
 ///
 /// 1. **Every token must match** (each word passed separately to
@@ -81,7 +86,10 @@ pub fn search(query: &str) -> Vec<Package> {
     let tokens: Vec<String> = query.split_whitespace().map(regex_escape).collect();
 
     let packages: Vec<Package> =
-        crate::cache::cached_search(query, SEARCH_CACHE_TTL_SECS, || raw_nix_search(&tokens));
+        crate::cache::cached_search(query, SEARCH_CACHE_TTL_SECS, || raw_nix_search(&tokens))
+            .into_iter()
+            .filter(|p| !is_internal(&p.attr))
+            .collect();
 
     // nixpkgs exposes CASE aliases (`superTux` ↔ `supertux`, `superTuxKart` ↔
     // `supertuxkart`): two attrs for the SAME package (same pname/version/
@@ -231,8 +239,10 @@ fn search_score(pkg: &Package, q: &str, toks: &[String]) -> i64 {
     let desc = pkg.description.to_lowercase();
     let mut s: i64 = 0;
 
-    if attr == q || name == q {
+    if attr == q {
         s += 1000; // exact match
+    } else if name == q {
+        s += 800; // exact pname, but the attr says otherwise (a package set)
     } else if attr.starts_with(q) || name.starts_with(q) {
         s += 600; // starts with
     } else if attr.contains(q) || name.contains(q) {
@@ -250,6 +260,10 @@ fn search_score(pkg: &Package, q: &str, toks: &[String]) -> i64 {
 
     // Favor short names (closer to an exact match).
     s -= (attr.chars().count() as i64).min(60);
+    // Top-level packages before package sets (`haskellPackages.hello`).
+    if attr.contains('.') {
+        s -= 40;
+    }
     s
 }
 
@@ -318,6 +332,23 @@ mod tests {
         let mut p = Package::from_attr("superTux");
         p.name = "SuperTux".into();
         assert_eq!(named_by_attr(p).name, "SuperTux", "beautified case alias is kept");
+    }
+
+    #[test]
+    fn search_score_top_level_beats_package_set_with_same_pname() {
+        let top = Package::from_attr("hello");
+        let mut set = Package::from_attr("haskellPackages.hello");
+        set.name = "hello".into();
+        set.description = "Hello World, an example package".into();
+        let t = toks("hello");
+        assert!(search_score(&top, "hello", &t) > search_score(&set, "hello", &t));
+    }
+
+    #[test]
+    fn nixpkgs_tests_are_internal() {
+        assert!(is_internal("tests.haskell.cabalSdist.helloFromCabalSdist"));
+        assert!(!is_internal("hello"));
+        assert!(!is_internal("python3Packages.pytest"));
     }
 
     // ── beautify_attr ─────────────────────────────────────────────────────

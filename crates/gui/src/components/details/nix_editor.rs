@@ -63,11 +63,8 @@ pub fn present(
     system_available: bool,
     on_save: impl Fn(Blocks) + 'static,
 ) {
-    // Without a block, start from the plain entry equivalent.
     let home_buf = gtk::TextBuffer::new(None);
-    home_buf.set_text(
-        &home_nix.unwrap_or_else(|| onyx_core::default_home_block(&package.attr)),
-    );
+    home_buf.set_text(&home_nix.unwrap_or_default());
     let system_buf = gtk::TextBuffer::new(None);
     system_buf.set_text(&system_nix.unwrap_or_default());
 

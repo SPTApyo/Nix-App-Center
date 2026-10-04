@@ -14,4 +14,5 @@ xgettext --language=Rust --from-code=UTF-8 \
 rm po/POTFILES
 for po in po/*.po; do
   msgmerge --quiet --update --backup=none "$po" po/onyx.pot
+  msgattrib --no-obsolete --output-file="$po" "$po"
 done

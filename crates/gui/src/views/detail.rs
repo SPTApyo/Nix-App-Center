@@ -114,6 +114,10 @@ pub enum DetailMsg {
     ScreenshotLoaded(Vec<u8>, Option<String>),
     ShowShot(usize),
     DismissShot,
+    /// Split button main part: run a GUI app, open a shell for a CLI tool.
+    Primary,
+    /// Menu entry holding the launch mode the primary did not take.
+    AltLaunch,
     Run,
     /// Single menu entry: keep when not kept, remove otherwise.
     ToggleKeep,
@@ -126,13 +130,12 @@ pub enum DetailMsg {
     AdvancedEdit,
     /// Edited blocks saved (from the advanced editor): Ok = the app is kept.
     BlocksSaved(Result<(), String>),
-    /// Store garbage collection (`nix-collect-garbage`), from the removal toast.
-    CollectGarbage,
-    GarbageCollected(Result<String, String>),
     /// Same developer apps resolved to nixpkgs (package + icon).
     DevAppsResolved(Vec<(Package, Option<String>)>),
     /// Click on an "Other Apps" tile, forwarded to AppModel.
     OpenApp(Package),
+    /// `nix run` exited with an error (last stderr line).
+    RunFailed(String),
     SizeLoaded(Option<u64>),
     SafetyLoaded(Option<onyx_core::Safety>),
     ToggleDescription,
@@ -148,30 +151,35 @@ impl DetailModel {
     fn prompt_apply_or_attach(&self, sender: &ComponentSender<Self>) {
         let layout = onyx_core::detect_layout();
         if onyx_core::is_attached(&layout) {
-            let toast = adw::Toast::new(&t("Added to your configuration. Apply it to install."));
-            toast.set_button_label(Some(&t("Apply")));
-            let s = sender.input_sender().clone();
-            toast.connect_button_clicked(move |_| {
-                let _ = s.send(DetailMsg::ApplyConfig);
-            });
-            self.toast_overlay.add_toast(toast);
+            apply_toast(&self.toast_overlay, sender, &t("Added to your configuration. Apply it to install."));
         } else {
             let overlay = self.toast_overlay.clone();
+            let sender = sender.clone();
             attach_dialog::present(
                 &self.toast_overlay,
                 onyx_core::attach_plan(&layout),
-                move |res| {
-                    crate::util::toast(
+                move |res| match res {
+                    Ok(()) => apply_toast(
                         &overlay,
-                        &match res {
-                            Ok(()) => t("Connected to your configuration. Apply it to install."),
-                            Err(e) => t("Could not connect: {}").replace("{}", &e),
-                        },
-                    );
+                        &sender,
+                        &t("Connected to your configuration. Apply it to install."),
+                    ),
+                    Err(e) => crate::util::toast(&overlay, &t("Could not connect: {}").replace("{}", &e)),
                 },
             );
         }
     }
+}
+
+/// A toast whose button applies the configuration.
+fn apply_toast(overlay: &adw::ToastOverlay, sender: &ComponentSender<DetailModel>, text: &str) {
+    let toast = adw::Toast::new(text);
+    toast.set_button_label(Some(&t("Apply")));
+    let s = sender.input_sender().clone();
+    toast.connect_button_clicked(move |_| {
+        let _ = s.send(DetailMsg::ApplyConfig);
+    });
+    overlay.add_toast(toast);
 }
 
 #[relm4::component(pub)]
@@ -383,14 +391,21 @@ impl SimpleComponent for DetailModel {
                                                     set_halign: gtk::Align::Center,
 
                                                     adw::SplitButton {
-                                                        set_label: &t("_Run"),
+                                                        #[watch]
+                                                        set_label: &if model.cli_first() { t("Try in a _Shell") } else { t("_Run") },
                                                         set_use_underline: true,
-                                                        set_tooltip_text: Some(&t("Run without installing (nix run)")),
+                                                        #[watch]
+                                                        set_tooltip_text: Some(&if model.cli_first() {
+                                                            t("Open a terminal with this package available (nix shell)")
+                                                        } else {
+                                                            t("Run without installing (nix run)")
+                                                        }),
                                                         set_valign: gtk::Align::Center,
                                                         add_css_class: "suggested-action",
-                                                        connect_clicked => DetailMsg::Run,
+                                                        connect_clicked => DetailMsg::Primary,
 
                                                         #[wrap(Some)]
+                                                        #[name(actions_popover)]
                                                         set_popover = &gtk::Popover {
                                                             gtk::Box {
                                                                 set_orientation: gtk::Orientation::Vertical,
@@ -409,9 +424,10 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::ToggleKeep,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Try in a Shell"),
+                                                                    #[watch]
+                                                                    set_label: &if model.cli_first() { t("Run") } else { t("Try in a Shell") },
                                                                     add_css_class: "flat",
-                                                                    connect_clicked => DetailMsg::Shell,
+                                                                    connect_clicked => DetailMsg::AltLaunch,
                                                                 },
                                                                 gtk::Button {
                                                                     set_label: &t("Copy Command"),
@@ -788,6 +804,20 @@ impl SimpleComponent for DetailModel {
         };
         let widgets = view_output!();
 
+        // A menu entry closes the menu, like a model-based menu would.
+        let mut entry = widgets.actions_popover.child().and_then(|b| b.first_child());
+        while let Some(w) = entry {
+            if let Some(btn) = w.downcast_ref::<gtk::Button>() {
+                // Menu entries read left aligned, like GNOME menus.
+                if let Some(label) = btn.child().and_downcast::<gtk::Label>() {
+                    label.set_xalign(0.0);
+                }
+                let popover = widgets.actions_popover.clone();
+                btn.connect_clicked(move |_| popover.popdown());
+            }
+            entry = w.next_sibling();
+        }
+
         crate::util::smooth_scroll(&widgets.scroller);
 
         // The terminal SizeGroup of the `.ui`: all sections share one width.
@@ -854,6 +884,8 @@ impl SimpleComponent for DetailModel {
                 let meta = *meta;
                 self.loading = false;
                 self.stack.set_visible_child_name("ready");
+                // Without an AppStream id there are no permissions to wait for.
+                self.safety_loaded = meta.app_id.is_none();
 
                 self.rebuild_context_bar(&meta);
                 self.rebuild_problems(&meta);
@@ -887,6 +919,8 @@ impl SimpleComponent for DetailModel {
                 if meta.screenshot_urls.is_empty() {
                     self.carousel.show_fallback();
                 }
+                // Most nixpkgs packages are not AppStream apps: no empty placeholder.
+                self.carousel.widget().set_visible(meta.app_id.is_some());
 
                 // Closure size (`nix path-info`): slower than the rest.
                 let attr = self.package.attr.clone();
@@ -1039,6 +1073,12 @@ impl SimpleComponent for DetailModel {
             DetailMsg::DismissShot => {
                 self.lightbox_visible = false;
             }
+            DetailMsg::Primary => {
+                sender.input(if self.cli_first() { DetailMsg::Shell } else { DetailMsg::Run });
+            }
+            DetailMsg::AltLaunch => {
+                sender.input(if self.cli_first() { DetailMsg::Run } else { DetailMsg::Shell });
+            }
             DetailMsg::Run => {
                 let name = meta_name(&self.meta, &self.package.name);
                 if self.meta.as_ref().map(|m| m.broken).unwrap_or(false) {
@@ -1050,9 +1090,26 @@ impl SimpleComponent for DetailModel {
                 } else {
                     crate::util::toast(&self.toast_overlay, &t("Starting {}…").replace("{}", &name));
                 }
-                if let Err(e) = onyx_core::run(&self.package) {
-                    crate::util::toast(&self.toast_overlay, &t("Could not start: {}").replace("{}", &e.to_string()));
+                match onyx_core::run(&self.package) {
+                    Ok(child) => {
+                        let s = sender.input_sender().clone();
+                        std::thread::spawn(move || {
+                            if let Some(err) = onyx_core::run_failure(child) {
+                                let _ = s.send(DetailMsg::RunFailed(err));
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        crate::util::toast(&self.toast_overlay, &t("Could not start: {}").replace("{}", &e.to_string()));
+                    }
                 }
+            }
+            DetailMsg::RunFailed(err) => {
+                let name = meta_name(&self.meta, &self.package.name);
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &t("{name} stopped with an error: {err}").replace("{name}", &name).replace("{err}", &err),
+                );
             }
             DetailMsg::ToggleKeep => {
                 let next = if self.kept { DetailMsg::Unkeep } else { DetailMsg::Keep };
@@ -1087,34 +1144,14 @@ impl SimpleComponent for DetailModel {
             DetailMsg::Unkeep => match onyx_core::unkeep(&self.package.attr) {
                 Ok(()) => {
                     self.kept = false;
-                    let toast = adw::Toast::new(&t(
-                        "Removed from your configuration. Apply it, then free up space if you like.",
-                    ));
-                    toast.set_button_label(Some(&t("Free Up Space")));
-                    let s = sender.input_sender().clone();
-                    toast.connect_button_clicked(move |_| {
-                        let _ = s.send(DetailMsg::CollectGarbage);
-                    });
-                    self.toast_overlay.add_toast(toast);
+                    apply_toast(
+                        &self.toast_overlay,
+                        &sender,
+                        &t("Removed from your configuration. Apply it to uninstall."),
+                    );
                 }
                 Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e.to_string())),
             },
-            DetailMsg::CollectGarbage => {
-                crate::util::toast(&self.toast_overlay, &t("Cleaning up the store…"));
-                let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let res = onyx_core::garbage_collect().map_err(|e| e.to_string());
-                    let _ = s.send(DetailMsg::GarbageCollected(res));
-                });
-            }
-            DetailMsg::GarbageCollected(res) => crate::util::toast(
-                &self.toast_overlay,
-                &match res {
-                    Ok(summary) if summary.is_empty() => t("Nothing to free."),
-                    Ok(summary) => summary,
-                    Err(e) => t("Cleanup failed: {}").replace("{}", &e),
-                },
-            ),
             DetailMsg::AdvancedEdit => {
                 // Current Nix blocks of the app, if any, to prefill the editor.
                 let m = onyx_core::load_manifest();
@@ -1124,7 +1161,10 @@ impl SimpleComponent for DetailModel {
                     .find(|e| e.package.attr == self.package.attr)
                     .map(|e| (e.home_nix.clone(), e.system_nix.clone()))
                     .unwrap_or((None, None));
-                let system_available = onyx_core::detect_layout().system.is_some();
+                let layout = onyx_core::detect_layout();
+                let system_available = layout.system.is_some();
+                // Without a block, start from the plain entry equivalent.
+                let home = home.or_else(|| Some(onyx_core::default_home_block(&layout, &self.package.attr)));
                 let pkg = self.package.clone();
                 let s = sender.input_sender().clone();
                 nix_editor::present(
@@ -1170,6 +1210,12 @@ impl SimpleComponent for DetailModel {
 }
 
 impl DetailModel {
+    /// A package without AppStream identity is treated as a CLI tool: `nix run`
+    /// would start and exit at once, a shell is the useful way to try it.
+    fn cli_first(&self) -> bool {
+        self.meta.as_ref().is_some_and(|m| m.app_id.is_none())
+    }
+
     /// Mounts the three `GtkStack` pages: spinner / ready / failed.
     fn build_stack(&self, ready: &gtk::Box) {
         let spinner = adw::StatusPage::new();

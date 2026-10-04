@@ -26,7 +26,7 @@ fn main() {
         &quickshare,
         Some(format!(
             "{}\nservices.quickshare = {{\n  enable = true;\n  port = 8080;\n}};",
-            onyx_core::default_home_block("quickshare")
+            onyx_core::default_home_block(&l, "quickshare")
         )),
         Some("networking.firewall.allowedTCPPorts = [ 8080 ];".into()),
     )

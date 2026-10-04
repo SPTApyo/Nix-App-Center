@@ -142,14 +142,14 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     let mut out = Vec::new();
     for (idx, _) in flake_src.match_indices("nixosConfigurations") {
         let rest = &flake_src[idx + "nixosConfigurations".len()..];
-        // Form A: `nixosConfigurations.Zenbook = …`
+        // Form A: `nixosConfigurations.laptop = …`
         if let Some(after_dot) = rest.strip_prefix('.') {
             if let Some(name) = take_ident(after_dot) {
                 out.push(name);
                 continue;
             }
         }
-        // Form B: `nixosConfigurations = { Zenbook = … }`, first ident of the brace.
+        // Form B: `nixosConfigurations = { laptop = … }`, first ident of the brace.
         if let Some(brace) = rest.find('{') {
             let inner = rest[brace + 1..].trim_start();
             if let Some(name) = take_ident(inner) {
@@ -161,7 +161,7 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     out
 }
 
-/// The Nix identifier at the head of `s` (`Zenbook = …` → `Zenbook`), quotes allowed.
+/// The Nix identifier at the head of `s` (`laptop = …` → `laptop`), quotes allowed.
 fn take_ident(s: &str) -> Option<String> {
     let s = s.trim_start().trim_start_matches('"');
     let ident: String = s
@@ -198,7 +198,7 @@ fn hostname() -> Option<String> {
         .filter(|h| !h.is_empty())
 }
 
-fn current_user() -> String {
+pub(crate) fn current_user() -> String {
     std::env::var("USER").unwrap_or_else(|_| "root".to_string())
 }
 
@@ -286,7 +286,7 @@ mod tests {
     fn detects_nixos_flake_with_hm_module() {
         let _g = crate::env_lock();
         let dir = fixture("flake");
-        write(&dir, "flake.nix", "outputs = { ... }: { nixosConfigurations.Zenbook = x; };");
+        write(&dir, "flake.nix", "outputs = { ... }: { nixosConfigurations.laptop = x; };");
         write(&dir, "configuration.nix", "{ imports = [ ./hardware-configuration.nix ]; }");
         write(&dir, "home.nix", "{ home-manager.users.alice = { ... }; }");
         std::env::set_var("ONYX_CONFIG_DIR", &dir);
@@ -296,7 +296,7 @@ mod tests {
 
         assert_eq!(
             layout.kind,
-            LayoutKind::NixosFlake { dir: dir.clone(), host: "Zenbook".into() }
+            LayoutKind::NixosFlake { dir: dir.clone(), host: "laptop".into() }
         );
         assert_eq!(layout.hm_user.as_deref(), Some("alice"));
         assert_eq!(
@@ -306,7 +306,7 @@ mod tests {
                 "nixos-rebuild",
                 "switch",
                 "--flake",
-                &format!("{}#Zenbook", dir.display())
+                &format!("{}#laptop", dir.display())
             ]
         );
         // Both scopes attach in the same configuration.nix.
@@ -360,17 +360,17 @@ mod tests {
 
     #[test]
     fn host_prefers_this_machine_over_first_declared() {
-        let src = "nixosConfigurations.Autre = a; nixosConfigurations.Zenbook = b;";
+        let src = "nixosConfigurations.Autre = a; nixosConfigurations.laptop = b;";
         let hosts = nixos_hosts(src);
-        assert_eq!(hosts, ["Autre", "Zenbook"]);
+        assert_eq!(hosts, ["Autre", "laptop"]);
         // Without a match with the real hostname, the first declared one is used.
         assert!(first_nixos_host(src).is_some());
     }
 
     #[test]
     fn parses_attrset_form_of_nixos_configurations() {
-        let src = "nixosConfigurations = { Zenbook = nixpkgs.lib.nixosSystem { }; };";
-        assert_eq!(nixos_hosts(src), ["Zenbook"]);
+        let src = "nixosConfigurations = { laptop = nixpkgs.lib.nixosSystem { }; };";
+        assert_eq!(nixos_hosts(src), ["laptop"]);
     }
 
     #[test]

@@ -71,7 +71,7 @@ pub use config_gen::{apply_config, ApplyOutcome};
 pub use config_layout::{detect as detect_layout, Layout, LayoutKind, ScopeTarget};
 pub use detail::{closure_size, detail, PackageDetail};
 pub use flathub::{Addon, DevApp, Release};
-pub use launch::{run, run_command, shell, shell_command, ShellOutcome};
+pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::locate_binary;
 pub use config_gen::default_home_block;
 pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};

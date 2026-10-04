@@ -219,14 +219,22 @@ impl SimpleComponent for AppModel {
         view_stack.connect_visible_child_notify({
             let si = installed.sender().clone();
             let su = updates.sender().clone();
-            move |vs| match vs.visible_child_name().as_deref() {
-                Some("installed") => {
-                    let _ = si.send(InstalledMsg::Reload);
+            let search_btn = search_btn.clone();
+            move |vs| {
+                let tab = vs.visible_child_name();
+                // Search belongs to Explore: do not leave stale results open.
+                if tab.as_deref() != Some("explorer") {
+                    search_btn.set_active(false);
                 }
-                Some("updates") => {
-                    let _ = su.send(UpdatesMsg::Reload);
+                match tab.as_deref() {
+                    Some("installed") => {
+                        let _ = si.send(InstalledMsg::Reload);
+                    }
+                    Some("updates") => {
+                        let _ = su.send(UpdatesMsg::Reload);
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         });
 

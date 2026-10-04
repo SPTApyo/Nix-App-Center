@@ -183,7 +183,7 @@ mod tests {
         let flake = Layout {
             kind: LayoutKind::NixosFlake {
                 dir: PathBuf::from("/etc/nixos"),
-                host: "Zenbook".into(),
+                host: "laptop".into(),
             },
             home: None,
             system: None,
@@ -192,7 +192,7 @@ mod tests {
         };
         assert_eq!(
             dry_argv(&flake).unwrap(),
-            ["nixos-rebuild", "dry-build", "--flake", "/etc/nixos#Zenbook"]
+            ["nixos-rebuild", "dry-build", "--flake", "/etc/nixos#laptop"]
         );
         // A dry-build has no sudo and no switch: it writes nothing, asks nothing.
         assert!(!dry_argv(&flake).unwrap().contains(&"sudo".to_string()));
