@@ -63,6 +63,16 @@ pub fn resolve_app_id(attr: &str) -> Option<String> {
     community().get(attr).cloned()
 }
 
+/// Reverse lookup: the nixpkgs attr the overlays pin to `app_id`, if any.
+pub(crate) fn attr_for_app_id(app_id: &str) -> Option<String> {
+    let find = |m: &HashMap<String, String>| {
+        m.iter()
+            .find(|(_, id)| id.eq_ignore_ascii_case(app_id))
+            .map(|(attr, _)| attr.clone())
+    };
+    find(&user_overlay().mappings).or_else(|| find(community()))
+}
+
 /// Enregistre une correction/signalement local. **Placeholder** du bouton « Signaler un
 /// problème » : pour l'instant on écrit dans l'overlay utilisateur (pris en compte à la
 /// résolution suivante) ; l'envoi vers un dépôt communautaire partagé viendra plus tard.
@@ -109,6 +119,20 @@ mod tests {
         // Et elle prime sur le communautaire.
         report_mapping("firefox", "org.mozilla.firefox.custom").unwrap();
         assert_eq!(resolve_app_id("firefox").as_deref(), Some("org.mozilla.firefox.custom"));
+
+        std::env::remove_var("XDG_DATA_HOME");
+    }
+
+    #[test]
+    fn attr_for_app_id_inverts_the_overlay() {
+        let _g = crate::env_lock();
+        let dir = std::env::temp_dir().join(format!("onyx-resolve-r-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::env::set_var("XDG_DATA_HOME", &dir);
+
+        assert_eq!(attr_for_app_id("com.visualstudio.code").as_deref(), Some("vscode"));
+        assert_eq!(attr_for_app_id("COM.VISUALSTUDIO.CODE").as_deref(), Some("vscode"));
+        assert_eq!(attr_for_app_id("org.example.Unknown"), None);
 
         std::env::remove_var("XDG_DATA_HOME");
     }

@@ -4,6 +4,7 @@
 use crate::appstream_db::DevApp;
 use crate::package::Package;
 use crate::util::{matching_keys, regex_escape};
+use crate::resolve::{attr_for_app_id, resolve_app_id};
 use std::collections::HashMap;
 
 /// Une app listée par Flathub (pour le parcours par catégorie).
@@ -44,6 +45,19 @@ fn flathub_collection(collection: &str, limit: usize) -> Vec<FlathubApp> {
 /// (`development`, `game`, `graphics`, `network`, `audiovideo`, `utility`…).
 fn flathub_category(category: &str, limit: usize) -> Vec<FlathubApp> {
     flathub_collection(&format!("category/{category}"), limit)
+}
+
+/// Candidate nixpkgs attrs for a Flathub app, most trusted first. A curated
+/// overlay entry wins outright; a fuzzy key is dropped when the overlay pins
+/// that attr to another app (nixpkgs `moonlight` is not Moonlight streaming).
+fn candidate_attrs(name: &str, app_id: &str) -> Vec<String> {
+    if let Some(attr) = attr_for_app_id(app_id) {
+        return vec![attr.to_lowercase()];
+    }
+    matching_keys(name, app_id)
+        .into_iter()
+        .filter(|k| resolve_app_id(k).is_none_or(|id| id.eq_ignore_ascii_case(app_id)))
+        .collect()
 }
 
 /// Résout un lot de candidats (noms) vers des paquets nixpkgs en UN `nix search`
@@ -93,7 +107,7 @@ fn resolve_apps(apps: Vec<FlathubApp>) -> Vec<(FlathubApp, Package)> {
     // Candidats par app : nom sans espace, 1er mot, dernier segment de l'app-id.
     let mut candidates = Vec::new();
     for a in &apps {
-        candidates.extend(matching_keys(&a.name, &a.app_id));
+        candidates.extend(candidate_attrs(&a.name, &a.app_id));
     }
 
     let attr_map = nix_attr_lookup(&candidates);
@@ -101,9 +115,10 @@ fn resolve_apps(apps: Vec<FlathubApp>) -> Vec<(FlathubApp, Package)> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for a in apps {
-        if let Some(pkg) = matching_keys(&a.name, &a.app_id).iter().find_map(|k| attr_map.get(k)) {
+        if let Some(pkg) = candidate_attrs(&a.name, &a.app_id).iter().find_map(|k| attr_map.get(k)) {
             if seen.insert(pkg.attr.clone()) {
-                let pkg = pkg.clone();
+                let mut pkg = pkg.clone();
+                pkg.name = a.name.clone();
                 out.push((a, pkg));
             }
         }
@@ -126,12 +141,14 @@ fn match_dev_apps(
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for a in apps {
-        if let Some(pkg) = matching_keys(&a.name, &a.app_id).iter().find_map(|k| attr_map.get(k)) {
+        if let Some(pkg) = candidate_attrs(&a.name, &a.app_id).iter().find_map(|k| attr_map.get(k)) {
             if pkg.attr == exclude_attr {
                 continue;
             }
             if seen.insert(pkg.attr.clone()) {
-                out.push((pkg.clone(), a.icon_url.clone()));
+                let mut pkg = pkg.clone();
+                pkg.name = a.name.clone();
+                out.push((pkg, a.icon_url.clone()));
             }
         }
     }
@@ -150,7 +167,7 @@ pub fn resolve_dev_apps(apps: &[DevApp], exclude_attr: &str) -> Vec<(Package, Op
     }
     let mut candidates = Vec::new();
     for a in apps {
-        candidates.extend(matching_keys(&a.name, &a.app_id));
+        candidates.extend(candidate_attrs(&a.name, &a.app_id));
     }
     match_dev_apps(apps, &nix_attr_lookup(&candidates), exclude_attr)
 }
@@ -287,6 +304,23 @@ mod tests {
             },
             Package::from_attr(name.to_lowercase()),
         )
+    }
+
+    #[test]
+    fn candidate_attrs_prefers_overlay_and_rejects_contradicted_keys() {
+        let _g = crate::env_lock();
+        let dir = std::env::temp_dir().join(format!("onyx-cand-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::env::set_var("XDG_DATA_HOME", &dir);
+
+        // Overlay pins VS Code to `vscode`: the fuzzy `code` key never applies.
+        assert_eq!(candidate_attrs("Visual Studio Code", "com.visualstudio.code"), ["vscode"]);
+        // `steam` is pinned to Steam, so Steam Link may not fall back on it.
+        let keys = candidate_attrs("Steam Link", "com.valvesoftware.SteamLink");
+        assert!(keys.contains(&"steamlink".to_string()));
+        assert!(!keys.contains(&"steam".to_string()));
+
+        std::env::remove_var("XDG_DATA_HOME");
     }
 
     #[test]

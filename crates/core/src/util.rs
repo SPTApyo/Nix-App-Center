@@ -17,8 +17,8 @@ pub(crate) fn sanitize(name: &str) -> String {
 pub(crate) fn matching_keys(name: &str, app_id: &str) -> [String; 3] {
     [
         sanitize(name),
-        name.split_whitespace().next().unwrap_or("").to_lowercase(),
         app_id.rsplit('.').next().unwrap_or("").to_lowercase(),
+        name.split_whitespace().next().unwrap_or("").to_lowercase(),
     ]
 }
 
