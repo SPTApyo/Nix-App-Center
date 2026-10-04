@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icône d'application Onyx : une gemme d'onyx facettée, sombre et brillante. -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a4a52"/>
+      <stop offset="1" stop-color="#26262b"/>
+    </linearGradient>
+    <linearGradient id="facetL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a3a42"/>
+      <stop offset="1" stop-color="#161619"/>
+    </linearGradient>
+    <linearGradient id="facetR" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a30"/>
+      <stop offset="1" stop-color="#0c0c0e"/>
+    </linearGradient>
+    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b6b76"/>
+      <stop offset="1" stop-color="#33333a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond arrondi -->
+  <rect x="4" y="4" width="120" height="120" rx="27" fill="url(#bg)"/>
+
+  <!-- Gemme facettée (octogone allongé, taille émeraude) -->
+  <g stroke="#0a0a0c" stroke-width="1.5" stroke-linejoin="round">
+    <!-- table (dessus) -->
+    <polygon points="44,40 84,40 76,56 52,56" fill="url(#crown)"/>
+    <!-- facette gauche -->
+    <polygon points="44,40 52,56 48,86 34,60" fill="url(#facetL)"/>
+    <!-- facette droite -->
+    <polygon points="84,40 94,60 80,86 76,56" fill="url(#facetR)"/>
+    <!-- pointe (culasse) -->
+    <polygon points="52,56 76,56 80,86 64,98 48,86" fill="url(#facetL)"/>
+    <polygon points="76,56 80,86 64,98" fill="url(#facetR)"/>
+  </g>
+
+  <!-- Éclat -->
+  <polygon points="50,44 62,44 57,52 53,52" fill="#ffffff" opacity="0.35"/>
+</svg>

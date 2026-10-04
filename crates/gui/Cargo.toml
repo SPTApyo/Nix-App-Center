@@ -1,0 +1,28 @@
+[package]
+name = "onyx-gui"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "onyx"
+path = "src/main.rs"
+
+[features]
+# Galerie de dev : onglet supplémentaire montrant chaque type d'app. Désactivée
+# par défaut → absente du binaire release. Cf. docs/superpowers/specs/2026-07-12-galerie-dev-design.md
+dev-gallery = []
+
+[dependencies]
+onyx-core = { path = "../core" }
+relm4 = { version = "0.9", features = ["libadwaita"] }
+# gtk + adw déclarés explicitement, aux mêmes versions que celles tirées par
+# relm4 0.9 (gtk4 0.9.x, libadwaita 0.7.x), pour que les chemins `gtk::` /
+# `adw::` générés par la macro relm4 résolvent.
+gtk = { version = "0.9", package = "gtk4" }
+adw = { version = "0.7", package = "libadwaita", features = ["v1_6"] }
+# Canal main-thread ↔ worker pour livrer le résultat du dry-build (nix_editor) sans
+# geler l'UI. C'est le remplaçant sanctionné de feu `glib::MainContext::channel`.
+async-channel = "2"
+# i18n : même mécanisme que GNOME Software (gettext piloté par la locale système).
+gettext-rs = "0.7"

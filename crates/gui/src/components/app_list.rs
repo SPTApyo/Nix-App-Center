@@ -1,0 +1,315 @@
+//! `AppList` — résultats de recherche en **deux sections** (« Applications » =
+//! croise AppStream → icône ; « Autres paquets » = nix seul) + un **filtre par
+//! jeu de paquets** (Nix comble AppStream : haskellPackages, pythonPackages…).
+
+use std::collections::HashMap;
+
+use adw::prelude::*;
+use relm4::factory::FactoryVecDeque;
+use relm4::prelude::*;
+use onyx_core::Package;
+
+use crate::components::package_row::PackageRow;
+use crate::util::{skeleton_list, AppItem};
+
+#[derive(Clone)]
+enum Filter {
+    All,
+    NoSet,
+    Set(String),
+}
+
+pub struct AppList {
+    apps: FactoryVecDeque<PackageRow>,
+    others: FactoryVecDeque<PackageRow>,
+    stack: gtk::Stack,
+    heading_apps: gtk::Label,
+    heading_others: gtk::Label,
+    heading_locate: gtk::Label,
+    locate_list: gtk::ListBox,
+    filter_dropdown: gtk::DropDown,
+    items: Vec<AppItem>,
+    filters: Vec<Filter>, // index du DropDown → filtre
+}
+
+#[derive(Debug)]
+pub enum AppListInput {
+    SetLoading,
+    Set(Vec<AppItem>),
+    /// Résultats de `nix-locate bin/<query>` (section 3).
+    SetLocate(String, Vec<Package>),
+    Filter,
+    Open(Package),
+}
+
+#[relm4::component(pub)]
+impl SimpleComponent for AppList {
+    type Init = ();
+    type Input = AppListInput;
+    type Output = Package;
+
+    view! {
+        #[root]
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_vexpand: true,
+        }
+    }
+
+    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+        let apps = FactoryVecDeque::builder()
+            .launch(gtk::ListBox::new())
+            .forward(sender.input_sender(), AppListInput::Open);
+        let others = FactoryVecDeque::builder()
+            .launch(gtk::ListBox::new())
+            .forward(sender.input_sender(), AppListInput::Open);
+
+        let lists: [&gtk::ListBox; 2] = [apps.widget(), others.widget()];
+        for lb in lists {
+            lb.add_css_class("boxed-list");
+            lb.set_selection_mode(gtk::SelectionMode::None);
+            lb.set_valign(gtk::Align::Start);
+        }
+
+        // Filtre par jeu de paquets
+        let filter_dropdown = gtk::DropDown::from_strings(&["Tous"]);
+        filter_dropdown.set_halign(gtk::Align::Start);
+        filter_dropdown.set_visible(false);
+        filter_dropdown.connect_selected_notify({
+            let sender = sender.clone();
+            move |_| sender.input(AppListInput::Filter)
+        });
+
+        let heading_apps = section_heading("Applications");
+        let heading_others = section_heading("Autres paquets");
+        let heading_locate = section_heading("");
+        heading_locate.set_visible(false);
+
+        let locate_list = gtk::ListBox::new();
+        locate_list.add_css_class("boxed-list");
+        locate_list.set_selection_mode(gtk::SelectionMode::None);
+        locate_list.set_valign(gtk::Align::Start);
+        locate_list.set_visible(false);
+
+        let content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(6)
+            .build();
+        content.append(&filter_dropdown);
+        content.append(&heading_apps);
+        content.append(apps.widget());
+        content.append(&heading_others);
+        content.append(others.widget());
+        content.append(&heading_locate);
+        content.append(&locate_list);
+
+        let clamp = adw::Clamp::new();
+        clamp.set_maximum_size(820);
+        clamp.set_margin_top(16);
+        clamp.set_margin_bottom(16);
+        clamp.set_margin_start(12);
+        clamp.set_margin_end(12);
+        clamp.set_child(Some(&content));
+
+        let scroll = gtk::ScrolledWindow::builder().vexpand(true).build();
+        scroll.set_child(Some(&clamp));
+        crate::util::smooth_scroll(&scroll);
+
+        // Chargement : barre de titre + liste skeleton, calquées sur le contenu
+        // réel (titre de section « Applications » + boxed-list) → aucun décalage.
+        let loading_heading = gtk::Box::builder()
+            .width_request(120)
+            .height_request(18)
+            .margin_top(6)
+            .margin_bottom(6)
+            .halign(gtk::Align::Start)
+            .build();
+        loading_heading.add_css_class("skeleton");
+        let loading_content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(6)
+            .build();
+        loading_content.append(&loading_heading);
+        loading_content.append(&skeleton_list(7));
+
+        let loading_clamp = adw::Clamp::new();
+        loading_clamp.set_maximum_size(820);
+        loading_clamp.set_margin_top(16);
+        loading_clamp.set_margin_start(12);
+        loading_clamp.set_margin_end(12);
+        loading_clamp.set_valign(gtk::Align::Start);
+        loading_clamp.set_child(Some(&loading_content));
+
+        let empty = adw::StatusPage::builder()
+            .icon_name("edit-find-symbolic")
+            .title("Aucun résultat")
+            .description("Essayez avec d'autres mots-clés")
+            .vexpand(true)
+            .build();
+
+        let stack = gtk::Stack::builder().vexpand(true).build();
+        stack.add_named(&loading_clamp, Some("loading"));
+        stack.add_named(&empty, Some("empty"));
+        stack.add_named(&scroll, Some("filled"));
+        stack.set_visible_child_name("empty");
+
+        let model = AppList {
+            apps,
+            others,
+            stack: stack.clone(),
+            heading_apps,
+            heading_others,
+            heading_locate: heading_locate.clone(),
+            locate_list: locate_list.clone(),
+            filter_dropdown,
+            items: Vec::new(),
+            filters: vec![Filter::All],
+        };
+        let widgets = view_output!();
+        root.append(&stack);
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+            AppListInput::SetLoading => {
+                self.clear_locate();
+                self.stack.set_visible_child_name("loading");
+            }
+            AppListInput::Set(items) => {
+                self.clear_locate();
+                self.items = items;
+                self.rebuild_filter();
+                self.apply();
+            }
+            AppListInput::SetLocate(query, packages) => {
+                self.clear_locate();
+                if packages.is_empty() {
+                    return;
+                }
+                self.heading_locate
+                    .set_label(&format!("Fournit la commande « {query} »"));
+                self.heading_locate.set_visible(true);
+                self.locate_list.set_visible(true);
+                for pkg in packages {
+                    let row = adw::ActionRow::builder()
+                        .title(crate::util::esc(&pkg.attr))
+                        .subtitle(crate::util::esc(&pkg.description))
+                        .activatable(true)
+                        .build();
+                    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+                    let s = sender.input_sender().clone();
+                    let p = pkg.clone();
+                    row.connect_activated(move |_| {
+                        let _ = s.send(AppListInput::Open(p.clone()));
+                    });
+                    self.locate_list.append(&row);
+                }
+                // Assure que la page "filled" est visible même si le texte est vide.
+                if self.stack.visible_child_name().as_deref() == Some("empty") {
+                    self.stack.set_visible_child_name("filled");
+                }
+            }
+            AppListInput::Filter => {
+                self.apply();
+            }
+            AppListInput::Open(pkg) => {
+                let _ = sender.output(pkg);
+            }
+        }
+    }
+}
+
+impl AppList {
+    fn clear_locate(&self) {
+        while let Some(child) = self.locate_list.first_child() {
+            self.locate_list.remove(&child);
+        }
+        self.heading_locate.set_visible(false);
+        self.locate_list.set_visible(false);
+    }
+
+    /// Recalcule la liste des jeux de paquets présents (avec compteurs) et
+    /// peuple le DropDown.
+    fn rebuild_filter(&mut self) {
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        let mut no_set = 0usize;
+        for it in &self.items {
+            match it.package.package_set() {
+                Some(s) => *counts.entry(s).or_insert(0) += 1,
+                None => no_set += 1,
+            }
+        }
+
+        // Jeux triés par nombre décroissant.
+        let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
+        sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+
+        let mut labels: Vec<String> = vec![format!("Tous ({})", self.items.len())];
+        let mut filters: Vec<Filter> = vec![Filter::All];
+        if no_set > 0 {
+            labels.push(format!("Sans jeu de paquets ({no_set})"));
+            filters.push(Filter::NoSet);
+        }
+        for (name, n) in &sets {
+            labels.push(format!("{name} ({n})"));
+            filters.push(Filter::Set((*name).to_string()));
+        }
+
+        self.filters = filters;
+        let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+        self.filter_dropdown.set_model(Some(&gtk::StringList::new(&refs)));
+        self.filter_dropdown.set_selected(0);
+        // Visible seulement s'il existe au moins un jeu de paquets.
+        self.filter_dropdown.set_visible(!sets.is_empty());
+    }
+
+    /// Filtre les items selon le DropDown, répartit en deux sections, peuple.
+    fn apply(&mut self) {
+        let idx = self.filter_dropdown.selected() as usize;
+        let filter = self.filters.get(idx).cloned().unwrap_or(Filter::All);
+        let keep = |it: &AppItem| match &filter {
+            Filter::All => true,
+            Filter::NoSet => it.package.package_set().is_none(),
+            Filter::Set(s) => it.package.package_set() == Some(s.as_str()),
+        };
+
+        let mut apps = self.apps.guard();
+        let mut others = self.others.guard();
+        apps.clear();
+        others.clear();
+        for it in self.items.iter().filter(|i| keep(i)) {
+            // « Applications » = apparié AppStream (pas « a une icône ») : une
+            // app reconnue sans icône garde son nom officiel et sa note.
+            if it.recognized {
+                apps.push_back(it.clone());
+            } else {
+                others.push_back(it.clone());
+            }
+        }
+        drop(apps);
+        drop(others);
+
+        let has_apps = !self.apps.is_empty();
+        let has_others = !self.others.is_empty();
+        self.heading_apps.set_visible(has_apps);
+        self.apps.widget().set_visible(has_apps);
+        self.others.widget().set_visible(has_others);
+        // Titre « Autres » seulement s'il y a des Applications au-dessus.
+        self.heading_others.set_visible(has_others && has_apps);
+
+        self.stack
+            .set_visible_child_name(if has_apps || has_others { "filled" } else { "empty" });
+    }
+}
+
+fn section_heading(text: &str) -> gtk::Label {
+    let l = gtk::Label::builder()
+        .label(text)
+        .xalign(0.0)
+        .margin_top(6)
+        .build();
+    l.add_css_class("heading");
+    l
+}

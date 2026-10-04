@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Un seul run par branche : annule le précédent si on repush.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: test · clippy · fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Nix fournit tout le toolchain (rustc, cargo, gtk4, libadwaita) via le
+      # devShell du flake — la CI exécute exactement ce que fait le dev en local.
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # Le vrai filet : 180+ tests unitaires du core + composants GUI.
+      - name: Tests
+        run: nix develop -c cargo test --workspace
+
+      # Qualité : zéro warning toléré (le code est maintenu clippy-clean).
+      - name: Clippy
+        run: nix develop -c cargo clippy --workspace --all-targets -- -D warnings
+
+      # Informatif seulement : le dépôt n'a pas encore été normalisé au style
+      # rustfmt par défaut (pas de rustfmt.toml). Ne bloque pas la CI.
+      - name: Format (informatif)
+        continue-on-error: true
+        run: nix develop -c cargo fmt --all -- --check

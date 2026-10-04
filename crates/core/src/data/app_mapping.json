@@ -1,0 +1,21 @@
+{
+  "note": "Overlay communautaire : attribut nixpkgs -> app-id Flathub. Comble les trous du dataset auto (apps unfree, apps absentes) et corrige les mauvaises correspondances. PRs bienvenues.",
+  "mappings": {
+    "firefox": "org.mozilla.firefox",
+    "chromium": "org.chromium.Chromium",
+    "blender": "org.blender.Blender",
+    "krita": "org.kde.krita",
+    "thunderbird": "org.mozilla.Thunderbird",
+    "kdenlive": "org.kde.kdenlive",
+    "gimp": "org.gimp.GIMP",
+    "vlc": "org.videolan.VLC",
+    "discord": "com.discordapp.Discord",
+    "spotify": "com.spotify.Client",
+    "telegram-desktop": "org.telegram.desktop",
+    "vscode": "com.visualstudio.code",
+    "vscodium": "com.vscodium.codium",
+    "steam": "com.valvesoftware.Steam",
+    "signal-desktop": "org.signal.Signal",
+    "element-desktop": "im.riot.Riot"
+  }
+}

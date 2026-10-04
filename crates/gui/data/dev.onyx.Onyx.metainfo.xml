@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 SPTApyo -->
+<component type="desktop-application">
+  <id>dev.onyx.Onyx</id>
+  <launchable type="desktop-id">dev.onyx.Onyx.desktop</launchable>
+
+  <name>Onyx</name>
+  <summary>App store déclaratif pour Nix</summary>
+  <summary xml:lang="en">Declarative app store for Nix</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <developer id="dev.onyx">
+    <name>SPTApyo</name>
+  </developer>
+
+  <description>
+    <p>
+      Onyx est une logithèque déclarative pour Nix. Le principe « try-first » :
+      lancez un paquet instantanément avec « Lancer » (nix run), puis gardez-le
+      délibérément dans votre configuration — Onyx écrit ses propres fichiers et
+      ne modifie la vôtre qu'avec votre accord explicite, diff à l'appui.
+    </p>
+    <p xml:lang="en">
+      Onyx is a declarative app store for Nix. Try-first: run a package instantly
+      with Run (nix run), then deliberately keep it in your configuration — Onyx
+      owns its own files and only edits yours with your explicit consent, showing
+      the diff first.
+    </p>
+  </description>
+
+  <categories>
+    <category>System</category>
+    <category>PackageManager</category>
+  </categories>
+
+  <content_rating type="oars-1.1"/>
+
+  <url type="homepage">https://github.com/SPTApyo/Projet-Onyx</url>
+  <url type="bugtracker">https://github.com/SPTApyo/Projet-Onyx/issues</url>
+
+  <releases>
+    <release version="0.1.0" date="2026-07-15">
+      <description>
+        <p>Première version : recherche nixpkgs, page détail, garder/appliquer avec
+           greffe consentie sur la config Nix, et éditeur Nix avancé.</p>
+      </description>
+    </release>
+  </releases>
+</component>

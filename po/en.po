@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: onyx 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Rechercher des paquets Nix…"
+msgstr "Search Nix packages…"
+
+msgid "Rechercher"
+msgstr "Search"
+
+msgid "Explorer"
+msgstr "Explore"
+
+msgid "Installées"
+msgstr "Installed"
+
+msgid "Mises à jour"
+msgstr "Updates"
