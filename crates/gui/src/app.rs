@@ -81,8 +81,8 @@ impl SimpleComponent for AppModel {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        // Icons borrowed from GNOME Software (tabs + categories), bundled in
-        // crates/gui/data/icons and resolved by name through this search path.
+        // Bundled icons (tabs, categories, tiles). Installed builds ship them in
+        // share/icons; `cargo run` reads them from the source tree.
         if let Some(display) = gtk::gdk::Display::default() {
             gtk::IconTheme::for_display(&display)
                 .add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));

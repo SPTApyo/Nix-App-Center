@@ -1,63 +1,63 @@
-//! Détection de la disposition de la config Nix de l'utilisateur.
+//! Detection of the user's Nix configuration layout.
 //!
-//! Onyx supposait jusqu'ici home-manager *standalone* : il écrivait
-//! `~/.config/home-manager/onyx-packages.nix` et appliquait via `home-manager switch`.
-//! Les deux hypothèses tombent dès qu'on quitte ce cas — et le cas le plus courant de
-//! NixOS (flake + home-manager en module NixOS) n'a ni ce fichier importé, ni ce binaire.
-//! Le fichier généré était alors un **orphelin** : « garder » n'avait aucun effet.
+//! Onyx used to assume *standalone* home-manager: it wrote
+//! `~/.config/home-manager/onyx-packages.nix` and applied with `home-manager switch`.
+//! Both assumptions break outside that case, and the most common NixOS setup
+//! (flake + home-manager as a NixOS module) has neither that file imported nor that
+//! binary. The generated file was then an **orphan**: "keep" had no effect.
 //!
-//! Ce module identifie la disposition réelle et en dérive trois choses : où poser les
-//! fichiers Onyx, quel `imports` patcher, et **la vraie commande d'apply**.
+//! This module identifies the real layout and derives three things from it: where to
+//! put the Onyx files, which `imports` to patch, and **the real apply command**.
 //!
-//! La détection est du *repérage textuel*, pas du parsing de Nix : on cherche des
-//! marqueurs, on ne reconstruit jamais un fichier à partir d'un AST. Elle peut donc se
-//! tromper — c'est pourquoi elle n'est jamais appliquée en silence : la façade montre ce
-//! qui a été trouvé et demande confirmation (cf. `config_attach`).
+//! Detection is *text scanning*, not Nix parsing: it looks for markers and never
+//! rebuilds a file from an AST. So it can be wrong, which is why it is never applied
+//! silently: the front end shows what was found and asks for confirmation (see
+//! `config_attach`).
 
 use std::path::{Path, PathBuf};
 
-/// La forme de la config trouvée sur la machine.
+/// The shape of the configuration found on the machine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LayoutKind {
-    /// Flake NixOS (`flake.nix` + `nixosConfigurations.<host>`).
+    /// NixOS flake (`flake.nix` + `nixosConfigurations.<host>`).
     NixosFlake { dir: PathBuf, host: String },
-    /// NixOS sans flake (`configuration.nix` seul).
+    /// NixOS without flake (`configuration.nix` alone).
     NixosLegacy { dir: PathBuf },
-    /// home-manager piloté par flake.
+    /// home-manager driven by a flake.
     HmFlake { dir: PathBuf, user: String },
-    /// home-manager standalone (`~/.config/home-manager/home.nix`).
+    /// Standalone home-manager (`~/.config/home-manager/home.nix`).
     HmStandalone { dir: PathBuf },
-    /// Rien de reconnaissable. Onyx ne devine pas : il se rabat sur le snippet manuel.
+    /// Nothing recognizable. Onyx does not guess: it falls back on the manual snippet.
     Unknown,
 }
 
-/// Une portée où Onyx peut écrire : son fichier, et le fichier dont il faut patcher
-/// la liste `imports` pour que le sien soit pris en compte.
+/// A scope Onyx can write to: its file, and the file whose `imports` list must be
+/// patched so Onyx's file is taken into account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeTarget {
-    /// Le fichier que possède Onyx (généré, jamais édité à la main).
+    /// The file Onyx owns (generated, never edited by hand).
     pub onyx_file: PathBuf,
-    /// Le fichier de l'utilisateur dont on patche `imports = [ … ]` — une seule ligne.
+    /// The user's file whose `imports = [ … ]` gets patched, a single line.
     pub import_site: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layout {
     pub kind: LayoutKind,
-    /// Portée utilisateur (`home.packages`…). `None` si la disposition n'en offre pas.
+    /// User scope (`home.packages`…). `None` when the layout offers none.
     pub home: Option<ScopeTarget>,
-    /// Portée système (`networking.firewall`…). `None` hors NixOS : un home-manager
-    /// standalone n'a aucun moyen d'écrire du système.
+    /// System scope (`networking.firewall`…). `None` outside NixOS: standalone
+    /// home-manager has no way to write system options.
     pub system: Option<ScopeTarget>,
-    /// L'argv complet de l'apply. Vide si la disposition est inconnue.
+    /// The full apply argv. Empty when the layout is unknown.
     pub apply: Vec<String>,
-    /// L'utilisateur home-manager, quand HM est branché comme module NixOS. C'est lui
-    /// qui détermine l'enrobage du fichier Onyx (`home-manager.users.<user> = { … }`).
+    /// The home-manager user, when HM is plugged in as a NixOS module. It decides
+    /// the wrapping of the Onyx file (`home-manager.users.<user> = { … }`).
     pub hm_user: Option<String>,
 }
 
 impl Layout {
-    /// Vrai si Onyx sait où écrire et comment appliquer.
+    /// True when Onyx knows where to write and how to apply.
     pub fn is_usable(&self) -> bool {
         !matches!(self.kind, LayoutKind::Unknown)
     }
@@ -66,8 +66,8 @@ impl Layout {
 const ONYX_HOME_FILE: &str = "onyx-home.nix";
 const ONYX_SYSTEM_FILE: &str = "onyx-system.nix";
 
-/// Racine de la config NixOS. `$ONYX_CONFIG_DIR` est l'échappatoire (et le point
-/// d'injection des tests : aucun test ne doit jamais toucher au vrai `/etc/nixos`).
+/// Root of the NixOS configuration. `$ONYX_CONFIG_DIR` is the escape hatch (and
+/// the test injection point: no test may ever touch the real `/etc/nixos`).
 fn nixos_dir() -> PathBuf {
     std::env::var_os("ONYX_CONFIG_DIR")
         .map(PathBuf::from)
@@ -83,7 +83,7 @@ fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_default()
 }
 
-/// Détecte la disposition de la machine.
+/// Detects the machine layout.
 pub fn detect() -> Layout {
     let nixos = nixos_dir();
     let hm = hm_dir();
@@ -120,11 +120,11 @@ pub fn detect() -> Layout {
     }
 }
 
-// ── Repérage textuel ──────────────────────────────────────────────────────────
+// ── Text scanning ─────────────────────────────────────────────────────────────
 
-/// Premier `nixosConfigurations.<host>` ou `nixosConfigurations = { <host> = …`.
-/// Si le nom d'hôte de la machine figure parmi les configurations trouvées, il gagne :
-/// un flake multi-machines ne doit pas nous faire écrire dans la config d'une autre.
+/// First `nixosConfigurations.<host>` or `nixosConfigurations = { <host> = …`.
+/// When the machine hostname is among the configurations found, it wins: a
+/// multi-machine flake must not make Onyx write into another machine's config.
 pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
     let hosts = nixos_hosts(flake_src);
     if hosts.is_empty() {
@@ -137,19 +137,19 @@ pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
     hosts.into_iter().next()
 }
 
-/// Tous les hôtes déclarés dans `nixosConfigurations`.
+/// Every host declared in `nixosConfigurations`.
 fn nixos_hosts(flake_src: &str) -> Vec<String> {
     let mut out = Vec::new();
     for (idx, _) in flake_src.match_indices("nixosConfigurations") {
         let rest = &flake_src[idx + "nixosConfigurations".len()..];
-        // Forme A : `nixosConfigurations.Zenbook = …`
+        // Form A: `nixosConfigurations.Zenbook = …`
         if let Some(after_dot) = rest.strip_prefix('.') {
             if let Some(name) = take_ident(after_dot) {
                 out.push(name);
                 continue;
             }
         }
-        // Forme B : `nixosConfigurations = { Zenbook = … }` → premier ident de l'accolade.
+        // Form B: `nixosConfigurations = { Zenbook = … }`, first ident of the brace.
         if let Some(brace) = rest.find('{') {
             let inner = rest[brace + 1..].trim_start();
             if let Some(name) = take_ident(inner) {
@@ -161,7 +161,7 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     out
 }
 
-/// L'identifiant Nix en tête de `s` (`Zenbook = …` → `Zenbook`), guillemets tolérés.
+/// The Nix identifier at the head of `s` (`Zenbook = …` → `Zenbook`), quotes allowed.
 fn take_ident(s: &str) -> Option<String> {
     let s = s.trim_start().trim_start_matches('"');
     let ident: String = s
@@ -171,8 +171,8 @@ fn take_ident(s: &str) -> Option<String> {
     (!ident.is_empty()).then_some(ident)
 }
 
-/// L'utilisateur de `home-manager.users.<user>` s'il apparaît dans un `.nix` du
-/// répertoire — signe que home-manager est branché comme module NixOS.
+/// The user of `home-manager.users.<user>` when it appears in a `.nix` file of
+/// the directory, a sign that home-manager is plugged in as a NixOS module.
 fn hm_user_in_dir(dir: &Path) -> Option<String> {
     let entries = std::fs::read_dir(dir).ok()?;
     for entry in entries.filter_map(Result::ok) {
@@ -202,12 +202,12 @@ fn current_user() -> String {
     std::env::var("USER").unwrap_or_else(|_| "root".to_string())
 }
 
-// ── Construction des dispositions ─────────────────────────────────────────────
+// ── Building layouts ──────────────────────────────────────────────────────────
 
-/// Sur NixOS, les deux portées se greffent au **même** endroit : la liste `imports`
-/// top-level de `configuration.nix`. C'est la splice la plus sûre — pas de Nix imbriqué
-/// à parser. Le fichier « home » est alors un module NixOS qui enrobe son contenu dans
-/// `home-manager.users.<user>`, et non un module home-manager.
+/// On NixOS both scopes attach at the **same** place: the top-level `imports` list
+/// of `configuration.nix`. It is the safest splice, no nested Nix to parse. The
+/// "home" file is then a NixOS module wrapping its content in
+/// `home-manager.users.<user>`, not a home-manager module.
 fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
     let site = dir.join("configuration.nix");
     (
@@ -251,8 +251,8 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
         "--flake".into(),
         format!("{}#{}", dir.display(), user),
     ];
-    // Pas de portée système : un home-manager standalone n'a aucun moyen d'écrire
-    // du NixOS. Une option système sera refusée avec un snippet à coller.
+    // No system scope: standalone home-manager cannot write NixOS options.
+    // A system option is refused with a snippet to paste.
     Layout { kind: LayoutKind::HmFlake { dir, user }, home, system: None, apply, hm_user: None }
 }
 
@@ -269,7 +269,7 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
 mod tests {
     use super::*;
 
-    /// Fixture jetable. Aucun test ne touche jamais au vrai `/etc/nixos` ni à `~`.
+    /// Throwaway fixture. No test ever touches the real `/etc/nixos` or `~`.
     fn fixture(name: &str) -> PathBuf {
         let dir = std::env::temp_dir()
             .join(format!("onyx-layout-{}-{}", std::process::id(), name));
@@ -309,7 +309,7 @@ mod tests {
                 &format!("{}#Zenbook", dir.display())
             ]
         );
-        // Les deux portées se greffent dans le même configuration.nix.
+        // Both scopes attach in the same configuration.nix.
         let home = layout.home.unwrap();
         let system = layout.system.unwrap();
         assert_eq!(home.onyx_file, dir.join("onyx-home.nix"));
@@ -345,13 +345,13 @@ mod tests {
         std::env::remove_var("ONYX_CONFIG_DIR");
 
         assert_eq!(layout.kind, LayoutKind::Unknown);
-        assert!(layout.apply.is_empty(), "aucun apply ne doit être proposé");
+        assert!(layout.apply.is_empty(), "no apply may be offered");
         assert!(!layout.is_usable());
     }
 
     #[test]
     fn hm_standalone_has_no_system_scope() {
-        // Un home-manager standalone n'a aucun moyen d'écrire du NixOS.
+        // Standalone home-manager has no way to write NixOS options.
         let dir = PathBuf::from("/tmp/hm");
         let layout = hm_standalone_layout(dir);
         assert!(layout.system.is_none());
@@ -363,7 +363,7 @@ mod tests {
         let src = "nixosConfigurations.Autre = a; nixosConfigurations.Zenbook = b;";
         let hosts = nixos_hosts(src);
         assert_eq!(hosts, ["Autre", "Zenbook"]);
-        // Sans correspondance avec le hostname réel, on prend le premier déclaré.
+        // Without a match with the real hostname, the first declared one is used.
         assert!(first_nixos_host(src).is_some());
     }
 

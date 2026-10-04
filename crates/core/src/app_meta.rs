@@ -1,19 +1,19 @@
-//! Fusion des métadonnées AppStream (Flathub, local ou REST) et Nix (`nix eval
-//! .meta`) pour la page détail : **AppStream prioritaire, Nix en fallback**.
+//! Merges AppStream metadata (Flathub, local or REST) and Nix (`nix eval
+//! .meta`) for the details page: **AppStream first, Nix as fallback**.
 
 use crate::appstream_db;
 use crate::detail::{detail, PackageDetail};
 use crate::flathub::{flathub_meta, meta_from_db, FlathubMeta, Release};
 use crate::package::Package;
 
-/// Métadonnées fusionnées pour la page détail : **AppStream (Flathub) prioritaire,
-/// Nix (`meta`) en fallback**. Chaque champ vide ⇒ la section correspondante est
-/// masquée côté UI.
+/// Merged metadata for the details page: **AppStream (Flathub) first, Nix
+/// (`meta`) as fallback**. Each empty field hides the matching section in the
+/// UI.
 #[derive(Debug, Clone, Default)]
 pub struct AppMeta {
     pub name: String,
-    /// Identifiant AppStream/Flathub résolu (`io.github.…`) — clé fiable pour la
-    /// note ODRS (le nom nixpkgs seul provoque de faux appariements).
+    /// Resolved AppStream/Flathub id (`io.github.…`), the reliable key for the
+    /// ODRS rating (the nixpkgs name alone causes wrong matches).
     pub app_id: Option<String>,
     pub developer: Option<String>,
     pub summary: Option<String>,
@@ -32,30 +32,30 @@ pub struct AppMeta {
     pub donation: Option<String>,
     pub translate: Option<String>,
     pub changelog: Option<String>,
-    /// Mainteneurs nixpkgs — signal de confiance Nix-natif (pas d'équivalent
-    /// AppStream, jamais fourni par `fh`).
+    /// nixpkgs maintainers, a Nix native trust signal (no AppStream
+    /// equivalent, never provided by `fh`).
     pub maintainers: Vec<String>,
-    /// Le paquet est marqué `meta.insecure` dans nixpkgs.
+    /// The package is marked `meta.insecure` in nixpkgs.
     pub insecure: bool,
     pub known_vulnerabilities: Vec<String>,
-    /// Le paquet est marqué `meta.broken` — `nix run` échouera très probablement.
+    /// The package is marked `meta.broken`: `nix run` will most likely fail.
     pub broken: bool,
-    /// Légende de chaque screenshot (parallèle à `screenshot_urls`).
+    /// Caption of each screenshot (parallel to `screenshot_urls`).
     pub screenshot_captions: Vec<Option<String>>,
-    /// Classification d'âge OARS (« 12 ») + descriptions, via AppStream.
+    /// OARS age rating ("12") + descriptions, from AppStream.
     pub age_label: Option<String>,
     pub age_descriptions: Vec<String>,
-    /// Extensions/addons (AppStream Flathub).
+    /// Extensions/add-ons (AppStream).
     pub addons: Vec<crate::flathub::Addon>,
-    /// Autres apps du même développeur (AppStream Flathub).
+    /// Other apps by the same developer (AppStream).
     pub developer_apps: Vec<crate::flathub::DevApp>,
 }
 
-/// Construit les métadonnées fusionnées d'un paquet (AppStream prioritaire, Nix
-/// fallback). Effectue les appels réseau/`nix eval` : à lancer dans un thread.
-/// Les deux sources sont indépendantes → interrogées en parallèle : la latence
-/// de la page détail est le max des deux, pas leur somme (AppStream peut coûter
-/// 2×6 s de timeout réseau, `nix eval` plusieurs secondes à froid).
+/// Builds the merged metadata of a package (AppStream first, Nix fallback).
+/// Makes network/`nix eval` calls: run it in a thread. Both sources are
+/// independent and queried in parallel, so the details page latency is the
+/// max of the two, not their sum (AppStream may cost 2×6 s of network
+/// timeout, `nix eval` several seconds when cold).
 pub fn app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     let attr = pkg.attr.clone();
     let nix_handle = std::thread::spawn(move || detail(&attr));
@@ -64,15 +64,15 @@ pub fn app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     merge_app_meta(pkg, fh.as_ref(), nix.as_ref())
 }
 
-/// Comme `flathub_meta(&pkg.name, …)` mais essaie d'abord la base locale par
-/// nom PUIS par attr nixpkgs (`appstream_db::lookup_package`) avant de se
-/// rabattre sur `flathub_meta`, qui ne connaît que le nom.
+/// Like `flathub_meta(&pkg.name, …)` but first tries the local database by
+/// name THEN by nixpkgs attr (`appstream_db::lookup_package`) before falling
+/// back on `flathub_meta`, which only knows the name.
 ///
-/// Attend (borné) la fin d'un chargement de base EN COURS : la base locale
-/// porte des données que le REST n'a pas (addons, apps du même développeur),
-/// et la page détail affiche déjà un spinner pendant que `nix eval` roule en
-/// parallèle — mieux vaut ces quelques secondes qu'une fiche appauvrie.
-/// Sans chargement en cours (CLI, machine sans Flatpak), retour immédiat.
+/// Waits (bounded) for a database load IN PROGRESS: the local database holds
+/// data REST lacks (add-ons, same developer apps), and the details page
+/// already shows a spinner while `nix eval` runs in parallel, so a few
+/// seconds beat a poorer listing. Without a load in progress (CLI), returns
+/// at once.
 fn flathub_meta_for(pkg: &Package, screenshot_target_w: u32) -> Option<FlathubMeta> {
     appstream_db::wait_until_settled(std::time::Duration::from_secs(15));
     if let Some(entry) = appstream_db::lookup_package(pkg) {
@@ -81,20 +81,19 @@ fn flathub_meta_for(pkg: &Package, screenshot_target_w: u32) -> Option<FlathubMe
     flathub_meta(&pkg.name, screenshot_target_w)
 }
 
-/// Fusionne les métadonnées AppStream (Flathub, local ou REST) et Nix (`nix eval
-/// .meta`) d'un paquet — **pure**, sans I/O, donc testable sans réseau ni `nix`.
+/// Merges the AppStream metadata (Flathub, local or REST) and Nix (`nix eval
+/// .meta`) of a package. **Pure**, no I/O, so testable without network or `nix`.
 ///
-/// Règle générale : **AppStream prioritaire, Nix en fallback** pour les champs
-/// éditoriaux (résumé/description/licence/homepage). Deux exceptions
-/// délibérées à cette règle, documentées ici pour ne pas être « corrigées »
-/// par erreur plus tard :
-/// - `version` : la version NIX (celle réellement installée/lançable via
-///   `nix run`) prime sur celle du dernier `Release` Flathub, qui peut
-///   correspondre à un build Flatpak différent de celui de nixpkgs.
-/// - `is_runnable` : déterminé uniquement par `meta.mainProgram` (Nix) —
-///   AppStream n'a pas d'équivalent fiable pour cette notion.
+/// General rule: **AppStream first, Nix fallback** for editorial fields
+/// (summary/description/license/homepage). Two deliberate exceptions to this
+/// rule, documented here so nobody "fixes" them by mistake later:
+/// - `version`: the NIX version (the one really installable/runnable through
+///   `nix run`) wins over the latest Flathub `Release`, which may match a
+///   Flatpak build different from nixpkgs.
+/// - `is_runnable`: decided only by `meta.mainProgram` (Nix); AppStream has
+///   no reliable equivalent for this notion.
 fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageDetail>) -> AppMeta {
-    // a (AppStream) prioritaire, sinon b (Nix).
+    // a (AppStream) first, else b (Nix).
     let pick = |a: Option<String>, b: Option<String>| a.filter(|s| !s.trim().is_empty()).or(b);
 
     AppMeta {
@@ -155,11 +154,11 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
     }
 }
 
-// ── Tests : l'ordre AppStream ↔ Nix ──────────────────────────────────────────
+// ── Tests: AppStream ↔ Nix precedence ────────────────────────────────────────
 //
-// Ces tests fixent la règle documentée sur `merge_app_meta` : AppStream
-// prioritaire / Nix fallback pour les champs éditoriaux, à l'exception
-// délibérée de `version` et `is_runnable`.
+// These tests pin the rule documented on `merge_app_meta`: AppStream first /
+// Nix fallback for editorial fields, except deliberately for `version` and
+// `is_runnable`.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,8 +235,8 @@ mod tests {
 
     #[test]
     fn merge_is_free_license_falls_back_to_nix_when_appstream_lacks_it() {
-        // La base AppStream locale ne porte jamais ce booléen (contrairement à
-        // l'API REST Flathub) — nix.meta.license.free comble le trou.
+        // The local AppStream database never carries this boolean (unlike the
+        // Flathub REST API); nix.meta.license.free fills the gap.
         let pkg = sample_pkg();
         let mut fh = sample_fh();
         fh.is_free_license = None;
@@ -249,8 +248,8 @@ mod tests {
 
     #[test]
     fn merge_falls_back_to_nix_when_appstream_field_is_blank() {
-        // Un champ AppStream présent mais vide/blanc ne doit PAS gagner
-        // contre un fallback Nix disponible (filtre `!s.trim().is_empty()`).
+        // A present but empty/blank AppStream field must NOT win against an
+        // available Nix fallback (`!s.trim().is_empty()` filter).
         let pkg = sample_pkg();
         let mut fh = sample_fh();
         fh.license = Some("   ".into());
@@ -261,9 +260,9 @@ mod tests {
 
     #[test]
     fn merge_version_prefers_nix_over_appstream_release() {
-        // Exception documentée : la version lançable (nix) prime sur la
-        // dernière release Flathub (potentiellement un build différent).
-        let pkg = sample_pkg(); // version nix = "1.5"
+        // Documented exception: the runnable (nix) version wins over the latest
+        // Flathub release (possibly a different build).
+        let pkg = sample_pkg(); // nix version = "1.5"
         let fh = sample_fh(); // releases[0].version = "2.0"
         let meta = merge_app_meta(&pkg, Some(&fh), None);
         assert_eq!(meta.version.as_deref(), Some("1.5"));
@@ -283,15 +282,15 @@ mod tests {
         let pkg = sample_pkg();
         let fh = sample_fh();
         let mut nix = sample_nix();
-        nix.main_program = None; // pas de mainProgram → KeepOnly
+        nix.main_program = None; // no mainProgram → KeepOnly
         let meta = merge_app_meta(&pkg, Some(&fh), Some(&nix));
         assert!(!meta.is_runnable);
     }
 
     #[test]
     fn merge_is_runnable_defaults_true_without_nix_detail() {
-        // Pas d'éval nix (échec/absent) : on suppose runnable par défaut
-        // plutôt que de masquer l'action « Lancer » à tort.
+        // No nix eval (failed/missing): assume runnable by default rather
+        // than wrongly hiding the "Run" action.
         let meta = merge_app_meta(&sample_pkg(), None, None);
         assert!(meta.is_runnable);
     }

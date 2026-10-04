@@ -1,21 +1,22 @@
-//! Onyx CLI — façade texte du `core`, banc d'essai de la boucle
-//! chercher → essayer → garder. Aucune logique ici : tout vient de `onyx_core`.
+//! Onyx CLI: text front end of `core`, a test bench for the
+//! search → try → keep loop. No logic here: everything comes from `onyx_core`.
 //!
-//! Usage :
-//!   onyx-cli search <query…>   liste les paquets correspondants
-//!   onyx-cli info <attr>       métadonnées enrichies (nix eval meta)
+//! Usage:
+//!   onyx-cli search <query…>   list matching packages
+//!   onyx-cli info <attr>       rich metadata (nix eval meta)
 //!   onyx-cli run <attr>        `nix run nixpkgs#<attr>` (try-first)
-//!   onyx-cli shell <attr>      `nix shell` dans un terminal (try-first des CLI)
-//!   onyx-cli keep <attr>       ajoute au manifeste Onyx
-//!   onyx-cli unkeep <attr>     retire du manifeste
-//!   onyx-cli updates           versions gardées vs nixpkgs courant
-//!   onyx-cli locate <bin>      paquets fournissant un binaire (nix-locate)
-//!   onyx-cli attach [--commit] greffe consentie (diff ; --commit pour écrire)
-//!   onyx-cli detach            retire la ligne d'import Onyx
-//!   onyx-cli edit <attr>       lit un bloc Nix (portée home) sur stdin → set_blocks
-//!   onyx-cli apply             applique la config (commande déduite de la disposition)
-//!   onyx-cli gc                ramasse-miettes du store (nix-collect-garbage)
-//!   onyx-cli list              affiche le manifeste
+//!   onyx-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
+//!   onyx-cli keep <attr>       add to the Onyx manifest
+//!   onyx-cli unkeep <attr>     remove from the manifest
+//!   onyx-cli updates           kept versions vs current nixpkgs
+//!   onyx-cli locate <bin>      packages providing a binary (nix-locate)
+//!   onyx-cli layout            what Onyx detects of your config (read only)
+//!   onyx-cli attach [--commit] consented attach (diff; --commit to write)
+//!   onyx-cli detach            remove the Onyx import line
+//!   onyx-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
+//!   onyx-cli apply             apply the config (command derived from the layout)
+//!   onyx-cli gc                store garbage collection (nix-collect-garbage)
+//!   onyx-cli list              print the manifest
 
 use onyx_core::Package;
 use std::process::ExitCode;
@@ -28,7 +29,7 @@ fn main() -> ExitCode {
             let query = args[2..].join(" ");
             let pkgs = onyx_core::search(&query);
             if pkgs.is_empty() {
-                eprintln!("Aucun résultat pour « {query} »");
+                eprintln!("No results for “{query}”");
                 return ExitCode::FAILURE;
             }
             for p in pkgs {
@@ -46,7 +47,7 @@ fn main() -> ExitCode {
                     println!("type        : {kind}");
                     if let Some(mp) = &d.main_program { println!("mainProgram : {mp}"); }
                     if let Some(h) = &d.homepage { println!("homepage    : {h}"); }
-                    if let Some(l) = &d.license { println!("licence     : {l}"); }
+                    if let Some(l) = &d.license { println!("license     : {l}"); }
                     if let Some(c) = &d.changelog { println!("changelog   : {c}"); }
                     if let Some(ld) = &d.long_description {
                         println!("\n{}", ld.trim());
@@ -54,7 +55,7 @@ fn main() -> ExitCode {
                     ExitCode::SUCCESS
                 }
                 None => {
-                    eprintln!("pas de métadonnées pour « {attr} »");
+                    eprintln!("no metadata for “{attr}”");
                     ExitCode::FAILURE
                 }
             },
@@ -68,7 +69,7 @@ fn main() -> ExitCode {
                 match onyx_core::run(&pkg) {
                     Ok(()) => ExitCode::SUCCESS,
                     Err(e) => {
-                        eprintln!("échec du lancement : {e}");
+                        eprintln!("could not start: {e}");
                         ExitCode::FAILURE
                     }
                 }
@@ -83,11 +84,11 @@ fn main() -> ExitCode {
                 match onyx_core::shell(&pkg) {
                     Ok(onyx_core::ShellOutcome::Spawned) => ExitCode::SUCCESS,
                     Ok(onyx_core::ShellOutcome::NoTerminal) => {
-                        eprintln!("aucun terminal trouvé — lance la commande ci-dessus toi-même");
+                        eprintln!("no terminal found; run the command above yourself");
                         ExitCode::FAILURE
                     }
                     Err(e) => {
-                        eprintln!("échec du shell : {e}");
+                        eprintln!("could not open a shell: {e}");
                         ExitCode::FAILURE
                     }
                 }
@@ -100,11 +101,11 @@ fn main() -> ExitCode {
                 let pkg = Package::from_attr(attr);
                 match onyx_core::keep(&pkg) {
                     Ok(()) => {
-                        println!("gardé : {attr}");
+                        println!("kept: {attr}");
                         ExitCode::SUCCESS
                     }
                     Err(e) => {
-                        eprintln!("échec : {e}");
+                        eprintln!("failed: {e}");
                         ExitCode::FAILURE
                     }
                 }
@@ -115,11 +116,11 @@ fn main() -> ExitCode {
         Some("unkeep") => match args.get(2) {
             Some(attr) => match onyx_core::unkeep(attr) {
                 Ok(()) => {
-                    println!("retiré : {attr}");
+                    println!("removed: {attr}");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
-                    eprintln!("échec : {e}");
+                    eprintln!("failed: {e}");
                     ExitCode::FAILURE
                 }
             },
@@ -129,7 +130,7 @@ fn main() -> ExitCode {
         Some("updates") => {
             let ups = onyx_core::available_updates();
             if ups.is_empty() {
-                println!("(tout est à jour)");
+                println!("(everything is up to date)");
             } else {
                 for u in ups {
                     println!("{}: {} → {}", u.package.attr, u.installed_version, u.available_version);
@@ -142,7 +143,7 @@ fn main() -> ExitCode {
             Some(cmd) => {
                 let pkgs = onyx_core::locate_binary(cmd);
                 if pkgs.is_empty() {
-                    eprintln!("aucun paquet ne fournit « {cmd} » (ou nix-locate absent)");
+                    eprintln!("no package provides “{cmd}” (or nix-locate is missing)");
                     return ExitCode::FAILURE;
                 }
                 for p in pkgs {
@@ -153,72 +154,71 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Diagnostic : ce qu'Onyx croit de ta config. Lecture seule.
+        // Diagnostic: what Onyx believes about your config. Read only.
         Some("layout") => {
             let l = onyx_core::detect_layout();
-            println!("disposition : {:?}", l.kind);
+            println!("layout: {:?}", l.kind);
             match &l.hm_user {
-                Some(u) => println!("home-manager : module NixOS, utilisateur « {u} »"),
-                None => println!("home-manager : pas détecté comme module NixOS"),
+                Some(u) => println!("home-manager: NixOS module, user “{u}”"),
+                None => println!("home-manager: not detected as a NixOS module"),
             }
-            for (nom, scope) in [("home", &l.home), ("système", &l.system)] {
+            for (name, scope) in [("home", &l.home), ("system", &l.system)] {
                 match scope {
                     Some(s) => println!(
-                        "portée {nom} : {} (import depuis {})",
+                        "{name} scope: {} (imported from {})",
                         s.onyx_file.display(),
                         s.import_site.display()
                     ),
-                    None => println!("portée {nom} : indisponible"),
+                    None => println!("{name} scope: unavailable"),
                 }
             }
             if l.apply.is_empty() {
-                println!("apply : aucun (disposition inconnue)");
+                println!("apply: none (unknown layout)");
             } else {
-                println!("apply : {}", l.apply.join(" "));
+                println!("apply: {}", l.apply.join(" "));
             }
             ExitCode::SUCCESS
         }
 
-        // Greffe consentie : montre le diff, n'écrit QUE sur `--commit`. Banc d'essai du
-        // chemin réel (attach_plan → attach_commit) sans passer par la GUI.
+        // Consented attach: shows the diff, writes ONLY with `--commit`.
         Some("attach") => {
             let layout = onyx_core::detect_layout();
             let plan = onyx_core::attach_plan(&layout);
             let commit = args.iter().any(|a| a == "--commit");
             match &plan {
                 onyx_core::AttachPlan::Patch { site, backup, diff, .. } => {
-                    println!("greffe sur {} (backup : {})", site.display(), backup.display());
+                    println!("attach to {} (backup: {})", site.display(), backup.display());
                     print!("{diff}");
                 }
                 onyx_core::AttachPlan::Manual { site, snippet } => {
                     println!(
-                        "pas de liste `imports` au plus haut niveau de {} — ajoute toi-même :\n{snippet}",
+                        "no top-level `imports` list in {}; add it yourself:\n{snippet}",
                         site.display()
                     );
                     return ExitCode::SUCCESS;
                 }
                 onyx_core::AttachPlan::AlreadyAttached => {
-                    println!("déjà greffé — rien à faire.");
+                    println!("already attached, nothing to do.");
                     return ExitCode::SUCCESS;
                 }
                 onyx_core::AttachPlan::NoLayout => {
-                    eprintln!("config Nix introuvable — rien à greffer.");
+                    eprintln!("Nix configuration not found, nothing to attach to.");
                     return ExitCode::FAILURE;
                 }
             }
             if commit {
                 match onyx_core::attach_commit(&plan) {
                     Ok(()) => {
-                        println!("→ greffé.");
+                        println!("→ attached.");
                         ExitCode::SUCCESS
                     }
                     Err(e) => {
-                        eprintln!("échec de la greffe : {e}");
+                        eprintln!("attach failed: {e}");
                         ExitCode::FAILURE
                     }
                 }
             } else {
-                println!("(relance avec --commit pour écrire réellement)");
+                println!("(run again with --commit to actually write)");
                 ExitCode::SUCCESS
             }
         }
@@ -227,19 +227,18 @@ fn main() -> ExitCode {
             let layout = onyx_core::detect_layout();
             match onyx_core::detach(&layout) {
                 Ok(()) => {
-                    println!("dégreffé — la ligne d'import Onyx a été retirée.");
+                    println!("detached: the Onyx import line was removed.");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
-                    eprintln!("échec : {e}");
+                    eprintln!("failed: {e}");
                     ExitCode::FAILURE
                 }
             }
         }
 
-        // Édition avancée en banc d'essai : lit un bloc Nix (portée home) sur stdin, le
-        // valide (parse instantané), puis l'enregistre. Stdin vide → l'app redevient
-        // une simple entrée de liste (bloc retiré).
+        // Reads a home scope Nix block on stdin, parses it, saves it.
+        // Empty stdin turns the app back into a plain list entry.
         Some("edit") => match args.get(2) {
             Some(attr) => {
                 use std::io::Read;
@@ -249,18 +248,18 @@ fn main() -> ExitCode {
                 let home = (!block.is_empty()).then(|| block.clone());
                 if let Some(b) = &home {
                     if let Err(e) = onyx_core::parse_block(b) {
-                        eprintln!("syntaxe Nix invalide :\n{e}");
+                        eprintln!("invalid Nix syntax:\n{e}");
                         return ExitCode::FAILURE;
                     }
                 }
                 let pkg = Package::from_attr(attr);
                 match onyx_core::set_blocks(&pkg, home, None) {
                     Ok(()) => {
-                        println!("blocs enregistrés pour {attr}");
+                        println!("blocks saved for {attr}");
                         ExitCode::SUCCESS
                     }
                     Err(e) => {
-                        eprintln!("échec : {e}");
+                        eprintln!("failed: {e}");
                         ExitCode::FAILURE
                     }
                 }
@@ -268,14 +267,14 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Ramasse-miettes du store (libère l'espace des paquets non-référencés).
+        // Store garbage collection (frees unreferenced packages).
         Some("gc") => match onyx_core::garbage_collect() {
             Ok(summary) => {
-                println!("{}", if summary.is_empty() { "Rien à libérer." } else { &summary });
+                println!("{}", if summary.is_empty() { "Nothing to free." } else { &summary });
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                eprintln!("échec : {e}");
+                eprintln!("failed: {e}");
                 ExitCode::FAILURE
             }
         },
@@ -284,23 +283,23 @@ fn main() -> ExitCode {
             use onyx_core::ApplyOutcome::*;
             match onyx_core::apply_config() {
                 Ok(Done(line)) => {
-                    println!("config appliquée : {line}");
+                    println!("configuration applied: {line}");
                     ExitCode::SUCCESS
                 }
                 Ok(Launched) => {
-                    println!("application lancée dans un terminal");
+                    println!("applying in a terminal");
                     ExitCode::SUCCESS
                 }
                 Ok(NoTerminal(argv)) => {
-                    eprintln!("aucun terminal trouvé — lance toi-même :\n  {}", argv.join(" "));
+                    eprintln!("no terminal found; run it yourself:\n  {}", argv.join(" "));
                     ExitCode::FAILURE
                 }
                 Ok(UnknownLayout) => {
-                    eprintln!("config Nix introuvable — rien n'a été appliqué");
+                    eprintln!("Nix configuration not found, nothing was applied");
                     ExitCode::FAILURE
                 }
                 Err(e) => {
-                    eprintln!("échec : {e}");
+                    eprintln!("failed: {e}");
                     ExitCode::FAILURE
                 }
             }
@@ -309,7 +308,7 @@ fn main() -> ExitCode {
         Some("list") => {
             let manifest = onyx_core::load_manifest();
             if manifest.kept.is_empty() {
-                println!("(manifeste vide)");
+                println!("(empty manifest)");
             } else {
                 for p in manifest.packages() {
                     println!("{:<36} {}", p.attr, p.description);
@@ -324,7 +323,7 @@ fn main() -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage : onyx-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | locate <bin> | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: onyx-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
     );
     ExitCode::FAILURE
 }

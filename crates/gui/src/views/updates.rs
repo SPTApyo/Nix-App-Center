@@ -220,10 +220,12 @@ impl UpdatesModel {
 
 /// "Everything is up to date" illustration (borrowed from GNOME Software), centered.
 fn up_to_date_view() -> gtk::Box {
-    let pic = gtk::Picture::for_filename(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/data/assets/up-to-date.svg"
-    ));
+    // Embedded: the source tree does not exist once installed.
+    const SVG: &[u8] = include_bytes!("../../data/assets/up-to-date.svg");
+    let pic = gtk::Picture::new();
+    if let Ok(tex) = gtk::gdk::Texture::from_bytes(&gtk::glib::Bytes::from_static(SVG)) {
+        pic.set_paintable(Some(&tex));
+    }
     pic.set_size_request(256, 192);
     pic.add_css_class("icon-dropshadow");
     let title = gtk::Label::new(Some(&t("Everything is up to date")));

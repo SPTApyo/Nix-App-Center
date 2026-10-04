@@ -1,0 +1,1055 @@
+# French translation for Onyx.
+# Copyright (C) 2026 SPTApyo
+# This file is distributed under the same license as the onyx package.
+msgid ""
+msgstr ""
+"Project-Id-Version: onyx 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: crates/core/src/nix_check.rs:113
+msgid "Onyx cannot find your Nix configuration."
+msgstr "Onyx ne trouve pas votre configuration Nix."
+
+#: crates/core/src/oars.rs:43
+msgid "Cartoon characters in aggressive conflict"
+msgstr "Personnages de dessins animés en conflit agressif"
+
+#: crates/core/src/oars.rs:43
+msgid "Cartoon characters in unsafe situations"
+msgstr "Personnages de dessins animés en situation dangereuse"
+
+#: crates/core/src/oars.rs:43
+msgid "Graphic violence involving cartoon characters"
+msgstr "Violence explicite impliquant des personnages de dessins animés"
+
+#: crates/core/src/oars.rs:43
+msgid "No cartoon violence"
+msgstr "Aucune violence de dessin animé"
+
+#: crates/core/src/oars.rs:44
+msgid "Characters in aggressive conflict easily distinguishable from reality"
+msgstr "Personnages en conflit agressif facilement distinguables de la réalité"
+
+#: crates/core/src/oars.rs:44
+msgid "Characters in unsafe situations easily distinguishable from reality"
+msgstr "Personnages en situation dangereuse facilement distinguables de la réalité"
+
+#: crates/core/src/oars.rs:44
+msgid "Graphic violence easily distinguishable from reality"
+msgstr "Violence explicite facilement distinguable de la réalité"
+
+#: crates/core/src/oars.rs:44
+msgid "No fantasy violence"
+msgstr "Aucune violence fantastique"
+
+#: crates/core/src/oars.rs:45
+msgid "Depictions of realistic characters in aggressive conflict"
+msgstr "Représentation de personnages réalistes en conflit agressif"
+
+#: crates/core/src/oars.rs:45
+msgid "Graphic violence involving realistic characters"
+msgstr "Violence explicite impliquant des personnages réalistes"
+
+#: crates/core/src/oars.rs:45
+msgid "Mildly realistic characters in unsafe situations"
+msgstr "Personnages légèrement réalistes en situation dangereuse"
+
+#: crates/core/src/oars.rs:45
+msgid "No realistic violence"
+msgstr "Aucune violence réaliste"
+
+#: crates/core/src/oars.rs:46
+msgid "Depictions of bloodshed and the mutilation of body parts"
+msgstr "Représentation d'effusions de sang et de mutilations"
+
+#: crates/core/src/oars.rs:46
+msgid "No bloodshed"
+msgstr "Aucune effusion de sang"
+
+#: crates/core/src/oars.rs:46
+msgid "Realistic bloodshed"
+msgstr "Effusion de sang réaliste"
+
+#: crates/core/src/oars.rs:46
+msgid "Unrealistic bloodshed"
+msgstr "Effusion de sang irréaliste"
+
+#: crates/core/src/oars.rs:47
+msgid "No sexual violence"
+msgstr "Aucune violence sexuelle"
+
+#: crates/core/src/oars.rs:47
+msgid "Rape or other violent sexual behavior"
+msgstr "Viol ou autre comportement sexuel violent"
+
+#: crates/core/src/oars.rs:48
+msgid "No references to alcohol"
+msgstr "Aucune référence à l'alcool"
+
+#: crates/core/src/oars.rs:48
+msgid "References to alcoholic beverages"
+msgstr "Références à des boissons alcoolisées"
+
+#: crates/core/src/oars.rs:48
+msgid "Use of alcoholic beverages"
+msgstr "Consommation de boissons alcoolisées"
+
+#: crates/core/src/oars.rs:49
+msgid "No references to illicit drugs"
+msgstr "Aucune référence à des drogues illicites"
+
+#: crates/core/src/oars.rs:49
+msgid "References to illicit drugs"
+msgstr "Références à des drogues illicites"
+
+#: crates/core/src/oars.rs:49
+msgid "Use of illicit drugs"
+msgstr "Consommation de drogues illicites"
+
+#: crates/core/src/oars.rs:50
+msgid "No references to tobacco products"
+msgstr "Aucune référence au tabac"
+
+#: crates/core/src/oars.rs:50
+msgid "References to tobacco products"
+msgstr "Références au tabac"
+
+#: crates/core/src/oars.rs:50
+msgid "Use of tobacco products"
+msgstr "Consommation de tabac"
+
+#: crates/core/src/oars.rs:51
+msgid "Brief artistic nudity"
+msgstr "Brève nudité artistique"
+
+#: crates/core/src/oars.rs:51
+msgid "Explicit nudity involving visible sexual organs"
+msgstr "Nudité explicite avec organes sexuels visibles"
+
+#: crates/core/src/oars.rs:51
+msgid "No nudity of any sort"
+msgstr "Aucune nudité"
+
+#: crates/core/src/oars.rs:51
+msgid "Prolonged nudity"
+msgstr "Nudité prolongée"
+
+#: crates/core/src/oars.rs:52
+msgid "Graphic sexual behavior"
+msgstr "Comportement sexuel explicite"
+
+#: crates/core/src/oars.rs:52
+msgid "No references to or depictions of sexual nature"
+msgstr "Aucune référence ni représentation à caractère sexuel"
+
+#: crates/core/src/oars.rs:52
+msgid "Provocative references or depictions"
+msgstr "Références ou représentations provocantes"
+
+#: crates/core/src/oars.rs:52
+msgid "Sexual references or depictions"
+msgstr "Références ou représentations sexuelles"
+
+#: crates/core/src/oars.rs:53
+msgid "Mild or infrequent use of profanity"
+msgstr "Grossièretés légères ou peu fréquentes"
+
+#: crates/core/src/oars.rs:53
+msgid "Moderate use of profanity"
+msgstr "Grossièretés modérées"
+
+#: crates/core/src/oars.rs:53
+msgid "No profanity of any kind"
+msgstr "Aucune grossièreté"
+
+#: crates/core/src/oars.rs:53
+msgid "Strong or frequent use of profanity"
+msgstr "Grossièretés fortes ou fréquentes"
+
+#: crates/core/src/oars.rs:54
+msgid "Mature or sexual humor"
+msgstr "Humour adulte ou sexuel"
+
+#: crates/core/src/oars.rs:54
+msgid "No inappropriate humor"
+msgstr "Aucun humour inapproprié"
+
+#: crates/core/src/oars.rs:54
+msgid "Slapstick humor"
+msgstr "Humour burlesque"
+
+#: crates/core/src/oars.rs:54
+msgid "Vulgar or bathroom humor"
+msgstr "Humour vulgaire ou scatologique"
+
+#: crates/core/src/oars.rs:55
+msgid "Discrimination designed to cause emotional harm"
+msgstr "Discrimination destinée à blesser"
+
+#: crates/core/src/oars.rs:55
+msgid "Explicit discrimination based on gender, sexuality, race or religion"
+msgstr "Discrimination explicite fondée sur le genre, la sexualité, l'origine ou la religion"
+
+#: crates/core/src/oars.rs:55
+msgid "Negativity towards a specific group of people"
+msgstr "Hostilité envers un groupe de personnes"
+
+#: crates/core/src/oars.rs:55
+msgid "No discriminatory language of any kind"
+msgstr "Aucun propos discriminatoire"
+
+#: crates/core/src/oars.rs:56
+msgid "Explicit references to specific brands or trademarked products"
+msgstr "Références explicites à des marques ou produits déposés"
+
+#: crates/core/src/oars.rs:56
+msgid "No advertising of any kind"
+msgstr "Aucune publicité"
+
+#: crates/core/src/oars.rs:56
+msgid "Product placement"
+msgstr "Placement de produits"
+
+#: crates/core/src/oars.rs:56
+msgid "Users are encouraged to purchase specific real-world items"
+msgstr "Incitation à acheter des objets réels"
+
+#: crates/core/src/oars.rs:57
+msgid "Gambling on random events using tokens or credits"
+msgstr "Jeux de hasard avec jetons ou crédits"
+
+#: crates/core/src/oars.rs:57
+msgid "Gambling using \"play\" money"
+msgstr "Jeux de hasard avec de l'argent « fictif »"
+
+#: crates/core/src/oars.rs:57
+msgid "Gambling using real money"
+msgstr "Jeux de hasard avec de l'argent réel"
+
+#: crates/core/src/oars.rs:57
+msgid "No gambling of any kind"
+msgstr "Aucun jeu de hasard"
+
+#: crates/core/src/oars.rs:58
+msgid "Ability to spend real money in-app"
+msgstr "Possibilité de dépenser de l'argent réel dans l'application"
+
+#: crates/core/src/oars.rs:58
+msgid "No ability to spend money"
+msgstr "Aucune possibilité de dépenser de l'argent"
+
+#: crates/core/src/oars.rs:58
+msgid "Users are encouraged to donate real money"
+msgstr "Incitation à faire des dons en argent réel"
+
+#: crates/core/src/oars.rs:59
+msgid "Moderated chat functionality between users"
+msgstr "Discussion modérée entre utilisateurs"
+
+#: crates/core/src/oars.rs:59
+msgid "No way to chat with other users"
+msgstr "Aucune discussion avec d'autres utilisateurs"
+
+#: crates/core/src/oars.rs:59
+msgid "Uncontrolled chat functionality between users"
+msgstr "Discussion non modérée entre utilisateurs"
+
+#: crates/core/src/oars.rs:59
+msgid "User-to-user interactions without chat functionality"
+msgstr "Interactions entre utilisateurs sans discussion"
+
+#: crates/core/src/oars.rs:60
+msgid "Moderated audio or video chat functionality between users"
+msgstr "Discussion audio ou vidéo modérée entre utilisateurs"
+
+#: crates/core/src/oars.rs:60
+msgid "No way to talk with other users"
+msgstr "Aucune conversation vocale avec d'autres utilisateurs"
+
+#: crates/core/src/oars.rs:60
+msgid "Uncontrolled audio or video chat functionality between users"
+msgstr "Discussion audio ou vidéo non modérée entre utilisateurs"
+
+#: crates/core/src/oars.rs:61
+msgid "No sharing of social network usernames or email addresses"
+msgstr "Aucun partage d'identifiants de réseaux sociaux ou d'adresses e-mail"
+
+#: crates/core/src/oars.rs:61
+msgid "Sharing social network usernames or email addresses"
+msgstr "Partage d'identifiants de réseaux sociaux ou d'adresses e-mail"
+
+#: crates/core/src/oars.rs:62
+msgid "Checking for the latest application version"
+msgstr "Vérification de la dernière version de l'application"
+
+#: crates/core/src/oars.rs:62
+msgid "No sharing of user information with third parties"
+msgstr "Aucun partage d'informations avec des tiers"
+
+#: crates/core/src/oars.rs:62
+msgid "Sharing diagnostic data that does not let others identify the user"
+msgstr "Partage de données de diagnostic ne permettant pas d'identifier l'utilisateur"
+
+#: crates/core/src/oars.rs:62
+msgid "Sharing information that lets others identify the user"
+msgstr "Partage d'informations permettant d'identifier l'utilisateur"
+
+#: crates/core/src/oars.rs:63
+msgid "No sharing of physical location with other users"
+msgstr "Aucun partage de la position physique"
+
+#: crates/core/src/oars.rs:63
+msgid "Sharing physical location with other users"
+msgstr "Partage de la position physique avec d'autres utilisateurs"
+
+#: crates/core/src/permissions.rs:69
+msgid "Has network access"
+msgstr "A accès au réseau"
+
+#: crates/core/src/permissions.rs:73
+msgid "Uses a legacy windowing system"
+msgstr "Utilise un système de fenêtrage obsolète"
+
+#: crates/core/src/permissions.rs:76
+msgid "Can access microphones and play sounds"
+msgstr "Peut accéder aux micros et jouer du son"
+
+#: crates/core/src/permissions.rs:81
+msgid "Can access hardware devices"
+msgstr "Peut accéder aux périphériques matériels"
+
+#: crates/core/src/permissions.rs:83
+msgid "Can access input devices"
+msgstr "Peut accéder aux périphériques d'entrée"
+
+#: crates/core/src/permissions.rs:92
+msgid "Can read and write all your data"
+msgstr "Peut lire et modifier toutes vos données"
+
+#: crates/core/src/permissions.rs:94
+msgid "Can read all your data"
+msgstr "Peut lire toutes vos données"
+
+#: crates/core/src/permissions.rs:96
+msgid "Can access some specific files"
+msgstr "Peut accéder à certains fichiers"
+
+#: crates/core/src/permissions.rs:103
+msgid "Uses session services outside portals"
+msgstr "Utilise des services de session hors portails"
+
+#: crates/core/src/permissions.rs:106
+msgid "Uses system services outside portals"
+msgstr "Utilise des services système hors portails"
+
+#: crates/core/src/permissions.rs:113 crates/core/src/permissions.rs:123
+msgid "Safe"
+msgstr "Sûr"
+
+#: crates/core/src/permissions.rs:114
+msgid "No permissions"
+msgstr "Aucune permission"
+
+#: crates/core/src/permissions.rs:124
+msgid "Probably Safe"
+msgstr "Probablement sûr"
+
+#: crates/core/src/permissions.rs:126
+msgid "Potentially Unsafe"
+msgstr "Potentiellement dangereux"
+
+#: crates/gui/src/app.rs:123
+msgid "Search"
+msgstr "Rechercher"
+
+#: crates/gui/src/app.rs:136
+msgid "Search Nix packages…"
+msgstr "Rechercher des paquets Nix…"
+
+#: crates/gui/src/app.rs:198
+msgid "Explore"
+msgstr "Explorer"
+
+#: crates/gui/src/app.rs:202
+msgid "Installed"
+msgstr "Installées"
+
+#: crates/gui/src/app.rs:206
+msgid "Updates"
+msgstr "Mises à jour"
+
+#: crates/gui/src/components/app_list.rs:76
+msgid "All"
+msgstr "Tous"
+
+#: crates/gui/src/components/app_list.rs:84
+msgid "Applications"
+msgstr "Applications"
+
+#: crates/gui/src/components/app_list.rs:85
+msgid "Other Packages"
+msgstr "Autres paquets"
+
+#: crates/gui/src/components/app_list.rs:146
+msgid "No Results"
+msgstr "Aucun résultat"
+
+#: crates/gui/src/components/app_list.rs:147
+msgid "Try different keywords"
+msgstr "Essayez d'autres mots-clés"
+
+#: crates/gui/src/components/app_list.rs:193
+#, rust-format
+msgid "Provides the “{}” command"
+msgstr "Fournit la commande « {} »"
+
+#: crates/gui/src/components/app_list.rs:250
+#, rust-format
+msgid "All ({})"
+msgstr "Tous ({})"
+
+#: crates/gui/src/components/app_list.rs:253
+#, rust-format
+msgid "No package set ({})"
+msgstr "Sans jeu de paquets ({})"
+
+#: crates/gui/src/components/details/attach_dialog.rs:40
+#, rust-format
+msgid "Onyx wrote its own files, but nothing imports them yet, so your kept apps have no real effect.\n\nTo fix this, Onyx needs to add the lines below to\n{site}\nA backup will be written to\n{backup}\n\nThis is the only change Onyx will ever make to your files."
+msgstr "Onyx a écrit ses propres fichiers, mais rien ne les importe encore : vos applications gardées n'ont donc aucun effet réel.\n\nPour y remédier, Onyx doit ajouter les lignes ci-dessous à\n{site}\nUne sauvegarde sera écrite dans\n{backup}\n\nC'est la seule modification qu'Onyx fera jamais à vos fichiers."
+
+#: crates/gui/src/components/details/attach_dialog.rs:51
+#, rust-format
+msgid "Onyx cannot find a top-level “imports” list in\n{site}\n\nIt will not guess where to write in your file. Add these lines yourself, wherever you see fit."
+msgstr "Onyx ne trouve pas de liste « imports » au plus haut niveau de\n{site}\n\nIl ne devinera pas où écrire dans votre fichier. Ajoutez ces lignes vous-même, là où vous le jugez bon."
+
+#: crates/gui/src/components/details/attach_dialog.rs:59
+msgid "Onyx is already connected to your configuration. Nothing to do."
+msgstr "Onyx est déjà relié à votre configuration. Rien à faire."
+
+#: crates/gui/src/components/details/attach_dialog.rs:64
+msgid "Onyx cannot find your Nix configuration (neither /etc/nixos nor ~/.config/home-manager). It will not guess: your apps stay in the manifest, but no file is generated."
+msgstr "Onyx ne trouve pas votre configuration Nix (ni /etc/nixos, ni ~/.config/home-manager). Il ne devinera pas : vos applications restent dans le manifeste, mais aucun fichier n'est généré."
+
+#: crates/gui/src/components/details/attach_dialog.rs:89
+msgid "Connect Onyx to Your Configuration"
+msgstr "Relier Onyx à votre configuration"
+
+#: crates/gui/src/components/details/attach_dialog.rs:93
+msgid "Close"
+msgstr "Fermer"
+
+#: crates/gui/src/components/details/attach_dialog.rs:93
+msgid "Do It Myself"
+msgstr "Le faire moi-même"
+
+#: crates/gui/src/components/details/attach_dialog.rs:108
+msgid "Add Import Line"
+msgstr "Ajouter la ligne d'import"
+
+#: crates/gui/src/components/details/infobox.rs:39
+msgid "Broken Package"
+msgstr "Paquet cassé"
+
+#: crates/gui/src/components/details/infobox.rs:40
+msgid "nixpkgs marks this package as broken: running it will probably fail."
+msgstr "nixpkgs marque ce paquet comme cassé : son lancement échouera probablement."
+
+#: crates/gui/src/components/details/infobox.rs:45
+msgid "This package is marked insecure in nixpkgs."
+msgstr "Ce paquet est marqué non sécurisé dans nixpkgs."
+
+#: crates/gui/src/components/details/infobox.rs:47
+#, rust-format
+msgid "This package is marked insecure in nixpkgs ({})."
+msgstr "Ce paquet est marqué non sécurisé dans nixpkgs ({})."
+
+#: crates/gui/src/components/details/infobox.rs:50
+msgid "Known Vulnerabilities"
+msgstr "Vulnérabilités connues"
+
+#: crates/gui/src/components/details/license_tile.rs:27
+#, rust-format
+msgid "This app is developed in the open by an international community, and released under the {} license.\n\nYou can participate and help make it even better."
+msgstr "Cette application est développée ouvertement par une communauté internationale, et publiée sous la licence {}.\n\nVous pouvez participer et aider à l'améliorer."
+
+#: crates/gui/src/components/details/license_tile.rs:31
+msgid "This app is developed in the open by an international community.\n\nYou can participate and help make it even better."
+msgstr "Cette application est développée ouvertement par une communauté internationale.\n\nVous pouvez participer et aider à l'améliorer."
+
+#: crates/gui/src/components/details/license_tile.rs:42
+msgid "Community Built"
+msgstr "Construite par la communauté"
+
+#: crates/gui/src/components/details/license_tile.rs:50
+msgid "Proprietary Software"
+msgstr "Logiciel propriétaire"
+
+#: crates/gui/src/components/details/license_tile.rs:51
+msgid "Unknown License"
+msgstr "Licence inconnue"
+
+#: crates/gui/src/components/details/license_tile.rs:54
+#, rust-format
+msgid "The source code of this app is not public. It is released under the {} license."
+msgstr "Le code source de cette application n'est pas public. Elle est publiée sous la licence {}."
+
+#: crates/gui/src/components/details/license_tile.rs:57
+msgid "nixpkgs does not state the license of this package."
+msgstr "nixpkgs n'indique pas la licence de ce paquet."
+
+#: crates/gui/src/components/details/license_tile.rs:106
+msgid "How to _Contribute"
+msgstr "Comment _participer"
+
+#: crates/gui/src/components/details/nix_editor.rs:75
+msgid "User"
+msgstr "Utilisateur"
+
+#: crates/gui/src/components/details/nix_editor.rs:80
+#: crates/gui/src/components/details/nix_editor.rs:91
+msgid "System"
+msgstr "Système"
+
+#: crates/gui/src/components/details/nix_editor.rs:86
+msgid "System Scope Unavailable"
+msgstr "Portée système indisponible"
+
+#: crates/gui/src/components/details/nix_editor.rs:88
+msgid "Your configuration uses standalone home-manager: Onyx cannot write NixOS options there (firewall, system services)."
+msgstr "Votre configuration utilise home-manager seul : Onyx ne peut pas y écrire d'options NixOS (pare-feu, services système)."
+
+#: crates/gui/src/components/details/nix_editor.rs:101
+msgid "Save"
+msgstr "Enregistrer"
+
+#: crates/gui/src/components/details/nix_editor.rs:104
+msgid "Check"
+msgstr "Vérifier"
+
+#: crates/gui/src/components/details/nix_editor.rs:106
+msgid "Evaluates the whole configuration (dry-build) without applying anything. May take 1 to 2 minutes."
+msgstr "Évalue toute la configuration (dry-build) sans rien appliquer. Peut prendre 1 à 2 minutes."
+
+#: crates/gui/src/components/details/nix_editor.rs:109
+msgid "Cancel"
+msgstr "Annuler"
+
+#: crates/gui/src/components/details/nix_editor.rs:119
+msgid "System scope:"
+msgstr "Portée système :"
+
+#: crates/gui/src/components/details/nix_editor.rs:119
+msgid "User scope:"
+msgstr "Portée utilisateur :"
+
+#: crates/gui/src/components/details/nix_editor.rs:127
+msgid "✓ Valid syntax"
+msgstr "✓ Syntaxe valide"
+
+#: crates/gui/src/components/details/nix_editor.rs:184
+#, rust-format
+msgid "Advanced Options: {}"
+msgstr "Options avancées : {}"
+
+#: crates/gui/src/components/details/nix_editor.rs:203
+msgid "⏳ Checking the configuration (dry-build)…"
+msgstr "⏳ Vérification de la configuration (dry-build)…"
+
+#: crates/gui/src/components/details/nix_editor.rs:217
+msgid "✓ The whole configuration evaluates, options and types included"
+msgstr "✓ Toute la configuration s'évalue, options et types compris"
+
+#: crates/gui/src/components/details/nix_editor.rs:224
+#, rust-format
+msgid "Cannot check: {}"
+msgstr "Vérification impossible : {}"
+
+#: crates/gui/src/components/details/review_histogram.rs:64
+msgid "out of 5 stars"
+msgstr "sur 5 étoiles"
+
+#: crates/gui/src/components/details/review_histogram.rs:75
+#, rust-format
+msgid "{} rating in total"
+msgid_plural "{} ratings in total"
+msgstr[0] "{} évaluation au total"
+msgstr[1] "{} évaluations au total"
+
+#: crates/gui/src/components/details/screenshot_carousel.rs:117
+msgid "Previous Screenshot"
+msgstr "Capture précédente"
+
+#: crates/gui/src/components/details/screenshot_carousel.rs:119
+msgid "Next Screenshot"
+msgstr "Capture suivante"
+
+#: crates/gui/src/components/details/screenshot_carousel.rs:164
+msgid "No Screenshots"
+msgstr "Aucune capture d'écran"
+
+#: crates/gui/src/components/details/version_history_row.rs:31
+#, rust-format
+msgid "Version {}"
+msgstr "Version {}"
+
+#: crates/gui/src/components/details/version_history_row.rs:38
+msgid "In nixpkgs"
+msgstr "Dans nixpkgs"
+
+#: crates/gui/src/components/details/version_history_row.rs:60
+msgid "No details for this version."
+msgstr "Aucun détail pour cette version."
+
+#: crates/gui/src/util.rs:26
+msgid "Configuration applied."
+msgstr "Configuration appliquée."
+
+#: crates/gui/src/util.rs:27
+#, rust-format
+msgid "Configuration applied: {}"
+msgstr "Configuration appliquée : {}"
+
+#: crates/gui/src/util.rs:28
+msgid "Applying in a terminal. Follow the build there."
+msgstr "Application en cours dans un terminal. Suivez la compilation là-bas."
+
+#: crates/gui/src/util.rs:31
+msgid "No terminal found. The apply command was copied."
+msgstr "Aucun terminal trouvé. La commande d'application a été copiée."
+
+#: crates/gui/src/util.rs:34
+msgid "Onyx cannot find your Nix configuration. Nothing was applied."
+msgstr "Onyx ne trouve pas votre configuration Nix. Rien n'a été appliqué."
+
+#: crates/gui/src/util.rs:36 crates/gui/src/views/detail.rs:1085
+#: crates/gui/src/views/detail.rs:1100 crates/gui/src/views/detail.rs:1149
+#: crates/gui/src/views/installed.rs:250
+#, rust-format
+msgid "Failed: {}"
+msgstr "Échec : {}"
+
+#: crates/gui/src/util.rs:279
+msgid "Today"
+msgstr "Aujourd'hui"
+
+#: crates/gui/src/util.rs:280
+msgid "Yesterday"
+msgstr "Hier"
+
+#: crates/gui/src/util.rs:281
+#, rust-format
+msgid "{} day ago"
+msgid_plural "{} days ago"
+msgstr[0] "Il y a {} jour"
+msgstr[1] "Il y a {} jours"
+
+#: crates/gui/src/util.rs:282
+#, rust-format
+msgid "{} week ago"
+msgid_plural "{} weeks ago"
+msgstr[0] "Il y a {} semaine"
+msgstr[1] "Il y a {} semaines"
+
+#: crates/gui/src/util.rs:283
+#, rust-format
+msgid "{} month ago"
+msgid_plural "{} months ago"
+msgstr[0] "Il y a {} mois"
+msgstr[1] "Il y a {} mois"
+
+#: crates/gui/src/util.rs:284
+#, rust-format
+msgid "{} year ago"
+msgid_plural "{} years ago"
+msgstr[0] "Il y a {} an"
+msgstr[1] "Il y a {} ans"
+
+#: crates/gui/src/views/category.rs:73
+msgid "Nothing to Show"
+msgstr "Rien à afficher"
+
+#: crates/gui/src/views/category.rs:74
+msgid "None of these apps are in nixpkgs"
+msgstr "Aucune de ces applications n'est dans nixpkgs"
+
+#: crates/gui/src/views/category.rs:80 crates/gui/src/views/home.rs:140
+msgid "New & Updated"
+msgstr "Nouveautés et mises à jour"
+
+#: crates/gui/src/views/category.rs:101
+msgid "Other Software"
+msgstr "Autres logiciels"
+
+#: crates/gui/src/views/detail.rs:151
+msgid "Added to your configuration. Apply it to install."
+msgstr "Ajoutée à votre configuration. Appliquez-la pour installer."
+
+#: crates/gui/src/views/detail.rs:152
+msgid "Apply"
+msgstr "Appliquer"
+
+#: crates/gui/src/views/detail.rs:167
+msgid "Connected to your configuration. Apply it to install."
+msgstr "Relié à votre configuration. Appliquez-la pour installer."
+
+#: crates/gui/src/views/detail.rs:168
+#, rust-format
+msgid "Could not connect: {}"
+msgstr "Impossible de relier : {}"
+
+#: crates/gui/src/views/detail.rs:202
+msgid "Help _Translate"
+msgstr "Aider à _traduire"
+
+#: crates/gui/src/views/detail.rs:348
+msgid "The developer identity is verified"
+msgstr "L'identité du développeur est vérifiée"
+
+#: crates/gui/src/views/detail.rs:352
+msgid "Verified"
+msgstr "Vérifié"
+
+#: crates/gui/src/views/detail.rs:386
+msgid "_Run"
+msgstr "_Lancer"
+
+#: crates/gui/src/views/detail.rs:388
+msgid "Run without installing (nix run)"
+msgstr "Lancer sans installer (nix run)"
+
+#: crates/gui/src/views/detail.rs:404
+msgid "Remove from Configuration"
+msgstr "Retirer de la configuration"
+
+#: crates/gui/src/views/detail.rs:406
+msgid "Add to Configuration"
+msgstr "Ajouter à la configuration"
+
+#: crates/gui/src/views/detail.rs:412
+msgid "Try in a Shell"
+msgstr "Essayer dans un shell"
+
+#: crates/gui/src/views/detail.rs:417
+msgid "Copy Command"
+msgstr "Copier la commande"
+
+#: crates/gui/src/views/detail.rs:424
+msgid "Advanced Options…"
+msgstr "Options avancées…"
+
+#: crates/gui/src/views/detail.rs:434
+msgid "Apply Configuration"
+msgstr "Appliquer la configuration"
+
+#: crates/gui/src/views/detail.rs:485
+msgid "Nix package collection"
+msgstr "Collection de paquets Nix"
+
+#: crates/gui/src/views/detail.rs:555
+msgid "Show Less"
+msgstr "Afficher moins"
+
+#: crates/gui/src/views/detail.rs:555
+msgid "Show More"
+msgstr "Afficher davantage"
+
+#: crates/gui/src/views/detail.rs:958
+msgid "Other Apps"
+msgstr "Autres applications"
+
+#: crates/gui/src/views/detail.rs:960
+#, rust-format
+msgid "Other Apps by {}"
+msgstr "Autres applications par {}"
+
+#: crates/gui/src/views/detail.rs:1024
+msgid "Enlarge"
+msgstr "Agrandir"
+
+#: crates/gui/src/views/detail.rs:1048
+#, rust-format
+msgid "{} is marked broken in nixpkgs. Trying anyway…"
+msgstr "{} est marqué cassé dans nixpkgs. Tentative de lancement quand même…"
+
+#: crates/gui/src/views/detail.rs:1051
+#, rust-format
+msgid "Starting {}…"
+msgstr "Lancement de {}…"
+
+#: crates/gui/src/views/detail.rs:1054
+#, rust-format
+msgid "Could not start: {}"
+msgstr "Échec du lancement : {}"
+
+#: crates/gui/src/views/detail.rs:1064
+#, rust-format
+msgid "{} opened in a terminal…"
+msgstr "{} ouvert dans un terminal…"
+
+#: crates/gui/src/views/detail.rs:1075
+msgid "No terminal found. Command copied."
+msgstr "Aucun terminal trouvé. Commande copiée."
+
+#: crates/gui/src/views/detail.rs:1078
+#, rust-format
+msgid "Could not open a shell: {}"
+msgstr "Impossible d'ouvrir un shell : {}"
+
+#: crates/gui/src/views/detail.rs:1091
+msgid "Removed from your configuration. Apply it, then free up space if you like."
+msgstr "Retirée de votre configuration. Appliquez-la, puis libérez de l'espace si vous le souhaitez."
+
+#: crates/gui/src/views/detail.rs:1093 crates/gui/src/views/installed.rs:82
+msgid "Free Up Space"
+msgstr "Libérer de l'espace"
+
+#: crates/gui/src/views/detail.rs:1103 crates/gui/src/views/installed.rs:243
+msgid "Cleaning up the store…"
+msgstr "Nettoyage du store…"
+
+#: crates/gui/src/views/detail.rs:1113
+msgid "Nothing to free."
+msgstr "Rien à libérer."
+
+#: crates/gui/src/views/detail.rs:1115
+#, rust-format
+msgid "Cleanup failed: {}"
+msgstr "Échec du nettoyage : {}"
+
+#: crates/gui/src/views/detail.rs:1152 crates/gui/src/views/updates.rs:109
+msgid "Applying configuration…"
+msgstr "Application de la configuration…"
+
+#: crates/gui/src/views/detail.rs:1166
+msgid "Command copied."
+msgstr "Commande copiée."
+
+#: crates/gui/src/views/detail.rs:1177
+msgid "Loading App Details"
+msgstr "Chargement des détails de l'application"
+
+#: crates/gui/src/views/detail.rs:1184
+msgid "Unable to Show App Details"
+msgstr "Impossible d'afficher les détails de l'application"
+
+#: crates/gui/src/views/detail.rs:1185
+msgid "No metadata could be retrieved for this package."
+msgstr "Aucune métadonnée n'a pu être récupérée pour ce paquet."
+
+#: crates/gui/src/views/detail.rs:1264
+msgid "Ratings & Reviews"
+msgstr "Évaluations"
+
+#: crates/gui/src/views/detail.rs:1290
+msgid "_Write a Review"
+msgstr "Écrire un a_vis"
+
+#: crates/gui/src/views/detail.rs:1296
+msgid "Publishing a review needs an ODRS account"
+msgstr "Publier un avis nécessite un compte ODRS"
+
+#: crates/gui/src/views/detail.rs:1306 crates/gui/src/views/detail.rs:1331
+msgid "All Reviews"
+msgstr "Tous les avis"
+
+#: crates/gui/src/views/detail.rs:1380
+msgid "Computing size…"
+msgstr "Calcul de la taille…"
+
+#: crates/gui/src/views/detail.rs:1382
+msgid "Total download including dependencies"
+msgstr "Téléchargement total avec dépendances"
+
+#: crates/gui/src/views/detail.rs:1384
+msgid "Needs a local build"
+msgstr "Nécessite une compilation locale"
+
+#: crates/gui/src/views/detail.rs:1389
+msgid "Download Size"
+msgstr "Taille du téléchargement"
+
+#: crates/gui/src/views/detail.rs:1397
+msgid "Broken"
+msgstr "Cassé"
+
+#: crates/gui/src/views/detail.rs:1398
+msgid "Marked broken in nixpkgs: running it will probably fail"
+msgstr "Marqué cassé dans nixpkgs : le lancement échouera probablement"
+
+#: crates/gui/src/views/detail.rs:1402
+msgid "Marked insecure in nixpkgs"
+msgstr "Marqué non sécurisé dans nixpkgs"
+
+#: crates/gui/src/views/detail.rs:1404
+#, rust-format
+msgid "Known vulnerabilities: {}"
+msgstr "Vulnérabilités connues : {}"
+
+#: crates/gui/src/views/detail.rs:1406
+msgid "Vulnerable"
+msgstr "Vulnérable"
+
+#: crates/gui/src/views/detail.rs:1414
+msgid "Checking…"
+msgstr "Analyse…"
+
+#: crates/gui/src/views/detail.rs:1415
+msgid "Checking permissions…"
+msgstr "Vérification des permissions…"
+
+#: crates/gui/src/views/detail.rs:1422
+msgid "Free Software"
+msgstr "Logiciel libre"
+
+#: crates/gui/src/views/detail.rs:1423
+msgid "Public source code, free license"
+msgstr "Code source public, licence libre"
+
+#: crates/gui/src/views/detail.rs:1428
+msgid "Proprietary"
+msgstr "Propriétaire"
+
+#: crates/gui/src/views/detail.rs:1429
+msgid "Source code is not public"
+msgstr "Code source non public"
+
+#: crates/gui/src/views/detail.rs:1434
+msgid "Unknown"
+msgstr "Inconnu"
+
+#: crates/gui/src/views/detail.rs:1435
+msgid "License not stated"
+msgstr "Licence non renseignée"
+
+#: crates/gui/src/views/detail.rs:1443
+msgid "Desktop Only"
+msgstr "Ordinateur uniquement"
+
+#: crates/gui/src/views/detail.rs:1444
+msgid "Works on desktops and laptops"
+msgstr "Fonctionne sur les ordinateurs de bureau et portables"
+
+#: crates/gui/src/views/detail.rs:1450
+msgid "No inappropriate content"
+msgstr "Aucun contenu inapproprié"
+
+#: crates/gui/src/views/detail.rs:1455 crates/gui/src/views/detail.rs:1460
+msgid "Age Rating"
+msgstr "Classification par âge"
+
+#: crates/gui/src/views/detail.rs:1461
+msgid "No age rating information"
+msgstr "Aucune information de classification par âge"
+
+#: crates/gui/src/views/detail.rs:1496
+msgid "Add-ons"
+msgstr "Extensions"
+
+#: crates/gui/src/views/detail.rs:1543 crates/gui/src/views/detail.rs:1557
+msgid "Version History"
+msgstr "Historique des versions"
+
+#: crates/gui/src/views/detail.rs:1583
+msgid "_Project Website"
+msgstr "Site web du _projet"
+
+#: crates/gui/src/views/detail.rs:1584
+msgid "_Donate"
+msgstr "Faire un _don"
+
+#: crates/gui/src/views/detail.rs:1585
+msgid "Contribute _Translations"
+msgstr "Contribuer aux _traductions"
+
+#: crates/gui/src/views/detail.rs:1586
+msgid "_Report an Issue"
+msgstr "_Signaler un problème"
+
+#: crates/gui/src/views/detail.rs:1587
+msgid "_Help"
+msgstr "_Aide"
+
+#: crates/gui/src/views/detail.rs:1632
+msgid "No Metadata"
+msgstr "Aucune métadonnée"
+
+#: crates/gui/src/views/detail.rs:1637
+msgid "This package provides no link to a website, code repository or issue tracker."
+msgstr "Ce paquet ne fournit aucun lien vers un site web, un dépôt de code ou un suivi de bogues."
+
+#: crates/gui/src/views/detail.rs:1790
+msgid "No description."
+msgstr "Pas de description."
+
+#: crates/gui/src/views/home.rs:24
+msgid "Create"
+msgstr "Créer"
+
+#: crates/gui/src/views/home.rs:25
+msgid "Work"
+msgstr "Travailler"
+
+#: crates/gui/src/views/home.rs:26
+msgid "Play"
+msgstr "Jouer"
+
+#: crates/gui/src/views/home.rs:27
+msgid "Socialize"
+msgstr "Socialiser"
+
+#: crates/gui/src/views/home.rs:28
+msgid "Learn"
+msgstr "Apprendre"
+
+#: crates/gui/src/views/home.rs:29
+msgid "Develop"
+msgstr "Développer"
+
+#: crates/gui/src/views/home.rs:111
+msgid "Editor's Choice"
+msgstr "Notre sélection"
+
+#: crates/gui/src/views/installed.rs:66
+msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
+msgstr "Aucun paquet gardé pour l'instant. Ouvrez une application et choisissez « Ajouter à la configuration »."
+
+#: crates/gui/src/views/installed.rs:77
+msgid "In Your Configuration"
+msgstr "Dans votre configuration"
+
+#: crates/gui/src/views/installed.rs:86
+msgid "Runs nix-collect-garbage: removes packages you did not keep from the store"
+msgstr "Lance nix-collect-garbage : supprime du store les paquets non gardés"
+
+#: crates/gui/src/views/installed.rs:99
+msgid "Recently Tried"
+msgstr "Essayées récemment"
+
+#: crates/gui/src/views/installed.rs:106
+msgid "Nothing tried yet. Run a package from search and it will show up here."
+msgstr "Aucun essai pour l'instant. Lancez un paquet depuis la recherche et il apparaîtra ici."
+
+#: crates/gui/src/views/installed.rs:249
+msgid "Done."
+msgstr "Terminé."
+
+#: crates/gui/src/views/updates.rs:163
+#, rust-format
+msgid "{} update available"
+msgid_plural "{} updates available"
+msgstr[0] "{} mise à jour disponible"
+msgstr[1] "{} mises à jour disponibles"
+
+#: crates/gui/src/views/updates.rs:170
+msgid "Update All"
+msgstr "Tout mettre à jour"
+
+#: crates/gui/src/views/updates.rs:231
+msgid "Everything is up to date"
+msgstr "Tout est à jour"

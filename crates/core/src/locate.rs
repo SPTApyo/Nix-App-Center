@@ -1,10 +1,10 @@
-//! Recherche par binaire via `nix-locate bin/<cmd>`.
+//! Search by binary through `nix-locate bin/<cmd>`.
 
 use crate::Package;
 use std::process::Command;
 
-/// Parse la sortie de `nix-locate bin/<cmd>` : 1ʳᵉ colonne = `attr.output`, on garde
-/// les lignes qui pointent vers un `/bin/`, on déduplique par attr.
+/// Parses `nix-locate bin/<cmd>` output: first column = `attr.output`; keeps
+/// lines pointing to a `/bin/`, deduplicated by attr.
 fn parse_locate(stdout: &str) -> Vec<Package> {
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
@@ -23,8 +23,8 @@ fn parse_locate(stdout: &str) -> Vec<Package> {
     out
 }
 
-/// Recherche les paquets fournissant le binaire `cmd` via `nix-locate bin/<cmd>`.
-/// Dégrade gracieusement si nix-locate absent (→ vec vide).
+/// Searches packages providing the `cmd` binary through `nix-locate bin/<cmd>`.
+/// Degrades gracefully when nix-locate is missing (empty vec).
 pub fn locate_binary(cmd: &str) -> Vec<Package> {
     let arg = format!("bin/{cmd}");
     match Command::new("nix-locate")

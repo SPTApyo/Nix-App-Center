@@ -221,7 +221,7 @@ pub fn present(
                             status.set_label(&e);
                         }
                         onyx_core::DryRun::Unavailable(e) => {
-                            status.set_label(&t("Cannot check: {}").replace("{}", &e));
+                            status.set_label(&t("Cannot check: {}").replace("{}", &t(&e)));
                         }
                     }
                 }

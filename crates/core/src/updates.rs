@@ -1,4 +1,4 @@
-//! Détection des mises à jour : version gardée vs version courante de nixpkgs.
+//! Update detection: kept version vs current nixpkgs version.
 
 use crate::categories::nix_attr_lookup;
 use crate::{load_manifest, Package};
@@ -11,7 +11,7 @@ pub struct Update {
     pub available_version: String,
 }
 
-/// Compare deux versions « façon Nix » par segments numériques (point/tiret-séparés).
+/// Compares two versions "the Nix way" by numeric segments (dot/dash separated).
 fn version_newer(candidate: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u64> {
         v.split(['.', '-'])
@@ -30,9 +30,9 @@ fn version_newer(candidate: &str, current: &str) -> bool {
     false
 }
 
-/// Cœur pur de la détection (testable sans `nix`). Un paquet gardé sans
-/// version stockée (ex. `onyx-cli keep`) est ignoré : impossible de comparer,
-/// et le traiter comme « 0 » l'affichait éternellement comme à mettre à jour.
+/// Pure core of the detection (testable without `nix`). A kept package without
+/// a stored version (e.g. `onyx-cli keep`) is skipped: it cannot be compared,
+/// and treating it as "0" showed it as outdated forever.
 fn compute_updates(kept: Vec<Package>, current: &HashMap<String, Package>) -> Vec<Update> {
     kept.into_iter()
         .filter_map(|p| {
@@ -53,9 +53,9 @@ fn compute_updates(kept: Vec<Package>, current: &HashMap<String, Package>) -> Ve
         .collect()
 }
 
-/// Pour chaque paquet « gardé », compare sa version stockée à celle de nixpkgs —
-/// en UN `nix search` groupé (alternation ancrée, comme `categories`), servi par
-/// le cache disque, au lieu d'un appel par paquet, séquentiel et jamais caché.
+/// For every kept package, compares its stored version with nixpkgs', in ONE
+/// grouped `nix search` (anchored alternation, like `categories`) served by the
+/// disk cache, instead of one sequential, never cached call per package.
 pub fn available_updates() -> Vec<Update> {
     let kept = load_manifest().packages();
     if kept.is_empty() {
@@ -108,24 +108,24 @@ mod tests {
 
     #[test]
     fn compute_updates_skips_unknown_attr() {
-        // Paquet retiré de nixpkgs : absent du lookup → pas de fausse update.
+        // Package removed from nixpkgs: missing from the lookup, no false update.
         let ups = compute_updates(vec![kept("ghost", "1.0")], &HashMap::new());
         assert!(ups.is_empty());
     }
 
     #[test]
     fn compute_updates_skips_kept_without_version() {
-        // Régression : `onyx-cli keep <attr>` stocke une version vide ;
-        // version_newer("x.y", "") est vrai → update éternelle affichée.
+        // Regression: `onyx-cli keep <attr>` stores an empty version;
+        // version_newer("x.y", "") is true, so an eternal update was shown.
         let cur = current(&[("ripgrep", "14.1.0")]);
         let ups = compute_updates(vec![kept("ripgrep", "")], &cur);
-        assert!(ups.is_empty(), "version stockée vide = comparaison impossible");
+        assert!(ups.is_empty(), "empty stored version = no comparison possible");
     }
 
     #[test]
     fn compute_updates_matches_attr_case_insensitively() {
-        // Le lookup est indexé en minuscules ; un attr gardé avec majuscules
-        // (`superTux`) doit quand même être résolu.
+        // The lookup is indexed lowercase; a kept attr with capitals
+        // (`superTux`) must still resolve.
         let cur = current(&[("supertux", "0.7")]);
         let ups = compute_updates(vec![kept("superTux", "0.6")], &cur);
         assert_eq!(ups.len(), 1);

@@ -1,12 +1,11 @@
-//! Habillage visuel via Flathub (icônes/screenshots/notes/releases).
+//! Visual dressing from Flathub (icons/screenshots/ratings/releases).
 //!
-//! NixOS n'a pas de catalogue AppStream local packagé → on récupère l'habillage
-//! visuel depuis l'API AppStream de Flathub (exactement ce que fait GNOME
-//! Software), ou depuis le cache Flatpak local s'il est présent (`appstream_db`,
-//! instantané, essayé en premier). IMPORTANT : c'est purement cosmétique —
-//! l'installation/lancement passe TOUJOURS par nix. Le matching
-//! `nom nixpkgs → app-id Flathub` est heuristique (garde-fou de pertinence,
-//! `flathub_relevant`).
+//! NixOS ships no local AppStream catalog, so the visual dressing comes from
+//! the Flathub AppStream API (exactly what GNOME Software does), or from the
+//! local AppStream database when present (`appstream_db`, instant, tried
+//! first). IMPORTANT: this is purely cosmetic; install and run ALWAYS go
+//! through nix. Matching a nixpkgs name to a Flathub app id is heuristic
+//! (with a relevance guard, `flathub_relevant`).
 
 use crate::appstream_db;
 use crate::util::sanitize;
@@ -15,14 +14,14 @@ use std::collections::HashMap;
 
 pub use crate::appstream_db::{Addon, DevApp};
 
-/// Une version publiée (pour l'historique des versions).
+/// A published version (for the version history).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Release {
     pub version: String,
     pub timestamp: i64,
-    /// Notes de version (corps « What's Changed », HTML AppStream → texte).
+    /// Release notes ("What's Changed" body, AppStream HTML to text).
     pub description: Option<String>,
-    /// Lien vers les notes de version complètes, si fourni.
+    /// Link to the full release notes, when provided.
     pub url: Option<String>,
 }
 
@@ -34,8 +33,8 @@ pub struct FlathubMeta {
     pub developer: Option<String>,
     pub icon_url: Option<String>,
     pub screenshot_urls: Vec<String>,
-    // Fiche AppStream complète
-    pub description: Option<String>, // HTML converti en texte
+    // Full AppStream listing
+    pub description: Option<String>, // HTML converted to text
     pub license: Option<String>,
     pub is_free_license: Option<bool>,
     pub homepage: Option<String>,
@@ -45,28 +44,28 @@ pub struct FlathubMeta {
     pub translate: Option<String>,
     pub releases: Vec<Release>,
     pub verified: bool,
-    /// Légende de chaque screenshot (parallèle à `screenshot_urls`).
+    /// Caption of each screenshot (parallel to `screenshot_urls`).
     pub screenshot_captions: Vec<Option<String>>,
-    /// Classification d'âge (« 12 ») + descriptions OARS, si disponible.
+    /// Age rating ("12") + OARS descriptions, when available.
     pub age_label: Option<String>,
     pub age_descriptions: Vec<String>,
-    /// Extensions/addons (uniquement via la base locale Flatpak).
+    /// Extensions/add-ons (local database only).
     pub addons: Vec<Addon>,
-    /// Autres apps du même développeur (base locale Flatpak).
+    /// Other apps by the same developer (local database).
     pub developer_apps: Vec<DevApp>,
 }
 
-/// Un candidat Flathub : son icône + son `app_id` (pour retrouver la note ODRS).
+/// A Flathub candidate: its icon + its `app_id` (to find the ODRS rating).
 #[derive(Clone)]
 pub(crate) struct FlathubHit {
     pub(crate) icon: String,
     pub(crate) app_id: String,
-    /// Nom humain AppStream (« Steam », « Firefox ») pour l'affichage.
+    /// Human AppStream name ("Steam", "Firefox") for display.
     pub(crate) name: String,
 }
 
-/// Un appel `/search` Flathub → la liste brute des hits. `None` si le réseau
-/// ou le JSON échoue.
+/// One Flathub `/search` call giving the raw hit list. `None` when the
+/// network or the JSON fails.
 fn flathub_search(query: &str) -> Option<Vec<serde_json::Value>> {
     let mut v = crate::http::post_json(
         "https://flathub.org/api/v2/search",
@@ -78,9 +77,9 @@ fn flathub_search(query: &str) -> Option<Vec<serde_json::Value>> {
     }
 }
 
-/// Construit une table « candidat (nom/attr-id) → hit Flathub » à partir d'UN
-/// appel de recherche Flathub. Utilisé par `search::search_apps` quand la base
-/// AppStream locale n'est pas prête (ou incomplète) pour certains résultats.
+/// Builds a "candidate (name/attr-id) → Flathub hit" table from ONE Flathub
+/// search call. Used by `search::search_apps` when the local AppStream
+/// database is not ready (or incomplete) for some results.
 pub(crate) fn flathub_icon_map(query: &str) -> HashMap<String, FlathubHit> {
     let mut map = HashMap::new();
     for h in flathub_search(query).unwrap_or_default() {
@@ -104,16 +103,16 @@ pub(crate) fn flathub_icon_map(query: &str) -> HashMap<String, FlathubHit> {
     map
 }
 
-/// Le hit Flathub est-il assez proche du paquet recherché pour éviter un faux
-/// positif (ex. ne pas afficher Krita pour « ripgrep ») ?
+/// Is the Flathub hit close enough to the searched package to avoid a false
+/// positive (e.g. not showing Krita for "ripgrep")?
 ///
-/// Containment dans un seul sens : `hit contient query` (ex. "Firefox ESR" ⊃
-/// "firefox"), jamais l'inverse. "query contient hit" semblait légitime pour
-/// des cas comme "vlc" ⊂ "vlc-media-player", mais nixpkgs regorge de paquets
-/// DISTINCTS qui contiennent le nom d'une grosse app en préfixe sans en être
-/// des alias : `discord-rpc`/`discord-sh`/`discordo` ⊃ "discord",
-/// `steam-run`/`steamcmd` ⊃ "steam". Ce sens du containment matchait donc
-/// n'importe quel paquet connexe sur la vraie app — faux positif confirmé.
+/// One-way containment: `hit contains query` (e.g. "Firefox ESR" ⊃
+/// "firefox"), never the other way. "query contains hit" looked legitimate
+/// for cases like "vlc" ⊂ "vlc-media-player", but nixpkgs is full of DISTINCT
+/// packages that start with a big app's name without being aliases:
+/// `discord-rpc`/`discord-sh`/`discordo` ⊃ "discord", `steam-run`/`steamcmd`
+/// ⊃ "steam". That direction matched any related package onto the real app,
+/// a confirmed false positive.
 fn flathub_relevant(hit_name: &str, query: &str) -> bool {
     const MIN_SUBSTR_LEN: usize = 3;
 
@@ -133,7 +132,7 @@ fn flathub_relevant(hit_name: &str, query: &str) -> bool {
     a_ns.len() >= MIN_SUBSTR_LEN && b_ns.len() >= MIN_SUBSTR_LEN && a_ns.contains(&b_ns)
 }
 
-/// Convertit une entrée de la base AppStream locale en `FlathubMeta`.
+/// Turns a local AppStream database entry into a `FlathubMeta`.
 pub(crate) fn meta_from_db(e: &appstream_db::Entry) -> FlathubMeta {
     FlathubMeta {
         app_id: e.app_id.clone(),
@@ -169,23 +168,23 @@ pub(crate) fn meta_from_db(e: &appstream_db::Entry) -> FlathubMeta {
             .as_deref()
             .map(|dev| appstream_db::apps_by_developer(dev, &e.app_id))
             .unwrap_or_default(),
-        // Uniquement dispo via l'API REST Flathub (absent du XML local).
+        // Only available through the Flathub REST API (absent from the XML).
         is_free_license: None,
     }
 }
 
-/// Cherche les métadonnées visuelles Flathub pour un paquet (par nom).
-/// Essaie d'abord la base AppStream locale (Flatpak cache, instantané) ;
-/// se rabat sur l'API REST Flathub si la base n'est pas prête ou ne connaît pas l'app.
-/// Retourne `None` si rien de pertinent — l'UI garde alors l'icône générique.
+/// Looks up Flathub visual metadata for a package (by name). Tries the local
+/// AppStream database first (instant), falls back on the Flathub REST API
+/// when the database is not ready or does not know the app. Returns `None`
+/// when nothing relevant is found; the UI then keeps the generic icon.
 pub fn flathub_meta(name: &str, screenshot_target_w: u32) -> Option<FlathubMeta> {
-    // ── Voie rapide : base locale Flatpak ────────────────────────────────────
+    // ── Fast path: local database ────────────────────────────────────────────
     if let Some(entry) = appstream_db::lookup(name) {
         return Some(meta_from_db(entry));
     }
 
-    // ── Fallback : API REST Flathub ───────────────────────────────────────────
-    // 1) Recherche → app_id + icône + résumé.
+    // ── Fallback: Flathub REST API ────────────────────────────────────────────
+    // 1) Search: app_id + icon + summary.
     let hits = flathub_search(name)?;
     let hit = hits.iter().find(|h| {
         h.get("name")
@@ -205,7 +204,7 @@ pub fn flathub_meta(name: &str, screenshot_target_w: u32) -> Option<FlathubMeta>
         ..Default::default()
     };
 
-    // 2) Fiche AppStream complète → tout le reste.
+    // 2) Full AppStream listing: everything else.
     if let Some(d) = crate::http::get_json(&format!("https://flathub.org/api/v2/appstream/{app_id}")) {
         if meta.icon_url.is_none() {
             meta.icon_url = d.get("icon").and_then(|x| x.as_str()).map(str::to_string);
@@ -267,15 +266,15 @@ pub fn flathub_meta(name: &str, screenshot_target_w: u32) -> Option<FlathubMeta>
     Some(meta)
 }
 
-/// Choisit la variante d'un screenshot **juste suffisante** pour la largeur cible
-/// `target_w` (en pixels physiques = largeur écran × facteur d'échelle) : la plus
-/// petite variante dont la largeur ≥ cible (économie de bande passante/mémoire —
-/// inutile de tirer de la 4K pour du 1080p) ; à défaut, la plus grande disponible.
-/// L'UI réduit ensuite la taille d'affichage si l'image reçue est sous la cible
-/// (anti-upscale), donc aucune perte de netteté.
+/// Picks the screenshot variant **just big enough** for the target width
+/// `target_w` (physical pixels = screen width × scale factor): the smallest
+/// variant whose width ≥ target (saves bandwidth/memory, no point pulling 4K
+/// for 1080p); failing that, the largest available. The UI then shrinks the
+/// display size when the image is below target (anti-upscale), so no
+/// sharpness is lost.
 fn best_screenshot(sizes: &[serde_json::Value], target_w: u32) -> Option<String> {
-    // Largeur 0 (inconnue) = image source originale → traitée comme très grande
-    // pour n'être choisie qu'en dernier recours (jamais avant une variante dimensionnée).
+    // Width 0 (unknown) = original source image, treated as very large so it
+    // is only picked as a last resort (never before a sized variant).
     let mut variants: Vec<(u32, &str)> = Vec::new();
     for z in sizes {
         let src = match z.get("src").and_then(|x| x.as_str()) {
@@ -300,7 +299,7 @@ fn best_screenshot(sizes: &[serde_json::Value], target_w: u32) -> Option<String>
         .map(|(_, src)| src.to_string())
 }
 
-/// Conversion HTML (descriptions AppStream) → texte brut lisible.
+/// HTML (AppStream descriptions) to readable plain text.
 fn html_to_text(html: &str) -> String {
     let mut out = String::new();
     let mut in_tag = false;
@@ -324,8 +323,8 @@ fn html_to_text(html: &str) -> String {
             _ => out.push(c),
         }
     }
-    // `&amp;` décodé en DERNIER : sinon « &amp;lt; » deviendrait « < » au lieu
-    // du littéral « &lt; » (double décodage).
+    // `&amp;` decoded LAST: otherwise "&amp;lt;" would become "<" instead of
+    // the literal "&lt;" (double decoding).
     let out = out
         .replace("&lt;", "<")
         .replace("&gt;", ">")
@@ -333,7 +332,7 @@ fn html_to_text(html: &str) -> String {
         .replace("&#39;", "'")
         .replace("&apos;", "'")
         .replace("&amp;", "&");
-    // Nettoie les lignes et écrase les lignes vides multiples.
+    // Clean lines and collapse multiple empty lines.
     let mut lines: Vec<String> = Vec::new();
     for l in out.split('\n') {
         let l = l.trim();
@@ -349,16 +348,16 @@ fn html_to_text(html: &str) -> String {
     lines.join("\n").trim().to_string()
 }
 
-// ── Tests : correspondance Flathub ↔ nom nixpkgs ─────────────────────────────
+// ── Tests: Flathub ↔ nixpkgs name matching ───────────────────────────────────
 //
-// `flathub_relevant` est la garde-barrière contre les faux positifs :
-// elle décide si le hit Flathub renvoyé par l'API est vraiment l'app cherchée.
-// Ces tests fixent les comportements attendus et documentent les cas limites.
+// `flathub_relevant` is the gate against false positives: it decides whether
+// the Flathub hit returned by the API really is the searched app. These tests
+// pin the expected behavior and document edge cases.
 #[cfg(test)]
 mod flathub_matching_tests {
     use super::flathub_relevant;
 
-    // ── Correspondances attendues (vrais positifs) ─────────────────────────
+    // ── Expected matches (true positives) ──────────────────────────────────
 
     #[test]
     fn exact_same() {
@@ -367,13 +366,13 @@ mod flathub_matching_tests {
 
     #[test]
     fn case_insensitive_hit_name() {
-        // Flathub renvoie "Firefox" (majuscule), nixpkgs a "firefox"
+        // Flathub returns "Firefox" (capitalized), nixpkgs has "firefox"
         assert!(flathub_relevant("Firefox", "firefox"));
     }
 
     #[test]
     fn case_insensitive_all_caps() {
-        // GNOME "GIMP" dans Flathub → nix attr "gimp"
+        // GNOME "GIMP" on Flathub → nix attr "gimp"
         assert!(flathub_relevant("GIMP", "gimp"));
     }
 
@@ -385,8 +384,8 @@ mod flathub_matching_tests {
 
     #[test]
     fn query_does_not_match_just_because_it_contains_hit_name() {
-        // "vlc-media-player" ⊃ "vlc" ne doit PAS matcher : même forme que les
-        // faux positifs discord-rpc/steam-run (regression réelle).
+        // "vlc-media-player" ⊃ "vlc" must NOT match: same shape as the
+        // discord-rpc/steam-run false positives (real regression).
         assert!(!flathub_relevant("vlc", "vlc-media-player"));
     }
 
@@ -401,12 +400,12 @@ mod flathub_matching_tests {
 
     #[test]
     fn spaces_stripped_match() {
-        // Régression historique : "Extreme Tux Racer" vs nix attr "extremetuxracer".
-        // L'étape strip-espaces est nécessaire car ni a⊂b ni b⊂a ne tiennent
-        // quand a a des espaces et b n'en a pas.
+        // Historical regression: "Extreme Tux Racer" vs nix attr "extremetuxracer".
+        // The strip-spaces step is needed since neither a⊂b nor b⊂a holds
+        // when a has spaces and b does not.
         assert!(
             flathub_relevant("Extreme Tux Racer", "extremetuxracer"),
-            "régression B2 : la correspondance avec espaces doit fonctionner"
+            "regression: matching with spaces must work"
         );
     }
 
@@ -435,7 +434,7 @@ mod flathub_matching_tests {
         assert!(flathub_relevant("Discord", "discord"));
     }
 
-    // ── Vrais négatifs (faux positifs à rejeter) ───────────────────────────
+    // ── True negatives (false positives to reject) ─────────────────────────
 
     #[test]
     fn no_fp_krita_vs_ripgrep() {
@@ -444,7 +443,7 @@ mod flathub_matching_tests {
 
     #[test]
     fn no_fp_bython_vs_python3() {
-        // "bython" et "python3" ne se contiennent pas mutuellement
+        // "bython" and "python3" do not contain each other
         assert!(!flathub_relevant("Bython", "python3"));
     }
 
@@ -462,15 +461,15 @@ mod flathub_matching_tests {
 
     #[test]
     fn no_fp_short_query_substring() {
-        // Régression : un nom nixpkgs court (`go`, `jq`, `fd`...) ne doit pas
-        // matcher n'importe quel hit Flathub qui le contient par hasard.
+        // Regression: a short nixpkgs name (`go`, `jq`, `fd`...) must not
+        // match any Flathub hit that happens to contain it.
         assert!(!flathub_relevant("GoodVibes", "go"));
         assert!(!flathub_relevant("Djview", "jv"));
     }
 
     #[test]
     fn short_exact_match_still_matches() {
-        // Le garde-fou de longueur ne doit pas empêcher un match EXACT court.
+        // The length guard must not prevent a short EXACT match.
         assert!(flathub_relevant("jq", "jq"));
     }
 }
@@ -537,8 +536,8 @@ mod format_tests {
 
     #[test]
     fn best_screenshot_zero_width_is_last_resort() {
-        // width 0 = image source de taille inconnue : ne doit être choisie
-        // que s'il n'y a aucune variante dimensionnée qui convienne.
+        // width 0 = source image of unknown size: must only be picked when
+        // no sized variant fits.
         let sizes = serde_json::json!([
             { "src": "unknown.png", "width": "0" },
             { "src": "sized.png", "width": "800" }

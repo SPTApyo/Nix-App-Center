@@ -1,12 +1,13 @@
-//! Base AppStream locale issue du cache Flatpak.
+//! Local AppStream database.
 //!
-//! Flatpak maintient `~/.local/share/flatpak/appstream/flathub/<arch>/active/appstream.xml.gz`
-//! qui contient TOUTES les métadonnées Flathub (icônes, descriptions, screenshots…)
-//! pour tous les paquets. GNOME Software lit ce même fichier — c'est pourquoi il est
-//! si rapide : zéro requête réseau pour la navigation.
+//! Flatpak keeps `~/.local/share/flatpak/appstream/flathub/<arch>/active/appstream.xml.gz`,
+//! which holds ALL the Flathub metadata (icons, descriptions, screenshots…) for
+//! every package. GNOME Software reads this same file, which is why it is so
+//! fast: zero network requests while browsing. Without Flatpak, Onyx downloads
+//! the same file from Flathub into its cache directory.
 //!
-//! Onyx le charge au démarrage via [`init_background`] (thread séparé, non-bloquant).
-//! Dès que le chargement est terminé, [`lookup`] est un HashMap O(1).
+//! Onyx loads it at startup through [`init_background`] (separate, non
+//! blocking thread). Once loaded, [`lookup`] is an O(1) HashMap.
 
 use std::{
     collections::HashMap,
@@ -20,7 +21,7 @@ use quick_xml::{Reader, events::Event};
 
 use crate::package::Package;
 
-// ── Types publics ─────────────────────────────────────────────────────────────
+// ── Public types ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default)]
 pub struct Entry {
@@ -31,7 +32,7 @@ pub struct Entry {
     pub developer: Option<String>,
     pub icon_url: Option<String>,
     pub screenshot_urls: Vec<String>,
-    /// Légende de chaque screenshot (parallèle à `screenshot_urls`, `None` si absente).
+    /// Caption of each screenshot (parallel to `screenshot_urls`, `None` when missing).
     pub screenshot_captions: Vec<Option<String>>,
     pub homepage: Option<String>,
     pub bugtracker: Option<String>,
@@ -41,9 +42,9 @@ pub struct Entry {
     pub license: Option<String>,
     pub verified: bool,
     pub releases: Vec<EntryRelease>,
-    /// Attributs OARS `content_rating` : (id, valeur) ex. ("social-chat","intense").
+    /// OARS `content_rating` attributes: (id, value) e.g. ("social-chat","intense").
     pub oars: Vec<(String, String)>,
-    /// Renseigné pour un composant `addon` : l'app_id du parent qu'il étend.
+    /// Set for an `addon` component: the app_id of the parent it extends.
     pub extends: Option<String>,
 }
 
@@ -55,7 +56,7 @@ pub struct EntryRelease {
     pub url: Option<String>,
 }
 
-/// Un addon/extension d'une app (composant AppStream `type="addon"`).
+/// An add-on/extension of an app (AppStream `type="addon"` component).
 #[derive(Debug, Clone)]
 pub struct Addon {
     pub name: String,
@@ -63,7 +64,7 @@ pub struct Addon {
     pub icon_url: Option<String>,
 }
 
-/// Une app apparentée (même développeur), pour la section « Autres applications ».
+/// A related app (same developer), for the "Other Apps" section.
 #[derive(Debug, Clone)]
 pub struct DevApp {
     pub app_id: String,
@@ -71,21 +72,21 @@ pub struct DevApp {
     pub icon_url: Option<String>,
 }
 
-// ── DB interne ────────────────────────────────────────────────────────────────
+// ── Internal DB ───────────────────────────────────────────────────────────────
 
 struct Db {
     entries: Vec<Entry>,
-    /// Dernier segment de l'app_id alphanumérique minuscule → index
+    /// Last app_id segment, lowercase alphanumeric → index
     by_suffix: HashMap<String, usize>,
-    /// Nom de l'app alphanumérique minuscule → index
+    /// App name, lowercase alphanumeric → index
     by_name: HashMap<String, usize>,
-    /// app_id complet minuscule → index
+    /// Full lowercase app_id → index
     by_id: HashMap<String, usize>,
-    /// Entrées `addon` séparées (jamais dans les index de lookup ci-dessus).
+    /// Separate `addon` entries (never in the lookup indexes above).
     addons: Vec<Entry>,
-    /// app_id parent minuscule → index d'addons dans `addons`.
+    /// Lowercase parent app_id → indexes of add-ons in `addons`.
     by_extends: HashMap<String, Vec<usize>>,
-    /// Développeur minuscule → index d'apps dans `entries`.
+    /// Lowercase developer → indexes of apps in `entries`.
     by_developer: HashMap<String, Vec<usize>>,
 }
 
@@ -136,7 +137,7 @@ impl Db {
     }
 }
 
-/// Conserve uniquement les caractères alphanumériques en minuscule.
+/// Keeps only alphanumeric characters, lowercased.
 fn alnum(s: &str) -> String {
     s.chars()
         .filter(|c| c.is_ascii_alphanumeric())
@@ -147,22 +148,22 @@ fn alnum(s: &str) -> String {
 // ── Singleton ─────────────────────────────────────────────────────────────────
 
 static DB: OnceLock<Db> = OnceLock::new();
-/// Garde-fou de démarrage : `OnceLock::set` est atomique, contrairement au
-/// `if DB.get().is_some()` seul (deux appels concurrents à `init_background`
-/// avant la fin du 1er chargement passeraient tous les deux ce test et
-/// lanceraient chacun leur propre décompression/parse du XML, en double).
+/// Startup guard: `OnceLock::set` is atomic, unlike a bare
+/// `if DB.get().is_some()` (two concurrent `init_background` calls before the
+/// first load ends would both pass that test and each start their own XML
+/// decompression/parse).
 static INIT_STARTED: OnceLock<()> = OnceLock::new();
 
-/// État du chargement. Distinguer « en cours » de « impossible » est vital :
-/// on peut *attendre* la fin d'un chargement en cours (quelques secondes),
-/// jamais un chargement qui n'aboutira pas (machine sans cache Flatpak).
+/// Load state. Telling "in progress" from "impossible" matters: a load in
+/// progress can be *waited for* (a few seconds), a load that will never
+/// finish cannot (machine without any AppStream file).
 #[derive(Clone, Copy, PartialEq)]
 enum LoadState {
-    /// `init_background` jamais appelé (cas CLI) — rien à attendre.
+    /// `init_background` never called (CLI case): nothing to wait for.
     NotStarted,
     Loading,
     Ready,
-    /// Pas de XML Flatpak sur la machine (ou parse vide) — rien à attendre.
+    /// No AppStream XML available (or empty parse): nothing to wait for.
     Unavailable,
 }
 
@@ -175,19 +176,19 @@ fn set_state(s: LoadState) {
     cv.notify_all();
 }
 
-/// `true` quand plus aucun chargement n'est en cours (prêt, indisponible ou
-/// jamais lancé) : un `AppMeta` calculé maintenant ne s'enrichira plus →
-/// mémoïsable sans risque d'empoisonner la session avec une fiche appauvrie.
+/// `true` once no load is in progress (ready, unavailable or never started):
+/// an `AppMeta` computed now will not get richer, so it can be memoized
+/// without poisoning the session with a poorer listing.
 pub(crate) fn is_settled() -> bool {
     let (m, _) = &*STATE;
     *m.lock().unwrap_or_else(|e| e.into_inner()) != LoadState::Loading
 }
 
-/// Attend (borné) la fin du chargement EN COURS. Retour immédiat si le
-/// chargement n'a pas commencé, a abouti, ou est impossible — ne déclenche
-/// jamais de chargement. Bug vécu : l'accueil devenu instantané (cache disque
-/// réparé), on ouvrait une page détail pendant le parse XML (~4 s) → repli
-/// REST sans addons/apps-du-développeur, mémoïsé pour toute la session.
+/// Waits (bounded) for the load IN PROGRESS to end. Returns at once when the
+/// load has not started, succeeded, or is impossible; never starts a load.
+/// Real bug: with an instant home page (fixed disk cache), opening a details
+/// page during the XML parse (~4 s) fell back on REST without add-ons or
+/// developer apps, memoized for the whole session.
 pub(crate) fn wait_until_settled(timeout: std::time::Duration) {
     let (m, cv) = &*STATE;
     let deadline = std::time::Instant::now() + timeout;
@@ -204,12 +205,12 @@ pub(crate) fn wait_until_settled(timeout: std::time::Duration) {
     }
 }
 
-/// Lance le chargement du fichier AppStream en arrière-plan. Non bloquant.
-/// Sûr à appeler plusieurs fois (idempotent) : seul le premier appel démarre
-/// réellement un thread de chargement.
+/// Starts loading the AppStream file in the background. Non blocking.
+/// Safe to call several times (idempotent): only the first call really
+/// starts a loading thread.
 pub fn init_background() {
     if INIT_STARTED.set(()).is_err() {
-        return; // déjà démarré (ou en cours) par un appel précédent
+        return; // already started (or running) by an earlier call
     }
     set_state(LoadState::Loading);
     std::thread::spawn(|| match load() {
@@ -221,39 +222,38 @@ pub fn init_background() {
     });
 }
 
-/// Lookup instantané. Retourne `None` si la DB n'est pas encore prête
-/// (chargement en cours) ou si le paquet est inconnu.
+/// Instant lookup. Returns `None` while the DB is not ready (loading) or when
+/// the package is unknown.
 pub fn lookup(name: &str) -> Option<&'static Entry> {
     DB.get()?.lookup(name)
 }
 
-/// `true` quand la DB est chargée et prête (les lookups ne feront plus de réseau).
+/// `true` once the DB is loaded and ready (lookups will not hit the network).
 pub fn is_ready() -> bool {
     DB.get().is_some()
 }
 
-/// Cherche l'entrée AppStream locale d'un paquet nixpkgs : par nom (`pname`)
-/// d'abord, puis par attr (certains paquets ne matchent que par l'un des deux —
-/// `Db::lookup` essaie déjà suffix/nom/id pour CHAQUE clé donnée, donc essayer
-/// les deux clés augmente encore le rappel sans risquer de faux positif
-/// supplémentaire).
+/// Finds the local AppStream entry of a nixpkgs package: by name (`pname`)
+/// first, then by attr (some packages only match one of them). `Db::lookup`
+/// already tries suffix/name/id for EACH key, so trying both keys raises
+/// recall without any extra false positive risk.
 pub(crate) fn lookup_package(p: &Package) -> Option<&'static Entry> {
     lookup(&p.name).or_else(|| lookup(&p.attr))
 }
 
-/// Addons/extensions qui étendent l'app d'`app_id` donné.
+/// Add-ons/extensions extending the app with the given `app_id`.
 pub(crate) fn addons_for(app_id: &str) -> Vec<Addon> {
     DB.get().map(|db| db.addons_for(app_id)).unwrap_or_default()
 }
 
-/// Autres apps du même développeur (hors `exclude_id`).
+/// Other apps by the same developer (excluding `exclude_id`).
 pub(crate) fn apps_by_developer(developer: &str, exclude_id: &str) -> Vec<DevApp> {
     DB.get()
         .map(|db| db.apps_by_developer(developer, exclude_id))
         .unwrap_or_default()
 }
 
-// ── Chargement ────────────────────────────────────────────────────────────────
+// ── Loading ───────────────────────────────────────────────────────────────────
 
 fn flatpak_xml_path() -> Option<PathBuf> {
     let arch = arch()?;
@@ -340,11 +340,11 @@ fn load() -> Option<Db> {
     Some(build_db(entries))
 }
 
-/// Construit les index de lookup à partir des entrées parsées. Partagé entre
-/// `load()` et les tests (`make_db`) pour que la politique d'indexation ne
-/// diverge jamais entre le code réel et ce qui est vérifié par les tests.
+/// Builds the lookup indexes from parsed entries. Shared by `load()` and the
+/// tests (`make_db`) so the indexing policy never diverges between the real
+/// code and what the tests check.
 fn build_db(all: Vec<Entry>) -> Db {
-    // Sépare apps (lookup) et addons (indexés par leur parent `extends`).
+    // Split apps (lookup) and add-ons (indexed by their `extends` parent).
     let mut entries: Vec<Entry> = Vec::new();
     let mut addons: Vec<Entry> = Vec::new();
     for e in all {
@@ -359,12 +359,12 @@ fn build_db(all: Vec<Entry>) -> Db {
     let mut by_name: HashMap<String, usize> = HashMap::with_capacity(entries.len());
     let mut by_id: HashMap<String, usize> = HashMap::with_capacity(entries.len());
     let mut by_developer: HashMap<String, Vec<usize>> = HashMap::new();
-    // Un même suffixe (dernier segment d'app-id, ex. "player"/"editor") peut être
-    // partagé par plusieurs apps distinctes dans le catalogue Flathub complet.
-    // Matcher au hasard le 1er apparu serait un faux positif (mauvaise icône/
-    // description affichée) — pire qu'une absence de correspondance. On retire
-    // donc du HashMap tout suffixe rencontré plus d'une fois. Même politique
-    // pour les NOMS : deux apps homonymes → aucune ne matche par nom.
+    // One suffix (last app id segment, e.g. "player"/"editor") may be shared
+    // by several distinct apps in the full Flathub catalog. Matching the first
+    // one seen would be a false positive (wrong icon/description), worse than
+    // no match. So any suffix seen more than once is removed from the
+    // HashMap. Same policy for NAMES: two apps with the same name, neither
+    // matches by name.
     let mut ambiguous_suffixes: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut ambiguous_names: std::collections::HashSet<String> = std::collections::HashSet::new();
 
@@ -413,7 +413,7 @@ fn build_db(all: Vec<Entry>) -> Db {
     Db { entries, by_suffix, by_name, by_id, addons, by_extends, by_developer }
 }
 
-// ── Parser XML ────────────────────────────────────────────────────────────────
+// ── XML parser ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Collect {
@@ -456,50 +456,50 @@ fn end_line(buf: &mut String) {
 
 fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     let mut xml = Reader::from_reader(reader);
-    // Sans ça, quick-xml émet un unique `Event::Empty` (non géré par la boucle
-    // ci-dessous, qui ne traite que Start/End/Text/Eof) pour les tags
-    // auto-fermants (`<release version="…" timestamp="…" />`, très courants
-    // dans le vrai appstream.xml.gz de Flathub pour les releases sans notes).
-    // En demandant leur expansion, ils arrivent comme un Start+End normal et
-    // retraversent exactement la même logique — zéro duplication de code.
+    // Without this, quick-xml emits a single `Event::Empty` (not handled by
+    // the loop below, which only processes Start/End/Text/Eof) for
+    // self-closing tags (`<release version="…" timestamp="…" />`, very common
+    // in the real Flathub appstream.xml.gz for releases without notes).
+    // Asking for their expansion makes them arrive as a normal Start+End and
+    // go through exactly the same logic, with zero code duplication.
     xml.config_mut().expand_empty_elements = true;
     let mut buf = Vec::new();
     let mut entries: Vec<Entry> = Vec::new();
 
-    // ── URL de base des médias (préfixe pour les URL relatives) ──────────────
+    // ── Media base URL (prefix for relative URLs) ────────────────────────────
     let mut media_base = String::new();
 
-    // ── Profondeur & skip ─────────────────────────────────────────────────────
+    // ── Depth & skip ──────────────────────────────────────────────────────────
     let mut depth: usize = 0;
-    // Quand > 0 : on est dans un sous-arbre à ignorer.
-    // Chaque Start l'incrémente, chaque End le décrémente jusqu'à 0.
+    // When > 0: inside a subtree to ignore.
+    // Every Start increments it, every End decrements it down to 0.
     let mut skip: usize = 0;
 
-    // ── Entrée courante ───────────────────────────────────────────────────────
+    // ── Current entry ─────────────────────────────────────────────────────────
     let mut cur: Option<Entry> = None;
     let mut comp_depth: usize = 0;
 
-    // ── Collecte de texte ─────────────────────────────────────────────────────
+    // ── Text collection ───────────────────────────────────────────────────────
     let mut collect = Collect::None;
 
-    // ── Description principale ────────────────────────────────────────────────
+    // ── Main description ──────────────────────────────────────────────────────
     let mut in_desc = false;
     let mut desc_depth: usize = 0;
     let mut desc_buf = String::new();
 
-    // ── Description de release ────────────────────────────────────────────────
+    // ── Release description ───────────────────────────────────────────────────
     let mut in_rel_desc = false;
     let mut rel_desc_depth: usize = 0;
     let mut rel_desc_buf = String::new();
 
-    // ── Drapeaux structurels ──────────────────────────────────────────────────
+    // ── Structural flags ──────────────────────────────────────────────────────
     let mut in_screenshots = false;
     let mut in_screenshot = false;
     let mut in_releases = false;
     let mut in_release = false;
-    let mut in_developer = false; // balise <developer> (format AppStream 1.0+)
+    let mut in_developer = false; // <developer> tag (AppStream 1.0+ format)
 
-    // ── Contexte de champ ─────────────────────────────────────────────────────
+    // ── Field context ─────────────────────────────────────────────────────────
     let mut icon_remote = false;
     let mut icon_w: u32 = 0;
     let mut url_kind = String::new();
@@ -516,7 +516,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
         };
 
         match ev {
-            // ── Ouverture ─────────────────────────────────────────────────────
+            // ── Opening ───────────────────────────────────────────────────────
             Event::Start(ref e) => {
                 depth += 1;
 
@@ -534,14 +534,14 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 let has_lang =
                     e.attributes().flatten().any(|a| a.key.as_ref() == b"xml:lang");
 
-                // Intérieur d'une description : on collecte le texte brut
+                // Inside a description: collect the raw text
                 if in_desc && tag != "description" {
                     if has_lang {
-                        skip = 1; // saute le paragraphe traduit
+                        skip = 1; // skip the translated paragraph
                     } else if tag == "li" {
                         desc_buf.push_str("• ");
                     }
-                    // Sinon : on laisse le texte passer via Event::Text
+                    // Otherwise let the text through via Event::Text
                     continue;
                 }
                 if in_rel_desc && tag != "description" {
@@ -553,7 +553,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     continue;
                 }
 
-                // ── Éléments racine / structurels ─────────────────────────────
+                // ── Root / structural elements ────────────────────────────────
                 match tag {
                     "components" => {
                         for attr in e.attributes().flatten() {
@@ -581,7 +581,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                         }
                     }
 
-                    // ── Champs simples (seulement si dans un composant) ────────
+                    // ── Simple fields (only inside a component) ───────────────
                     _ if cur.is_none() => {}
 
                     "id" if !has_lang => {
@@ -623,7 +623,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                         rel_desc_buf.clear();
                     }
                     "description" => {
-                        skip = 1; // lang ou doublon
+                        skip = 1; // lang or duplicate
                     }
 
                     "icon" => {
@@ -649,15 +649,15 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                             collect = Collect::Icon;
                         } else {
                             icon_remote = false;
-                            skip = 1; // on n'utilise pas les icônes cachées locales
+                            skip = 1; // local cached icons are not used
                         }
                     }
 
-                    // Ces balises peuvent contenir un <id> qui référence un AUTRE
-                    // composant (ex. <recommends><id>com.valvesoftware.Steam</id>
-                    // </recommends> dans la fiche Protontricks) : sans ce skip, ce
-                    // <id> imbriqué écrase celui du composant en cours et corrompt
-                    // son entrée (nom correct, app_id d'un autre paquet).
+                    // These tags may hold an <id> referencing ANOTHER component
+                    // (e.g. <recommends><id>com.valvesoftware.Steam</id>
+                    // </recommends> in the Protontricks listing): without this
+                    // skip, the nested <id> overwrites the current component's
+                    // and corrupts its entry (right name, another package's app_id).
                     "requires" | "recommends" | "suggests" | "supports" => {
                         skip = 1;
                     }
@@ -765,7 +765,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 }
             }
 
-            // ── Fermeture ─────────────────────────────────────────────────────
+            // ── Closing ───────────────────────────────────────────────────────
             Event::End(ref e) => {
                 if skip > 0 {
                     skip -= 1;
@@ -782,7 +782,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     }
                 };
 
-                // Fin d'un enfant à l'intérieur d'une description
+                // End of a child inside a description
                 if in_desc && depth > desc_depth {
                     if matches!(tag, "p" | "li") {
                         end_line(&mut desc_buf);
@@ -808,7 +808,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                                 entries.push(entry);
                             }
                         }
-                        // Réinitialise tout l'état par composant
+                        // Reset all per-component state
                         in_desc = false;
                         in_screenshots = false;
                         in_screenshot = false;
@@ -868,7 +868,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 depth -= 1;
             }
 
-            // ── Texte ─────────────────────────────────────────────────────────
+            // ── Text ──────────────────────────────────────────────────────────
             Event::Text(ref e) => {
                 if skip > 0 {
                     continue;
@@ -900,10 +900,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     if s.starts_with("http") {
                         s.to_string()
                     } else {
-                        // `trim_end_matches` seul ne garantit PAS un unique '/' de
-                        // séparation : concaténer "…/media" (trimmé) directement à
-                        // "org/…" donnait "…/mediaorg/…" (bug vérifié par les tests
-                        // parser_icon_prepends_media_baseurl_for_relative_url et
+                        // `trim_end_matches` alone does NOT guarantee a single '/'
+                        // separator: concatenating "…/media" (trimmed) directly to
+                        // "org/…" gave "…/mediaorg/…" (bug covered by the tests
+                        // parser_icon_prepends_media_baseurl_for_relative_url and
                         // parser_screenshots_prepend_media_baseurl).
                         format!(
                             "{}/{}",
@@ -914,9 +914,9 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 };
 
                 match collect {
-                    // Seulement le PREMIER <id> (celui du composant) : un <id>
-                    // imbriqué dans <provides> vaut « …Steam.desktop » et écraserait
-                    // le vrai app_id sinon.
+                    // Only the FIRST <id> (the component's): an <id> nested in
+                    // <provides> reads "…Steam.desktop" and would overwrite the
+                    // real app_id otherwise.
                     Collect::Id if entry.app_id.is_empty() => {
                         entry.app_id = text.to_string();
                     }
@@ -934,7 +934,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     }
                     Collect::Icon if icon_remote => {
                         let url = abs(text);
-                        // Préfère 128×128 ; sinon prend la première disponible.
+                        // Prefer 128×128; otherwise take the first available.
                         if icon_w == 128 || entry.icon_url.is_none() {
                             entry.icon_url = Some(url);
                         }
@@ -981,20 +981,20 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 //
-// On teste trois couches indépendantes :
-//   1. `alnum()` — normalisation des noms
-//   2. `parse()` — extraction XML (structure, traductions ignorées, médias, …)
-//   3. `Db::lookup()` — stratégie de correspondance nom nix → entrée AppStream
+// Three independent layers are tested:
+//   1. `alnum()`: name normalization
+//   2. `parse()`: XML extraction (structure, ignored translations, media, …)
+//   3. `Db::lookup()`: matching strategy from nix name to AppStream entry
 //
-// Le XML de test couvre tous les cas réels observés dans appstream.xml.gz Flathub.
+// The test XML covers every real case seen in the Flathub appstream.xml.gz.
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Un fichier AppStream minimal mais représentatif.
-    // Couvre : media_baseurl, xml:lang, formats developer ancien/nouveau,
-    // icône 64 vs 128, screenshots source vs thumbnail, releases, custom/verified,
-    // types d'URL (homepage, bugtracker), addon et font ignorés.
+    // A minimal but representative AppStream file.
+    // Covers: media_baseurl, xml:lang, old/new developer formats,
+    // 64 vs 128 icon, source vs thumbnail screenshots, releases, custom/verified,
+    // URL types (homepage, bugtracker), ignored addon and font.
     const SAMPLE_XML: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <components version="0.14" origin="flathub" media_baseurl="https://dl.flathub.org/media/">
 
@@ -1104,11 +1104,11 @@ mod tests {
         assert_eq!(alnum(""), "");
     }
 
-    // ── Parser : structure ────────────────────────────────────────────────────
+    // ── Parser: structure ─────────────────────────────────────────────────────
 
     #[test]
     fn parser_excludes_fonts_but_keeps_apps_and_addons() {
-        // 3 apps desktop + 1 addon = 4 ; la font est exclue.
+        // 3 desktop apps + 1 addon = 4; the font is excluded.
         let entries = parse_sample();
         assert_eq!(entries.len(), 4);
         assert!(!entries.iter().any(|e| e.app_id.contains("Font")));
@@ -1145,7 +1145,7 @@ mod tests {
         let addons = db.addons_for("org.gnome.Gedit");
         assert_eq!(addons.len(), 1);
         assert_eq!(addons[0].name, "Syntax Highlighter");
-        // gedit et gedit Plugins partagent « The GNOME Project ».
+        // gedit and gedit Plugins share "The GNOME Project".
         let devapps = db.apps_by_developer("The GNOME Project", "org.gnome.Gedit");
         assert_eq!(devapps.len(), 1);
         assert_eq!(devapps[0].app_id, "org.gnome.gedit.Plugins");
@@ -1164,14 +1164,14 @@ mod tests {
         assert_eq!(db.addons_for("org.gimp.GIMP").len(), 1);
     }
 
-    // ── Parser : texte (traductions ignorées) ─────────────────────────────────
+    // ── Parser: text (translations ignored) ───────────────────────────────────
 
     #[test]
     fn parser_name_takes_en_only() {
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
         assert_eq!(e.name, "gedit");
-        assert_ne!(e.name, "gedit (FR)", "la version xml:lang ne doit pas écraser la EN");
+        assert_ne!(e.name, "gedit (FR)", "the xml:lang version must not overwrite the EN one");
     }
 
     #[test]
@@ -1197,12 +1197,12 @@ mod tests {
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
         let desc = e.description.as_deref().unwrap_or("");
         assert!(desc.contains("gedit is a text editor"), "description EN absente");
-        assert!(!desc.contains("éditeur"), "traduction FR ne doit pas apparaître dans la description");
+        assert!(!desc.contains("éditeur"), "the FR translation must not appear in the description");
     }
 
     #[test]
     fn parser_developer_old_format() {
-        // <developer_name> = format AppStream 0.x
+        // <developer_name> = AppStream 0.x format
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
         assert_eq!(e.developer.as_deref(), Some("The GNOME Project"));
@@ -1210,7 +1210,7 @@ mod tests {
 
     #[test]
     fn parser_developer_new_format() {
-        // <developer><name> = format AppStream 1.0+
+        // <developer><name> = AppStream 1.0+ format
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.name == "Extreme Tux Racer").unwrap();
         assert_eq!(e.developer.as_deref(), Some("ETR Team"));
@@ -1218,10 +1218,10 @@ mod tests {
 
     #[test]
     fn parser_nested_id_in_recommends_does_not_corrupt_app_id() {
-        // Régression réelle : la fiche Protontricks contient
-        // <recommends><id>com.valvesoftware.Steam</id></recommends>. Sans le
-        // skip sur ces balises, ce <id> imbriqué écrasait celui du composant,
-        // et lookup("steam") renvoyait "Protontricks" sous l'app_id de Steam.
+        // Real regression: the Protontricks listing contains
+        // <recommends><id>com.valvesoftware.Steam</id></recommends>. Without the
+        // skip on these tags, the nested <id> overwrote the component's, and
+        // lookup("steam") returned "Protontricks" under Steam's app_id.
         let xml = r#"<?xml version="1.0"?>
 <components>
   <component type="desktop-application">
@@ -1245,8 +1245,8 @@ mod tests {
         assert_eq!(proton.app_id, "com.github.Matoking.protontricks");
 
         let db = build_db(entries);
-        let steam = db.lookup("steam").expect("steam doit être trouvé");
-        assert_eq!(steam.name, "Steam", "lookup(\"steam\") ne doit pas renvoyer Protontricks");
+        let steam = db.lookup("steam").expect("steam must be found");
+        assert_eq!(steam.name, "Steam", "lookup(\"steam\") must not return Protontricks");
     }
 
     #[test]
@@ -1270,7 +1270,7 @@ mod tests {
         assert!(e.bugtracker.as_deref().unwrap_or("").contains("gitlab.gnome.org"));
     }
 
-    // ── Parser : champ verified ───────────────────────────────────────────────
+    // ── Parser: verified field ────────────────────────────────────────────────
 
     #[test]
     fn parser_verified_true() {
@@ -1283,17 +1283,17 @@ mod tests {
     fn parser_not_verified_by_default() {
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.name == "Extreme Tux Racer").unwrap();
-        assert!(!e.verified, "sans clé verified la valeur doit être false");
+        assert!(!e.verified, "without a verified key the value must be false");
     }
 
-    // ── Parser : icônes ───────────────────────────────────────────────────────
+    // ── Parser: icons ─────────────────────────────────────────────────────────
 
     #[test]
     fn parser_prefers_128px_over_64px() {
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
-        let icon = e.icon_url.as_deref().expect("icône manquante");
-        assert!(icon.contains("icon128"), "doit préférer icon128 sur icon64");
+        let icon = e.icon_url.as_deref().expect("missing icon");
+        assert!(icon.contains("icon128"), "must prefer icon128 over icon64");
         assert!(!icon.contains("icon64"));
     }
 
@@ -1301,10 +1301,10 @@ mod tests {
     fn parser_icon_prepends_media_baseurl_for_relative_url() {
         let entries = parse_sample();
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
-        let icon = e.icon_url.as_deref().expect("icône manquante");
+        let icon = e.icon_url.as_deref().expect("missing icon");
         assert!(
             icon.starts_with("https://dl.flathub.org/media/"),
-            "URL relative doit être préfixée par media_baseurl, obtenu : {icon}"
+            "a relative URL must be prefixed with media_baseurl, got: {icon}"
         );
     }
 
@@ -1321,11 +1321,11 @@ mod tests {
         assert_eq!(
             entries[0].icon_url.as_deref(),
             Some("https://cdn.example.com/icon.png"),
-            "une URL déjà absolue ne doit pas être doublée avec media_baseurl"
+            "an already absolute URL must not be doubled with media_baseurl"
         );
     }
 
-    // ── Parser : screenshots ──────────────────────────────────────────────────
+    // ── Parser: screenshots ───────────────────────────────────────────────────
 
     #[test]
     fn parser_screenshots_source_only_no_thumbnails() {
@@ -1333,7 +1333,7 @@ mod tests {
         let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
         assert_eq!(e.screenshot_urls.len(), 2, "deux screenshots source attendus");
         for url in &e.screenshot_urls {
-            assert!(!url.contains("thumb"), "les thumbnails ne doivent pas figurer");
+            assert!(!url.contains("thumb"), "thumbnails must not be listed");
         }
     }
 
@@ -1344,12 +1344,12 @@ mod tests {
         for url in &e.screenshot_urls {
             assert!(
                 url.starts_with("https://dl.flathub.org/media/"),
-                "screenshot URL doit commencer par media_baseurl : {url}"
+                "screenshot URL must start with media_baseurl: {url}"
             );
         }
     }
 
-    // ── Parser : releases ─────────────────────────────────────────────────────
+    // ── Parser: releases ──────────────────────────────────────────────────────
 
     #[test]
     fn parser_releases_version_and_timestamp() {
@@ -1376,25 +1376,25 @@ mod tests {
         assert!(e.releases[1].description.is_none());
     }
 
-    // ── Db::lookup() — stratégie de correspondance ────────────────────────────
+    // ── Db::lookup(): matching strategy ───────────────────────────────────────
 
     #[test]
     fn lookup_by_app_id_suffix() {
-        // "gedit" = alnum(dernier segment de "org.gnome.Gedit")
+        // "gedit" = alnum(last segment of "org.gnome.Gedit")
         let db = make_db(parse_sample());
         let found = db.lookup("gedit");
-        assert!(found.is_some(), "gedit doit être trouvé par suffix");
+        assert!(found.is_some(), "gedit must be found by suffix");
         assert_eq!(found.unwrap().app_id, "org.gnome.Gedit");
     }
 
     #[test]
     fn lookup_by_name_slug_extremetuxracer() {
-        // Régression historique : suffix("io.github.extremetuxracer.ETR") = "etr"
-        // ne correspond pas à "extremetuxracer", mais by_name le trouve via
+        // Historical regression: suffix("io.github.extremetuxracer.ETR") = "etr"
+        // does not match "extremetuxracer", but by_name finds it through
         // alnum("Extreme Tux Racer") = "extremetuxracer".
         let db = make_db(parse_sample());
         let found = db.lookup("extremetuxracer");
-        assert!(found.is_some(), "extremetuxracer doit être trouvé par nom");
+        assert!(found.is_some(), "extremetuxracer must be found by name");
         assert_eq!(found.unwrap().name, "Extreme Tux Racer");
     }
 
@@ -1402,19 +1402,19 @@ mod tests {
     fn lookup_by_full_app_id() {
         let db = make_db(parse_sample());
         let found = db.lookup("org.gnome.Gedit");
-        assert!(found.is_some(), "lookup par app_id complet doit fonctionner");
+        assert!(found.is_some(), "lookup by full app_id must work");
     }
 
     #[test]
     fn lookup_by_full_app_id_case_insensitive() {
         let db = make_db(parse_sample());
         let found = db.lookup("org.gnome.gedit");
-        assert!(found.is_some(), "by_id doit être insensible à la casse");
+        assert!(found.is_some(), "by_id must be case insensitive");
     }
 
     #[test]
     fn lookup_suffix_case_insensitive() {
-        // "GEDIT" → alnum = "gedit" → trouvé par suffix
+        // "GEDIT" → alnum = "gedit" → found by suffix
         let db = make_db(parse_sample());
         assert!(db.lookup("GEDIT").is_some());
     }
@@ -1429,15 +1429,15 @@ mod tests {
 
     #[test]
     fn lookup_suffix_wins_over_name_slug() {
-        // "etr" matche le suffix de "io.github.extremetuxracer.ETR"
-        // ce test vérifie que by_suffix a priorité sur by_name
+        // "etr" matches the suffix of "io.github.extremetuxracer.ETR";
+        // this test checks that by_suffix wins over by_name
         let db = make_db(parse_sample());
         let found = db.lookup("etr");
-        assert!(found.is_some(), "ETR doit être trouvé par suffix 'etr'");
+        assert!(found.is_some(), "ETR must be found by suffix 'etr'");
         assert_eq!(found.unwrap().app_id, "io.github.extremetuxracer.ETR");
     }
 
-    // ── Db::lookup — collision de suffixe (faux positif potentiel) ───────────
+    // ── Db::lookup: suffix collision (potential false positive) ──────────────
 
     fn two_apps_sharing_suffix() -> Vec<Entry> {
         let xml = r#"<?xml version="1.0"?>
@@ -1456,39 +1456,39 @@ mod tests {
 
     #[test]
     fn lookup_ambiguous_suffix_matches_neither() {
-        // "Foo Player" et "Bar Player" partagent le suffixe d'app-id "player" :
-        // une recherche par ce seul suffixe est ambiguë, on ne doit RIEN
-        // retourner (icône générique) plutôt que la mauvaise app au hasard.
+        // "Foo Player" and "Bar Player" share the app id suffix "player": a
+        // search by that suffix alone is ambiguous and must return NOTHING
+        // (generic icon) rather than the wrong app at random.
         let db = build_db(two_apps_sharing_suffix());
         assert!(
             db.lookup("player").is_none(),
-            "un suffixe partagé par 2 apps ne doit matcher ni l'une ni l'autre"
+            "a suffix shared by 2 apps must match neither"
         );
     }
 
     #[test]
     fn lookup_ambiguous_suffix_falls_back_to_full_name() {
-        // Le nom complet de chaque app reste unique et donc trouvable via by_name,
-        // même quand leur suffixe d'app-id commun a été neutralisé.
+        // Each app's full name stays unique and thus findable through by_name,
+        // even when their common app id suffix was neutralized.
         let db = build_db(two_apps_sharing_suffix());
         assert_eq!(db.lookup("fooplayer").unwrap().app_id, "org.example.foo.Player");
         assert_eq!(db.lookup("barplayer").unwrap().app_id, "org.example.bar.Player");
     }
 
-    // ── État de chargement : wait_until_settled / is_settled ─────────────────
-    // Un seul test manipule STATE (statique process-global) pour éviter toute
-    // course entre tests parallèles sur cet état partagé.
+    // ── Load state: wait_until_settled / is_settled ──────────────────────────
+    // Only one test touches STATE (process global static) to avoid any race
+    // between parallel tests on that shared state.
     #[test]
     fn wait_until_settled_blocks_only_while_loading() {
         use std::time::{Duration, Instant};
 
-        // NotStarted (défaut, cas CLI qui n'appelle jamais init) : immédiat.
+        // NotStarted (default, CLI case that never calls init): immediate.
         let t0 = Instant::now();
         wait_until_settled(Duration::from_secs(5));
-        assert!(t0.elapsed() < Duration::from_millis(500), "NotStarted ne doit pas attendre");
+        assert!(t0.elapsed() < Duration::from_millis(500), "NotStarted must not wait");
 
-        // Loading : attend la fin du chargement (notifiée ici après ~100 ms),
-        // PAS le timeout complet.
+        // Loading: waits for the end of the load (notified here after ~100 ms),
+        // NOT the full timeout.
         set_state(LoadState::Loading);
         assert!(!is_settled());
         let h = std::thread::spawn(|| {
@@ -1499,22 +1499,22 @@ mod tests {
         wait_until_settled(Duration::from_secs(10));
         h.join().unwrap();
         let dt = t0.elapsed();
-        assert!(dt >= Duration::from_millis(80), "doit attendre la fin du chargement");
-        assert!(dt < Duration::from_secs(5), "ne doit pas attendre le timeout complet");
+        assert!(dt >= Duration::from_millis(80), "must wait for the load to end");
+        assert!(dt < Duration::from_secs(5), "must not wait for the full timeout");
         assert!(is_settled());
 
-        // Ready : immédiat.
+        // Ready: immediate.
         set_state(LoadState::Ready);
         let t0 = Instant::now();
         wait_until_settled(Duration::from_secs(5));
-        assert!(t0.elapsed() < Duration::from_millis(500), "Ready ne doit pas attendre");
+        assert!(t0.elapsed() < Duration::from_millis(500), "Ready must not wait");
         assert!(is_settled());
     }
 
     #[test]
     fn lookup_ambiguous_name_matches_neither() {
-        // Deux apps distinctes portant le MÊME nom : matcher la première apparue
-        // serait un faux positif (même politique que les suffixes ambigus).
+        // Two distinct apps with the SAME name: matching the first one seen
+        // would be a false positive (same policy as ambiguous suffixes).
         let xml = r#"<?xml version="1.0"?>
 <components>
   <component type="desktop-application">
@@ -1529,9 +1529,9 @@ mod tests {
         let db = build_db(parse(std::io::Cursor::new(xml.as_bytes())));
         assert!(
             db.lookup("player").is_none(),
-            "un nom partagé par 2 apps ne doit matcher ni l'une ni l'autre"
+            "a name shared by 2 apps must match neither"
         );
-        // Les app_id complets restent résolvables.
+        // Full app_ids stay resolvable.
         assert!(db.lookup("org.example.AAA").is_some());
         assert!(db.lookup("org.example.BBB").is_some());
     }

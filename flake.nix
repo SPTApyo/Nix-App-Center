@@ -1,5 +1,5 @@
 {
-  description = "Onyx — app store déclaratif pour Nix";
+  description = "Onyx, a declarative app store for Nix";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
@@ -9,11 +9,12 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # Dépendances système partagées entre la dérivation et le devShell : une seule
-      # source de vérité (le shell reproduit exactement l'environnement de build).
+      # System dependencies shared by the derivation and the devShell: one source
+      # of truth (the shell reproduces the build environment exactly).
       nativeBuildInputs = with pkgs; [
         pkg-config
         wrapGAppsHook4
+        gettext
       ];
       buildInputs = with pkgs; [
         gtk4
@@ -25,26 +26,36 @@
       onyx = pkgs.rustPlatform.buildRustPackage {
         pname = "onyx";
         version = "0.1.0";
-        src = self; # les fichiers gitignored (target/, result, .direnv) sont exclus
+        src = self; # gitignored files (target/, result, .direnv) are excluded
         cargoLock.lockFile = ./Cargo.lock;
         inherit nativeBuildInputs buildInputs;
 
-        # Les tests GTK nécessitent un display absent du sandbox Nix ; la CI les couvre.
+        # GTK tests need a display, absent from the Nix sandbox; CI covers them.
         doCheck = false;
 
-        # `cargo build` produit `onyx` (GUI) et `onyx-cli` dans $out/bin. On ajoute le
-        # `.desktop` et l'icône pour que l'app apparaisse dans les menus / logithèques.
+        # `cargo build` produces `onyx` (GUI) and `onyx-cli` in $out/bin. Install the
+        # desktop entry, metainfo, icons and translations so the app shows up in
+        # menus and app stores, and finds its resources at runtime.
         postInstall = ''
           install -Dm644 crates/gui/data/dev.onyx.Onyx.desktop \
             $out/share/applications/dev.onyx.Onyx.desktop
           install -Dm644 crates/gui/data/dev.onyx.Onyx.metainfo.xml \
             $out/share/metainfo/dev.onyx.Onyx.metainfo.xml
-          install -Dm644 crates/gui/data/icons/hicolor/scalable/apps/dev.onyx.Onyx.svg \
-            $out/share/icons/hicolor/scalable/apps/dev.onyx.Onyx.svg
+          mkdir -p $out/share/icons
+          cp -r crates/gui/data/icons/hicolor $out/share/icons/
+          for po in po/*.po; do
+            lang=$(basename "$po" .po)
+            install -d $out/share/locale/$lang/LC_MESSAGES
+            msgfmt "$po" -o $out/share/locale/$lang/LC_MESSAGES/onyx.mo
+          done
+        '';
+
+        preFixup = ''
+          gappsWrapperArgs+=(--set ONYX_LOCALEDIR "$out/share/locale")
         '';
 
         meta = with pkgs.lib; {
-          description = "App store déclaratif pour Nix (try-first : nix run, puis keep)";
+          description = "Declarative app store for Nix (try first with nix run, then keep)";
           license = licenses.gpl3Plus;
           mainProgram = "onyx";
           platforms = platforms.linux;
@@ -57,7 +68,7 @@
         onyx = onyx;
       };
 
-      # `nix run .` lance la fenêtre ; `nix run .#onyx-cli -- search …` le banc d'essai.
+      # `nix run .` opens the window; `nix run .#onyx-cli -- search …` runs the CLI.
       apps.${system} = {
         default = {
           type = "app";

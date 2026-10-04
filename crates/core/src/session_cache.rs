@@ -1,8 +1,7 @@
-//! Mémoïsation en session (process-lifetime, sans TTL) des métadonnées
-//! `AppMeta` et des octets d'icônes/screenshots — évite de refaire les mêmes
-//! appels réseau/`nix eval` quand la même app est revue (recherche → détail →
-//! installées…). Distinct du cache disque à TTL de `cache.rs` (résultats de
-//! recherche bruts).
+//! In-session memoization (process lifetime, no TTL) of `AppMeta` metadata
+//! and icon/screenshot bytes: avoids repeating the same network/`nix eval`
+//! calls when the same app is seen again (search → details → installed…).
+//! Distinct from the TTL disk cache of `cache.rs` (raw search results).
 
 use crate::app_meta::{app_meta, AppMeta};
 use crate::package::Package;
@@ -10,14 +9,14 @@ use std::collections::{HashMap, VecDeque};
 use std::io::Read;
 use std::sync::{LazyLock, Mutex};
 
-/// Plafond mémoire des octets d'images (128 Mo décimaux). Chaque fetch est déjà
-/// borné à 20 Mo ; sans plafond global, une session de navigation accumulait
-/// les screenshots indéfiniment.
+/// Memory cap of image bytes (128 MB decimal). Each fetch is already bounded
+/// to 20 MB; without a global cap, a browsing session piled up screenshots
+/// forever.
 const BYTES_CACHE_CAP: usize = 128_000_000;
 
-/// Cache d'octets borné : à l'insertion, évince les entrées les plus anciennes
-/// (FIFO) jusqu'à repasser sous `cap`. FIFO suffit ici (pas de LRU) : les
-/// re-visites proches réutilisent l'entrée bien avant qu'elle n'atteigne la tête.
+/// Bounded byte cache: on insertion, evicts the oldest entries (FIFO) until
+/// back under `cap`. FIFO is enough (no LRU needed): close revisits reuse the
+/// entry long before it reaches the head.
 struct BoundedBytes {
     cap: usize,
     total: usize,
@@ -36,7 +35,7 @@ impl BoundedBytes {
 
     fn insert(&mut self, k: String, v: Vec<u8>) {
         if self.map.contains_key(&k) {
-            return; // déjà présent : ni doublon d'ordre ni double comptage
+            return; // already present: no duplicate order or double count
         }
         self.total += v.len();
         self.order.push_back(k.clone());
@@ -65,9 +64,9 @@ static BYTES_CACHE: LazyLock<Mutex<BoundedBytes>> =
 static ICON_URL_CACHE: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Télécharge un fichier (image) en mémoire. `None` si l'URL échoue.
-/// Timeout large (les screenshots font plusieurs Mo) mais borné : sans lui,
-/// un serveur muet suspendait le thread appelant indéfiniment.
+/// Downloads a file (image) into memory. `None` when the URL fails. Generous
+/// timeout (screenshots weigh several MB) but bounded: without it, a silent
+/// server hung the calling thread forever.
 fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
     let resp = ureq::get(url)
         .timeout(std::time::Duration::from_secs(30))
@@ -81,11 +80,11 @@ fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
     Some(buf)
 }
 
-/// Comme `app_meta()` mais mémoïsé par `pkg.attr` pour toute la session.
-/// Exception : une fiche calculée PENDANT le chargement de la base AppStream
-/// (timeout de l'attente bornée) n'est pas mémoïsée — sinon la version REST
-/// appauvrie (sans addons ni apps du développeur) collait à l'app pour toute
-/// la session alors que la base locale allait devenir prête juste après.
+/// Like `app_meta()` but memoized by `pkg.attr` for the whole session.
+/// Exception: a listing computed WHILE the AppStream database loads (bounded
+/// wait timed out) is not memoized, otherwise the poorer REST version
+/// (without add-ons or developer apps) stuck to the app for the whole session
+/// while the local database was about to become ready.
 pub fn cached_app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     if let Ok(cache) = APP_META_CACHE.lock() {
         if let Some(m) = cache.get(&pkg.attr) {
@@ -101,7 +100,7 @@ pub fn cached_app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     m
 }
 
-/// Comme `fetch_bytes()` mais mémoïsé par URL pour la session (cache borné).
+/// Like `fetch_bytes()` but memoized by URL for the session (bounded cache).
 pub fn cached_fetch_bytes(url: &str) -> Option<Vec<u8>> {
     if let Ok(cache) = BYTES_CACHE.lock() {
         if let Some(b) = cache.get(url) {
@@ -115,21 +114,21 @@ pub fn cached_fetch_bytes(url: &str) -> Option<Vec<u8>> {
     Some(b)
 }
 
-/// Octets déjà en cache pour cette URL, sans jamais déclencher de requête —
-/// sûr à appeler depuis le thread GTK principal.
+/// Bytes already cached for this URL, never triggering a request: safe to
+/// call from the main GTK thread.
 pub fn cached_bytes_if_present(url: &str) -> Option<Vec<u8>> {
     BYTES_CACHE.lock().ok()?.get(url)
 }
 
-/// Mémorise l'URL d'icône déjà résolue pour un attr (tuile/ligne de liste),
-/// pour que la page détail puisse en repartir au lieu de re-résoudre à zéro.
+/// Remembers the icon URL already resolved for an attr (list tile/row), so
+/// the details page can start from it instead of resolving from scratch.
 pub fn remember_icon_url(attr: &str, url: &str) {
     if let Ok(mut c) = ICON_URL_CACHE.lock() {
         c.insert(attr.to_string(), url.to_string());
     }
 }
 
-/// URL d'icône déjà connue pour un attr, si une tuile/ligne l'a déjà résolue.
+/// Icon URL already known for an attr, if a tile/row resolved it.
 pub fn known_icon_url(attr: &str) -> Option<String> {
     ICON_URL_CACHE.lock().ok()?.get(attr).cloned()
 }
@@ -182,17 +181,17 @@ mod tests {
     fn bounded_bytes_evicts_oldest_when_over_cap() {
         let mut c = BoundedBytes::new(10);
         c.insert("a".into(), vec![0; 6]);
-        c.insert("b".into(), vec![0; 6]); // total 12 > 10 → « a » (plus ancien) évincé
-        assert!(c.get("a").is_none(), "l'entrée la plus ancienne doit être évincée");
+        c.insert("b".into(), vec![0; 6]); // total 12 > 10, so "a" (oldest) is evicted
+        assert!(c.get("a").is_none(), "the oldest entry must be evicted");
         assert_eq!(c.get("b").map(|v| v.len()), Some(6));
-        assert_eq!(c.total, 6, "la comptabilité doit suivre l'éviction");
+        assert_eq!(c.total, 6, "accounting must follow eviction");
     }
 
     #[test]
     fn bounded_bytes_reinsert_same_key_keeps_one_copy() {
         let mut c = BoundedBytes::new(100);
         c.insert("a".into(), vec![0; 6]);
-        c.insert("a".into(), vec![0; 6]); // déjà présent → no-op
+        c.insert("a".into(), vec![0; 6]); // already present, no-op
         assert_eq!(c.total, 6);
     }
 }
