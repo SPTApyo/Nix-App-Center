@@ -408,11 +408,11 @@ msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
 #: crates/gui/src/app.rs:410
-#, fuzzy, rust-format
+#, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
-msgstr[0] "{} mise à jour d'application"
-msgstr[1] "{} mises à jour d'applications"
+msgstr[0] "{} application peut être mise à jour."
+msgstr[1] "{} applications peuvent être mises à jour."
 
 #: crates/gui/src/app.rs:447
 msgid "translator-credits"
