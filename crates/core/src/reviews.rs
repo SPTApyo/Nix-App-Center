@@ -15,21 +15,23 @@ const ENDPOINT: &str = "https://odrs.gnome.org/1.0/reviews/api/fetch";
 const SUBMIT: &str = "https://odrs.gnome.org/1.0/reviews/api/submit";
 const LIMIT: u32 = 10;
 
-/// The user's ODRS id: 40 random hex digits made once and kept in the
-/// settings. GNOME hashes the machine id instead; a random id says even less.
-fn user_hash() -> String {
+/// Hash sent when only reading: shared by every Onyx user, so reading tells
+/// ODRS nothing about who looks at which app.
+const ANONYMOUS_HASH: &str = "0000000000000000000000000000000000000000";
+
+/// The user's ODRS id for posting: 40 random hex digits made once and kept in
+/// the settings. `None` when no randomness is available: never a guessable id.
+fn author_hash() -> Option<String> {
     let mut settings = crate::settings::load_settings();
     if let Some(h) = &settings.odrs_user_hash {
-        return h.clone();
+        return Some(h.clone());
     }
     let mut bytes = [0u8; 20];
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        let _ = std::io::Read::read_exact(&mut f, &mut bytes);
-    }
+    std::io::Read::read_exact(&mut std::fs::File::open("/dev/urandom").ok()?, &mut bytes).ok()?;
     let hash: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     settings.odrs_user_hash = Some(hash.clone());
-    let _ = crate::settings::save_settings(&settings);
-    hash
+    crate::settings::save_settings(&settings).ok()?;
+    Some(hash)
 }
 
 /// An ODRS review. `stars` is already converted from the API's 0–100 `rating`.
@@ -71,7 +73,7 @@ pub fn featured_review(reviews: &[Review]) -> Option<&Review> {
 
 fn fetch_reviews(app_id: &str, version: &str) -> Option<Vec<Review>> {
     let body = serde_json::json!({
-        "user_hash": user_hash(),
+        "user_hash": ANONYMOUS_HASH,
         "app_id": app_id,
         "locale": locale(),
         "distro": "NixOS",
@@ -144,7 +146,9 @@ pub fn submit_review(
     description: &str,
     author: &str,
 ) -> Result<(), String> {
-    let hash = user_hash();
+    let hash = author_hash().ok_or_else(|| {
+        crate::util::n_("No random source to create your reviewer id.").to_string()
+    })?;
     let fetched = crate::http::post_json(
         ENDPOINT,
         &serde_json::json!({
