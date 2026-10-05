@@ -174,7 +174,7 @@ fn dead_paths() -> std::io::Result<HashMap<String, PathInfo>> {
 
 /// Reads `nix path-info --json`: an object keyed by path (Nix 2.19+) or an
 /// array of objects with a `path` field (older Nix).
-fn parse_path_info(v: &serde_json::Value) -> HashMap<String, PathInfo> {
+pub(crate) fn parse_path_info(v: &serde_json::Value) -> HashMap<String, PathInfo> {
     let one = |o: &serde_json::Value| PathInfo {
         references: o["references"]
             .as_array()

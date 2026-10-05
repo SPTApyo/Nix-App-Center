@@ -88,7 +88,7 @@ pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest}
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use permissions::{safety, Safety};
-pub use profiles::{profile_apps, ProfileApp, Scope};
+pub use profiles::{installed_app, profile_apps, store_sizes, ProfileApp, Scope};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{featured_review, reviews_for, Review};

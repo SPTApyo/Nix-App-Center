@@ -507,6 +507,7 @@ mod tests {
         ProfileApp {
             scope: Scope::User,
             desktop_file: PathBuf::from(format!("{pname}.desktop")),
+            store_path: PathBuf::from(format!("/nix/store/x-{pname}")),
             pname: pname.into(),
             version: version.into(),
         }

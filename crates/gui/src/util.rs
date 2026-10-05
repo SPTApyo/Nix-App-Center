@@ -402,12 +402,14 @@ pub fn fallback_badge(pkg: &Package, px: i32) -> gtk::Widget {
     let tile = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     tile.set_size_request(px, px);
     tile.set_valign(gtk::Align::Center);
+    tile.set_halign(gtk::Align::Start);
+    tile.set_hexpand(false);
     tile.add_css_class("fallback-tile");
     tile.add_css_class("small");
     tile.add_css_class(class);
     let glyph = gtk::Image::from_icon_name(icon);
     glyph.set_pixel_size(px * 5 / 8);
-    glyph.set_hexpand(true);
+    glyph.set_size_request(px, px);
     glyph.add_css_class("fallback-glyph");
     tile.append(&glyph);
     tile.upcast()

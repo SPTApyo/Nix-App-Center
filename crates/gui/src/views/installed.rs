@@ -25,6 +25,8 @@ pub struct Item {
     /// Desktop file shipped by the package itself (tried apps).
     desktop_file: Option<PathBuf>,
     tried_at: Option<u64>,
+    /// Store paths the package fetched (tried apps).
+    paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -32,6 +34,19 @@ pub struct Data {
     kept: Vec<Item>,
     tried: Vec<Item>,
     profile: Vec<ProfileApp>,
+    sizes: std::collections::HashMap<PathBuf, u64>,
+}
+
+impl Data {
+    /// " · 120 MB" for the given paths, empty when unknown.
+    fn size_suffix<'a>(&self, paths: impl IntoIterator<Item = &'a PathBuf>) -> String {
+        let total: u64 = paths.into_iter().filter_map(|p| self.sizes.get(p)).sum();
+        if total == 0 {
+            String::new()
+        } else {
+            format!(" · {}", gtk::glib::format_size(total))
+        }
+    }
 }
 
 pub struct InstalledModel {
@@ -355,7 +370,10 @@ impl InstalledModel {
                 .profile
                 .iter()
                 .filter(|a| a.scope == scope && !kept_attrs.contains(&a.pname.to_lowercase()))
-                .filter_map(|a| util::desktop_row(&a.desktop_file, &a.version))
+                .filter_map(|a| {
+                    let sub = a.version.clone() + &data.size_suffix([&a.store_path]);
+                    util::desktop_row(&a.desktop_file, &sub)
+                })
                 .map(|row| {
                     row.add_css_class("dim-label");
                     row.upcast()
@@ -508,10 +526,19 @@ fn load_data() -> Data {
         .into_iter()
         .map(|e| (e.package, Some(e.last_tried), e.out_paths))
         .collect();
+    let kept = with_icons(kept);
+    let tried = with_icons(tried);
+    let profile = onyx_core::profile_apps();
+    let paths: Vec<PathBuf> = profile
+        .iter()
+        .map(|a| a.store_path.clone())
+        .chain(tried.iter().flat_map(|i| i.paths.clone()))
+        .collect();
     Data {
-        kept: with_icons(kept),
-        tried: with_icons(tried),
-        profile: onyx_core::profile_apps(),
+        sizes: onyx_core::store_sizes(&paths),
+        kept,
+        tried,
+        profile,
     }
 }
 
@@ -532,6 +559,7 @@ fn with_icons(entries: Vec<(Package, Option<u64>, Vec<String>)>) -> Vec<Item> {
                             .as_deref()
                             .and_then(onyx_core::cached_fetch_bytes),
                         desktop_file: out_paths.iter().find_map(|p| first_desktop(Path::new(p))),
+                        paths: out_paths.iter().map(PathBuf::from).collect(),
                         package,
                         tried_at,
                     }

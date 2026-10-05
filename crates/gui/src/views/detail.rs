@@ -61,6 +61,8 @@ pub struct DetailModel {
     package: Package,
     meta: Option<AppMeta>,
     loading: bool,
+    /// Desktop file when a Nix profile already holds the app.
+    installed: Option<std::path::PathBuf>,
     kept: bool,
     icon_tex: Option<gtk::gdk::Texture>,
     // Closure size (Storage tile) and permissions (Safety tile) are slower
@@ -115,6 +117,8 @@ pub enum DetailMsg {
     DismissShot,
     /// Split button main part: run a GUI app, open a shell for a CLI tool.
     Primary,
+    /// Launch the copy a Nix profile already holds.
+    Open,
     /// Menu entry holding the launch mode the primary did not take.
     AltLaunch,
     Run,
@@ -397,10 +401,18 @@ impl SimpleComponent for DetailModel {
 
                                                     adw::SplitButton {
                                                         #[watch]
-                                                        set_label: &if model.cli_first() { t("Try in a _Shell") } else { t("_Run") },
+                                                        set_label: &if model.installed.is_some() {
+                                                            t("_Open")
+                                                        } else if model.cli_first() {
+                                                            t("Try in a _Shell")
+                                                        } else {
+                                                            t("_Run")
+                                                        },
                                                         set_use_underline: true,
                                                         #[watch]
-                                                        set_tooltip_text: Some(&if model.cli_first() {
+                                                        set_tooltip_text: Some(&if model.installed.is_some() {
+                                                            t("Open the installed app")
+                                                        } else if model.cli_first() {
                                                             t("Open a terminal with this package available (nix shell)")
                                                         } else {
                                                             t("Run without installing (nix run)")
@@ -782,6 +794,7 @@ impl SimpleComponent for DetailModel {
             package: pkg.clone(),
             meta: None,
             loading: true,
+            installed: onyx_core::installed_app(&pkg.attr, None).map(|a| a.desktop_file),
             kept,
             icon_tex,
             size_loaded: false,
@@ -896,6 +909,11 @@ impl SimpleComponent for DetailModel {
                 let meta = *meta;
                 self.loading = false;
                 self.stack.set_visible_child_name("ready");
+                if self.installed.is_none() {
+                    self.installed =
+                        onyx_core::installed_app(&self.package.attr, meta.app_id.as_deref())
+                            .map(|a| a.desktop_file);
+                }
                 // Without an AppStream id there are no permissions to wait for.
                 self.safety_loaded = meta.app_id.is_none();
 
@@ -1085,8 +1103,23 @@ impl SimpleComponent for DetailModel {
             DetailMsg::DismissShot => {
                 self.lightbox_visible = false;
             }
+            DetailMsg::Open => {
+                use gtk::gio::prelude::AppInfoExt;
+                let launched = self
+                    .installed
+                    .as_ref()
+                    .and_then(gtk::gio::DesktopAppInfo::from_filename)
+                    .is_some_and(|app| {
+                        app.launch(&[], None::<&gtk::gio::AppLaunchContext>).is_ok()
+                    });
+                if !launched {
+                    crate::util::toast(&self.toast_overlay, &t("Could not open the app."));
+                }
+            }
             DetailMsg::Primary => {
-                sender.input(if self.cli_first() {
+                sender.input(if self.installed.is_some() {
+                    DetailMsg::Open
+                } else if self.cli_first() {
                     DetailMsg::Shell
                 } else {
                     DetailMsg::Run

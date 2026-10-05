@@ -19,6 +19,8 @@ pub enum Scope {
 pub struct ProfileApp {
     pub scope: Scope,
     pub desktop_file: PathBuf,
+    /// Store path of the package that ships the desktop file.
+    pub store_path: PathBuf,
     pub pname: String,
     pub version: String,
 }
@@ -56,6 +58,43 @@ pub fn profile_apps() -> Vec<ProfileApp> {
     out
 }
 
+/// The installed app matching a package, by pname or by desktop id.
+pub fn installed_app(attr: &str, app_id: Option<&str>) -> Option<ProfileApp> {
+    let pname = attr.rsplit('.').next().unwrap_or(attr);
+    profile_apps().into_iter().find(|a| {
+        a.pname.eq_ignore_ascii_case(pname)
+            || app_id.is_some_and(|id| {
+                a.desktop_file
+                    .file_stem()
+                    .is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(id))
+            })
+    })
+}
+
+/// Own size (NAR size) of each store path, in one query.
+pub fn store_sizes(paths: &[PathBuf]) -> std::collections::HashMap<PathBuf, u64> {
+    if paths.is_empty() {
+        return Default::default();
+    }
+    let out = std::process::Command::new("nix")
+        .args([
+            "path-info",
+            "--json",
+            "--extra-experimental-features",
+            "nix-command",
+        ])
+        .args(paths)
+        .output();
+    let Ok(out) = out else {
+        return Default::default();
+    };
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_default();
+    crate::tried::parse_path_info(&v)
+        .into_iter()
+        .map(|(p, i)| (PathBuf::from(p), i.nar_size))
+        .collect()
+}
+
 fn apps_in(dir: &Path, scope: Scope) -> Vec<ProfileApp> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -68,9 +107,16 @@ fn apps_in(dir: &Path, scope: Scope) -> Vec<ProfileApp> {
         .filter_map(|desktop_file| {
             let target = std::fs::canonicalize(&desktop_file).ok()?;
             let (pname, version) = store_name(&target)?;
+            let top = target
+                .strip_prefix("/nix/store")
+                .ok()?
+                .components()
+                .next()?;
+            let store_path = Path::new("/nix/store").join(top);
             Some(ProfileApp {
                 scope,
                 desktop_file,
+                store_path,
                 pname,
                 version,
             })
