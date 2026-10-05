@@ -37,60 +37,67 @@ Facts Onyx can rely on without evaluating anything:
   keep-outputs and keep-derivations set, the deriver .drv must be deleted
   together with its outputs.
 
-## Missing compared to GNOME Software
+## Compared to GNOME Software
 
-- Installed list with one row per app, size and an uninstall button.
-- Real updates: what changes, one button to update, notifications, automatic
-  checks in the background.
-- Update preferences (automatic updates, metered connections).
-- Software repositories dialog (here: nixpkgs branch, flake inputs).
-- System upgrade banner when a new NixOS release is out.
-- Storage usage per app (installed size, cache, data).
-- Launch an installed app from its page ("Open" button).
+Done:
+
+- Installed list with one row per app, its size, and a remove button for what
+  Onyx owns (kept, tried, nix profile).
+- Updates: what changes per app, one button to update, a daily background
+  check with a notification and a badge, a preference to turn it off.
+- Banner when a newer NixOS release is out.
+- "Open" on the page of an app already installed.
 - GNOME Shell search provider.
-- Writing reviews (ODRS) and reporting a review.
-- Firmware updates (fwupd), web apps. Out of scope for Onyx.
+- Writing reviews to ODRS.
 
-## Missing compared to nix-software-center
+Missing:
 
-- Settings page: config path, flake path, flake attribute, override of the
-  detection.
-- In-app progress of a rebuild (it shows the build output in a dialog).
-- Updating the system channel or flake inputs from the app.
-- Installing to nix profile / nix-env for users without a managed config.
-- Searching options (it ships nixos-conf-editor next to it).
+- Cache and data usage per app (only the package size is shown).
+- Metered connection awareness for the background check.
+- Reporting or voting on a review.
+- Firmware updates (fwupd) and web apps: out of scope for Onyx.
 
-## Current problems in Onyx
+## Compared to nix-software-center
 
-Fixed in this round:
+Done:
+
+- Preferences: configuration folder, host, a check of the detection by Nix
+  itself.
+- Rebuild progress inside the app (pkexec and a live build log).
+- Updating the system channel or the nixpkgs flake input from the app.
+- Installing with nix profile when no configuration is managed.
+- NixOS option search.
+
+## Problems fixed
 
 - Installed only showed what Onyx itself recorded, not what is on the machine.
-- A tried app could not be removed alone. The only option was a full
-  nix-collect-garbage of the whole store.
-- Tried apps could show the generic icon. The AppStream file was downloaded
-  again before loading once it was a day old, so the first listing fell back on
-  the network and stayed poor.
-- Updates compared the version saved when keeping a package with the registry
-  nixpkgs (usually unstable), not with the nixpkgs the config is pinned to. It
-  had no action. It was useless.
-- "Free Up Space" stayed visible with an empty history.
+- A tried app could not be removed alone.
+- AppStream icons: the sharpest variant was picked even when Flathub does not
+  host it (VLC), now smaller ones are tried in turn. The daily AppStream
+  refresh no longer blocks the start.
+- Updates compared against the registry nixpkgs and had no action.
+- Run, search and details used the registry nixpkgs while Keep used the
+  config nixpkgs. They now all use the revision the config is pinned to.
+- Copy Command lacked NIXPKGS_ALLOW_UNFREE for unfree packages.
+- Generated files were invisible to a flake in a git repository. Onyx now runs
+  git add --intent-to-add on them.
+- The safety tile showed the Flatpak sandbox permissions, which do not apply
+  to a Nix package. It now says the app is not sandboxed.
+- Command search passed an option nix-locate does not know and never worked.
+- Reviews never loaded: ODRS rejects a request without a version.
+- A name match could pick an app the overlay pins to another attribute
+  (zoom, the Z-code player, showed Zoom's ratings).
+- Packages without an icon all looked the same. They now get a glyph and a
+  color per family (game, audio, development, library…).
 
-Still open:
+## Still open
 
-- Run uses the registry nixpkgs while Keep uses the config nixpkgs, so the
-  version you try is not always the version you get.
-- Copy Command gives nix run nixpkgs#x without NIXPKGS_ALLOW_UNFREE, so it
-  fails for unfree packages.
-- A flake inside a git repository only sees tracked files. Onyx does not run
-  git add --intent-to-add on the files it creates.
-- Apply runs in a terminal (sudo needs a tty). There is no progress inside the
-  app and no polkit flow.
-- Layout detection scans text. Layouts built from another flake (extendModules,
-  flake-parts, multiple hosts with shared modules) are guessed, never parsed.
-- nix-locate (nix-index) is optional and missing on most machines, so the
-  "which package provides this command" search is dead there.
-- The safety tile needs Flatpak permission data: apps that are not on Flathub
-  show "unknown".
-- Search runs nix search on the registry nixpkgs: slow the first time, and
-  again after each nixpkgs update.
-- Reviews are read only.
+- Layout detection scans text. Preferences let the user correct it and check
+  it with Nix, but layouts built from another flake are still guessed.
+- When nixpkgs comes through another flake input, Onyx explains it but cannot
+  update that flake.
+- The first search downloads nixpkgs when the config revision is not in the
+  local cache.
+- GNOME Shell only finds the search provider when Onyx is installed in a
+  profile that links share/gnome-shell/search-providers (the NixOS GNOME
+  module does).

@@ -127,6 +127,26 @@ Updating moves the pin and applies the config in one terminal command. When
 nixpkgs comes through another flake input, Onyx says which one and does not
 touch it.
 
+## Applying, settings and integration
+
+Every apply or update runs through one dialog that streams the command
+output. A command that starts with sudo runs with pkexec instead, so the
+password prompt is graphical and the build stays in the app; without pkexec
+it falls back on a terminal.
+
+Settings live in `$XDG_CONFIG_HOME/onyx/settings.json`: configuration folder
+and host overrides, the daily update check, and the random id used only when
+posting a review (reading reviews is anonymous). ONYX_CONFIG_DIR, used by the
+tests, bypasses the saved overrides.
+
+Without a managed configuration, Keep installs with nix profile instead.
+Packages without an AppStream icon get a glyph and a color from a rough
+guess of their family (package set, then description words).
+
+The GNOME Shell search provider answers from the local AppStream database
+only, so it never waits on the network; activating a result resolves it to
+nixpkgs and opens its page.
+
 ## Details page
 
 The details page copies the layout of GNOME Software's `gs-details-page.ui`

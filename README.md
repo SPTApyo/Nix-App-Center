@@ -22,6 +22,10 @@ diff. A backup is written before any change.
   from the store) and the apps your system and user profiles already hold.
 - Updates shows the nixpkgs revision your config is pinned to, what the
   branch head changes for your apps, and updates in one click.
+- Search packages, apps and NixOS options. Optional search by command.
+- Apply and update inside the app, with a live build log.
+- Write reviews, find Onyx apps from the GNOME Shell overview.
+- Without a managed configuration, install for your user with nix profile.
 - English and French interface.
 
 ## Build and run
