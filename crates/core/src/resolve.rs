@@ -93,8 +93,14 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir); // empty user overlay, falls back on community
 
-        assert_eq!(resolve_app_id("firefox").as_deref(), Some("org.mozilla.firefox"));
-        assert_eq!(resolve_app_id("discord").as_deref(), Some("com.discordapp.Discord"));
+        assert_eq!(
+            resolve_app_id("firefox").as_deref(),
+            Some("org.mozilla.firefox")
+        );
+        assert_eq!(
+            resolve_app_id("discord").as_deref(),
+            Some("com.discordapp.Discord")
+        );
         // Disambiguation: gimp must give the app id, not an add-on.
         assert_eq!(resolve_app_id("gimp").as_deref(), Some("org.gimp.GIMP"));
         assert_eq!(resolve_app_id("attr-inexistant-xyz"), None);
@@ -113,11 +119,17 @@ mod tests {
 
         // The user reports a mapping: it persists and resolves.
         report_mapping("my-own-app", "com.example.MyApp").unwrap();
-        assert_eq!(resolve_app_id("my-own-app").as_deref(), Some("com.example.MyApp"));
+        assert_eq!(
+            resolve_app_id("my-own-app").as_deref(),
+            Some("com.example.MyApp")
+        );
 
         // And it wins over the community overlay.
         report_mapping("firefox", "org.mozilla.firefox.custom").unwrap();
-        assert_eq!(resolve_app_id("firefox").as_deref(), Some("org.mozilla.firefox.custom"));
+        assert_eq!(
+            resolve_app_id("firefox").as_deref(),
+            Some("org.mozilla.firefox.custom")
+        );
 
         std::env::remove_var("XDG_DATA_HOME");
     }
@@ -129,8 +141,14 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
 
-        assert_eq!(attr_for_app_id("com.visualstudio.code").as_deref(), Some("vscode"));
-        assert_eq!(attr_for_app_id("COM.VISUALSTUDIO.CODE").as_deref(), Some("vscode"));
+        assert_eq!(
+            attr_for_app_id("com.visualstudio.code").as_deref(),
+            Some("vscode")
+        );
+        assert_eq!(
+            attr_for_app_id("COM.VISUALSTUDIO.CODE").as_deref(),
+            Some("vscode")
+        );
         assert_eq!(attr_for_app_id("org.example.Unknown"), None);
 
         std::env::remove_var("XDG_DATA_HOME");

@@ -40,35 +40,224 @@ const CSM: &[(&str, [u32; 4])] = &[
 /// (id, [none, mild, moderate, intense]): human description (verbatim
 /// libappstream). `None` = undefined value.
 const DESC: &[(&str, [Option<&str>; 4])] = &[
-    ("violence-cartoon", [Some(n_("No cartoon violence")), Some(n_("Cartoon characters in unsafe situations")), Some(n_("Cartoon characters in aggressive conflict")), Some(n_("Graphic violence involving cartoon characters"))]),
-    ("violence-fantasy", [Some(n_("No fantasy violence")), Some(n_("Characters in unsafe situations easily distinguishable from reality")), Some(n_("Characters in aggressive conflict easily distinguishable from reality")), Some(n_("Graphic violence easily distinguishable from reality"))]),
-    ("violence-realistic", [Some(n_("No realistic violence")), Some(n_("Mildly realistic characters in unsafe situations")), Some(n_("Depictions of realistic characters in aggressive conflict")), Some(n_("Graphic violence involving realistic characters"))]),
-    ("violence-bloodshed", [Some(n_("No bloodshed")), Some(n_("Unrealistic bloodshed")), Some(n_("Realistic bloodshed")), Some(n_("Depictions of bloodshed and the mutilation of body parts"))]),
-    ("violence-sexual", [Some(n_("No sexual violence")), None, None, Some(n_("Rape or other violent sexual behavior"))]),
-    ("drugs-alcohol", [Some(n_("No references to alcohol")), Some(n_("References to alcoholic beverages")), Some(n_("Use of alcoholic beverages")), None]),
-    ("drugs-narcotics", [Some(n_("No references to illicit drugs")), Some(n_("References to illicit drugs")), Some(n_("Use of illicit drugs")), None]),
-    ("drugs-tobacco", [Some(n_("No references to tobacco products")), Some(n_("References to tobacco products")), Some(n_("Use of tobacco products")), None]),
-    ("sex-nudity", [Some(n_("No nudity of any sort")), Some(n_("Brief artistic nudity")), Some(n_("Prolonged nudity")), Some(n_("Explicit nudity involving visible sexual organs"))]),
-    ("sex-themes", [Some(n_("No references to or depictions of sexual nature")), Some(n_("Provocative references or depictions")), Some(n_("Sexual references or depictions")), Some(n_("Graphic sexual behavior"))]),
-    ("language-profanity", [Some(n_("No profanity of any kind")), Some(n_("Mild or infrequent use of profanity")), Some(n_("Moderate use of profanity")), Some(n_("Strong or frequent use of profanity"))]),
-    ("language-humor", [Some(n_("No inappropriate humor")), Some(n_("Slapstick humor")), Some(n_("Vulgar or bathroom humor")), Some(n_("Mature or sexual humor"))]),
-    ("language-discrimination", [Some(n_("No discriminatory language of any kind")), Some(n_("Negativity towards a specific group of people")), Some(n_("Discrimination designed to cause emotional harm")), Some(n_("Explicit discrimination based on gender, sexuality, race or religion"))]),
-    ("money-advertising", [Some(n_("No advertising of any kind")), Some(n_("Product placement")), Some(n_("Explicit references to specific brands or trademarked products")), Some(n_("Users are encouraged to purchase specific real-world items"))]),
-    ("money-gambling", [Some(n_("No gambling of any kind")), Some(n_("Gambling on random events using tokens or credits")), Some(n_("Gambling using \"play\" money")), Some(n_("Gambling using real money"))]),
-    ("money-purchasing", [Some(n_("No ability to spend money")), Some(n_("Users are encouraged to donate real money")), None, Some(n_("Ability to spend real money in-app"))]),
-    ("social-chat", [Some(n_("No way to chat with other users")), Some(n_("User-to-user interactions without chat functionality")), Some(n_("Moderated chat functionality between users")), Some(n_("Uncontrolled chat functionality between users"))]),
-    ("social-audio", [Some(n_("No way to talk with other users")), None, Some(n_("Moderated audio or video chat functionality between users")), Some(n_("Uncontrolled audio or video chat functionality between users"))]),
-    ("social-contacts", [Some(n_("No sharing of social network usernames or email addresses")), None, None, Some(n_("Sharing social network usernames or email addresses"))]),
-    ("social-info", [Some(n_("No sharing of user information with third parties")), Some(n_("Checking for the latest application version")), Some(n_("Sharing diagnostic data that does not let others identify the user")), Some(n_("Sharing information that lets others identify the user"))]),
-    ("social-location", [Some(n_("No sharing of physical location with other users")), None, None, Some(n_("Sharing physical location with other users"))]),
+    (
+        "violence-cartoon",
+        [
+            Some(n_("No cartoon violence")),
+            Some(n_("Cartoon characters in unsafe situations")),
+            Some(n_("Cartoon characters in aggressive conflict")),
+            Some(n_("Graphic violence involving cartoon characters")),
+        ],
+    ),
+    (
+        "violence-fantasy",
+        [
+            Some(n_("No fantasy violence")),
+            Some(n_(
+                "Characters in unsafe situations easily distinguishable from reality",
+            )),
+            Some(n_(
+                "Characters in aggressive conflict easily distinguishable from reality",
+            )),
+            Some(n_("Graphic violence easily distinguishable from reality")),
+        ],
+    ),
+    (
+        "violence-realistic",
+        [
+            Some(n_("No realistic violence")),
+            Some(n_("Mildly realistic characters in unsafe situations")),
+            Some(n_(
+                "Depictions of realistic characters in aggressive conflict",
+            )),
+            Some(n_("Graphic violence involving realistic characters")),
+        ],
+    ),
+    (
+        "violence-bloodshed",
+        [
+            Some(n_("No bloodshed")),
+            Some(n_("Unrealistic bloodshed")),
+            Some(n_("Realistic bloodshed")),
+            Some(n_(
+                "Depictions of bloodshed and the mutilation of body parts",
+            )),
+        ],
+    ),
+    (
+        "violence-sexual",
+        [
+            Some(n_("No sexual violence")),
+            None,
+            None,
+            Some(n_("Rape or other violent sexual behavior")),
+        ],
+    ),
+    (
+        "drugs-alcohol",
+        [
+            Some(n_("No references to alcohol")),
+            Some(n_("References to alcoholic beverages")),
+            Some(n_("Use of alcoholic beverages")),
+            None,
+        ],
+    ),
+    (
+        "drugs-narcotics",
+        [
+            Some(n_("No references to illicit drugs")),
+            Some(n_("References to illicit drugs")),
+            Some(n_("Use of illicit drugs")),
+            None,
+        ],
+    ),
+    (
+        "drugs-tobacco",
+        [
+            Some(n_("No references to tobacco products")),
+            Some(n_("References to tobacco products")),
+            Some(n_("Use of tobacco products")),
+            None,
+        ],
+    ),
+    (
+        "sex-nudity",
+        [
+            Some(n_("No nudity of any sort")),
+            Some(n_("Brief artistic nudity")),
+            Some(n_("Prolonged nudity")),
+            Some(n_("Explicit nudity involving visible sexual organs")),
+        ],
+    ),
+    (
+        "sex-themes",
+        [
+            Some(n_("No references to or depictions of sexual nature")),
+            Some(n_("Provocative references or depictions")),
+            Some(n_("Sexual references or depictions")),
+            Some(n_("Graphic sexual behavior")),
+        ],
+    ),
+    (
+        "language-profanity",
+        [
+            Some(n_("No profanity of any kind")),
+            Some(n_("Mild or infrequent use of profanity")),
+            Some(n_("Moderate use of profanity")),
+            Some(n_("Strong or frequent use of profanity")),
+        ],
+    ),
+    (
+        "language-humor",
+        [
+            Some(n_("No inappropriate humor")),
+            Some(n_("Slapstick humor")),
+            Some(n_("Vulgar or bathroom humor")),
+            Some(n_("Mature or sexual humor")),
+        ],
+    ),
+    (
+        "language-discrimination",
+        [
+            Some(n_("No discriminatory language of any kind")),
+            Some(n_("Negativity towards a specific group of people")),
+            Some(n_("Discrimination designed to cause emotional harm")),
+            Some(n_(
+                "Explicit discrimination based on gender, sexuality, race or religion",
+            )),
+        ],
+    ),
+    (
+        "money-advertising",
+        [
+            Some(n_("No advertising of any kind")),
+            Some(n_("Product placement")),
+            Some(n_(
+                "Explicit references to specific brands or trademarked products",
+            )),
+            Some(n_(
+                "Users are encouraged to purchase specific real-world items",
+            )),
+        ],
+    ),
+    (
+        "money-gambling",
+        [
+            Some(n_("No gambling of any kind")),
+            Some(n_("Gambling on random events using tokens or credits")),
+            Some(n_("Gambling using \"play\" money")),
+            Some(n_("Gambling using real money")),
+        ],
+    ),
+    (
+        "money-purchasing",
+        [
+            Some(n_("No ability to spend money")),
+            Some(n_("Users are encouraged to donate real money")),
+            None,
+            Some(n_("Ability to spend real money in-app")),
+        ],
+    ),
+    (
+        "social-chat",
+        [
+            Some(n_("No way to chat with other users")),
+            Some(n_("User-to-user interactions without chat functionality")),
+            Some(n_("Moderated chat functionality between users")),
+            Some(n_("Uncontrolled chat functionality between users")),
+        ],
+    ),
+    (
+        "social-audio",
+        [
+            Some(n_("No way to talk with other users")),
+            None,
+            Some(n_(
+                "Moderated audio or video chat functionality between users",
+            )),
+            Some(n_(
+                "Uncontrolled audio or video chat functionality between users",
+            )),
+        ],
+    ),
+    (
+        "social-contacts",
+        [
+            Some(n_(
+                "No sharing of social network usernames or email addresses",
+            )),
+            None,
+            None,
+            Some(n_("Sharing social network usernames or email addresses")),
+        ],
+    ),
+    (
+        "social-info",
+        [
+            Some(n_("No sharing of user information with third parties")),
+            Some(n_("Checking for the latest application version")),
+            Some(n_(
+                "Sharing diagnostic data that does not let others identify the user",
+            )),
+            Some(n_("Sharing information that lets others identify the user")),
+        ],
+    ),
+    (
+        "social-location",
+        [
+            Some(n_("No sharing of physical location with other users")),
+            None,
+            None,
+            Some(n_("Sharing physical location with other users")),
+        ],
+    ),
 ];
 
 /// Territories using PEGI (European subset; IARC otherwise).
 const PEGI: &[&str] = &[
-    "AL", "AD", "AT", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
-    "DE", "GR", "HU", "IS", "IE", "IL", "IT", "LV", "LI", "LT", "LU", "MT", "MD",
-    "MC", "ME", "NL", "MK", "NO", "PL", "PT", "RO", "RS", "SK", "SI", "ES", "SE",
-    "CH", "UA", "GB", "ZA",
+    "AL", "AD", "AT", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU",
+    "IS", "IE", "IL", "IT", "LV", "LI", "LT", "LU", "MT", "MD", "MC", "ME", "NL", "MK", "NO", "PL",
+    "PT", "RO", "RS", "SK", "SI", "ES", "SE", "CH", "UA", "GB", "ZA",
 ];
 
 fn value_index(v: &str) -> usize {
@@ -85,7 +274,10 @@ fn territory() -> Option<String> {
         if let Ok(v) = std::env::var(var) {
             // e.g. "fr_FR.UTF-8" → "FR"
             if let Some((_, rest)) = v.split_once('_') {
-                let terr: String = rest.chars().take_while(|c| c.is_ascii_alphabetic()).collect();
+                let terr: String = rest
+                    .chars()
+                    .take_while(|c| c.is_ascii_alphabetic())
+                    .collect();
                 if !terr.is_empty() {
                     return Some(terr.to_uppercase());
                 }
@@ -102,7 +294,12 @@ pub fn rating(oars: &[(String, String)]) -> Option<(String, Vec<String>)> {
         return None;
     }
 
-    let csm = |id: &str, idx: usize| CSM.iter().find(|(i, _)| *i == id).map(|(_, a)| a[idx]).unwrap_or(0);
+    let csm = |id: &str, idx: usize| {
+        CSM.iter()
+            .find(|(i, _)| *i == id)
+            .map(|(_, a)| a[idx])
+            .unwrap_or(0)
+    };
 
     // Minimal age = max CSM age of the set attributes.
     let min_age = oars
@@ -129,7 +326,9 @@ pub fn rating(oars: &[(String, String)]) -> Option<(String, Vec<String>)> {
 
 /// Formats a CSM age for the regional system: PEGI ("12") or IARC ("12+").
 fn format_age(age: u32) -> String {
-    let pegi = territory().map(|t| PEGI.contains(&t.as_str())).unwrap_or(false);
+    let pegi = territory()
+        .map(|t| PEGI.contains(&t.as_str()))
+        .unwrap_or(false);
     let bucket = if age >= 18 {
         18
     } else if age >= 16 {
@@ -153,7 +352,10 @@ mod tests {
     use super::*;
 
     fn oars(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
-        pairs.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
     }
 
     #[test]
@@ -171,7 +373,10 @@ mod tests {
         assert_eq!(age, "12", "PEGI (FR): 15 → bucket 12");
         // Sorted by severity: the age-15 ones (money/audio) first.
         assert_eq!(descs[0], "Ability to spend real money in-app");
-        assert_eq!(descs[1], "Uncontrolled audio or video chat functionality between users");
+        assert_eq!(
+            descs[1],
+            "Uncontrolled audio or video chat functionality between users"
+        );
         std::env::remove_var("LC_ALL");
     }
 

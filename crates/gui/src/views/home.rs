@@ -3,9 +3,9 @@
 //! scroll/clamp (max 1000, tightening 600).
 
 use adw::prelude::*;
+use onyx_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
-use onyx_core::Package;
 
 use crate::components::{AppTile, FeaturedCarousel, FeaturedInput};
 use crate::i18n::{n_, t};
@@ -21,12 +21,42 @@ struct CategoryInfo {
 
 // Same scheme as GNOME Software (order, labels and unions).
 const CATEGORIES: &[CategoryInfo] = &[
-    CategoryInfo { label: n_("Create"),    icon_name: "org.gnome.Software.Create",    css_class: "category-create",    cats: &["graphics", "audiovideo"] },
-    CategoryInfo { label: n_("Work"),      icon_name: "org.gnome.Software.Work",      css_class: "category-work",      cats: &["office", "utility"] },
-    CategoryInfo { label: n_("Play"),      icon_name: "org.gnome.Software.Play",      css_class: "category-play",      cats: &["game"] },
-    CategoryInfo { label: n_("Socialize"), icon_name: "org.gnome.Software.Socialize", css_class: "category-socialize", cats: &["network"] },
-    CategoryInfo { label: n_("Learn"),     icon_name: "org.gnome.Software.Learn",     css_class: "category-learn",     cats: &["education", "science"] },
-    CategoryInfo { label: n_("Develop"),   icon_name: "org.gnome.Software.Develop",   css_class: "category-develop",   cats: &["development"] },
+    CategoryInfo {
+        label: n_("Create"),
+        icon_name: "org.gnome.Software.Create",
+        css_class: "category-create",
+        cats: &["graphics", "audiovideo"],
+    },
+    CategoryInfo {
+        label: n_("Work"),
+        icon_name: "org.gnome.Software.Work",
+        css_class: "category-work",
+        cats: &["office", "utility"],
+    },
+    CategoryInfo {
+        label: n_("Play"),
+        icon_name: "org.gnome.Software.Play",
+        css_class: "category-play",
+        cats: &["game"],
+    },
+    CategoryInfo {
+        label: n_("Socialize"),
+        icon_name: "org.gnome.Software.Socialize",
+        css_class: "category-socialize",
+        cats: &["network"],
+    },
+    CategoryInfo {
+        label: n_("Learn"),
+        icon_name: "org.gnome.Software.Learn",
+        css_class: "category-learn",
+        cats: &["education", "science"],
+    },
+    CategoryInfo {
+        label: n_("Develop"),
+        icon_name: "org.gnome.Software.Develop",
+        css_class: "category-develop",
+        cats: &["development"],
+    },
 ];
 
 type Items = Vec<(Package, Option<String>)>;
@@ -166,7 +196,11 @@ impl SimpleComponent for HomeModel {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let carousel = FeaturedCarousel::builder()
             .launch(())
             .forward(sender.input_sender(), HomeMsg::Open);
@@ -229,7 +263,9 @@ impl SimpleComponent for HomeModel {
         });
         let s2 = sender.input_sender().clone();
         std::thread::spawn(move || {
-            let _ = s2.send(HomeMsg::RecentLoaded(onyx_core::recently_updated_packages(20)));
+            let _ = s2.send(HomeMsg::RecentLoaded(onyx_core::recently_updated_packages(
+                20,
+            )));
         });
 
         ComponentParts { model, widgets }
@@ -271,7 +307,10 @@ impl SimpleComponent for HomeModel {
 }
 
 fn build_category_button(cat: &CategoryInfo, sender: &ComponentSender<HomeModel>) -> gtk::Button {
-    let img = gtk::Image::builder().icon_name(cat.icon_name).pixel_size(32).build();
+    let img = gtk::Image::builder()
+        .icon_name(cat.icon_name)
+        .pixel_size(32)
+        .build();
     img.add_css_class("icon-dropshadow");
     let lbl = gtk::Label::builder()
         .label(t(cat.label))

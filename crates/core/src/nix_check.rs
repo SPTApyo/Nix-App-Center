@@ -31,8 +31,7 @@ pub fn parse_block(block: &str) -> Result<(), String> {
     // concurrent checks sharing a temp file delete it under each other.
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path =
-        std::env::temp_dir().join(format!("onyx-parse-{}-{n}.nix", std::process::id()));
+    let path = std::env::temp_dir().join(format!("onyx-parse-{}-{n}.nix", std::process::id()));
     std::fs::write(&path, wrap(block)).map_err(|e| e.to_string())?;
 
     let out = Command::new("nix-instantiate")
@@ -88,9 +87,7 @@ fn dry_argv(layout: &Layout) -> Option<Vec<String>> {
             "--flake".into(),
             format!("{}#{}", dir.display(), host),
         ]),
-        LayoutKind::NixosLegacy { .. } => {
-            Some(vec!["nixos-rebuild".into(), "dry-build".into()])
-        }
+        LayoutKind::NixosLegacy { .. } => Some(vec!["nixos-rebuild".into(), "dry-build".into()]),
         LayoutKind::HmFlake { dir, user } => Some(vec![
             "home-manager".into(),
             "build".into(),
@@ -110,7 +107,9 @@ fn dry_argv(layout: &Layout) -> Option<Vec<String>> {
 pub fn dry_build() -> DryRun {
     let layout = crate::config_layout::detect();
     let Some(argv) = dry_argv(&layout) else {
-        return DryRun::Unavailable(crate::util::n_("Onyx cannot find your Nix configuration.").into());
+        return DryRun::Unavailable(
+            crate::util::n_("Onyx cannot find your Nix configuration.").into(),
+        );
     };
 
     let out = match Command::new(&argv[0]).args(&argv[1..]).output() {

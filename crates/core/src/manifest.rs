@@ -29,7 +29,11 @@ pub struct KeptEntry {
 
 impl KeptEntry {
     pub fn simple(package: Package) -> Self {
-        Self { package, home_nix: None, system_nix: None }
+        Self {
+            package,
+            home_nix: None,
+            system_nix: None,
+        }
     }
 
     /// True when the user took over this app's Nix.
@@ -112,7 +116,11 @@ pub fn set_blocks(
             e.home_nix = home_nix;
             e.system_nix = system_nix;
         }
-        None => m.kept.push(KeptEntry { package: pkg.clone(), home_nix, system_nix }),
+        None => m.kept.push(KeptEntry {
+            package: pkg.clone(),
+            home_nix,
+            system_nix,
+        }),
     }
     save_manifest(&m)?;
     config_gen::sync_config(&m.kept)

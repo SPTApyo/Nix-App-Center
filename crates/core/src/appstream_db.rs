@@ -17,7 +17,7 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
-use quick_xml::{Reader, events::Event};
+use quick_xml::{events::Event, Reader};
 
 use crate::package::Package;
 
@@ -365,7 +365,8 @@ fn build_db(all: Vec<Entry>) -> Db {
     // no match. So any suffix seen more than once is removed from the
     // HashMap. Same policy for NAMES: two apps with the same name, neither
     // matches by name.
-    let mut ambiguous_suffixes: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut ambiguous_suffixes: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     let mut ambiguous_names: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (i, e) in entries.iter().enumerate() {
@@ -410,7 +411,15 @@ fn build_db(all: Vec<Entry>) -> Db {
         }
     }
 
-    Db { entries, by_suffix, by_name, by_id, addons, by_extends, by_developer }
+    Db {
+        entries,
+        by_suffix,
+        by_name,
+        by_id,
+        addons,
+        by_extends,
+        by_developer,
+    }
 }
 
 // ── XML parser ────────────────────────────────────────────────────────────────
@@ -531,8 +540,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     Err(_) => continue,
                 };
 
-                let has_lang =
-                    e.attributes().flatten().any(|a| a.key.as_ref() == b"xml:lang");
+                let has_lang = e
+                    .attributes()
+                    .flatten()
+                    .any(|a| a.key.as_ref() == b"xml:lang");
 
                 // Inside a description: collect the raw text
                 if in_desc && tag != "description" {
@@ -558,8 +569,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     "components" => {
                         for attr in e.attributes().flatten() {
                             if attr.key.as_ref() == b"media_baseurl" {
-                                media_base =
-                                    String::from_utf8_lossy(&attr.value).into_owned();
+                                media_base = String::from_utf8_lossy(&attr.value).into_owned();
                             }
                         }
                     }
@@ -632,13 +642,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                         for attr in e.attributes().flatten() {
                             match attr.key.as_ref() {
                                 b"type" => {
-                                    itype =
-                                        String::from_utf8_lossy(&attr.value).into_owned()
+                                    itype = String::from_utf8_lossy(&attr.value).into_owned()
                                 }
                                 b"width" => {
-                                    w = String::from_utf8_lossy(&attr.value)
-                                        .parse()
-                                        .unwrap_or(0)
+                                    w = String::from_utf8_lossy(&attr.value).parse().unwrap_or(0)
                                 }
                                 _ => {}
                             }
@@ -731,9 +738,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                                 }
                                 b"timestamp" => {
                                     cur_rel.timestamp =
-                                        String::from_utf8_lossy(&attr.value)
-                                            .parse()
-                                            .unwrap_or(0)
+                                        String::from_utf8_lossy(&attr.value).parse().unwrap_or(0)
                                 }
                                 _ => {}
                             }
@@ -1125,14 +1130,24 @@ mod tests {
 
     #[test]
     fn parser_captures_content_rating_oars() {
-        let e = parse_sample().into_iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
-        assert!(e.oars.contains(&("social-chat".to_string(), "intense".to_string())));
-        assert!(e.oars.contains(&("money-purchasing".to_string(), "intense".to_string())));
+        let e = parse_sample()
+            .into_iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
+        assert!(e
+            .oars
+            .contains(&("social-chat".to_string(), "intense".to_string())));
+        assert!(e
+            .oars
+            .contains(&("money-purchasing".to_string(), "intense".to_string())));
     }
 
     #[test]
     fn parser_captures_screenshot_caption_aligned() {
-        let e = parse_sample().into_iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = parse_sample()
+            .into_iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.screenshot_urls.len(), 2);
         assert_eq!(e.screenshot_captions.len(), 2);
         assert_eq!(e.screenshot_captions[0].as_deref(), Some("The main window"));
@@ -1159,8 +1174,16 @@ mod tests {
             extends: Some("org.gimp.GIMP".into()),
             ..Entry::default()
         };
-        let app = Entry { app_id: "org.gimp.GIMP".into(), name: "GIMP".into(), ..Entry::default() };
-        let db = build_db(vec![app, addon("org.gimp.GIMP.Plugin.GMic"), addon("org.gimp.GIMP.Plugin.GMic3")]);
+        let app = Entry {
+            app_id: "org.gimp.GIMP".into(),
+            name: "GIMP".into(),
+            ..Entry::default()
+        };
+        let db = build_db(vec![
+            app,
+            addon("org.gimp.GIMP.Plugin.GMic"),
+            addon("org.gimp.GIMP.Plugin.GMic3"),
+        ]);
         assert_eq!(db.addons_for("org.gimp.GIMP").len(), 1);
     }
 
@@ -1169,15 +1192,24 @@ mod tests {
     #[test]
     fn parser_name_takes_en_only() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.name, "gedit");
-        assert_ne!(e.name, "gedit (FR)", "the xml:lang version must not overwrite the EN one");
+        assert_ne!(
+            e.name, "gedit (FR)",
+            "the xml:lang version must not overwrite the EN one"
+        );
     }
 
     #[test]
     fn parser_summary_takes_en_only() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.summary.as_deref(), Some("A text editor"));
     }
 
@@ -1188,23 +1220,38 @@ mod tests {
       an <em>image</em> editor.</p><ul><li>Fast</li><li>Free</li></ul></description>
 </component></components>"#;
         let e = parse(std::io::Cursor::new(xml)).remove(0);
-        assert_eq!(e.description.as_deref(), Some("GIMP is an image editor.\n• Fast\n• Free"));
+        assert_eq!(
+            e.description.as_deref(),
+            Some("GIMP is an image editor.\n• Fast\n• Free")
+        );
     }
 
     #[test]
     fn parser_description_en_only() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         let desc = e.description.as_deref().unwrap_or("");
-        assert!(desc.contains("gedit is a text editor"), "description EN absente");
-        assert!(!desc.contains("éditeur"), "the FR translation must not appear in the description");
+        assert!(
+            desc.contains("gedit is a text editor"),
+            "description EN absente"
+        );
+        assert!(
+            !desc.contains("éditeur"),
+            "the FR translation must not appear in the description"
+        );
     }
 
     #[test]
     fn parser_developer_old_format() {
         // <developer_name> = AppStream 0.x format
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.developer.as_deref(), Some("The GNOME Project"));
     }
 
@@ -1212,7 +1259,10 @@ mod tests {
     fn parser_developer_new_format() {
         // <developer><name> = AppStream 1.0+ format
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.name == "Extreme Tux Racer").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.name == "Extreme Tux Racer")
+            .unwrap();
         assert_eq!(e.developer.as_deref(), Some("ETR Team"));
     }
 
@@ -1246,28 +1296,47 @@ mod tests {
 
         let db = build_db(entries);
         let steam = db.lookup("steam").expect("steam must be found");
-        assert_eq!(steam.name, "Steam", "lookup(\"steam\") must not return Protontricks");
+        assert_eq!(
+            steam.name, "Steam",
+            "lookup(\"steam\") must not return Protontricks"
+        );
     }
 
     #[test]
     fn parser_license() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.license.as_deref(), Some("GPL-2.0+"));
     }
 
     #[test]
     fn parser_homepage_url() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
-        assert_eq!(e.homepage.as_deref(), Some("https://wiki.gnome.org/Apps/Gedit"));
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
+        assert_eq!(
+            e.homepage.as_deref(),
+            Some("https://wiki.gnome.org/Apps/Gedit")
+        );
     }
 
     #[test]
     fn parser_bugtracker_url() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
-        assert!(e.bugtracker.as_deref().unwrap_or("").contains("gitlab.gnome.org"));
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
+        assert!(e
+            .bugtracker
+            .as_deref()
+            .unwrap_or("")
+            .contains("gitlab.gnome.org"));
     }
 
     // ── Parser: verified field ────────────────────────────────────────────────
@@ -1275,15 +1344,24 @@ mod tests {
     #[test]
     fn parser_verified_true() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert!(e.verified);
     }
 
     #[test]
     fn parser_not_verified_by_default() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.name == "Extreme Tux Racer").unwrap();
-        assert!(!e.verified, "without a verified key the value must be false");
+        let e = entries
+            .iter()
+            .find(|e| e.name == "Extreme Tux Racer")
+            .unwrap();
+        assert!(
+            !e.verified,
+            "without a verified key the value must be false"
+        );
     }
 
     // ── Parser: icons ─────────────────────────────────────────────────────────
@@ -1291,7 +1369,10 @@ mod tests {
     #[test]
     fn parser_prefers_128px_over_64px() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         let icon = e.icon_url.as_deref().expect("missing icon");
         assert!(icon.contains("icon128"), "must prefer icon128 over icon64");
         assert!(!icon.contains("icon64"));
@@ -1300,7 +1381,10 @@ mod tests {
     #[test]
     fn parser_icon_prepends_media_baseurl_for_relative_url() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         let icon = e.icon_url.as_deref().expect("missing icon");
         assert!(
             icon.starts_with("https://dl.flathub.org/media/"),
@@ -1330,8 +1414,15 @@ mod tests {
     #[test]
     fn parser_screenshots_source_only_no_thumbnails() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
-        assert_eq!(e.screenshot_urls.len(), 2, "deux screenshots source attendus");
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
+        assert_eq!(
+            e.screenshot_urls.len(),
+            2,
+            "deux screenshots source attendus"
+        );
         for url in &e.screenshot_urls {
             assert!(!url.contains("thumb"), "thumbnails must not be listed");
         }
@@ -1340,7 +1431,10 @@ mod tests {
     #[test]
     fn parser_screenshots_prepend_media_baseurl() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         for url in &e.screenshot_urls {
             assert!(
                 url.starts_with("https://dl.flathub.org/media/"),
@@ -1354,7 +1448,10 @@ mod tests {
     #[test]
     fn parser_releases_version_and_timestamp() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.releases.len(), 2);
         assert_eq!(e.releases[0].version, "46.2");
         assert_eq!(e.releases[0].timestamp, 1712000000);
@@ -1363,7 +1460,10 @@ mod tests {
     #[test]
     fn parser_release_description() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         let desc = e.releases[0].description.as_deref().unwrap_or("");
         assert!(desc.contains("Bug fixes"));
     }
@@ -1371,7 +1471,10 @@ mod tests {
     #[test]
     fn parser_release_without_description_is_none() {
         let entries = parse_sample();
-        let e = entries.iter().find(|e| e.app_id == "org.gnome.Gedit").unwrap();
+        let e = entries
+            .iter()
+            .find(|e| e.app_id == "org.gnome.Gedit")
+            .unwrap();
         assert_eq!(e.releases[1].version, "46.1");
         assert!(e.releases[1].description.is_none());
     }
@@ -1471,8 +1574,14 @@ mod tests {
         // Each app's full name stays unique and thus findable through by_name,
         // even when their common app id suffix was neutralized.
         let db = build_db(two_apps_sharing_suffix());
-        assert_eq!(db.lookup("fooplayer").unwrap().app_id, "org.example.foo.Player");
-        assert_eq!(db.lookup("barplayer").unwrap().app_id, "org.example.bar.Player");
+        assert_eq!(
+            db.lookup("fooplayer").unwrap().app_id,
+            "org.example.foo.Player"
+        );
+        assert_eq!(
+            db.lookup("barplayer").unwrap().app_id,
+            "org.example.bar.Player"
+        );
     }
 
     // ── Load state: wait_until_settled / is_settled ──────────────────────────
@@ -1485,7 +1594,10 @@ mod tests {
         // NotStarted (default, CLI case that never calls init): immediate.
         let t0 = Instant::now();
         wait_until_settled(Duration::from_secs(5));
-        assert!(t0.elapsed() < Duration::from_millis(500), "NotStarted must not wait");
+        assert!(
+            t0.elapsed() < Duration::from_millis(500),
+            "NotStarted must not wait"
+        );
 
         // Loading: waits for the end of the load (notified here after ~100 ms),
         // NOT the full timeout.
@@ -1499,15 +1611,24 @@ mod tests {
         wait_until_settled(Duration::from_secs(10));
         h.join().unwrap();
         let dt = t0.elapsed();
-        assert!(dt >= Duration::from_millis(80), "must wait for the load to end");
-        assert!(dt < Duration::from_secs(5), "must not wait for the full timeout");
+        assert!(
+            dt >= Duration::from_millis(80),
+            "must wait for the load to end"
+        );
+        assert!(
+            dt < Duration::from_secs(5),
+            "must not wait for the full timeout"
+        );
         assert!(is_settled());
 
         // Ready: immediate.
         set_state(LoadState::Ready);
         let t0 = Instant::now();
         wait_until_settled(Duration::from_secs(5));
-        assert!(t0.elapsed() < Duration::from_millis(500), "Ready must not wait");
+        assert!(
+            t0.elapsed() < Duration::from_millis(500),
+            "Ready must not wait"
+        );
         assert!(is_settled());
     }
 

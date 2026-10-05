@@ -87,11 +87,24 @@ pub(crate) fn flathub_icon_map(query: &str) -> HashMap<String, FlathubHit> {
             Some(i) => i.to_string(),
             None => continue,
         };
-        let app_id = h.get("app_id").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        let disp_name = h.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        let hit = FlathubHit { icon, app_id: app_id.clone(), name: disp_name.clone() };
+        let app_id = h
+            .get("app_id")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        let disp_name = h
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        let hit = FlathubHit {
+            icon,
+            app_id: app_id.clone(),
+            name: disp_name.clone(),
+        };
         if !disp_name.is_empty() {
-            map.entry(sanitize(&disp_name)).or_insert_with(|| hit.clone());
+            map.entry(sanitize(&disp_name))
+                .or_insert_with(|| hit.clone());
             if let Some(w) = disp_name.split_whitespace().next() {
                 map.entry(w.to_lowercase()).or_insert_with(|| hit.clone());
             }
@@ -160,8 +173,12 @@ pub(crate) fn meta_from_db(e: &appstream_db::Entry) -> FlathubMeta {
             })
             .collect(),
         screenshot_captions: e.screenshot_captions.clone(),
-        age_label: crate::oars::rating(&e.oars).as_ref().map(|(a, _)| a.clone()),
-        age_descriptions: crate::oars::rating(&e.oars).map(|(_, d)| d).unwrap_or_default(),
+        age_label: crate::oars::rating(&e.oars)
+            .as_ref()
+            .map(|(a, _)| a.clone()),
+        age_descriptions: crate::oars::rating(&e.oars)
+            .map(|(_, d)| d)
+            .unwrap_or_default(),
         addons: appstream_db::addons_for(&e.app_id),
         developer_apps: e
             .developer
@@ -196,28 +213,49 @@ pub fn flathub_meta(name: &str, screenshot_target_w: u32) -> Option<FlathubMeta>
     let app_id = hit.get("app_id")?.as_str()?.to_string();
     let mut meta = FlathubMeta {
         app_id: app_id.clone(),
-        name: hit.get("name").and_then(|x| x.as_str()).unwrap_or(name).to_string(),
-        summary: hit.get("summary").and_then(|x| x.as_str()).map(str::to_string),
-        developer: hit.get("developer_name").and_then(|x| x.as_str()).map(str::to_string),
+        name: hit
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or(name)
+            .to_string(),
+        summary: hit
+            .get("summary")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
+        developer: hit
+            .get("developer_name")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
         icon_url: hit.get("icon").and_then(|x| x.as_str()).map(str::to_string),
-        verified: hit.get("verification_verified").and_then(|x| x.as_bool()).unwrap_or(false),
+        verified: hit
+            .get("verification_verified")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
         ..Default::default()
     };
 
     // 2) Full AppStream listing: everything else.
-    if let Some(d) = crate::http::get_json(&format!("https://flathub.org/api/v2/appstream/{app_id}")) {
+    if let Some(d) =
+        crate::http::get_json(&format!("https://flathub.org/api/v2/appstream/{app_id}"))
+    {
         if meta.icon_url.is_none() {
             meta.icon_url = d.get("icon").and_then(|x| x.as_str()).map(str::to_string);
         }
         if meta.developer.is_none() {
-            meta.developer = d.get("developer_name").and_then(|x| x.as_str()).map(str::to_string);
+            meta.developer = d
+                .get("developer_name")
+                .and_then(|x| x.as_str())
+                .map(str::to_string);
         }
         meta.description = d
             .get("description")
             .and_then(|x| x.as_str())
             .map(html_to_text)
             .filter(|s| !s.is_empty());
-        meta.license = d.get("project_license").and_then(|x| x.as_str()).map(str::to_string);
+        meta.license = d
+            .get("project_license")
+            .and_then(|x| x.as_str())
+            .map(str::to_string);
         meta.is_free_license = d.get("is_free_license").and_then(|x| x.as_bool());
 
         if let Some(urls) = d.get("urls") {
@@ -234,7 +272,11 @@ pub fn flathub_meta(name: &str, screenshot_target_w: u32) -> Option<FlathubMeta>
                 if let Some(version) = r.get("version").and_then(|x| x.as_str()) {
                     let timestamp = r
                         .get("timestamp")
-                        .and_then(|x| x.as_str().and_then(|s| s.parse().ok()).or_else(|| x.as_i64()))
+                        .and_then(|x| {
+                            x.as_str()
+                                .and_then(|s| s.parse().ok())
+                                .or_else(|| x.as_i64())
+                        })
                         .unwrap_or(0);
                     let description = r
                         .get("description")

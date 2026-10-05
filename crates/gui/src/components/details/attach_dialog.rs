@@ -7,8 +7,8 @@
 //! There is always a way out: "Do It Myself" closes the dialog and copies the
 //! lines to paste. Onyx never makes itself indispensable.
 
-use adw::prelude::*;
 use crate::i18n::t;
+use adw::prelude::*;
 use onyx_core::AttachPlan;
 
 fn code_block(text: &str) -> gtk::ScrolledWindow {
@@ -36,12 +36,16 @@ pub fn present(
     on_attached: impl Fn(Result<(), String>) + 'static,
 ) {
     let (explanation, body, can_patch) = match &plan {
-        AttachPlan::Patch { site, backup, diff, .. } => (
-            t("Onyx wrote its own files, but nothing imports them yet, so your kept \
+        AttachPlan::Patch {
+            site, backup, diff, ..
+        } => (
+            t(
+                "Onyx wrote its own files, but nothing imports them yet, so your kept \
                apps have no real effect.\n\n\
                To fix this, Onyx needs to add the lines below to\n{site}\n\
                A backup will be written to\n{backup}\n\n\
-               This is the only change Onyx will ever make to your files.")
+               This is the only change Onyx will ever make to your files.",
+            )
             .replace("{site}", &site.display().to_string())
             .replace("{backup}", &backup.display().to_string()),
             diff.clone(),
@@ -61,9 +65,11 @@ pub fn present(
             false,
         ),
         AttachPlan::NoLayout => (
-            t("Onyx cannot find your Nix configuration (neither /etc/nixos nor \
+            t(
+                "Onyx cannot find your Nix configuration (neither /etc/nixos nor \
                ~/.config/home-manager). It will not guess: your apps stay in the \
-               manifest, but no file is generated."),
+               manifest, but no file is generated.",
+            ),
             String::new(),
             false,
         ),
@@ -90,7 +96,11 @@ pub fn present(
     dialog.set_content_width(760);
     dialog.set_content_height(560);
 
-    let close = gtk::Button::with_label(&if can_patch { t("Do It Myself") } else { t("Close") });
+    let close = gtk::Button::with_label(&if can_patch {
+        t("Do It Myself")
+    } else {
+        t("Close")
+    });
     header.pack_start(&close);
     {
         let dialog = dialog.clone();

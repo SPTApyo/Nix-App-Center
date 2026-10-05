@@ -26,7 +26,12 @@ struct BoundedBytes {
 
 impl BoundedBytes {
     fn new(cap: usize) -> Self {
-        Self { cap, total: 0, map: HashMap::new(), order: VecDeque::new() }
+        Self {
+            cap,
+            total: 0,
+            map: HashMap::new(),
+            order: VecDeque::new(),
+        }
     }
 
     fn get(&self, k: &str) -> Option<Vec<u8>> {
@@ -41,7 +46,9 @@ impl BoundedBytes {
         self.order.push_back(k.clone());
         self.map.insert(k, v);
         while self.total > self.cap {
-            let Some(old) = self.order.pop_front() else { break };
+            let Some(old) = self.order.pop_front() else {
+                break;
+            };
             if let Some(v) = self.map.remove(&old) {
                 self.total -= v.len();
             }
@@ -145,7 +152,10 @@ mod tests {
             .insert("http://sentinel-url-test".to_string(), vec![7u8, 8, 9]);
         let result = cached_fetch_bytes("http://sentinel-url-test");
         assert_eq!(result, Some(vec![7u8, 8, 9]));
-        BYTES_CACHE.lock().unwrap().remove("http://sentinel-url-test");
+        BYTES_CACHE
+            .lock()
+            .unwrap()
+            .remove("http://sentinel-url-test");
     }
 
     #[test]
@@ -168,7 +178,10 @@ mod tests {
     fn known_icon_url_round_trips() {
         assert_eq!(known_icon_url("sentinel-attr-icon"), None);
         remember_icon_url("sentinel-attr-icon", "http://example/icon.png");
-        assert_eq!(known_icon_url("sentinel-attr-icon"), Some("http://example/icon.png".to_string()));
+        assert_eq!(
+            known_icon_url("sentinel-attr-icon"),
+            Some("http://example/icon.png".to_string())
+        );
         ICON_URL_CACHE.lock().unwrap().remove("sentinel-attr-icon");
     }
 

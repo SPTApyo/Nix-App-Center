@@ -20,7 +20,6 @@
 use crate::i18n::t;
 use adw::prelude::*;
 
-
 /// Fallback page height, chosen by GNOME to sit side by side at 16:9.
 const FALLBACK_HEIGHT: i32 = 423;
 /// Navigation button size (`.ui`: width/height-request 64, margins 9).

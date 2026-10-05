@@ -69,12 +69,21 @@ pub fn detail(attr: &str) -> Option<PackageDetail> {
 
     let v: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
     Some(PackageDetail {
-        long_description: v.get("longDescription").and_then(|x| x.as_str()).map(str::to_string),
+        long_description: v
+            .get("longDescription")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
         homepage: v.get("homepage").and_then(first_string),
         license: v.get("license").map(license_str),
         is_free_license: v.get("license").and_then(license_is_free),
-        changelog: v.get("changelog").and_then(|x| x.as_str()).map(str::to_string),
-        main_program: v.get("mainProgram").and_then(|x| x.as_str()).map(str::to_string),
+        changelog: v
+            .get("changelog")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
+        main_program: v
+            .get("mainProgram")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
         maintainers: v
             .get("maintainers")
             .and_then(|x| x.as_array())
@@ -84,7 +93,11 @@ pub fn detail(attr: &str) -> Option<PackageDetail> {
         known_vulnerabilities: v
             .get("knownVulnerabilities")
             .and_then(|x| x.as_array())
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default(),
         broken: v.get("broken").and_then(|x| x.as_bool()).unwrap_or(false),
     })
@@ -95,7 +108,11 @@ fn maintainer_name(v: &serde_json::Value) -> Option<String> {
     v.get("name")
         .and_then(|x| x.as_str())
         .map(str::to_string)
-        .or_else(|| v.get("github").and_then(|x| x.as_str()).map(|g| format!("@{g}")))
+        .or_else(|| {
+            v.get("github")
+                .and_then(|x| x.as_str())
+                .map(|g| format!("@{g}"))
+        })
 }
 
 /// Download size of the full closure (the package + all its dependencies),
@@ -167,9 +184,11 @@ fn first_string(v: &serde_json::Value) -> Option<String> {
 fn license_is_free(v: &serde_json::Value) -> Option<bool> {
     match v {
         serde_json::Value::Object(o) => o.get("free").and_then(|x| x.as_bool()),
-        serde_json::Value::Array(a) if !a.is_empty() => {
-            a.iter().map(license_is_free).collect::<Option<Vec<_>>>().map(|v| v.into_iter().all(|f| f))
-        }
+        serde_json::Value::Array(a) if !a.is_empty() => a
+            .iter()
+            .map(license_is_free)
+            .collect::<Option<Vec<_>>>()
+            .map(|v| v.into_iter().all(|f| f)),
         _ => None,
     }
 }
@@ -188,9 +207,7 @@ fn license_str(v: &serde_json::Value) -> String {
         }
     }
     match v {
-        serde_json::Value::Array(a) => {
-            a.iter().filter_map(one).collect::<Vec<_>>().join(", ")
-        }
+        serde_json::Value::Array(a) => a.iter().filter_map(one).collect::<Vec<_>>().join(", "),
         other => one(other).unwrap_or_default(),
     }
 }
@@ -201,7 +218,10 @@ mod tests {
 
     #[test]
     fn first_string_variants() {
-        assert_eq!(first_string(&serde_json::json!("https://a.com")), Some("https://a.com".into()));
+        assert_eq!(
+            first_string(&serde_json::json!("https://a.com")),
+            Some("https://a.com".into())
+        );
         assert_eq!(
             first_string(&serde_json::json!(["https://a.com", "https://b.com"])),
             Some("https://a.com".into())
@@ -233,8 +253,14 @@ mod tests {
 
     #[test]
     fn license_is_free_variants() {
-        assert_eq!(license_is_free(&serde_json::json!({ "free": true })), Some(true));
-        assert_eq!(license_is_free(&serde_json::json!({ "free": false })), Some(false));
+        assert_eq!(
+            license_is_free(&serde_json::json!({ "free": true })),
+            Some(true)
+        );
+        assert_eq!(
+            license_is_free(&serde_json::json!({ "free": false })),
+            Some(false)
+        );
         assert_eq!(license_is_free(&serde_json::json!("MIT")), None);
         assert_eq!(
             license_is_free(&serde_json::json!([{ "free": true }, { "free": true }])),
@@ -253,7 +279,10 @@ mod tests {
             license_str(&serde_json::json!({ "fullName": "GPLv3", "shortName": "GPL-3.0" })),
             "GPLv3"
         );
-        assert_eq!(license_str(&serde_json::json!({ "shortName": "MIT" })), "MIT");
+        assert_eq!(
+            license_str(&serde_json::json!({ "shortName": "MIT" })),
+            "MIT"
+        );
         assert_eq!(
             license_str(&serde_json::json!(["MIT", { "fullName": "Apache-2.0" }])),
             "MIT, Apache-2.0"

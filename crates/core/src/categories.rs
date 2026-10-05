@@ -3,8 +3,8 @@
 
 use crate::appstream_db::DevApp;
 use crate::package::Package;
-use crate::util::{matching_keys, regex_escape};
 use crate::resolve::{attr_for_app_id, resolve_app_id};
+use crate::util::{matching_keys, regex_escape};
 use std::collections::HashMap;
 
 /// An app listed by Flathub (for category browsing).
@@ -20,8 +20,7 @@ struct FlathubApp {
 /// Fetches a Flathub collection (`category/<slug>`, `popular`, `trending`…)
 /// and returns its apps. `collection` is the path after `/collection/`.
 fn flathub_collection(collection: &str, limit: usize) -> Vec<FlathubApp> {
-    let url =
-        format!("https://flathub.org/api/v2/collection/{collection}?page=1&per_page={limit}");
+    let url = format!("https://flathub.org/api/v2/collection/{collection}?page=1&per_page={limit}");
     let v = match crate::http::get_json(&url) {
         Some(v) => v,
         None => return vec![],
@@ -35,7 +34,10 @@ fn flathub_collection(collection: &str, limit: usize) -> Vec<FlathubApp> {
             Some(FlathubApp {
                 app_id: h.get("app_id")?.as_str()?.to_string(),
                 name: h.get("name")?.as_str()?.to_string(),
-                summary: h.get("summary").and_then(|x| x.as_str()).map(str::to_string),
+                summary: h
+                    .get("summary")
+                    .and_then(|x| x.as_str())
+                    .map(str::to_string),
                 icon_url: h.get("icon").and_then(|x| x.as_str()).map(str::to_string),
                 updated_at: h.get("updated_at").and_then(|x| x.as_i64()).unwrap_or(0),
             })
@@ -71,7 +73,11 @@ fn candidate_attrs(name: &str, app_id: &str) -> Vec<String> {
 /// every app start.
 /// Shared with `updates` (current versions of kept packages).
 pub(crate) fn nix_attr_lookup(candidates: &[String]) -> HashMap<String, Package> {
-    let mut uniq: Vec<String> = candidates.iter().filter(|c| !c.is_empty()).cloned().collect();
+    let mut uniq: Vec<String> = candidates
+        .iter()
+        .filter(|c| !c.is_empty())
+        .cloned()
+        .collect();
     uniq.sort();
     uniq.dedup();
     if uniq.is_empty() {
@@ -80,11 +86,15 @@ pub(crate) fn nix_attr_lookup(candidates: &[String]) -> HashMap<String, Package>
 
     let pattern = format!(
         "^({})$",
-        uniq.iter().map(|c| regex_escape(c)).collect::<Vec<_>>().join("|")
+        uniq.iter()
+            .map(|c| regex_escape(c))
+            .collect::<Vec<_>>()
+            .join("|")
     );
-    let packages = crate::cache::cached_search(&pattern, crate::search::SEARCH_CACHE_TTL_SECS, || {
-        crate::search::raw_nix_search(std::slice::from_ref(&pattern))
-    });
+    let packages =
+        crate::cache::cached_search(&pattern, crate::search::SEARCH_CACHE_TTL_SECS, || {
+            crate::search::raw_nix_search(std::slice::from_ref(&pattern))
+        });
 
     let cand_set: std::collections::HashSet<&String> = uniq.iter().collect();
     let mut map = HashMap::new();
@@ -117,7 +127,10 @@ fn resolve_apps(apps: Vec<FlathubApp>) -> Vec<(FlathubApp, Package)> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for a in apps {
-        if let Some(pkg) = candidate_attrs(&a.name, &a.app_id).iter().find_map(|k| attr_map.get(k)) {
+        if let Some(pkg) = candidate_attrs(&a.name, &a.app_id)
+            .iter()
+            .find_map(|k| attr_map.get(k))
+        {
             if seen.insert(pkg.attr.clone()) {
                 let mut pkg = pkg.clone();
                 pkg.name = a.name.clone();
@@ -147,7 +160,10 @@ fn match_dev_apps(
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for a in apps {
-        if let Some(pkg) = candidate_attrs(&a.name, &a.app_id).iter().find_map(|k| attr_map.get(k)) {
+        if let Some(pkg) = candidate_attrs(&a.name, &a.app_id)
+            .iter()
+            .find_map(|k| attr_map.get(k))
+        {
             if pkg.attr == exclude_attr {
                 continue;
             }
@@ -197,7 +213,10 @@ pub fn recently_updated_packages(limit: usize) -> Vec<(Package, Option<String>)>
 /// Splits a resolved list in two sections like GNOME Software:
 /// `.0` = "New & Updated" (the ~12 most recently updated),
 /// `.1` = "Other Software" (the rest, alphabetically).
-type Sections = (Vec<(Package, Option<String>)>, Vec<(Package, Option<String>)>);
+type Sections = (
+    Vec<(Package, Option<String>)>,
+    Vec<(Package, Option<String>)>,
+);
 
 fn split_sections(mut resolved: Vec<(FlathubApp, Package)>) -> Sections {
     resolved.sort_by_key(|(a, _)| std::cmp::Reverse(a.updated_at));
@@ -250,7 +269,11 @@ mod tests {
         let map: HashMap<String, Package> =
             [("steamlink".to_string(), Package::from_attr("steamlink"))].into();
         let apps = [
-            dev("Steam Link", "com.valvesoftware.SteamLink", Some("http://icon")),
+            dev(
+                "Steam Link",
+                "com.valvesoftware.SteamLink",
+                Some("http://icon"),
+            ),
             dev("Ghost App", "org.example.Ghost", None),
         ];
         let out = match_dev_apps(&apps, &map, "");
@@ -266,7 +289,11 @@ mod tests {
         // showed up in its own section. It is excluded by attr.
         let map: HashMap<String, Package> =
             [("steam".to_string(), Package::from_attr("steam"))].into();
-        let apps = [dev("Steam Link", "com.valvesoftware.SteamLink", Some("http://icon"))];
+        let apps = [dev(
+            "Steam Link",
+            "com.valvesoftware.SteamLink",
+            Some("http://icon"),
+        )];
         let out = match_dev_apps(&apps, &map, "steam");
         assert!(
             out.is_empty(),
@@ -320,7 +347,10 @@ mod tests {
         std::env::set_var("XDG_DATA_HOME", &dir);
 
         // Overlay pins VS Code to `vscode`: the fuzzy `code` key never applies.
-        assert_eq!(candidate_attrs("Visual Studio Code", "com.visualstudio.code"), ["vscode"]);
+        assert_eq!(
+            candidate_attrs("Visual Studio Code", "com.visualstudio.code"),
+            ["vscode"]
+        );
         // `steam` is pinned to Steam, so Steam Link may not fall back on it.
         let keys = candidate_attrs("Steam Link", "com.valvesoftware.SteamLink");
         assert!(keys.contains(&"steamlink".to_string()));

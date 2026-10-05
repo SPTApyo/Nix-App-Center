@@ -29,7 +29,8 @@ pub struct Blocks {
 }
 
 fn text_of(buf: &gtk::TextBuffer) -> String {
-    buf.text(&buf.start_iter(), &buf.end_iter(), false).to_string()
+    buf.text(&buf.start_iter(), &buf.end_iter(), false)
+        .to_string()
 }
 
 /// An empty scope is not an empty block: it is no block at all.
@@ -73,8 +74,7 @@ pub fn present(
     home_page.set_icon_name(Some("user-home-symbolic"));
 
     if system_available {
-        let page =
-            stack.add_titled(&editor_view(&system_buf), Some("system"), &t("System"));
+        let page = stack.add_titled(&editor_view(&system_buf), Some("system"), &t("System"));
         page.set_icon_name(Some("computer-symbolic"));
     } else {
         // Standalone home-manager cannot write NixOS options; say so.
@@ -113,7 +113,10 @@ pub fn present(
         let system_buf = system_buf.clone();
         Rc::new(move || {
             let mut errs = Vec::new();
-            for (scope, buf) in [(t("User scope:"), &home_buf), (t("System scope:"), &system_buf)] {
+            for (scope, buf) in [
+                (t("User scope:"), &home_buf),
+                (t("System scope:"), &system_buf),
+            ] {
                 if let Some(block) = block_or_none(buf) {
                     if let Err(e) = onyx_core::parse_block(&block) {
                         errs.push(format!("{scope}\n{e}"));
@@ -143,13 +146,11 @@ pub fn present(
             }
             let recheck = recheck.clone();
             let pending2 = pending.clone();
-            let id = glib::timeout_add_local_once(
-                std::time::Duration::from_millis(300),
-                move || {
+            let id =
+                glib::timeout_add_local_once(std::time::Duration::from_millis(300), move || {
                     pending2.borrow_mut().take();
                     recheck();
-                },
-            );
+                });
             *pending.borrow_mut() = Some(id);
         });
     }
@@ -211,7 +212,9 @@ pub fn present(
                     match res {
                         onyx_core::DryRun::Ok => {
                             status.remove_css_class("error");
-                            status.set_label(&t("✓ The whole configuration evaluates, options and types included"));
+                            status.set_label(&t(
+                                "✓ The whole configuration evaluates, options and types included",
+                            ));
                         }
                         onyx_core::DryRun::Failed(e) => {
                             status.add_css_class("error");

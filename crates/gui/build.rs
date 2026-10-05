@@ -25,12 +25,20 @@ fn main() {
             let dest_dir = locale_root.join(&lang).join("LC_MESSAGES");
             std::fs::create_dir_all(&dest_dir).unwrap();
             let dest = dest_dir.join("onyx.mo");
-            match Command::new("msgfmt").arg(&po).arg("-o").arg(&dest).status() {
+            match Command::new("msgfmt")
+                .arg(&po)
+                .arg("-o")
+                .arg(&dest)
+                .status()
+            {
                 Ok(s) if s.success() => {}
                 _ => println!("cargo:warning=msgfmt failed for {}", po.display()),
             }
         }
     }
 
-    println!("cargo:rustc-env=ONYX_DEV_LOCALEDIR={}", locale_root.display());
+    println!(
+        "cargo:rustc-env=ONYX_DEV_LOCALEDIR={}",
+        locale_root.display()
+    );
 }

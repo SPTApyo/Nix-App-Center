@@ -17,12 +17,19 @@ const NIX_FEATURES: [&str; 2] = ["--extra-experimental-features", "nix-command f
 /// explicit opt-in. `env` keeps the variables when a terminal server spawns the
 /// command (ptyxis, gnome-terminal), which would drop the caller's environment.
 fn try_argv(sub: &str, attr: &str) -> Vec<String> {
-    ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1", "nix", sub, "--impure"]
-        .into_iter()
-        .map(str::to_string)
-        .chain([format!("nixpkgs#{attr}")])
-        .chain(NIX_FEATURES.iter().map(|s| s.to_string()))
-        .collect()
+    [
+        "env",
+        "NIXPKGS_ALLOW_UNFREE=1",
+        "NIXPKGS_ALLOW_BROKEN=1",
+        "nix",
+        sub,
+        "--impure",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .chain([format!("nixpkgs#{attr}")])
+    .chain(NIX_FEATURES.iter().map(|s| s.to_string()))
+    .collect()
 }
 
 /// The matching `nix run` command (for display / copy).
@@ -93,13 +100,34 @@ pub(crate) struct Terminal {
 /// By preference. `xdg-terminal-exec` is the specified (freedesktop) way; the
 /// rest is a fallback on common emulators.
 const TERMINALS: [Terminal; 7] = [
-    Terminal { bin: "xdg-terminal-exec", exec_arg: None },
-    Terminal { bin: "ptyxis", exec_arg: Some("--") },
-    Terminal { bin: "kgx", exec_arg: Some("--") },
-    Terminal { bin: "gnome-terminal", exec_arg: Some("--") },
-    Terminal { bin: "foot", exec_arg: None },
-    Terminal { bin: "alacritty", exec_arg: Some("-e") },
-    Terminal { bin: "xterm", exec_arg: Some("-e") },
+    Terminal {
+        bin: "xdg-terminal-exec",
+        exec_arg: None,
+    },
+    Terminal {
+        bin: "ptyxis",
+        exec_arg: Some("--"),
+    },
+    Terminal {
+        bin: "kgx",
+        exec_arg: Some("--"),
+    },
+    Terminal {
+        bin: "gnome-terminal",
+        exec_arg: Some("--"),
+    },
+    Terminal {
+        bin: "foot",
+        exec_arg: None,
+    },
+    Terminal {
+        bin: "alacritty",
+        exec_arg: Some("-e"),
+    },
+    Terminal {
+        bin: "xterm",
+        exec_arg: Some("-e"),
+    },
 ];
 
 /// First terminal available according to `exists`. Pure: `exists` is injected
@@ -164,18 +192,27 @@ mod tests {
 
     #[test]
     fn run_command_targets_nixpkgs_attr() {
-        assert_eq!(run_command(&Package::from_attr("ripgrep")), "nix run nixpkgs#ripgrep");
+        assert_eq!(
+            run_command(&Package::from_attr("ripgrep")),
+            "nix run nixpkgs#ripgrep"
+        );
     }
 
     #[test]
     fn shell_command_targets_nixpkgs_attr() {
-        assert_eq!(shell_command(&Package::from_attr("ripgrep")), "nix shell nixpkgs#ripgrep");
+        assert_eq!(
+            shell_command(&Package::from_attr("ripgrep")),
+            "nix shell nixpkgs#ripgrep"
+        );
     }
 
     #[test]
     fn try_argv_lifts_unfree_and_broken_but_not_insecure() {
         let argv = try_argv("run", "spotify");
-        assert_eq!(argv[..3], ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1"]);
+        assert_eq!(
+            argv[..3],
+            ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1"]
+        );
         assert!(argv.contains(&"--impure".to_string()));
         assert!(argv.contains(&"nixpkgs#spotify".to_string()));
         assert!(!argv.iter().any(|a| a.contains("INSECURE")));
@@ -217,10 +254,19 @@ mod tests {
     #[test]
     fn terminal_argv_inserts_separator_when_needed() {
         let cmd = vec!["nix".to_string(), "shell".to_string()];
-        let ptyxis = Terminal { bin: "ptyxis", exec_arg: Some("--") };
-        assert_eq!(terminal_argv(ptyxis, &cmd), ["ptyxis", "--", "nix", "shell"]);
+        let ptyxis = Terminal {
+            bin: "ptyxis",
+            exec_arg: Some("--"),
+        };
+        assert_eq!(
+            terminal_argv(ptyxis, &cmd),
+            ["ptyxis", "--", "nix", "shell"]
+        );
 
-        let foot = Terminal { bin: "foot", exec_arg: None };
+        let foot = Terminal {
+            bin: "foot",
+            exec_arg: None,
+        };
         assert_eq!(terminal_argv(foot, &cmd), ["foot", "nix", "shell"]);
     }
 }

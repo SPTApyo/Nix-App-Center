@@ -66,14 +66,16 @@ pub use appstream_db::init_background as init_appstream_db;
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };
-pub use config_attach::{commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan};
+pub use config_attach::{
+    commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan,
+};
+pub use config_gen::default_home_block;
 pub use config_gen::{apply_config, ApplyOutcome};
 pub use config_layout::{detect as detect_layout, Layout, LayoutKind, ScopeTarget};
 pub use detail::{closure_size, detail, PackageDetail};
 pub use flathub::{Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::locate_binary;
-pub use config_gen::default_home_block;
 pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use package::{actions_for, Action, Actions, Kind, Package};
@@ -83,8 +85,7 @@ pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{featured_review, reviews_for, Review};
 pub use search::{search, search_apps, SearchResult};
 pub use session_cache::{
-    cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, known_icon_url,
-    remember_icon_url,
+    cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, known_icon_url, remember_icon_url,
 };
 pub use tried::{garbage_collect, load_tried, record_tried, TriedEntry, TriedLog};
 pub use updates::{available_updates, Update};

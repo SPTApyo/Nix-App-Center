@@ -6,7 +6,12 @@ use onyx_core::{AttachPlan, Package};
 fn main() {
     let l = onyx_core::detect_layout();
     println!("== layout ==");
-    println!("{:?}\nhm_user : {:?}\napply   : {}\n", l.kind, l.hm_user, l.apply.join(" "));
+    println!(
+        "{:?}\nhm_user : {:?}\napply   : {}\n",
+        l.kind,
+        l.hm_user,
+        l.apply.join(" ")
+    );
 
     match onyx_core::attach_plan(&l) {
         AttachPlan::Patch { ref diff, .. } => {

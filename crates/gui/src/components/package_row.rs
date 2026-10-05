@@ -4,8 +4,8 @@
 //! split button: one row, one gesture, one target.
 
 use adw::prelude::*;
-use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
 use onyx_core::{Package, Rating};
+use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
 
 use crate::util::{fallback_class, texture_from_bytes_sized, AppItem, IconState, FALLBACK_GLYPH};
 
@@ -144,7 +144,12 @@ impl FactoryComponent for PackageRow {
     }
 
     fn init_model(item: Self::Init, _idx: &DynamicIndex, sender: FactorySender<Self>) -> Self {
-        let AppItem { package, icon_url, rating, .. } = item;
+        let AppItem {
+            package,
+            icon_url,
+            rating,
+            ..
+        } = item;
         let icon_state = if icon_url.is_some() {
             IconState::Loading
         } else {
@@ -173,7 +178,9 @@ impl FactoryComponent for PackageRow {
                 let _ = sender.output(self.package.clone());
             }
             RowMsg::IconLoaded(bytes) => {
-                self.icon_tex = bytes.as_deref().and_then(|b| texture_from_bytes_sized(b, 128));
+                self.icon_tex = bytes
+                    .as_deref()
+                    .and_then(|b| texture_from_bytes_sized(b, 128));
                 self.icon_state = if self.icon_tex.is_some() {
                     IconState::Real
                 } else {

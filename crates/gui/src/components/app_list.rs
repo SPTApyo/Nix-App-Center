@@ -5,9 +5,9 @@
 use std::collections::HashMap;
 
 use adw::prelude::*;
+use onyx_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
-use onyx_core::Package;
 
 use crate::components::package_row::PackageRow;
 use crate::i18n::t;
@@ -57,7 +57,11 @@ impl SimpleComponent for AppList {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let apps = FactoryVecDeque::builder()
             .launch(gtk::ListBox::new())
             .forward(sender.input_sender(), AppListInput::Open);
@@ -247,7 +251,8 @@ impl AppList {
         let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
         sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
 
-        let mut labels: Vec<String> = vec![t("All ({})").replace("{}", &self.items.len().to_string())];
+        let mut labels: Vec<String> =
+            vec![t("All ({})").replace("{}", &self.items.len().to_string())];
         let mut filters: Vec<Filter> = vec![Filter::All];
         if no_set > 0 {
             labels.push(t("No package set ({})").replace("{}", &no_set.to_string()));
@@ -260,7 +265,8 @@ impl AppList {
 
         self.filters = filters;
         let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
-        self.filter_dropdown.set_model(Some(&gtk::StringList::new(&refs)));
+        self.filter_dropdown
+            .set_model(Some(&gtk::StringList::new(&refs)));
         self.filter_dropdown.set_selected(0);
         // Visible only when at least one package set exists.
         self.filter_dropdown.set_visible(!sets.is_empty());
@@ -301,7 +307,11 @@ impl AppList {
         self.heading_others.set_visible(has_others && has_apps);
 
         self.stack
-            .set_visible_child_name(if has_apps || has_others { "filled" } else { "empty" });
+            .set_visible_child_name(if has_apps || has_others {
+                "filled"
+            } else {
+                "empty"
+            });
     }
 }
 

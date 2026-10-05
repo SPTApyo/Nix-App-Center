@@ -120,7 +120,14 @@ pub fn plan(layout: &Layout) -> AttachPlan {
         },
         None => AttachPlan::Manual {
             site,
-            snippet: format!("imports = [\n{}\n];", missing.iter().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n")),
+            snippet: format!(
+                "imports = [\n{}\n];",
+                missing
+                    .iter()
+                    .map(|l| format!("  {l}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
         },
     }
 }
@@ -129,7 +136,12 @@ pub fn plan(layout: &Layout) -> AttachPlan {
 /// user's explicit consent.
 pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
     match p {
-        AttachPlan::Patch { site, backup, patched, .. } => {
+        AttachPlan::Patch {
+            site,
+            backup,
+            patched,
+            ..
+        } => {
             // The backup comes before any change: if the write fails
             // midway, the user still has their original file.
             let original = std::fs::read(site)?;
@@ -143,7 +155,9 @@ pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
 /// Removes Onyx's import lines. The Onyx files stay on disk, inert.
 pub fn detach(layout: &Layout) -> std::io::Result<()> {
     for (site, line) in required_imports(layout) {
-        let Ok(src) = std::fs::read_to_string(&site) else { continue };
+        let Ok(src) = std::fs::read_to_string(&site) else {
+            continue;
+        };
         let kept: Vec<&str> = src
             .lines()
             .filter(|l| l.trim() != line && l.trim() != format!("{line};"))
@@ -319,8 +333,7 @@ mod tests {
                           }\n";
 
     fn fixture(name: &str) -> PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("onyx-attach-{}-{}", std::process::id(), name));
+        let dir = std::env::temp_dir().join(format!("onyx-attach-{}-{}", std::process::id(), name));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("configuration.nix"), CONFIG).unwrap();
@@ -330,7 +343,10 @@ mod tests {
     fn layout_for(dir: &Path) -> Layout {
         let site = dir.join("configuration.nix");
         Layout {
-            kind: LayoutKind::NixosFlake { dir: dir.into(), host: "Test".into() },
+            kind: LayoutKind::NixosFlake {
+                dir: dir.into(),
+                host: "Test".into(),
+            },
             home: Some(ScopeTarget {
                 onyx_file: dir.join("onyx-home.nix"),
                 import_site: site.clone(),
@@ -350,7 +366,13 @@ mod tests {
         let layout = layout_for(&dir);
 
         let p = plan(&layout);
-        let AttachPlan::Patch { added, diff, patched, .. } = &p else {
+        let AttachPlan::Patch {
+            added,
+            diff,
+            patched,
+            ..
+        } = &p
+        else {
             panic!("attendu un patch, obtenu {p:?}");
         };
         assert_eq!(added, &["./onyx-home.nix", "./onyx-system.nix"]);

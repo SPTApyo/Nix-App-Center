@@ -7,9 +7,9 @@
 //! Flow: skeleton, parallel AppStream fetch (cached), DataReady, tiles.
 
 use adw::prelude::*;
+use onyx_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
-use onyx_core::Package;
 
 use crate::components::AppTile;
 use crate::i18n::t;
@@ -49,7 +49,11 @@ impl SimpleComponent for InstalledModel {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         // ── Grids (FactoryVecDeque bound to a FlowBox) ────────────────────────
         let kept_tiles = FactoryVecDeque::builder()
             .launch(gtk::FlowBox::new())
@@ -62,9 +66,9 @@ impl SimpleComponent for InstalledModel {
         configure_flow(tried_tiles.widget());
 
         // ── "In Your Configuration" section ───────────────────────────────────
-        let kept_empty = gtk::Label::new(Some(
-            &t("No kept packages yet. Open an app and choose “Add to Configuration”."),
-        ));
+        let kept_empty = gtk::Label::new(Some(&t(
+            "No kept packages yet. Open an app and choose “Add to Configuration”.",
+        )));
         kept_empty.add_css_class("dim-label");
         kept_empty.set_xalign(0.0);
         kept_empty.set_wrap(true);
@@ -82,9 +86,9 @@ impl SimpleComponent for InstalledModel {
         let gc_btn = gtk::Button::with_label(&t("Free Up Space"));
         gc_btn.add_css_class("flat");
         gc_btn.set_valign(gtk::Align::Center);
-        gc_btn.set_tooltip_text(Some(
-            &t("Runs nix-collect-garbage: removes packages you did not keep from the store"),
-        ));
+        gc_btn.set_tooltip_text(Some(&t(
+            "Runs nix-collect-garbage: removes packages you did not keep from the store",
+        )));
         gc_btn.connect_clicked({
             let s = sender.input_sender().clone();
             move |_| {
@@ -102,9 +106,9 @@ impl SimpleComponent for InstalledModel {
         tried_header.append(&spacer);
         tried_header.append(&gc_btn);
 
-        let tried_empty = gtk::Label::new(Some(
-            &t("Nothing tried yet. Run a package from search and it will show up here."),
-        ));
+        let tried_empty = gtk::Label::new(Some(&t(
+            "Nothing tried yet. Run a package from search and it will show up here.",
+        )));
         tried_empty.add_css_class("dim-label");
         tried_empty.set_xalign(0.0);
         tried_empty.set_wrap(true);

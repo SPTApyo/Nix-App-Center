@@ -171,7 +171,10 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
 
     let hits = match icon_handle {
         Some(h) => h.join().unwrap_or_default(),
-        None if pkgs.iter().any(|p| appstream_db::lookup_package(p).is_none()) => {
+        None if pkgs
+            .iter()
+            .any(|p| appstream_db::lookup_package(p).is_none()) =>
+        {
             flathub_icon_map(query)
         }
         None => HashMap::new(),
@@ -212,14 +215,24 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
                 Some(_) => {}
                 None => p = named_by_attr(p),
             }
-            SearchResult { package: p, icon_url, rating, recognized }
+            SearchResult {
+                package: p,
+                icon_url,
+                rating,
+                recognized,
+            }
         })
         .collect()
 }
 
 /// A secondary package of an already listed app.
 fn variant(package: Package, icon_url: Option<String>) -> SearchResult {
-    SearchResult { package: named_by_attr(package), icon_url, rating: None, recognized: false }
+    SearchResult {
+        package: named_by_attr(package),
+        icon_url,
+        rating: None,
+        recognized: false,
+    }
 }
 
 /// Packages without app identity are named by attr: several attrs share one
@@ -250,7 +263,10 @@ fn search_score(pkg: &Package, q: &str, toks: &[String]) -> i64 {
     }
 
     // Every token present in the name/attr (multi-word).
-    if toks.iter().all(|t| attr.contains(t.as_str()) || name.contains(t.as_str())) {
+    if toks
+        .iter()
+        .all(|t| attr.contains(t.as_str()) || name.contains(t.as_str()))
+    {
         s += 150;
     }
     // Every token present in the description (low weight).
@@ -331,7 +347,11 @@ mod tests {
 
         let mut p = Package::from_attr("superTux");
         p.name = "SuperTux".into();
-        assert_eq!(named_by_attr(p).name, "SuperTux", "beautified case alias is kept");
+        assert_eq!(
+            named_by_attr(p).name,
+            "SuperTux",
+            "beautified case alias is kept"
+        );
     }
 
     #[test]

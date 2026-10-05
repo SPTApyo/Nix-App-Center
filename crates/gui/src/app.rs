@@ -3,8 +3,8 @@
 //! It only orchestrates components and never draws a list or grid itself.
 
 use adw::prelude::*;
-use relm4::prelude::*;
 use onyx_core::Package;
+use relm4::prelude::*;
 
 use crate::components::{AppList, AppListInput};
 use crate::i18n::t;
@@ -67,7 +67,11 @@ impl SimpleComponent for AppModel {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         // Load the AppStream database in the background. Once ready, searches
         // and details pages need no Flathub request.
         onyx_core::init_appstream_db();
@@ -202,16 +206,14 @@ impl SimpleComponent for AppModel {
             view_stack.add_titled(installed.widget(), Some("installed"), &t("Installed"));
         installed_page.set_icon_name(Some("software-installed-symbolic"));
 
-        let updates_page =
-            view_stack.add_titled(updates.widget(), Some("updates"), &t("Updates"));
+        let updates_page = view_stack.add_titled(updates.widget(), Some("updates"), &t("Updates"));
         updates_page.set_icon_name(Some("software-updates-symbolic"));
 
         #[cfg(feature = "dev-gallery")]
         {
             // Any developer icon from the system theme; when missing the tab
             // simply has no icon (dev only).
-            let gallery_page =
-                view_stack.add_titled(gallery.widget(), Some("gallery"), "Gallery");
+            let gallery_page = view_stack.add_titled(gallery.widget(), Some("gallery"), "Gallery");
             gallery_page.set_icon_name(Some("applications-engineering-symbolic"));
         }
 

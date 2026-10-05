@@ -8,7 +8,9 @@ pub(crate) fn cache_dir() -> PathBuf {
     std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+            let home = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_default();
             home.join(".cache")
         })
         .join("onyx")
@@ -138,7 +140,10 @@ mod tests {
         let _g = iso();
         let key = format!(
             "^({})$",
-            (0..300).map(|i| format!("pkg{i}")).collect::<Vec<_>>().join("|")
+            (0..300)
+                .map(|i| format!("pkg{i}"))
+                .collect::<Vec<_>>()
+                .join("|")
         );
         let _ = cached_search(&key, 60, || vec![Package::from_attr("firefox")]);
         let b = cached_search(&key, 60, || vec![Package::from_attr("SHOULD_NOT_RUN")]);

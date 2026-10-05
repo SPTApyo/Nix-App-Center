@@ -34,7 +34,10 @@ fn main() -> ExitCode {
             }
             for p in pkgs {
                 let action = onyx_core::actions_for(&p).primary.label();
-                println!("{:<36} {:<12} [{action}]  {}", p.attr, p.version, p.description);
+                println!(
+                    "{:<36} {:<12} [{action}]  {}",
+                    p.attr, p.version, p.description
+                );
             }
             ExitCode::SUCCESS
         }
@@ -42,13 +45,25 @@ fn main() -> ExitCode {
         Some("info") => match args.get(2) {
             Some(attr) => match onyx_core::detail(attr) {
                 Some(d) => {
-                    let kind = if d.is_runnable() { "App (runnable)" } else { "Keep-only" };
+                    let kind = if d.is_runnable() {
+                        "App (runnable)"
+                    } else {
+                        "Keep-only"
+                    };
                     println!("attr        : {attr}");
                     println!("type        : {kind}");
-                    if let Some(mp) = &d.main_program { println!("mainProgram : {mp}"); }
-                    if let Some(h) = &d.homepage { println!("homepage    : {h}"); }
-                    if let Some(l) = &d.license { println!("license     : {l}"); }
-                    if let Some(c) = &d.changelog { println!("changelog   : {c}"); }
+                    if let Some(mp) = &d.main_program {
+                        println!("mainProgram : {mp}");
+                    }
+                    if let Some(h) = &d.homepage {
+                        println!("homepage    : {h}");
+                    }
+                    if let Some(l) = &d.license {
+                        println!("license     : {l}");
+                    }
+                    if let Some(c) = &d.changelog {
+                        println!("changelog   : {c}");
+                    }
                     if let Some(ld) = &d.long_description {
                         println!("\n{}", ld.trim());
                     }
@@ -137,7 +152,10 @@ fn main() -> ExitCode {
                 println!("(everything is up to date)");
             } else {
                 for u in ups {
-                    println!("{}: {} → {}", u.package.attr, u.installed_version, u.available_version);
+                    println!(
+                        "{}: {} → {}",
+                        u.package.attr, u.installed_version, u.available_version
+                    );
                 }
             }
             ExitCode::SUCCESS
@@ -190,8 +208,14 @@ fn main() -> ExitCode {
             let plan = onyx_core::attach_plan(&layout);
             let commit = args.iter().any(|a| a == "--commit");
             match &plan {
-                onyx_core::AttachPlan::Patch { site, backup, diff, .. } => {
-                    println!("attach to {} (backup: {})", site.display(), backup.display());
+                onyx_core::AttachPlan::Patch {
+                    site, backup, diff, ..
+                } => {
+                    println!(
+                        "attach to {} (backup: {})",
+                        site.display(),
+                        backup.display()
+                    );
                     print!("{diff}");
                 }
                 onyx_core::AttachPlan::Manual { site, snippet } => {
@@ -274,7 +298,14 @@ fn main() -> ExitCode {
         // Store garbage collection (frees unreferenced packages).
         Some("gc") => match onyx_core::garbage_collect() {
             Ok(summary) => {
-                println!("{}", if summary.is_empty() { "Nothing to free." } else { &summary });
+                println!(
+                    "{}",
+                    if summary.is_empty() {
+                        "Nothing to free."
+                    } else {
+                        &summary
+                    }
+                );
                 ExitCode::SUCCESS
             }
             Err(e) => {

@@ -75,7 +75,9 @@ fn nixos_dir() -> PathBuf {
 }
 
 fn hm_dir() -> PathBuf {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
     home.join(".config/home-manager")
 }
 
@@ -231,13 +233,25 @@ fn nixos_flake_layout(dir: PathBuf, host: String, hm_user: Option<String>) -> La
         "--flake".into(),
         format!("{}#{}", dir.display(), host),
     ];
-    Layout { kind: LayoutKind::NixosFlake { dir, host }, home, system, apply, hm_user }
+    Layout {
+        kind: LayoutKind::NixosFlake { dir, host },
+        home,
+        system,
+        apply,
+        hm_user,
+    }
 }
 
 fn nixos_legacy_layout(dir: PathBuf, hm_user: Option<String>) -> Layout {
     let (home, system) = nixos_scopes(&dir);
     let apply = vec!["sudo".into(), "nixos-rebuild".into(), "switch".into()];
-    Layout { kind: LayoutKind::NixosLegacy { dir }, home, system, apply, hm_user }
+    Layout {
+        kind: LayoutKind::NixosLegacy { dir },
+        home,
+        system,
+        apply,
+        hm_user,
+    }
 }
 
 fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
@@ -253,7 +267,13 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
     ];
     // No system scope: standalone home-manager cannot write NixOS options.
     // A system option is refused with a snippet to paste.
-    Layout { kind: LayoutKind::HmFlake { dir, user }, home, system: None, apply, hm_user: None }
+    Layout {
+        kind: LayoutKind::HmFlake { dir, user },
+        home,
+        system: None,
+        apply,
+        hm_user: None,
+    }
 }
 
 fn hm_standalone_layout(dir: PathBuf) -> Layout {
@@ -262,7 +282,13 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
         import_site: dir.join("home.nix"),
     });
     let apply = vec!["home-manager".into(), "switch".into()];
-    Layout { kind: LayoutKind::HmStandalone { dir }, home, system: None, apply, hm_user: None }
+    Layout {
+        kind: LayoutKind::HmStandalone { dir },
+        home,
+        system: None,
+        apply,
+        hm_user: None,
+    }
 }
 
 #[cfg(test)]
@@ -271,8 +297,7 @@ mod tests {
 
     /// Throwaway fixture. No test ever touches the real `/etc/nixos` or `~`.
     fn fixture(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir()
-            .join(format!("onyx-layout-{}-{}", std::process::id(), name));
+        let dir = std::env::temp_dir().join(format!("onyx-layout-{}-{}", std::process::id(), name));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -286,8 +311,16 @@ mod tests {
     fn detects_nixos_flake_with_hm_module() {
         let _g = crate::env_lock();
         let dir = fixture("flake");
-        write(&dir, "flake.nix", "outputs = { ... }: { nixosConfigurations.laptop = x; };");
-        write(&dir, "configuration.nix", "{ imports = [ ./hardware-configuration.nix ]; }");
+        write(
+            &dir,
+            "flake.nix",
+            "outputs = { ... }: { nixosConfigurations.laptop = x; };",
+        );
+        write(
+            &dir,
+            "configuration.nix",
+            "{ imports = [ ./hardware-configuration.nix ]; }",
+        );
         write(&dir, "home.nix", "{ home-manager.users.alice = { ... }; }");
         std::env::set_var("ONYX_CONFIG_DIR", &dir);
 
@@ -296,7 +329,10 @@ mod tests {
 
         assert_eq!(
             layout.kind,
-            LayoutKind::NixosFlake { dir: dir.clone(), host: "laptop".into() }
+            LayoutKind::NixosFlake {
+                dir: dir.clone(),
+                host: "laptop".into()
+            }
         );
         assert_eq!(layout.hm_user.as_deref(), Some("alice"));
         assert_eq!(
@@ -380,7 +416,10 @@ mod tests {
 
     #[test]
     fn finds_hm_user() {
-        assert_eq!(hm_user_in_src("home-manager.users.alice = { };").as_deref(), Some("alice"));
+        assert_eq!(
+            hm_user_in_src("home-manager.users.alice = { };").as_deref(),
+            Some("alice")
+        );
         assert!(hm_user_in_src("{ home.packages = [ ]; }").is_none());
     }
 }

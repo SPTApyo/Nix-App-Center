@@ -28,7 +28,10 @@ pub(crate) enum HomeShape {
 
 impl HomeShape {
     pub(crate) fn of(layout: &Layout) -> Self {
-        let nixos = matches!(layout.kind, LayoutKind::NixosFlake { .. } | LayoutKind::NixosLegacy { .. });
+        let nixos = matches!(
+            layout.kind,
+            LayoutKind::NixosFlake { .. } | LayoutKind::NixosLegacy { .. }
+        );
         match (nixos, &layout.hm_user) {
             (true, Some(user)) => Self::NixosHm(user.clone()),
             (true, None) => Self::NixosUser(current_user()),
@@ -73,7 +76,13 @@ fn end(attr: &str) -> String {
 fn indent(body: &str, n: usize) -> String {
     let pad = " ".repeat(n);
     body.lines()
-        .map(|l| if l.trim().is_empty() { String::new() } else { format!("{pad}{l}") })
+        .map(|l| {
+            if l.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{pad}{l}")
+            }
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -348,7 +357,10 @@ mod tests {
         };
         let dir = std::path::PathBuf::from("/x");
         assert_eq!(
-            HomeShape::of(&layout(LayoutKind::NixosLegacy { dir: dir.clone() }, Some("bob"))),
+            HomeShape::of(&layout(
+                LayoutKind::NixosLegacy { dir: dir.clone() },
+                Some("bob")
+            )),
             HomeShape::NixosHm("bob".into())
         );
         assert!(matches!(
@@ -365,7 +377,11 @@ mod tests {
     fn promoted_entry_is_a_delimited_region_and_leaves_the_list() {
         let kept = vec![
             simple("firefox"),
-            promue("quickshare", Some("services.quickshare.enable = true;"), None),
+            promue(
+                "quickshare",
+                Some("services.quickshare.enable = true;"),
+                None,
+            ),
         ];
         let out = render_home(&kept, &HomeShape::HomeManager);
         assert!(out.contains("# onyx:begin quickshare"));
@@ -385,11 +401,18 @@ mod tests {
     fn promoted_block_does_not_redefine_the_aggregate_list() {
         let kept = vec![
             simple("firefox"),
-            promue("quickshare", Some(&default_block(&HomeShape::HomeManager, "quickshare")), None),
+            promue(
+                "quickshare",
+                Some(&default_block(&HomeShape::HomeManager, "quickshare")),
+                None,
+            ),
         ];
         let out = render_home(&kept, &HomeShape::NixosHm("alice".into()));
 
-        assert!(out.contains("imports = ["), "promoted apps go through imports");
+        assert!(
+            out.contains("imports = ["),
+            "promoted apps go through imports"
+        );
         assert!(
             out.contains("({ pkgs, lib, config, ... }: {"),
             "each region is a standalone module"
@@ -421,17 +444,26 @@ mod tests {
     fn system_holds_only_regions() {
         let kept = vec![
             simple("firefox"),
-            promue("quickshare", None, Some("networking.firewall.allowedTCPPorts = [ 8080 ];")),
+            promue(
+                "quickshare",
+                None,
+                Some("networking.firewall.allowedTCPPorts = [ 8080 ];"),
+            ),
         ];
         let out = render_system(&kept);
         assert!(out.contains("# onyx:begin quickshare"));
         assert!(out.contains("networking.firewall.allowedTCPPorts = [ 8080 ];"));
-        assert!(!out.contains("firefox"), "a plain app writes nothing on the system side");
+        assert!(
+            !out.contains("firefox"),
+            "a plain app writes nothing on the system side"
+        );
     }
 
     #[test]
     fn empty_files_are_still_valid_nix() {
         assert!(render_system(&[]).contains("{ pkgs, lib, config, ... }:"));
-        assert!(render_home(&[], &HomeShape::HomeManager).contains("home.packages = with pkgs; [ ];"));
+        assert!(
+            render_home(&[], &HomeShape::HomeManager).contains("home.packages = with pkgs; [ ];")
+        );
     }
 }

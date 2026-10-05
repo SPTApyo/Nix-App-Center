@@ -31,8 +31,13 @@ fn fetch_odrs_ratings() -> Option<HashMap<String, Rating>> {
     let mut map = HashMap::with_capacity(obj.len());
     for (id, val) in obj {
         let get = |k: &str| val.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
-        let (s1, s2, s3, s4, s5) =
-            (get("star1"), get("star2"), get("star3"), get("star4"), get("star5"));
+        let (s1, s2, s3, s4, s5) = (
+            get("star1"),
+            get("star2"),
+            get("star3"),
+            get("star4"),
+            get("star5"),
+        );
         let n = s1 + s2 + s3 + s4 + s5;
         if n == 0 {
             continue;

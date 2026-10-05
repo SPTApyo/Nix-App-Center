@@ -83,7 +83,12 @@ fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
     items
         .iter()
         .filter_map(|item| {
-            let str_of = |k: &str| item.get(k).and_then(|x| x.as_str()).unwrap_or("").to_string();
+            let str_of = |k: &str| {
+                item.get(k)
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string()
+            };
             let int_of = |k: &str| item.get(k).and_then(|x| x.as_i64()).unwrap_or(0);
 
             let description = str_of("description");

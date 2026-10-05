@@ -9,8 +9,8 @@
 //! "proprietary" variant otherwise. Onyx follows the same rule through
 //! `AppMeta::is_free_license`.
 
-use adw::prelude::*;
 use crate::i18n::t;
+use adw::prelude::*;
 
 use super::lozenge::{circular, Content};
 
@@ -24,9 +24,11 @@ const COMMUNITY_ICONS: [&str; 3] = [
 /// "Community Built" card (free license).
 pub fn community(license: Option<&str>, get_involved_url: Option<String>) -> gtk::ListBox {
     let description = match license {
-        Some(l) => t("This app is developed in the open by an international community, \
+        Some(l) => t(
+            "This app is developed in the open by an international community, \
                       and released under the {} license.\n\nYou can participate and \
-                      help make it even better.")
+                      help make it even better.",
+        )
         .replace("{}", l),
         None => t("This app is developed in the open by an international \
                    community.\n\nYou can participate and help make it even better."),
@@ -47,7 +49,11 @@ pub fn community(license: Option<&str>, get_involved_url: Option<String>) -> gtk
 /// Proprietary / unknown license variant: one lozenge, no "contribute".
 pub fn proprietary(license: Option<&str>, is_free: Option<bool>) -> gtk::ListBox {
     let (icon, color, title) = match is_free {
-        Some(false) => ("app-safety-unsafe-symbolic", "orange", t("Proprietary Software")),
+        Some(false) => (
+            "app-safety-unsafe-symbolic",
+            "orange",
+            t("Proprietary Software"),
+        ),
         _ => ("app-safety-unknown-symbolic", "grey", t("Unknown License")),
     };
     let description = match license {

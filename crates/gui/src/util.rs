@@ -30,9 +30,7 @@ pub fn describe_apply(res: Result<onyx_core::ApplyOutcome, String>) -> String {
             copy_to_clipboard(&argv.join(" "));
             t("No terminal found. The apply command was copied.")
         }
-        Ok(UnknownLayout) => {
-            t("Onyx cannot find your Nix configuration. Nothing was applied.")
-        }
+        Ok(UnknownLayout) => t("Onyx cannot find your Nix configuration. Nothing was applied."),
         Err(e) => t("Failed: {}").replace("{}", &e),
     }
 }
@@ -40,8 +38,7 @@ pub fn describe_apply(res: Result<onyx_core::ApplyOutcome, String>) -> String {
 /// Decodes image bytes (PNG/JPEG…) into a GTK texture. Call on the main thread
 /// (texture creation). `None` when decoding fails.
 pub fn texture_from_bytes(data: &[u8]) -> Option<gtk::gdk::Texture> {
-    let pixbuf =
-        gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
+    let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
     Some(gtk::gdk::Texture::for_pixbuf(&pixbuf))
 }
 
@@ -50,8 +47,7 @@ pub fn texture_from_bytes(data: &[u8]) -> Option<gtk::gdk::Texture> {
 /// (and, in a homogeneous FlowBox, every tile), so the texture is bounded to
 /// the wanted size.
 pub fn texture_from_bytes_sized(data: &[u8], px: i32) -> Option<gtk::gdk::Texture> {
-    let pixbuf =
-        gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
+    let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
     let scaled = pixbuf
         .scale_simple(px, px, gtk::gdk_pixbuf::InterpType::Bilinear)
         .unwrap_or(pixbuf);
@@ -116,7 +112,10 @@ pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
 // ── Skeletons (animated placeholders while loading) ───────────────────────────
 
 fn skeleton_box(w: i32, h: i32) -> gtk::Box {
-    let b = gtk::Box::builder().width_request(w).height_request(h).build();
+    let b = gtk::Box::builder()
+        .width_request(w)
+        .height_request(h)
+        .build();
     b.add_css_class("skeleton");
     b
 }
@@ -351,10 +350,12 @@ pub const FALLBACK_GLYPH: &str = "application-x-executable-symbolic";
 /// Colors are defined in `APP_CSS` (`.fb-0`..`.fb-11`).
 pub fn fallback_class(name: &str) -> &'static str {
     const C: [&str; 12] = [
-        "fb-0", "fb-1", "fb-2", "fb-3", "fb-4", "fb-5",
-        "fb-6", "fb-7", "fb-8", "fb-9", "fb-10", "fb-11",
+        "fb-0", "fb-1", "fb-2", "fb-3", "fb-4", "fb-5", "fb-6", "fb-7", "fb-8", "fb-9", "fb-10",
+        "fb-11",
     ];
-    let h = name.bytes().fold(0u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
+    let h = name
+        .bytes()
+        .fold(0u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
     C[(h as usize) % C.len()]
 }
 
@@ -377,7 +378,12 @@ impl AppItem {
         // Home/category grids: everything comes from Flathub, so an icon
         // means recognition (the search split does not apply here).
         let recognized = icon_url.is_some();
-        Self { package, icon_url, rating: None, recognized }
+        Self {
+            package,
+            icon_url,
+            rating: None,
+            recognized,
+        }
     }
 
     pub fn from_search(r: onyx_core::SearchResult) -> Self {

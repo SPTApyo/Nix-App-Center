@@ -5,23 +5,34 @@
 //! careless mistakes. Never compiled in release.
 
 use adw::prelude::*;
-use relm4::prelude::*;
 use onyx_core::Package;
+use relm4::prelude::*;
 
 use crate::views::home::{HomeModel, HomeOutput};
 
 /// (label, real query, expected behavior to check).
 const SEARCH_SCENARIOS: &[(&str, &str, &str)] = &[
-    ("App with icon + rating", "firefox",
-     "“Applications” section, icon, stars, clickable"),
-    ("Recognized / unrecognized mix", "editor",
-     "“Applications” (with icons) AND “Other Packages”"),
-    ("Package set filter", "aeson",
-     "A “haskellPackages” dropdown shows up"),
-    ("Provides a command", "rg",
-     "“Provides the rg command” section (nix-locate)"),
-    ("No results", "zzqxnonexistent",
-     "“No Results” page"),
+    (
+        "App with icon + rating",
+        "firefox",
+        "“Applications” section, icon, stars, clickable",
+    ),
+    (
+        "Recognized / unrecognized mix",
+        "editor",
+        "“Applications” (with icons) AND “Other Packages”",
+    ),
+    (
+        "Package set filter",
+        "aeson",
+        "A “haskellPackages” dropdown shows up",
+    ),
+    (
+        "Provides a command",
+        "rg",
+        "“Provides the rg command” section (nix-locate)",
+    ),
+    ("No results", "zzqxnonexistent", "“No Results” page"),
 ];
 
 /// (label, real attr, expected behavior to check).
@@ -78,7 +89,11 @@ impl SimpleComponent for GalleryModel {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         // The real home, embedded: its outputs are routed to the parent.
         let home = HomeModel::builder()
             .launch(())

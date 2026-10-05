@@ -72,7 +72,11 @@ pub fn histogram(rating: &Rating) -> gtk::Grid {
     grid.attach(&bars(rating), 0, 1, 2, 1);
 
     // (0,2) over two columns: the total.
-    let total = gtk::Label::new(Some(&plural("{} rating in total", "{} ratings in total", rating.total as i64)));
+    let total = gtk::Label::new(Some(&plural(
+        "{} rating in total",
+        "{} ratings in total",
+        rating.total as i64,
+    )));
     total.set_halign(gtk::Align::Start);
     total.set_valign(gtk::Align::Center);
     total.set_hexpand(true);
@@ -88,7 +92,13 @@ fn bars(rating: &Rating) -> gtk::Grid {
     g.set_column_spacing(2);
     g.add_css_class("review-histogram");
 
-    let counts = [rating.star5, rating.star4, rating.star3, rating.star2, rating.star1];
+    let counts = [
+        rating.star5,
+        rating.star4,
+        rating.star3,
+        rating.star2,
+        rating.star1,
+    ];
     // Bars normalized on the most frequent rating, like GsReviewBar.
     let max = counts.iter().copied().max().unwrap_or(0).max(1);
 

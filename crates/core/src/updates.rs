@@ -15,7 +15,11 @@ pub struct Update {
 fn version_newer(candidate: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u64> {
         v.split(['.', '-'])
-            .map(|s| s.chars().take_while(|c| c.is_ascii_digit()).collect::<String>())
+            .map(|s| {
+                s.chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+            })
             .map(|s| s.parse::<u64>().unwrap_or(0))
             .collect()
     };
@@ -119,7 +123,10 @@ mod tests {
         // version_newer("x.y", "") is true, so an eternal update was shown.
         let cur = current(&[("ripgrep", "14.1.0")]);
         let ups = compute_updates(vec![kept("ripgrep", "")], &cur);
-        assert!(ups.is_empty(), "empty stored version = no comparison possible");
+        assert!(
+            ups.is_empty(),
+            "empty stored version = no comparison possible"
+        );
     }
 
     #[test]

@@ -144,9 +144,13 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
         changelog: nix.and_then(|n| n.changelog.clone()),
         maintainers: nix.map(|n| n.maintainers.clone()).unwrap_or_default(),
         insecure: nix.map(|n| n.insecure).unwrap_or(false),
-        known_vulnerabilities: nix.map(|n| n.known_vulnerabilities.clone()).unwrap_or_default(),
+        known_vulnerabilities: nix
+            .map(|n| n.known_vulnerabilities.clone())
+            .unwrap_or_default(),
         broken: nix.map(|n| n.broken).unwrap_or(false),
-        screenshot_captions: fh.map(|f| f.screenshot_captions.clone()).unwrap_or_default(),
+        screenshot_captions: fh
+            .map(|f| f.screenshot_captions.clone())
+            .unwrap_or_default(),
         age_label: fh.and_then(|f| f.age_label.clone()),
         age_descriptions: fh.map(|f| f.age_descriptions.clone()).unwrap_or_default(),
         addons: fh.map(|f| f.addons.clone()).unwrap_or_default(),
@@ -214,7 +218,10 @@ mod tests {
     fn merge_prefers_appstream_over_nix_for_editorial_fields() {
         let (pkg, fh, nix) = (sample_pkg(), sample_fh(), sample_nix());
         let meta = merge_app_meta(&pkg, Some(&fh), Some(&nix));
-        assert_eq!(meta.description.as_deref(), Some("Full description from AppStream"));
+        assert_eq!(
+            meta.description.as_deref(),
+            Some("Full description from AppStream")
+        );
         assert_eq!(meta.license.as_deref(), Some("MIT"));
         assert_eq!(meta.homepage.as_deref(), Some("https://home"));
     }
@@ -327,7 +334,10 @@ mod tests {
         let meta = merge_app_meta(&pkg, Some(&fh), Some(&nix));
         assert_eq!(meta.maintainers, vec!["Steffen Vogel".to_string()]);
         assert!(meta.insecure);
-        assert_eq!(meta.known_vulnerabilities, vec!["CVE-2024-0001".to_string()]);
+        assert_eq!(
+            meta.known_vulnerabilities,
+            vec!["CVE-2024-0001".to_string()]
+        );
 
         let meta_no_nix = merge_app_meta(&pkg, Some(&fh), None);
         assert!(meta_no_nix.maintainers.is_empty());

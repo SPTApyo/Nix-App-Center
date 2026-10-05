@@ -114,7 +114,10 @@ mod tests {
 
     #[test]
     fn package_set_returns_prefix_for_dotted_attr() {
-        assert_eq!(Package::from_attr("haskellPackages.aeson").package_set(), Some("haskellPackages"));
+        assert_eq!(
+            Package::from_attr("haskellPackages.aeson").package_set(),
+            Some("haskellPackages")
+        );
     }
 
     #[test]

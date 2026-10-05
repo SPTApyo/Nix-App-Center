@@ -62,7 +62,9 @@ fn from_metadata(meta: &str) -> Safety {
         if section != "[Context]" {
             continue;
         }
-        let Some((key, val)) = line.split_once('=') else { continue };
+        let Some((key, val)) = line.split_once('=') else {
+            continue;
+        };
         let items: Vec<&str> = val.split(';').filter(|s| !s.is_empty()).collect();
         match key {
             "shared" if items.contains(&"network") => {
@@ -70,10 +72,16 @@ fn from_metadata(meta: &str) -> Safety {
             }
             "sockets" => {
                 if items.iter().any(|s| *s == "x11" || *s == "fallback-x11") {
-                    add(Level::PotentiallyUnsafe, n_("Uses a legacy windowing system"));
+                    add(
+                        Level::PotentiallyUnsafe,
+                        n_("Uses a legacy windowing system"),
+                    );
                 }
                 if items.contains(&"pulseaudio") {
-                    add(Level::ProbablySafe, n_("Can access microphones and play sounds"));
+                    add(
+                        Level::ProbablySafe,
+                        n_("Can access microphones and play sounds"),
+                    );
                 }
             }
             "devices" => {
@@ -84,26 +92,38 @@ fn from_metadata(meta: &str) -> Safety {
                 }
             }
             "filesystems" => {
-                let full = items.iter().any(|s| {
-                    matches!(*s, "home" | "host" | "/") && !s.ends_with(":ro")
-                });
+                let full = items
+                    .iter()
+                    .any(|s| matches!(*s, "home" | "host" | "/") && !s.ends_with(":ro"));
                 let read = items.iter().any(|s| matches!(*s, "home:ro" | "host:ro"));
                 if full {
-                    add(Level::PotentiallyUnsafe, n_("Can read and write all your data"));
+                    add(
+                        Level::PotentiallyUnsafe,
+                        n_("Can read and write all your data"),
+                    );
                 } else if read {
                     add(Level::PotentiallyUnsafe, n_("Can read all your data"));
                 } else if !items.is_empty() {
-                    add(Level::PotentiallyUnsafe, n_("Can access some specific files"));
+                    add(
+                        Level::PotentiallyUnsafe,
+                        n_("Can access some specific files"),
+                    );
                 }
             }
             _ => {}
         }
     }
     if has_session_bus {
-        reasons.push((Level::PotentiallyUnsafe, n_("Uses session services outside portals").into()));
+        reasons.push((
+            Level::PotentiallyUnsafe,
+            n_("Uses session services outside portals").into(),
+        ));
     }
     if has_system_bus {
-        reasons.push((Level::PotentiallyUnsafe, n_("Uses system services outside portals").into()));
+        reasons.push((
+            Level::PotentiallyUnsafe,
+            n_("Uses system services outside portals").into(),
+        ));
     }
 
     if reasons.is_empty() {
@@ -115,18 +135,31 @@ fn from_metadata(meta: &str) -> Safety {
         };
     }
 
-    let max = reasons.iter().map(|(l, _)| *l).fold(Level::Safe, |a, b| if b > a { b } else { a });
-    let descriptions: Vec<String> =
-        reasons.into_iter().filter(|(l, _)| *l == max).map(|(_, s)| s).collect();
+    let max = reasons
+        .iter()
+        .map(|(l, _)| *l)
+        .fold(Level::Safe, |a, b| if b > a { b } else { a });
+    let descriptions: Vec<String> = reasons
+        .into_iter()
+        .filter(|(l, _)| *l == max)
+        .map(|(_, s)| s)
+        .collect();
 
     let (icon, color, title) = match max {
         Level::Safe => ("app-safety-ok-symbolic", "green", n_("Safe")),
         Level::ProbablySafe => ("app-safety-ok-symbolic", "yellow", n_("Probably Safe")),
-        Level::PotentiallyUnsafe => {
-            ("app-safety-unknown-symbolic", "orange", n_("Potentially Unsafe"))
-        }
+        Level::PotentiallyUnsafe => (
+            "app-safety-unknown-symbolic",
+            "orange",
+            n_("Potentially Unsafe"),
+        ),
     };
-    Safety { icon, color, title, descriptions }
+    Safety {
+        icon,
+        color,
+        title,
+        descriptions,
+    }
 }
 
 #[cfg(test)]
@@ -153,8 +186,14 @@ org.freedesktop.UPower=talk
         assert_eq!(s.title, "Potentially Unsafe");
         assert_eq!(s.color, "orange");
         // Every reason must be at the max level (PotentiallyUnsafe).
-        assert!(s.descriptions.iter().any(|d| d.contains("hardware devices")));
-        assert!(s.descriptions.iter().any(|d| d.contains("legacy windowing")));
+        assert!(s
+            .descriptions
+            .iter()
+            .any(|d| d.contains("hardware devices")));
+        assert!(s
+            .descriptions
+            .iter()
+            .any(|d| d.contains("legacy windowing")));
         // Network/audio (ProbablySafe) is outranked, absent from descriptions.
         assert!(!s.descriptions.iter().any(|d| d.contains("network")));
     }

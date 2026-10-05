@@ -151,7 +151,11 @@ impl DetailModel {
     fn prompt_apply_or_attach(&self, sender: &ComponentSender<Self>) {
         let layout = onyx_core::detect_layout();
         if onyx_core::is_attached(&layout) {
-            apply_toast(&self.toast_overlay, sender, &t("Added to your configuration. Apply it to install."));
+            apply_toast(
+                &self.toast_overlay,
+                sender,
+                &t("Added to your configuration. Apply it to install."),
+            );
         } else {
             let overlay = self.toast_overlay.clone();
             let sender = sender.clone();
@@ -164,7 +168,9 @@ impl DetailModel {
                         &sender,
                         &t("Connected to your configuration. Apply it to install."),
                     ),
-                    Err(e) => crate::util::toast(&overlay, &t("Could not connect: {}").replace("{}", &e)),
+                    Err(e) => {
+                        crate::util::toast(&overlay, &t("Could not connect: {}").replace("{}", &e))
+                    }
                 },
             );
         }
@@ -725,7 +731,11 @@ impl SimpleComponent for DetailModel {
         }
     }
 
-    fn init(pkg: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        pkg: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let kept = onyx_core::load_manifest().entry(&pkg.attr).is_some();
 
         let toast_overlay = adw::ToastOverlay::new();
@@ -805,7 +815,10 @@ impl SimpleComponent for DetailModel {
         let widgets = view_output!();
 
         // A menu entry closes the menu, like a model-based menu would.
-        let mut entry = widgets.actions_popover.child().and_then(|b| b.first_child());
+        let mut entry = widgets
+            .actions_popover
+            .child()
+            .and_then(|b| b.first_child());
         while let Some(w) = entry {
             if let Some(btn) = w.downcast_ref::<gtk::Button>() {
                 // Menu entries read left aligned, like GNOME menus.
@@ -1074,10 +1087,18 @@ impl SimpleComponent for DetailModel {
                 self.lightbox_visible = false;
             }
             DetailMsg::Primary => {
-                sender.input(if self.cli_first() { DetailMsg::Shell } else { DetailMsg::Run });
+                sender.input(if self.cli_first() {
+                    DetailMsg::Shell
+                } else {
+                    DetailMsg::Run
+                });
             }
             DetailMsg::AltLaunch => {
-                sender.input(if self.cli_first() { DetailMsg::Run } else { DetailMsg::Shell });
+                sender.input(if self.cli_first() {
+                    DetailMsg::Run
+                } else {
+                    DetailMsg::Shell
+                });
             }
             DetailMsg::Run => {
                 let name = meta_name(&self.meta, &self.package.name);
@@ -1088,7 +1109,10 @@ impl SimpleComponent for DetailModel {
                         &t("{} is marked broken in nixpkgs. Trying anyway…").replace("{}", &name),
                     );
                 } else {
-                    crate::util::toast(&self.toast_overlay, &t("Starting {}…").replace("{}", &name));
+                    crate::util::toast(
+                        &self.toast_overlay,
+                        &t("Starting {}…").replace("{}", &name),
+                    );
                 }
                 match onyx_core::run(&self.package) {
                     Ok(child) => {
@@ -1100,7 +1124,10 @@ impl SimpleComponent for DetailModel {
                         });
                     }
                     Err(e) => {
-                        crate::util::toast(&self.toast_overlay, &t("Could not start: {}").replace("{}", &e.to_string()));
+                        crate::util::toast(
+                            &self.toast_overlay,
+                            &t("Could not start: {}").replace("{}", &e.to_string()),
+                        );
                     }
                 }
             }
@@ -1108,11 +1135,17 @@ impl SimpleComponent for DetailModel {
                 let name = meta_name(&self.meta, &self.package.name);
                 crate::util::toast(
                     &self.toast_overlay,
-                    &t("{name} stopped with an error: {err}").replace("{name}", &name).replace("{err}", &err),
+                    &t("{name} stopped with an error: {err}")
+                        .replace("{name}", &name)
+                        .replace("{err}", &err),
                 );
             }
             DetailMsg::ToggleKeep => {
-                let next = if self.kept { DetailMsg::Unkeep } else { DetailMsg::Keep };
+                let next = if self.kept {
+                    DetailMsg::Unkeep
+                } else {
+                    DetailMsg::Keep
+                };
                 sender.input(next);
             }
             DetailMsg::Shell => match onyx_core::shell(&self.package) {
@@ -1132,14 +1165,20 @@ impl SimpleComponent for DetailModel {
                         &t("No terminal found. Command copied."),
                     );
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &t("Could not open a shell: {}").replace("{}", &e.to_string())),
+                Err(e) => crate::util::toast(
+                    &self.toast_overlay,
+                    &t("Could not open a shell: {}").replace("{}", &e.to_string()),
+                ),
             },
             DetailMsg::Keep => match onyx_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e.to_string())),
+                Err(e) => crate::util::toast(
+                    &self.toast_overlay,
+                    &t("Failed: {}").replace("{}", &e.to_string()),
+                ),
             },
             DetailMsg::Unkeep => match onyx_core::unkeep(&self.package.attr) {
                 Ok(()) => {
@@ -1150,7 +1189,10 @@ impl SimpleComponent for DetailModel {
                         &t("Removed from your configuration. Apply it to uninstall."),
                     );
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e.to_string())),
+                Err(e) => crate::util::toast(
+                    &self.toast_overlay,
+                    &t("Failed: {}").replace("{}", &e.to_string()),
+                ),
             },
             DetailMsg::AdvancedEdit => {
                 // Current Nix blocks of the app, if any, to prefill the editor.
@@ -1164,7 +1206,8 @@ impl SimpleComponent for DetailModel {
                 let layout = onyx_core::detect_layout();
                 let system_available = layout.system.is_some();
                 // Without a block, start from the plain entry equivalent.
-                let home = home.or_else(|| Some(onyx_core::default_home_block(&layout, &self.package.attr)));
+                let home = home
+                    .or_else(|| Some(onyx_core::default_home_block(&layout, &self.package.attr)));
                 let pkg = self.package.clone();
                 let s = sender.input_sender().clone();
                 nix_editor::present(
@@ -1186,7 +1229,9 @@ impl SimpleComponent for DetailModel {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
-                Err(e) => crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e)),
+                Err(e) => {
+                    crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e))
+                }
             },
             DetailMsg::ApplyConfig => {
                 crate::util::toast(&self.toast_overlay, &t("Applying configuration…"));
@@ -1201,7 +1246,9 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::CopyCommand => {
                 if let Some(display) = gtk::gdk::Display::default() {
-                    display.clipboard().set_text(&onyx_core::run_command(&self.package));
+                    display
+                        .clipboard()
+                        .set_text(&onyx_core::run_command(&self.package));
                 }
                 crate::util::toast(&self.toast_overlay, &t("Command copied."));
             }
@@ -1425,7 +1472,10 @@ fn build_context_tiles(
     let (storage_val, storage_desc) = if !size_loaded {
         ("…".into(), t("Computing size…"))
     } else if let Some(bytes) = closure_size {
-        (gtk::glib::format_size(bytes).to_string(), t("Total download including dependencies"))
+        (
+            gtk::glib::format_size(bytes).to_string(),
+            t("Total download including dependencies"),
+        )
     } else {
         ("?".into(), t("Needs a local build"))
     };
@@ -1449,10 +1499,20 @@ fn build_context_tiles(
         } else {
             t("Known vulnerabilities: {}").replace("{}", &meta.known_vulnerabilities.join(", "))
         };
-        context_bar::tile(Content::Icon("app-safety-unsafe-symbolic"), "red", &t("Vulnerable"), &d)
+        context_bar::tile(
+            Content::Icon("app-safety-unsafe-symbolic"),
+            "red",
+            &t("Vulnerable"),
+            &d,
+        )
     } else if let Some(s) = safety {
         let desc: Vec<String> = s.descriptions.iter().map(|d| t(d.as_str())).collect();
-        context_bar::tile(Content::Icon(s.icon), s.color, &t(s.title), &desc.join("; "))
+        context_bar::tile(
+            Content::Icon(s.icon),
+            s.color,
+            &t(s.title),
+            &desc.join("; "),
+        )
     } else if !safety_loaded {
         context_bar::tile(
             Content::Icon("app-safety-unknown-symbolic"),
@@ -1495,10 +1555,19 @@ fn build_context_tiles(
             let desc = if meta.age_descriptions.is_empty() {
                 t("No inappropriate content")
             } else {
-                let d: Vec<String> = meta.age_descriptions.iter().map(|d| t(d.as_str())).collect();
+                let d: Vec<String> = meta
+                    .age_descriptions
+                    .iter()
+                    .map(|d| t(d.as_str()))
+                    .collect();
                 d.join("; ")
             };
-            context_bar::tile(Content::Text(label), age_color(label), &t("Age Rating"), &desc)
+            context_bar::tile(
+                Content::Text(label),
+                age_color(label),
+                &t("Age Rating"),
+                &desc,
+            )
         }
         None => context_bar::tile(
             Content::Text("?"),
@@ -1626,16 +1695,29 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
 
     // Order and icons of `gs-details-page.ui`; no "Contact" source exists.
     let links = [
-        (t("_Project Website"), "webpage-symbolic", meta.homepage.clone()),
+        (
+            t("_Project Website"),
+            "webpage-symbolic",
+            meta.homepage.clone(),
+        ),
         (t("_Donate"), "donate-symbolic", meta.donation.clone()),
-        (t("Contribute _Translations"), "translations-symbolic", meta.translate.clone()),
-        (t("_Report an Issue"), "computer-fail-symbolic", meta.bugtracker.clone()),
+        (
+            t("Contribute _Translations"),
+            "translations-symbolic",
+            meta.translate.clone(),
+        ),
+        (
+            t("_Report an Issue"),
+            "computer-fail-symbolic",
+            meta.bugtracker.clone(),
+        ),
         (t("_Help"), "help-link-symbolic", meta.help.clone()),
     ];
     let present: Vec<_> = links
         .into_iter()
         .filter_map(|(label, icon, url)| {
-            url.filter(|u| !u.trim().is_empty()).map(|u| (label, icon, u))
+            url.filter(|u| !u.trim().is_empty())
+                .map(|u| (label, icon, u))
         })
         .collect();
 
@@ -1703,7 +1785,8 @@ fn link_row(label: &str, icon: &str, url: &str) -> adw::ActionRow {
     row.add_suffix(&gtk::Image::from_icon_name("external-link-symbolic"));
     let url = url.to_string();
     row.connect_activated(move |_| {
-        let _ = gtk::gio::AppInfo::launch_default_for_uri(&url, None::<&gtk::gio::AppLaunchContext>);
+        let _ =
+            gtk::gio::AppInfo::launch_default_for_uri(&url, None::<&gtk::gio::AppLaunchContext>);
     });
     row
 }
@@ -1751,7 +1834,10 @@ fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk
                 .await
                 .ok()
                 .flatten();
-            if let Some(tex) = bytes.as_deref().and_then(|b| texture_from_bytes_sized(b, 128)) {
+            if let Some(tex) = bytes
+                .as_deref()
+                .and_then(|b| texture_from_bytes_sized(b, 128))
+            {
                 img.set_paintable(Some(&tex));
                 img.set_visible(true);
                 fallback.set_visible(false);
@@ -1909,7 +1995,10 @@ mod tests {
     #[test]
     fn desc_needs_toggle_only_past_threshold() {
         assert!(!desc_needs_toggle(&None, &"a".repeat(DESC_COLLAPSE_CHARS)));
-        assert!(desc_needs_toggle(&None, &"a".repeat(DESC_COLLAPSE_CHARS + 1)));
+        assert!(desc_needs_toggle(
+            &None,
+            &"a".repeat(DESC_COLLAPSE_CHARS + 1)
+        ));
     }
 
     /// Checks the real GTK tree against `gs-details-page.ui`. Needs a display,
@@ -1940,13 +2029,20 @@ mod tests {
         // The GtkStack holds the three `.ui` states and starts on "spinner".
         let stack = &ctrl.model().stack;
         for name in ["spinner", "ready", "failed"] {
-            assert!(stack.child_by_name(name).is_some(), "page \"{name}\" missing");
+            assert!(
+                stack.child_by_name(name).is_some(),
+                "page \"{name}\" missing"
+            );
         }
         assert_eq!(stack.visible_child_name().as_deref(), Some("spinner"));
 
         // The carousel starts on its fallback page (no screenshot loaded).
         assert_eq!(
-            ctrl.model().carousel.widget().visible_child_name().as_deref(),
+            ctrl.model()
+                .carousel
+                .widget()
+                .visible_child_name()
+                .as_deref(),
             Some("fallback")
         );
 

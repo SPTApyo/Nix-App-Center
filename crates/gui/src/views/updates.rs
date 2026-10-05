@@ -5,8 +5,8 @@
 //! Reloaded every time the tab is entered (from `app.rs`).
 
 use adw::prelude::*;
-use relm4::prelude::*;
 use onyx_core::{Package, Update};
+use relm4::prelude::*;
 
 use crate::i18n::t;
 use crate::util;
@@ -62,7 +62,11 @@ impl SimpleComponent for UpdatesModel {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(18)

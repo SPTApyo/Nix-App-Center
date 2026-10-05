@@ -3,12 +3,12 @@
 //! one scroll/clamp. Pushed page.
 
 use adw::prelude::*;
+use onyx_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
-use onyx_core::Package;
 
-use crate::i18n::t;
 use crate::components::AppTile;
+use crate::i18n::t;
 use crate::util::{skeleton_grid, AppItem};
 
 type Section = Vec<(Package, Option<String>)>;
@@ -151,7 +151,9 @@ impl SimpleComponent for CategoryModel {
 
         let s = sender.input_sender().clone();
         std::thread::spawn(move || {
-            let _ = s.send(CategoryMsg::Loaded(onyx_core::category_sections_union(slugs, 200)));
+            let _ = s.send(CategoryMsg::Loaded(onyx_core::category_sections_union(
+                slugs, 200,
+            )));
         });
 
         ComponentParts { model, widgets }

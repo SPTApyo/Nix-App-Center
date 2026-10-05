@@ -3,8 +3,8 @@
 //! buttons, indicator dots). Slides are Flathub apps on a gradient background.
 
 use adw::prelude::*;
-use relm4::prelude::*;
 use onyx_core::Package;
+use relm4::prelude::*;
 
 use crate::util::{texture_from_bytes, AppItem};
 
@@ -71,7 +71,11 @@ impl SimpleComponent for FeaturedCarousel {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let carousel = adw::Carousel::new();
         let dots = adw::CarouselIndicatorDots::new();
 
@@ -115,9 +119,7 @@ impl SimpleComponent for FeaturedCarousel {
             FeaturedInput::Prev => self.scroll(-1),
             FeaturedInput::Next => self.scroll(1),
             FeaturedInput::IconLoaded(idx, bytes) => {
-                if let (Some(img), Some(tex)) =
-                    (self.images.get(idx), texture_from_bytes(&bytes))
-                {
+                if let (Some(img), Some(tex)) = (self.images.get(idx), texture_from_bytes(&bytes)) {
                     img.set_paintable(Some(&tex));
                 }
             }
