@@ -1,49 +1,55 @@
-//! "Updates" tab: compares kept versions (manifest) with current nixpkgs
-//! through `core::available_updates()` (run in a thread, it makes N `nix search`
-//! calls). Skeleton while loading, an "Everything is up to date" illustration
-//! when empty, otherwise a boxed list + an "Update All" button (`apply_config`).
-//! Reloaded every time the tab is entered (from `app.rs`).
+//! "Updates" tab. Every package follows the nixpkgs revision the config pins,
+//! so an update is that pin moving to the head of its branch. The tab shows
+//! the current pin, the branch head, the installed apps that change, and runs
+//! the update (move the pin, then apply) when Onyx knows how.
+//!
+//! The check downloads nixpkgs once per hour at most: it only runs when the
+//! tab is entered and the last check is older than ten minutes.
+
+use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use onyx_core::{Package, Update};
+use onyx_core::{AppUpdate, Latest, Source, UpdateMethod};
 use relm4::prelude::*;
 
 use crate::i18n::t;
-use crate::util;
+use crate::util::{self, esc};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum State {
-    Loading,
-    Loaded,
+const RECHECK_AFTER: Duration = Duration::from_secs(600);
+
+#[derive(Debug, Clone)]
+pub struct Check {
+    source: Source,
+    latest: Option<Latest>,
+    apps: Vec<AppUpdate>,
+    command: Option<Vec<String>>,
 }
 
 pub struct UpdatesModel {
-    state: State,
-    updates: Vec<Update>,
-    applying: bool,
+    check: Option<Check>,
+    checked_at: Option<Instant>,
+    checking: bool,
+    updating: bool,
     status: Option<String>,
     content: gtk::Box,
 }
 
 #[derive(Debug)]
 pub enum UpdatesMsg {
-    /// (Re)starts detection in the background.
+    /// Tab entered: checks again when the last check is old.
     Reload,
-    /// Detection result.
-    Loaded(Vec<Update>),
-    /// The user clicked "Update All": apply the configuration.
-    ApplyAll,
-    /// Apply result (Ok = last line, Err = message).
-    Applied(Result<onyx_core::ApplyOutcome, String>),
-    /// Row click: open the details page.
-    Open(Package),
+    /// "Check Again".
+    Refresh,
+    Checked(Check),
+    Update,
+    Updated(Result<onyx_core::ApplyOutcome, String>),
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for UpdatesModel {
     type Init = ();
     type Input = UpdatesMsg;
-    type Output = Package; // opened row, AppModel pushes the details page
+    type Output = onyx_core::Package;
 
     view! {
         #[root]
@@ -72,154 +78,244 @@ impl SimpleComponent for UpdatesModel {
             .spacing(18)
             .vexpand(true)
             .build();
-
         let model = UpdatesModel {
-            state: State::Loading,
-            updates: Vec::new(),
-            applying: false,
+            check: None,
+            checked_at: None,
+            checking: false,
+            updating: false,
             status: None,
             content: content.clone(),
         };
         let widgets = view_output!();
         widgets.clamp.set_child(Some(&content));
-
         model.rebuild(&sender);
-        sender.input(UpdatesMsg::Reload);
-
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             UpdatesMsg::Reload => {
-                self.state = State::Loading;
-                self.status = None;
-                self.rebuild(&sender);
-                let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let _ = s.send(UpdatesMsg::Loaded(onyx_core::available_updates()));
-                });
+                if self
+                    .checked_at
+                    .is_none_or(|at| at.elapsed() > RECHECK_AFTER)
+                {
+                    sender.input(UpdatesMsg::Refresh);
+                }
             }
-            UpdatesMsg::Loaded(updates) => {
-                self.updates = updates;
-                self.state = State::Loaded;
-                self.rebuild(&sender);
-            }
-            UpdatesMsg::ApplyAll => {
-                if self.applying {
+            UpdatesMsg::Refresh => {
+                if self.checking {
                     return;
                 }
-                self.applying = true;
-                self.status = Some(t("Applying configuration…"));
+                self.checking = true;
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = onyx_core::apply_config().map_err(|e| e.to_string());
-                    let _ = s.send(UpdatesMsg::Applied(res));
+                    let _ = s.send(UpdatesMsg::Checked(check()));
                 });
             }
-            UpdatesMsg::Applied(res) => {
-                self.applying = false;
-                self.status = Some(crate::util::describe_apply(res));
-                // Detect again after applying (versions may have changed).
+            UpdatesMsg::Checked(c) => {
+                self.checking = false;
+                self.checked_at = Some(Instant::now());
+                self.check = Some(c);
                 self.rebuild(&sender);
-                sender.input(UpdatesMsg::Reload);
             }
-            UpdatesMsg::Open(pkg) => {
-                let _ = sender.output(pkg);
+            UpdatesMsg::Update => {
+                let Some(argv) = self.check.as_ref().and_then(|c| c.command.clone()) else {
+                    return;
+                };
+                if self.updating {
+                    return;
+                }
+                self.updating = true;
+                self.status = Some(t("Updating…"));
+                self.rebuild(&sender);
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = onyx_core::run_update(&argv).map_err(|e| e.to_string());
+                    let _ = s.send(UpdatesMsg::Updated(res));
+                });
+            }
+            UpdatesMsg::Updated(res) => {
+                self.updating = false;
+                self.status = Some(util::describe_apply(res));
+                self.checked_at = None;
+                self.rebuild(&sender);
             }
         }
     }
 }
 
+/// Blocking: reads the pin, asks for the branch head, compares the apps.
+fn check() -> Check {
+    let source = onyx_core::current_source();
+    let latest = source.branch.as_deref().and_then(onyx_core::latest);
+    let apps = match &latest {
+        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => {
+            onyx_core::app_updates(&l.rev, &onyx_core::profile_apps())
+        }
+        _ => Vec::new(),
+    };
+    let command = onyx_core::update_command(&source, &onyx_core::detect_layout());
+    Check {
+        source,
+        latest,
+        apps,
+        command,
+    }
+}
+
+fn short(rev: &str) -> &str {
+    rev.get(..7).unwrap_or(rev)
+}
+
+fn revision_line(rev: Option<&str>, ts: Option<u64>) -> String {
+    match (rev, ts) {
+        (Some(r), Some(ts)) => t("Revision {rev}, {age}")
+            .replace("{rev}", short(r))
+            .replace("{age}", &util::format_relative(ts as i64).to_lowercase()),
+        (Some(r), None) => t("Revision {rev}").replace("{rev}", short(r)),
+        _ => t("Revision unknown"),
+    }
+}
+
 impl UpdatesModel {
-    /// Clears `content` and fills it again from the current state.
     fn rebuild(&self, sender: &ComponentSender<Self>) {
         while let Some(child) = self.content.first_child() {
             self.content.remove(&child);
         }
-
         if let Some(status) = &self.status {
-            let lbl = gtk::Label::new(Some(status));
-            lbl.add_css_class("dim-label");
-            lbl.set_wrap(true);
-            lbl.set_xalign(0.0);
-            self.content.append(&lbl);
+            self.content.append(&dim_label(status));
+        }
+        let Some(c) = self.check.as_ref().filter(|_| !self.checking) else {
+            self.content.append(&dim_label(&t("Checking for updates…")));
+            self.content.append(&util::skeleton_list(3));
+            return;
+        };
+
+        self.content.append(&self.source_list(c, sender));
+
+        let Some(latest) = &c.latest else {
+            let text = if c.source.branch.is_none() {
+                t("Onyx cannot tell which nixpkgs branch your configuration follows.")
+            } else {
+                t("Onyx could not reach nixpkgs to check for updates.")
+            };
+            self.content.append(&dim_label(&text));
+            return;
+        };
+        if c.source.rev.as_deref() == Some(latest.rev.as_str()) {
+            self.content.append(&up_to_date_view());
+            return;
         }
 
-        match self.state {
-            State::Loading => {
-                self.content.append(&util::skeleton_list(4));
+        self.content.append(&self.header(c, latest, sender));
+        if let Some(note) = method_note(&c.source.method).filter(|_| c.command.is_none()) {
+            self.content.append(&dim_label(&note));
+        }
+        if !c.apps.is_empty() {
+            let list = gtk::ListBox::new();
+            list.add_css_class("boxed-list");
+            list.set_selection_mode(gtk::SelectionMode::None);
+            for u in &c.apps {
+                let change = format!("{} → {}", u.app.version, u.new_version);
+                let row = util::desktop_row(&u.app.desktop_file, &change).unwrap_or_else(|| {
+                    adw::ActionRow::builder()
+                        .title(esc(&u.app.pname))
+                        .subtitle(esc(&change))
+                        .build()
+                });
+                list.append(&row);
             }
-            State::Loaded if self.updates.is_empty() => {
-                self.content.append(&up_to_date_view());
-            }
-            State::Loaded => {
-                self.content.append(&self.header(sender));
-                self.content.append(&self.list(sender));
-            }
+            self.content.append(&list);
         }
     }
 
-    fn header(&self, sender: &ComponentSender<Self>) -> gtk::Box {
-        let n = self.updates.len();
-        let title = gtk::Label::new(Some(
-            &gettextrs::ngettext("{} update available", "{} updates available", n as u32)
-                .replace("{}", &n.to_string()),
-        ));
-        title.add_css_class("title-2");
-        title.set_xalign(0.0);
-        title.set_hexpand(true);
-
-        let btn = gtk::Button::with_label(&t("Update All"));
-        btn.add_css_class("suggested-action");
-        btn.set_valign(gtk::Align::Center);
-        btn.set_sensitive(!self.applying);
-        btn.connect_clicked({
+    fn source_list(&self, c: &Check, sender: &ComponentSender<Self>) -> gtk::ListBox {
+        let row = adw::ActionRow::builder()
+            .title(esc(&match &c.source.branch {
+                Some(b) => t("nixpkgs {}").replace("{}", b),
+                None => "nixpkgs".to_string(),
+            }))
+            .subtitle(esc(&t("Installed: {}").replace(
+                "{}",
+                &revision_line(c.source.rev.as_deref(), c.source.last_modified),
+            )))
+            .build();
+        row.add_prefix(&gtk::Image::from_icon_name("nix-snowflake-symbolic"));
+        let again = gtk::Button::from_icon_name("view-refresh-symbolic");
+        again.set_tooltip_text(Some(&t("Check Again")));
+        again.add_css_class("flat");
+        again.set_valign(gtk::Align::Center);
+        again.connect_clicked({
             let s = sender.input_sender().clone();
             move |_| {
-                let _ = s.send(UpdatesMsg::ApplyAll);
+                let _ = s.send(UpdatesMsg::Refresh);
             }
         });
+        row.add_suffix(&again);
+        let list = gtk::ListBox::new();
+        list.add_css_class("boxed-list");
+        list.set_selection_mode(gtk::SelectionMode::None);
+        list.append(&row);
+        list
+    }
 
-        let hb = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(12)
-            .build();
-        hb.append(&title);
-        hb.append(&btn);
+    fn header(&self, c: &Check, latest: &Latest, sender: &ComponentSender<Self>) -> gtk::Box {
+        let n = c.apps.len() as i64;
+        let title = gtk::Label::new(Some(&if n > 0 {
+            util::plural("{} app update", "{} app updates", n)
+        } else {
+            t("New nixpkgs revision")
+        }));
+        title.add_css_class("title-2");
+        title.set_xalign(0.0);
+        let sub = dim_label(&t("Available: {}").replace(
+            "{}",
+            &revision_line(Some(&latest.rev), Some(latest.last_modified)),
+        ));
+        let titles = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        titles.set_hexpand(true);
+        titles.append(&title);
+        titles.append(&sub);
+
+        let hb = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        hb.append(&titles);
+        if c.command.is_some() {
+            let btn = gtk::Button::with_mnemonic(&t("_Update"));
+            btn.add_css_class("suggested-action");
+            btn.set_valign(gtk::Align::Center);
+            btn.set_sensitive(!self.updating);
+            btn.set_tooltip_text(c.command.as_ref().map(|a| a.join(" ")).as_deref());
+            btn.connect_clicked({
+                let s = sender.input_sender().clone();
+                move |_| {
+                    let _ = s.send(UpdatesMsg::Update);
+                }
+            });
+            hb.append(&btn);
+        }
         hb
     }
+}
 
-    fn list(&self, sender: &ComponentSender<Self>) -> gtk::ListBox {
-        let lb = gtk::ListBox::new();
-        lb.add_css_class("boxed-list");
-        lb.set_selection_mode(gtk::SelectionMode::None);
-        lb.set_valign(gtk::Align::Start);
-
-        for u in &self.updates {
-            let row = adw::ActionRow::builder()
-                .title(util::esc(&u.package.attr))
-                .subtitle(util::esc(&format!(
-                    "{} → {}",
-                    u.installed_version, u.available_version
-                )))
-                .activatable(true)
-                .build();
-            row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-            lb.append(&row);
-        }
-
-        // row-activated: open the matching package details (by index).
-        let updates: Vec<Package> = self.updates.iter().map(|u| u.package.clone()).collect();
-        let s = sender.input_sender().clone();
-        lb.connect_row_activated(move |_, row| {
-            if let Some(pkg) = updates.get(row.index() as usize) {
-                let _ = s.send(UpdatesMsg::Open(pkg.clone()));
-            }
-        });
-        lb
+/// Why Onyx cannot run the update itself.
+fn method_note(method: &UpdateMethod) -> Option<String> {
+    match method {
+        UpdateMethod::Pinned { by } => Some(
+            t("nixpkgs comes from the “{}” input of your configuration. Update that flake, then apply.")
+                .replace("{}", by),
+        ),
+        UpdateMethod::Unknown => Some(t("Onyx cannot update this configuration by itself.")),
+        _ => None,
     }
+}
+
+fn dim_label(text: &str) -> gtk::Label {
+    let l = gtk::Label::new(Some(text));
+    l.add_css_class("dim-label");
+    l.set_wrap(true);
+    l.set_xalign(0.0);
+    l
 }
 
 /// "Everything is up to date" illustration (borrowed from GNOME Software), centered.

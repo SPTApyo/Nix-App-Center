@@ -1,36 +1,59 @@
-//! "Installed" tab: two sections in one scroll.
+//! "Installed" tab, a list per origin like GNOME Software:
 //!
-//! • "In Your Configuration": kept packages (`kept.json`), i.e. the Nix config.
-//! • "Recently Tried": `nix run` history (`tried.json`) + a GC button.
+//! • "In Your Configuration": packages Onyx keeps (`kept.json`), removable.
+//! • "Recently Tried": `nix run` history, each one removable from the store.
+//! • "System" / "User": apps the Nix profiles already hold, read only and
+//!   dimmed, drawn from their desktop files with the local icons.
 //!
 //! Reloaded when the tab is activated, through `InstalledMsg::Reload`.
-//! Flow: skeleton, parallel AppStream fetch (cached), DataReady, tiles.
+
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use adw::prelude::*;
-use onyx_core::Package;
-use relm4::factory::FactoryVecDeque;
+use onyx_core::{Package, ProfileApp, Scope};
 use relm4::prelude::*;
 
-use crate::components::AppTile;
 use crate::i18n::t;
-use crate::util::{skeleton_grid, AppItem};
+use crate::util::{self, esc};
+
+/// A kept or tried package, with what its row needs.
+#[derive(Debug, Clone)]
+pub struct Item {
+    package: Package,
+    icon: Option<Vec<u8>>,
+    /// Desktop file shipped by the package itself (tried apps).
+    desktop_file: Option<PathBuf>,
+    tried_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Data {
+    kept: Vec<Item>,
+    tried: Vec<Item>,
+    profile: Vec<ProfileApp>,
+}
 
 pub struct InstalledModel {
-    kept_tiles: FactoryVecDeque<AppTile>,
-    tried_tiles: FactoryVecDeque<AppTile>,
-    kept_empty: gtk::Label,
-    tried_empty: gtk::Label,
-    gc_btn: gtk::Button,
-    gc_label: gtk::Label,
+    data: Option<Data>,
+    removing: HashSet<String>,
+    applying: bool,
     gc_running: bool,
-    stack: gtk::Stack,
+    status: Option<String>,
+    banner: adw::Banner,
+    content: gtk::Box,
 }
 
 #[derive(Debug)]
 pub enum InstalledMsg {
     Reload,
-    DataReady(Vec<AppItem>, Vec<AppItem>), // (kept, tried) with icon_url filled
+    DataReady(Data),
     Open(Package),
+    Unkeep(String),
+    RemoveTried(String),
+    Removed(String, Result<u64, String>),
+    Apply,
+    Applied(Result<onyx_core::ApplyOutcome, String>),
     Gc,
     GcDone(String),
 }
@@ -43,9 +66,23 @@ impl SimpleComponent for InstalledModel {
 
     view! {
         #[root]
-        gtk::ScrolledWindow {
-            set_hscrollbar_policy: gtk::PolicyType::Never,
-            set_vexpand: true,
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            #[local_ref]
+            banner -> adw::Banner {},
+            gtk::ScrolledWindow {
+                set_hscrollbar_policy: gtk::PolicyType::Never,
+                set_vexpand: true,
+                #[name(clamp)]
+                adw::Clamp {
+                    set_maximum_size: 860,
+                    set_tightening_threshold: 576,
+                    set_margin_top: 24,
+                    set_margin_bottom: 24,
+                    set_margin_start: 12,
+                    set_margin_end: 12,
+                }
+            }
         }
     }
 
@@ -54,136 +91,35 @@ impl SimpleComponent for InstalledModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        // ── Grids (FactoryVecDeque bound to a FlowBox) ────────────────────────
-        let kept_tiles = FactoryVecDeque::builder()
-            .launch(gtk::FlowBox::new())
-            .forward(sender.input_sender(), InstalledMsg::Open);
-        configure_flow(kept_tiles.widget());
-
-        let tried_tiles = FactoryVecDeque::builder()
-            .launch(gtk::FlowBox::new())
-            .forward(sender.input_sender(), InstalledMsg::Open);
-        configure_flow(tried_tiles.widget());
-
-        // ── "In Your Configuration" section ───────────────────────────────────
-        let kept_empty = gtk::Label::new(Some(&t(
-            "No kept packages yet. Open an app and choose “Add to Configuration”.",
-        )));
-        kept_empty.add_css_class("dim-label");
-        kept_empty.set_xalign(0.0);
-        kept_empty.set_wrap(true);
-        kept_empty.set_visible(false);
-
-        let kept_section = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(12)
-            .build();
-        kept_section.append(&section_heading(&t("In Your Configuration")));
-        kept_section.append(kept_tiles.widget());
-        kept_section.append(&kept_empty);
-
-        // ── "Recently Tried" section ──────────────────────────────────────────
-        let gc_btn = gtk::Button::with_label(&t("Free Up Space"));
-        gc_btn.add_css_class("flat");
-        gc_btn.set_valign(gtk::Align::Center);
-        gc_btn.set_tooltip_text(Some(&t(
-            "Runs nix-collect-garbage: removes packages you did not keep from the store",
-        )));
-        gc_btn.connect_clicked({
+        let banner = adw::Banner::new(&t("Your configuration changed. Apply it to uninstall."));
+        banner.set_button_label(Some(&t("_Apply")));
+        banner.connect_button_clicked({
             let s = sender.input_sender().clone();
             move |_| {
-                let _ = s.send(InstalledMsg::Gc);
+                let _ = s.send(InstalledMsg::Apply);
             }
         });
-
-        let tried_header = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(8)
-            .build();
-        tried_header.append(&section_heading(&t("Recently Tried")));
-        let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        spacer.set_hexpand(true);
-        tried_header.append(&spacer);
-        tried_header.append(&gc_btn);
-
-        let tried_empty = gtk::Label::new(Some(&t(
-            "Nothing tried yet. Run a package from search and it will show up here.",
-        )));
-        tried_empty.add_css_class("dim-label");
-        tried_empty.set_xalign(0.0);
-        tried_empty.set_wrap(true);
-        tried_empty.set_visible(false);
-
-        let gc_label = gtk::Label::new(None);
-        gc_label.add_css_class("dim-label");
-        gc_label.set_xalign(0.0);
-        gc_label.set_visible(false);
-
-        let tried_section = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(12)
-            .build();
-        tried_section.append(&tried_header);
-        tried_section.append(tried_tiles.widget());
-        tried_section.append(&tried_empty);
-        tried_section.append(&gc_label);
-
-        // ── "content" page ────────────────────────────────────────────────────
         let content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(24)
-            .margin_top(24)
-            .margin_bottom(24)
             .build();
-        content.append(&kept_section);
-        content.append(&tried_section);
-
-        let content_clamp = adw::Clamp::new();
-        content_clamp.set_maximum_size(1000);
-        content_clamp.set_tightening_threshold(600);
-        content_clamp.set_margin_start(12);
-        content_clamp.set_margin_end(12);
-        content_clamp.set_child(Some(&content));
-
-        // ── "loading" page (skeleton mirroring the content) ───────────────────
-        let loading_content = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(24)
-            .margin_top(24)
-            .margin_bottom(24)
-            .build();
-        loading_content.append(&skeleton_section(160)); // "In Your Configuration"
-        loading_content.append(&skeleton_section(120)); // "Recently Tried"
-
-        let loading_clamp = adw::Clamp::new();
-        loading_clamp.set_maximum_size(1000);
-        loading_clamp.set_tightening_threshold(600);
-        loading_clamp.set_margin_start(12);
-        loading_clamp.set_margin_end(12);
-        loading_clamp.set_child(Some(&loading_content));
-
-        // ── Skeleton / content stack ──────────────────────────────────────────
-        let stack = gtk::Stack::new();
-        stack.set_transition_type(gtk::StackTransitionType::Crossfade);
-        stack.set_transition_duration(150);
-        stack.add_named(&loading_clamp, Some("loading"));
-        stack.add_named(&content_clamp, Some("content"));
-        stack.set_visible_child_name("loading");
 
         let model = InstalledModel {
-            kept_tiles,
-            tried_tiles,
-            kept_empty: kept_empty.clone(),
-            tried_empty: tried_empty.clone(),
-            gc_btn: gc_btn.clone(),
-            gc_label: gc_label.clone(),
+            data: None,
+            removing: HashSet::new(),
+            applying: false,
             gc_running: false,
-            stack: stack.clone(),
+            status: None,
+            banner: banner.clone(),
+            content: content.clone(),
         };
         let widgets = view_output!();
-        root.set_child(Some(&stack));
-        crate::util::smooth_scroll(&root);
+        widgets.clamp.set_child(Some(&content));
+        if let Some(scroller) = widgets.clamp.parent().and_downcast::<gtk::ScrolledWindow>() {
+            util::smooth_scroll(&scroller);
+        }
 
+        model.rebuild(&sender);
         sender.input(InstalledMsg::Reload);
         ComponentParts { model, widgets }
     }
@@ -191,61 +127,97 @@ impl SimpleComponent for InstalledModel {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             InstalledMsg::Reload => {
-                self.stack.set_visible_child_name("loading");
-
-                let kept_pkgs: Vec<Package> = onyx_core::load_manifest().packages();
-                let tried_pkgs: Vec<Package> = onyx_core::load_tried()
-                    .tried
-                    .into_iter()
-                    .map(|e| e.package)
-                    .collect();
-
-                let (target_dev_w, _) = crate::util::screen_metrics();
-                let target_w = (target_dev_w.clamp(1280, 3840)) as u32;
-
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let kept_items = fetch_items(kept_pkgs, target_w);
-                    let tried_items = fetch_items(tried_pkgs, target_w);
-                    let _ = s.send(InstalledMsg::DataReady(kept_items, tried_items));
+                    let _ = s.send(InstalledMsg::DataReady(load_data()));
+                    // Icons come from AppStream: list again once it is loaded.
+                    if !onyx_core::appstream_settled() {
+                        onyx_core::wait_appstream(std::time::Duration::from_secs(180));
+                        let _ = s.send(InstalledMsg::DataReady(load_data()));
+                    }
                 });
             }
-            InstalledMsg::DataReady(kept_items, tried_items) => {
-                let kept_empty = kept_items.is_empty();
-                {
-                    let mut g = self.kept_tiles.guard();
-                    g.clear();
-                    for item in kept_items {
-                        g.push_back(item);
-                    }
-                }
-                self.kept_tiles.widget().set_visible(!kept_empty);
-                self.kept_empty.set_visible(kept_empty);
-
-                let tried_empty = tried_items.is_empty();
-                {
-                    let mut g = self.tried_tiles.guard();
-                    g.clear();
-                    for item in tried_items {
-                        g.push_back(item);
-                    }
-                }
-                self.tried_tiles.widget().set_visible(!tried_empty);
-                self.tried_empty.set_visible(tried_empty);
-
-                self.stack.set_visible_child_name("content");
+            InstalledMsg::DataReady(data) => {
+                self.data = Some(data);
+                self.rebuild(&sender);
             }
             InstalledMsg::Open(pkg) => {
                 let _ = sender.output(pkg);
+            }
+            InstalledMsg::Unkeep(attr) => {
+                match onyx_core::unkeep(&attr) {
+                    Ok(()) => {
+                        if let Some(d) = self.data.as_mut() {
+                            d.kept.retain(|i| i.package.attr != attr);
+                        }
+                        self.status = None;
+                        self.banner.set_revealed(true);
+                    }
+                    Err(e) => self.status = Some(t("Failed: {}").replace("{}", &e.to_string())),
+                }
+                self.rebuild(&sender);
+            }
+            InstalledMsg::RemoveTried(attr) => {
+                if !self.removing.insert(attr.clone()) {
+                    return;
+                }
+                self.rebuild(&sender);
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = onyx_core::remove_tried(&attr).map_err(|e| e.to_string());
+                    let _ = s.send(InstalledMsg::Removed(attr, res));
+                });
+            }
+            InstalledMsg::Removed(attr, res) => {
+                self.removing.remove(&attr);
+                let name = self
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.tried.iter().find(|i| i.package.attr == attr))
+                    .map(|i| display_name(&i.package))
+                    .unwrap_or_else(|| attr.clone());
+                if res.is_ok() {
+                    if let Some(d) = self.data.as_mut() {
+                        d.tried.retain(|i| i.package.attr != attr);
+                    }
+                }
+                self.status = Some(match res {
+                    Ok(0) => t("{} removed. Nothing to free: your system still uses it.")
+                        .replace("{}", &name),
+                    Ok(bytes) => t("{name} removed, {size} freed.")
+                        .replace("{name}", &name)
+                        .replace("{size}", &gtk::glib::format_size(bytes)),
+                    Err(e) => t("Failed: {}").replace("{}", &e),
+                });
+                self.rebuild(&sender);
+            }
+            InstalledMsg::Apply => {
+                if self.applying {
+                    return;
+                }
+                self.applying = true;
+                self.banner.set_revealed(false);
+                self.status = Some(t("Applying configuration…"));
+                self.rebuild(&sender);
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = onyx_core::apply_config().map_err(|e| e.to_string());
+                    let _ = s.send(InstalledMsg::Applied(res));
+                });
+            }
+            InstalledMsg::Applied(res) => {
+                self.applying = false;
+                self.status = Some(util::describe_apply(res));
+                self.rebuild(&sender);
+                sender.input(InstalledMsg::Reload);
             }
             InstalledMsg::Gc => {
                 if self.gc_running {
                     return;
                 }
                 self.gc_running = true;
-                self.gc_btn.set_sensitive(false);
-                self.gc_label.set_label(&t("Cleaning up the store…"));
-                self.gc_label.set_visible(true);
+                self.status = Some(t("Cleaning up the store…"));
+                self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let msg = match onyx_core::garbage_collect() {
@@ -258,28 +230,300 @@ impl SimpleComponent for InstalledModel {
             }
             InstalledMsg::GcDone(status) => {
                 self.gc_running = false;
-                self.gc_btn.set_sensitive(true);
-                self.gc_label.set_label(&status);
+                self.status = Some(status);
+                self.rebuild(&sender);
             }
         }
     }
 }
 
-/// Resolves the `AppMeta` of a batch of packages with bounded parallelism
-/// (waves of `MAX_PAR` threads): a long history must not spawn hundreds of
-/// threads, each of which may hit the network and `nix eval`.
-/// Call from a background thread, never from the GTK thread.
-fn fetch_items(pkgs: Vec<Package>, target_w: u32) -> Vec<AppItem> {
+impl InstalledModel {
+    /// Clears `content` and fills it again from the current state.
+    fn rebuild(&self, sender: &ComponentSender<Self>) {
+        while let Some(child) = self.content.first_child() {
+            self.content.remove(&child);
+        }
+        if let Some(status) = &self.status {
+            let lbl = gtk::Label::new(Some(status));
+            lbl.add_css_class("dim-label");
+            lbl.set_wrap(true);
+            lbl.set_xalign(0.0);
+            self.content.append(&lbl);
+        }
+        let Some(data) = &self.data else {
+            self.content.append(&util::skeleton_list(4));
+            return;
+        };
+
+        // In your configuration.
+        let kept_attrs: HashSet<String> = data
+            .kept
+            .iter()
+            .map(|i| i.package.attr.to_lowercase())
+            .collect();
+        let rows: Vec<gtk::Widget> = data
+            .kept
+            .iter()
+            .map(|i| {
+                let row = self.item_row(i, &i.package.version, sender);
+                row.add_suffix(&self.action_button(
+                    &t("Remove"),
+                    false,
+                    InstalledMsg::Unkeep(i.package.attr.clone()),
+                    sender,
+                ));
+                row.upcast()
+            })
+            .collect();
+        self.content.append(&section(
+            &t("In Your Configuration"),
+            None,
+            rows,
+            &t("No kept packages yet. Open an app and choose “Add to Configuration”."),
+            None,
+        ));
+
+        // Recently tried.
+        let rows: Vec<gtk::Widget> = data
+            .tried
+            .iter()
+            .map(|i| {
+                let when = i
+                    .tried_at
+                    .map(|ts| util::format_relative(ts as i64))
+                    .unwrap_or_default();
+                let row = self.item_row(i, &when, sender);
+                let busy = self.removing.contains(&i.package.attr);
+                if busy {
+                    let spinner = gtk::Spinner::new();
+                    spinner.start();
+                    row.add_suffix(&spinner);
+                }
+                row.add_suffix(&self.action_button(
+                    &t("Remove"),
+                    busy,
+                    InstalledMsg::RemoveTried(i.package.attr.clone()),
+                    sender,
+                ));
+                row.upcast()
+            })
+            .collect();
+        let gc = (!data.tried.is_empty()).then(|| {
+            let b = self.action_button(
+                &t("Free Up Space"),
+                self.gc_running,
+                InstalledMsg::Gc,
+                sender,
+            );
+            b.set_tooltip_text(Some(&t(
+                "Runs nix-collect-garbage: removes everything nothing uses from the store",
+            )));
+            b
+        });
+        self.content.append(&section(
+            &t("Recently Tried"),
+            Some(&t(
+                "Removing a tried app deletes it from the store and keeps what other apps need.",
+            )),
+            rows,
+            &t("Nothing tried yet. Run a package from search and it will show up here."),
+            gc,
+        ));
+
+        // Read-only: what the profiles already hold.
+        for (scope, title, subtitle) in [
+            (
+                Scope::User,
+                t("User"),
+                t("Declared in your user configuration."),
+            ),
+            (
+                Scope::System,
+                t("System"),
+                t("Declared in your system configuration."),
+            ),
+        ] {
+            let rows: Vec<gtk::Widget> = data
+                .profile
+                .iter()
+                .filter(|a| a.scope == scope && !kept_attrs.contains(&a.pname.to_lowercase()))
+                .filter_map(|a| util::desktop_row(&a.desktop_file, &a.version))
+                .map(|row| {
+                    row.add_css_class("dim-label");
+                    row.upcast()
+                })
+                .collect();
+            if !rows.is_empty() {
+                self.content
+                    .append(&section(&title, Some(&subtitle), rows, "", None));
+            }
+        }
+    }
+
+    fn item_row(
+        &self,
+        item: &Item,
+        subtitle: &str,
+        sender: &ComponentSender<Self>,
+    ) -> adw::ActionRow {
+        let row = adw::ActionRow::builder()
+            .title(esc(&display_name(&item.package)))
+            .subtitle(esc(subtitle))
+            .activatable(true)
+            .build();
+        row.add_prefix(&item_icon(item));
+        let s = sender.input_sender().clone();
+        let pkg = item.package.clone();
+        row.connect_activated(move |_| {
+            let _ = s.send(InstalledMsg::Open(pkg.clone()));
+        });
+        row
+    }
+
+    fn action_button(
+        &self,
+        label: &str,
+        busy: bool,
+        msg: InstalledMsg,
+        sender: &ComponentSender<Self>,
+    ) -> gtk::Button {
+        let b = gtk::Button::with_label(label);
+        b.set_valign(gtk::Align::Center);
+        b.set_sensitive(!busy);
+        let s = sender.input_sender().clone();
+        let msg = std::cell::Cell::new(Some(msg));
+        b.connect_clicked(move |_| {
+            if let Some(m) = msg.take() {
+                let _ = s.send(m);
+            }
+        });
+        b
+    }
+}
+
+fn display_name(p: &Package) -> String {
+    if p.name.is_empty() {
+        p.attr.clone()
+    } else {
+        p.name.clone()
+    }
+}
+
+/// Flathub icon, else the icon the package ships, else a generic one.
+fn item_icon(item: &Item) -> gtk::Image {
+    if let Some(tex) = item
+        .icon
+        .as_deref()
+        .and_then(|b| util::texture_from_bytes_sized(b, 64))
+    {
+        let img = gtk::Image::from_paintable(Some(&tex));
+        img.set_pixel_size(32);
+        return img;
+    }
+    let local = item.desktop_file.as_deref().and_then(|f| {
+        use gtk::gio::prelude::AppInfoExt;
+        // The package dir is not in the theme path.
+        if let Some(display) = gtk::gdk::Display::default() {
+            if let Some(share) = f.parent().and_then(Path::parent) {
+                gtk::IconTheme::for_display(&display).add_search_path(share.join("icons"));
+            }
+        }
+        gtk::gio::DesktopAppInfo::from_filename(f)?.icon()
+    });
+    util::row_icon(local.as_ref())
+}
+
+/// A titled boxed list, or the `empty` text when there are no rows.
+fn section(
+    title: &str,
+    subtitle: Option<&str>,
+    rows: Vec<gtk::Widget>,
+    empty: &str,
+    header_suffix: Option<gtk::Button>,
+) -> gtk::Box {
+    let sec = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(12)
+        .build();
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    let titles = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    titles.set_hexpand(true);
+    let h = gtk::Label::new(Some(title));
+    h.add_css_class("title-2");
+    h.set_xalign(0.0);
+    titles.append(&h);
+    if let Some(sub) = subtitle {
+        let l = gtk::Label::new(Some(sub));
+        l.add_css_class("dim-label");
+        l.set_xalign(0.0);
+        l.set_wrap(true);
+        titles.append(&l);
+    }
+    head.append(&titles);
+    if let Some(b) = header_suffix {
+        b.add_css_class("flat");
+        head.append(&b);
+    }
+    sec.append(&head);
+
+    if rows.is_empty() {
+        let l = gtk::Label::new(Some(empty));
+        l.add_css_class("dim-label");
+        l.set_xalign(0.0);
+        l.set_wrap(true);
+        sec.append(&l);
+    } else {
+        let list = gtk::ListBox::new();
+        list.add_css_class("boxed-list");
+        list.set_selection_mode(gtk::SelectionMode::None);
+        for r in rows {
+            list.append(&r);
+        }
+        sec.append(&list);
+    }
+    sec
+}
+
+/// Reads the manifest, the history and the profiles, with icons. Blocking:
+/// call it from a thread.
+fn load_data() -> Data {
+    let tried = onyx_core::load_tried().tried;
+    let kept: Vec<(Package, Option<u64>, Vec<String>)> = onyx_core::load_manifest()
+        .packages()
+        .into_iter()
+        .map(|p| (p, None, Vec::new()))
+        .collect();
+    let tried: Vec<(Package, Option<u64>, Vec<String>)> = tried
+        .into_iter()
+        .map(|e| (e.package, Some(e.last_tried), e.out_paths))
+        .collect();
+    Data {
+        kept: with_icons(kept),
+        tried: with_icons(tried),
+        profile: onyx_core::profile_apps(),
+    }
+}
+
+/// Resolves icons with bounded parallelism (waves of `MAX_PAR` threads).
+fn with_icons(entries: Vec<(Package, Option<u64>, Vec<String>)>) -> Vec<Item> {
     const MAX_PAR: usize = 16;
-    let mut out = Vec::with_capacity(pkgs.len());
-    for chunk in pkgs.chunks(MAX_PAR) {
+    let mut out = Vec::with_capacity(entries.len());
+    for chunk in entries.chunks(MAX_PAR) {
         let handles: Vec<_> = chunk
             .iter()
             .cloned()
-            .map(|pkg| {
+            .map(|(package, tried_at, out_paths)| {
                 std::thread::spawn(move || {
-                    let meta = onyx_core::cached_app_meta(&pkg, target_w);
-                    AppItem::new(pkg, meta.icon_url)
+                    let meta = onyx_core::cached_app_meta(&package, 1280);
+                    Item {
+                        icon: meta
+                            .icon_url
+                            .as_deref()
+                            .and_then(onyx_core::cached_fetch_bytes),
+                        desktop_file: out_paths.iter().find_map(|p| first_desktop(Path::new(p))),
+                        package,
+                        tried_at,
+                    }
                 })
             })
             .collect();
@@ -288,38 +532,10 @@ fn fetch_items(pkgs: Vec<Package>, target_w: u32) -> Vec<AppItem> {
     out
 }
 
-fn configure_flow(flow: &gtk::FlowBox) {
-    flow.set_homogeneous(true);
-    flow.set_column_spacing(14);
-    flow.set_row_spacing(14);
-    flow.set_min_children_per_line(1);
-    flow.set_max_children_per_line(3);
-    flow.set_hexpand(true);
-    flow.set_valign(gtk::Align::Start);
-    flow.set_selection_mode(gtk::SelectionMode::None);
-}
-
-fn section_heading(text: &str) -> gtk::Label {
-    let l = gtk::Label::new(Some(text));
-    l.set_xalign(0.0);
-    l.add_css_class("title-2");
-    l
-}
-
-/// Skeleton section: shimmering title + ghost tile grid, mirroring the real
-/// content (same heading height, same FlowBox config) to avoid any jump.
-fn skeleton_section(heading_px: i32) -> gtk::Box {
-    let sec = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(12)
-        .build();
-    let h = gtk::Box::builder()
-        .width_request(heading_px)
-        .height_request(22)
-        .halign(gtk::Align::Start)
-        .build();
-    h.add_css_class("skeleton");
-    sec.append(&h);
-    sec.append(&skeleton_grid(3));
-    sec
+fn first_desktop(out: &Path) -> Option<PathBuf> {
+    std::fs::read_dir(out.join("share/applications"))
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|x| x == "desktop"))
 }

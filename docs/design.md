@@ -50,8 +50,8 @@ request.
 GNOME Software reads Flatpak's local `appstream.xml.gz`, which is why it can
 browse without network requests. Onyx does the same when Flatpak is
 installed. Most NixOS machines have no Flatpak, so Onyx downloads the same
-file from `dl.flathub.org` into `$XDG_CACHE_HOME/onyx/` and refreshes it once
-a day. A stale copy is still used offline.
+file from `dl.flathub.org` into `$XDG_CACHE_HOME/onyx/`. A copy older than a
+day is used at once and refreshed in the background for the next start.
 
 The database loads in a background thread at startup. A details page opened
 during the load waits for it (bounded), because the local data holds things
@@ -102,6 +102,30 @@ command, advanced options and apply. Search rows are purely navigational.
 a terminal with the package in `PATH` (`nix shell`). Terminal detection tries
 `xdg-terminal-exec` first, then common emulators. Without any terminal, the
 command is copied to the clipboard instead.
+
+## Installed and Updates
+
+See [roadmap.md](roadmap.md) for how each Nix setup stores and pins its
+packages.
+
+Installed lists, in this order: packages Onyx keeps, apps tried with nix run,
+then the apps the user and system profiles already hold. The last two come
+from the desktop files of `/etc/profiles/per-user/<user>`, `~/.nix-profile`
+and `/run/current-system/sw`, so they show the local names and icons without
+any evaluation. They are read only: Onyx does not edit what it did not write.
+
+Removing a tried app deletes its dead closure from the store, minus what the
+other tried apps need and minus anything a dead path outside that set still
+refers to (nix store delete would refuse it). Derivers and sibling outputs go
+along because keep-outputs and keep-derivations tie them together. The
+system is never at risk: live paths are never deleted.
+
+Updates reads the nixpkgs revision the system runs (`nixos-version --json`),
+finds its branch in the config flake.lock, asks `nix flake metadata` for the
+branch head and evaluates the versions the head ships for the installed apps.
+Updating moves the pin and applies the config in one terminal command. When
+nixpkgs comes through another flake input, Onyx says which one and does not
+touch it.
 
 ## Details page
 

@@ -149,8 +149,11 @@ class Environment:
 SEARCH_TOGGLE = "click:47,48"
 BACK = "click:47,48"
 FIRST_RESULT = "click:400,230"
-FIRST_TILE = "click:217,220"
 TAB_INSTALLED = "click:505,48"
+# Installed tab: Remove buttons of the first kept and first tried rows.
+KEPT_REMOVE = "click:846,159"
+TRIED_REMOVE = "click:846,304"
+TAB_UPDATES = "click:627,48"
 # Details page of a CLI tool ("Try in a Shell" primary): menu arrow and entries.
 MENU = "click:895,145"
 MENU_KEEP_TOGGLE = "click:894,221"
@@ -200,13 +203,20 @@ def scenario(env, s):
     s.do("wait:5000")
     s.shot("installed")
 
-    s.do(FIRST_TILE)
-    s.do("wait:6000")
-    s.do(MENU)
-    s.do(MENU_KEEP_TOGGLE)
+    s.do(KEPT_REMOVE)
     wait_for(lambda: "hello" not in env.kept(), 10, "hello removed from kept.json")
     assert "hello" not in home.read_text(), "onyx-home.nix must drop hello"
     s.shot("removed")
+
+    # The banner pushed the list down.
+    s.do(TRIED_REMOVE)
+    wait_for(lambda: '"hello"' not in env.tried(), 180, "hello removed from tried.json")
+    s.do("wait:1000")
+    s.shot("tried-removed")
+
+    s.do(TAB_UPDATES)
+    s.do("wait:60000")
+    s.shot("updates")
 
 
 def main():

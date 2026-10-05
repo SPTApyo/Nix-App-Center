@@ -179,7 +179,12 @@ fn set_state(s: LoadState) {
 /// `true` once no load is in progress (ready, unavailable or never started):
 /// an `AppMeta` computed now will not get richer, so it can be memoized
 /// without poisoning the session with a poorer listing.
-pub(crate) fn is_settled() -> bool {
+/// Waits up to `timeout` for the AppStream load, if one is running.
+pub fn wait_appstream(timeout: std::time::Duration) {
+    wait_until_settled(timeout);
+}
+
+pub fn is_settled() -> bool {
     let (m, _) = &*STATE;
     *m.lock().unwrap_or_else(|e| e.into_inner()) != LoadState::Loading
 }
@@ -295,21 +300,30 @@ fn arch() -> Option<&'static str> {
 
 /// Fallback for machines without Flatpak (most NixOS installs): keep our own
 /// copy of the Flathub AppStream file in the cache directory. A stale copy is
-/// still used when the refresh fails (offline start).
+/// used at once and refreshed in the background for the next start.
 fn downloaded_xml_path() -> Option<PathBuf> {
     let path = crate::cache::cache_dir().join("appstream.xml.gz");
-    let fresh = std::fs::metadata(&path)
+    let url = FLATHUB_APPSTREAM_URL.replace("{arch}", arch()?);
+    if !path.exists() {
+        refresh(&url, &path);
+        return path.exists().then_some(path);
+    }
+    let stale = std::fs::metadata(&path)
         .and_then(|m| m.modified())
         .ok()
         .and_then(|t| t.elapsed().ok())
-        .is_some_and(|age| age < DOWNLOAD_TTL);
-    if !fresh {
-        let url = FLATHUB_APPSTREAM_URL.replace("{arch}", arch()?);
-        if let Some(bytes) = download(&url) {
-            let _ = crate::paths::write_atomic(&path, &bytes);
-        }
+        .is_none_or(|age| age >= DOWNLOAD_TTL);
+    if stale {
+        let target = path.clone();
+        std::thread::spawn(move || refresh(&url, &target));
     }
-    path.exists().then_some(path)
+    Some(path)
+}
+
+fn refresh(url: &str, path: &std::path::Path) {
+    if let Some(bytes) = download(url) {
+        let _ = crate::paths::write_atomic(path, &bytes);
+    }
 }
 
 fn download(url: &str) -> Option<Vec<u8>> {

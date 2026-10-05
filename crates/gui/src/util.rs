@@ -242,6 +242,32 @@ pub fn esc(s: &str) -> String {
     gtk::glib::markup_escape_text(s).to_string()
 }
 
+/// Row for an app of a Nix profile, named and drawn from its desktop file.
+/// `None` for entries hidden from menus.
+pub fn desktop_row(desktop_file: &std::path::Path, subtitle: &str) -> Option<adw::ActionRow> {
+    use gtk::gio::prelude::AppInfoExt;
+    let info = gtk::gio::DesktopAppInfo::from_filename(desktop_file)?;
+    if !info.should_show() {
+        return None;
+    }
+    let row = adw::ActionRow::builder()
+        .title(esc(&info.name()))
+        .subtitle(esc(subtitle))
+        .build();
+    adw::prelude::ActionRowExt::add_prefix(&row, &row_icon(info.icon().as_ref()));
+    Some(row)
+}
+
+/// 32 px app icon for list rows, generic when `icon` is missing.
+pub fn row_icon(icon: Option<&gtk::gio::Icon>) -> gtk::Image {
+    let img = match icon {
+        Some(i) => gtk::Image::from_gicon(i),
+        None => gtk::Image::from_icon_name("application-x-executable"),
+    };
+    img.set_pixel_size(32);
+    img
+}
+
 /// A row of 5 stars (copy of `GsStarWidget`): filled up to the rounded
 /// average, empty after.
 pub fn stars_widget(stars: f32, size: i32) -> gtk::Box {

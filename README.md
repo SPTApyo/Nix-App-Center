@@ -18,7 +18,10 @@ diff. A backup is written before any change.
 - Try an app without installing it, unfree packages included.
 - Keep an app: it lands in onyx-home.nix or onyx-system.nix, imported by
   your configuration.
-- Installed and Updates views based on what Onyx manages.
+- Installed shows what Onyx keeps, what you tried (removable one by one
+  from the store) and the apps your system and user profiles already hold.
+- Updates shows the nixpkgs revision your config is pinned to, what the
+  branch head changes for your apps, and updates in one click.
 - English and French interface.
 
 ## Build and run

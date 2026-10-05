@@ -250,7 +250,7 @@ pub fn apply_config() -> std::io::Result<ApplyOutcome> {
     run_apply(&layout.apply)
 }
 
-fn run_apply(argv: &[String]) -> std::io::Result<ApplyOutcome> {
+pub(crate) fn run_apply(argv: &[String]) -> std::io::Result<ApplyOutcome> {
     let Some((bin, args)) = argv.split_first() else {
         return Ok(ApplyOutcome::UnknownLayout);
     };

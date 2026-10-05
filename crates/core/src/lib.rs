@@ -30,7 +30,8 @@
 //! - [`config_attach`]: consented attach to the user's config (plan, diff, commit)
 //! - [`nix_check`]: validation of the user's Nix (instant parse, dry-build)
 //! - [`config_gen`]: generation of the Onyx files + applying the config
-//! - [`updates`]: update detection
+//! - [`updates`]: nixpkgs source of the config, update check and update
+//! - [`profiles`]: apps already installed in the Nix profiles
 //! - [`locate`]: search by binary (`nix-locate`)
 //! - [`http`] / [`util`] / [`paths`]: small shared helpers
 
@@ -52,6 +53,7 @@ mod oars;
 mod package;
 mod paths;
 mod permissions;
+mod profiles;
 mod ratings;
 mod resolve;
 mod reviews;
@@ -62,7 +64,9 @@ mod updates;
 mod util;
 
 pub use app_meta::{app_meta, AppMeta};
-pub use appstream_db::init_background as init_appstream_db;
+pub use appstream_db::{
+    init_background as init_appstream_db, is_settled as appstream_settled, wait_appstream,
+};
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };
@@ -80,6 +84,7 @@ pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest}
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use package::{actions_for, Action, Actions, Kind, Package};
 pub use permissions::{safety, Safety};
+pub use profiles::{profile_apps, ProfileApp, Scope};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{featured_review, reviews_for, Review};
@@ -87,8 +92,11 @@ pub use search::{search, search_apps, SearchResult};
 pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, known_icon_url, remember_icon_url,
 };
-pub use tried::{garbage_collect, load_tried, record_tried, TriedEntry, TriedLog};
-pub use updates::{available_updates, Update};
+pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
+pub use updates::{
+    app_updates, current_source, latest, run_update, update_command, AppUpdate, Latest, Source,
+    UpdateMethod,
+};
 
 // ── Test utility: global lock for tests that mutate the environment
 // (`set_var`/`remove_var` are process global and Rust tests run in

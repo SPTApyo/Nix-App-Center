@@ -8,7 +8,7 @@
 //!   onyx-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
 //!   onyx-cli keep <attr>       add to the Onyx manifest
 //!   onyx-cli unkeep <attr>     remove from the manifest
-//!   onyx-cli updates           kept versions vs current nixpkgs
+//!   onyx-cli updates           nixpkgs pin vs its branch head, app changes
 //!   onyx-cli locate <bin>      packages providing a binary (nix-locate)
 //!   onyx-cli layout            what Onyx detects of your config (read only)
 //!   onyx-cli attach [--commit] consented attach (diff; --commit to write)
@@ -147,16 +147,28 @@ fn main() -> ExitCode {
         },
 
         Some("updates") => {
-            let ups = onyx_core::available_updates();
-            if ups.is_empty() {
-                println!("(everything is up to date)");
-            } else {
-                for u in ups {
-                    println!(
-                        "{}: {} → {}",
-                        u.package.attr, u.installed_version, u.available_version
-                    );
-                }
+            let source = onyx_core::current_source();
+            println!(
+                "nixpkgs: {} at {} ({:?})",
+                source.branch.as_deref().unwrap_or("unknown branch"),
+                source.rev.as_deref().unwrap_or("unknown revision"),
+                source.method
+            );
+            let Some(latest) = source.branch.as_deref().and_then(onyx_core::latest) else {
+                eprintln!("cannot reach the branch head");
+                return ExitCode::FAILURE;
+            };
+            if source.rev.as_deref() == Some(latest.rev.as_str()) {
+                println!("(up to date)");
+                return ExitCode::SUCCESS;
+            }
+            println!("latest: {}", latest.rev);
+            for u in onyx_core::app_updates(&latest.rev, &onyx_core::profile_apps()) {
+                println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);
+            }
+            match onyx_core::update_command(&source, &onyx_core::detect_layout()) {
+                Some(argv) => println!("update with: {}", argv.join(" ")),
+                None => println!("update the flake that pins nixpkgs, then apply"),
             }
             ExitCode::SUCCESS
         }

@@ -51,6 +51,8 @@ pub fn run(pkg: &Package) -> std::io::Result<Child> {
         .spawn()?;
     // The log must never make the launch fail.
     let _ = record_tried(pkg);
+    let attr = pkg.attr.clone();
+    std::thread::spawn(move || crate::tried::record_out_paths(&attr));
     Ok(child)
 }
 

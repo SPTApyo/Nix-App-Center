@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-05 17:04+0200\n"
+"POT-Creation-Date: 2026-10-05 17:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -550,11 +550,13 @@ msgid "How to _Contribute"
 msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:73
+#: crates/gui/src/views/installed.rs:325
 msgid "User"
 msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:77
 #: crates/gui/src/components/details/nix_editor.rs:88
+#: crates/gui/src/views/installed.rs:326
 msgid "System"
 msgstr ""
 
@@ -675,41 +677,42 @@ msgstr ""
 
 #: crates/gui/src/util.rs:34 crates/gui/src/views/detail.rs:1180
 #: crates/gui/src/views/detail.rs:1194 crates/gui/src/views/detail.rs:1233
-#: crates/gui/src/views/installed.rs:254
+#: crates/gui/src/views/installed.rs:156 crates/gui/src/views/installed.rs:190
+#: crates/gui/src/views/installed.rs:226
 #, rust-format
 msgid "Failed: {}"
 msgstr ""
 
-#: crates/gui/src/util.rs:278
+#: crates/gui/src/util.rs:304
 msgid "Today"
 msgstr ""
 
-#: crates/gui/src/util.rs:279
+#: crates/gui/src/util.rs:305
 msgid "Yesterday"
 msgstr ""
 
-#: crates/gui/src/util.rs:280
+#: crates/gui/src/util.rs:306
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/util.rs:281
+#: crates/gui/src/util.rs:307
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/util.rs:282
+#: crates/gui/src/util.rs:308
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/util.rs:283
+#: crates/gui/src/util.rs:309
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
@@ -868,7 +871,7 @@ msgstr ""
 msgid "Removed from your configuration. Apply it to uninstall."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1237 crates/gui/src/views/updates.rs:113
+#: crates/gui/src/views/detail.rs:1237 crates/gui/src/views/installed.rs:200
 msgid "Applying configuration…"
 msgstr ""
 
@@ -1062,50 +1065,150 @@ msgstr ""
 msgid "Editor's Choice"
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:70
-msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
+#: crates/gui/src/views/installed.rs:94
+msgid "Your configuration changed. Apply it to uninstall."
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:81
-msgid "In Your Configuration"
+#: crates/gui/src/views/installed.rs:95
+msgid "_Apply"
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:86
-msgid "Free Up Space"
+#: crates/gui/src/views/installed.rs:185
+#, rust-format
+msgid "{} removed. Nothing to free: your system still uses it."
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:90
-msgid ""
-"Runs nix-collect-garbage: removes packages you did not keep from the store"
+#: crates/gui/src/views/installed.rs:187
+#, rust-format
+msgid "{name} removed, {size} freed."
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:103
-msgid "Recently Tried"
-msgstr ""
-
-#: crates/gui/src/views/installed.rs:110
-msgid "Nothing tried yet. Run a package from search and it will show up here."
-msgstr ""
-
-#: crates/gui/src/views/installed.rs:247
+#: crates/gui/src/views/installed.rs:219
 msgid "Cleaning up the store…"
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:253
+#: crates/gui/src/views/installed.rs:225
 msgid "Done."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:167
+#: crates/gui/src/views/installed.rs:270 crates/gui/src/views/installed.rs:300
+msgid "Remove"
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:279
+msgid "In Your Configuration"
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:282
+msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:309
+msgid "Free Up Space"
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:311
+msgid ""
+"Runs nix-collect-garbage: removes everything nothing uses from the store"
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:316
+msgid "Recently Tried"
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:317
+msgid ""
+"Removing a tried app deletes it from the store and keeps what other apps "
+"need."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:319
+msgid "Nothing tried yet. Run a package from search and it will show up here."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:325
+msgid "Declared in your user configuration."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:326
+msgid "Declared in your system configuration."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:127
+msgid "Updating…"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:170
 #, rust-format
-msgid "{} update available"
-msgid_plural "{} updates available"
+msgid "Revision {rev}, {age}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:173
+#, rust-format
+msgid "Revision {rev}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:174
+msgid "Revision unknown"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:187
+msgid "Checking for updates…"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:196
+msgid "Onyx cannot tell which nixpkgs branch your configuration follows."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:198
+msgid "Onyx could not reach nixpkgs to check for updates."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:233
+#, rust-format
+msgid "nixpkgs {}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:236
+#, rust-format
+msgid "Installed: {}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:243
+msgid "Check Again"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:263
+#, rust-format
+msgid "{} app update"
+msgid_plural "{} app updates"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/views/updates.rs:174
-msgid "Update All"
+#: crates/gui/src/views/updates.rs:265
+msgid "New nixpkgs revision"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:235
+#: crates/gui/src/views/updates.rs:269
+#, rust-format
+msgid "Available: {}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:281
+msgid "_Update"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:302
+#, rust-format
+msgid ""
+"nixpkgs comes from the “{}” input of your configuration. Update that flake, "
+"then apply."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:305
+msgid "Onyx cannot update this configuration by itself."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:328
 msgid "Everything is up to date"
 msgstr ""
