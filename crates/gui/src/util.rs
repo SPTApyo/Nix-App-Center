@@ -31,7 +31,9 @@ pub fn describe_apply(res: Result<onyx_core::ApplyOutcome, String>) -> String {
             t("No terminal found. The apply command was copied.")
         }
         Ok(UnknownLayout) => t("Onyx cannot find your Nix configuration. Nothing was applied."),
-        Err(e) => t("Failed: {}").replace("{}", &e),
+        // gettext("") returns the catalog header.
+        Err(e) if e.is_empty() => t("Failed: {}").replace("{}", ""),
+        Err(e) => t("Failed: {}").replace("{}", &t(&e)),
     }
 }
 

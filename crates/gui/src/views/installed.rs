@@ -195,15 +195,23 @@ impl SimpleComponent for InstalledModel {
                 if self.applying {
                     return;
                 }
-                self.applying = true;
                 self.banner.set_revealed(false);
-                self.status = Some(t("Applying configuration…"));
-                self.rebuild(&sender);
+                let Some(argv) = onyx_core::apply_argv() else {
+                    sender.input(InstalledMsg::Applied(Ok(
+                        onyx_core::ApplyOutcome::UnknownLayout,
+                    )));
+                    return;
+                };
+                self.applying = true;
                 let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let res = onyx_core::apply_config().map_err(|e| e.to_string());
-                    let _ = s.send(InstalledMsg::Applied(res));
-                });
+                crate::components::apply_dialog::present(
+                    &self.content,
+                    &t("Applying Configuration"),
+                    argv,
+                    move |res| {
+                        let _ = s.send(InstalledMsg::Applied(res));
+                    },
+                );
             }
             InstalledMsg::Applied(res) => {
                 self.applying = false;

@@ -153,9 +153,14 @@ pub(crate) fn pick_terminal(exists: impl Fn(&str) -> bool) -> Option<Terminal> {
 
 /// True when `bin` is a file present in `PATH`.
 pub(crate) fn in_path(bin: &str) -> bool {
-    std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
-        .unwrap_or(false)
+    find_in_path(bin).is_some()
+}
+
+/// Full path of `bin` in `PATH`.
+pub(crate) fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
+    std::env::split_paths(&std::env::var_os("PATH")?)
+        .map(|dir| dir.join(bin))
+        .find(|p| p.is_file())
 }
 
 /// Builds the full argv: terminal + separator + command.

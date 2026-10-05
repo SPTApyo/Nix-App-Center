@@ -252,6 +252,81 @@ pub fn apply_config() -> std::io::Result<ApplyOutcome> {
     run_apply(&layout.apply)
 }
 
+/// The apply command of the detected layout, `None` when it is unknown.
+pub fn apply_argv() -> Option<Vec<String>> {
+    let layout = detect();
+    layout.is_usable().then_some(layout.apply)
+}
+
+/// Runs `argv` and streams every output line to `on_line`, so the build shows
+/// inside the app. `sudo` becomes pkexec (graphical password prompt, PATH kept
+/// since pkexec resets it); without pkexec it falls back on a terminal.
+/// Blocking: call it from a thread.
+pub fn run_streaming(
+    argv: &[String],
+    on_line: impl Fn(String) + Send + Sync + 'static,
+) -> std::io::Result<ApplyOutcome> {
+    use std::io::BufRead;
+    let elevated = argv.first().is_some_and(|b| b == "sudo");
+    let argv: Vec<String> = match argv.split_first() {
+        Some((_, rest)) if elevated => {
+            let (Some(pkexec), Some(env)) = (
+                crate::launch::find_in_path("pkexec"),
+                crate::launch::find_in_path("env"),
+            ) else {
+                return run_apply(argv);
+            };
+            let path = std::env::var("PATH").unwrap_or_default();
+            [
+                pkexec.display().to_string(),
+                env.display().to_string(),
+                format!("PATH={path}"),
+            ]
+            .into_iter()
+            .chain(rest.iter().cloned())
+            .collect()
+        }
+        Some(_) => argv.to_vec(),
+        None => return Ok(ApplyOutcome::UnknownLayout),
+    };
+    let mut child = Command::new(&argv[0])
+        .args(&argv[1..])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    // Last non-empty line of both streams, in arrival order.
+    let last = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+    let on_line = std::sync::Arc::new(on_line);
+    let pump = |reader: Box<dyn std::io::Read + Send>| {
+        let (on_line, last) = (on_line.clone(), last.clone());
+        std::thread::spawn(move || {
+            for line in std::io::BufReader::new(reader)
+                .lines()
+                .map_while(Result::ok)
+            {
+                if !line.trim().is_empty() {
+                    *last.lock().unwrap_or_else(|e| e.into_inner()) = line.trim().to_string();
+                }
+                on_line(line);
+            }
+        })
+    };
+    let out = pump(Box::new(child.stdout.take().expect("piped stdout")));
+    let err = pump(Box::new(child.stderr.take().expect("piped stderr")));
+    let status = child.wait()?;
+    let _ = (out.join(), err.join());
+    let last = last.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    match status.code() {
+        Some(0) => Ok(ApplyOutcome::Done(last)),
+        // pkexec: dialog dismissed (126) or not authorized (127).
+        Some(126 | 127) if elevated => Err(std::io::Error::other(crate::util::n_(
+            "Authentication was cancelled.",
+        ))),
+        _ => Err(std::io::Error::other(last)),
+    }
+}
+
 pub(crate) fn run_apply(argv: &[String]) -> std::io::Result<ApplyOutcome> {
     let Some((bin, args)) = argv.split_first() else {
         return Ok(ApplyOutcome::UnknownLayout);
@@ -297,6 +372,29 @@ pub(crate) fn run_apply(argv: &[String]) -> std::io::Result<ApplyOutcome> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn argv(script: &str) -> Vec<String> {
+        vec!["sh".into(), "-c".into(), script.into()]
+    }
+
+    #[test]
+    fn run_streaming_forwards_lines_and_reports_the_last() {
+        let lines = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink = lines.clone();
+        let res = run_streaming(&argv("echo building >&2; sleep 0.1; echo done"), move |l| {
+            sink.lock().unwrap().push(l)
+        });
+        assert_eq!(res.unwrap(), ApplyOutcome::Done("done".into()));
+        let mut got = lines.lock().unwrap().clone();
+        got.sort();
+        assert_eq!(got, ["building", "done"]);
+    }
+
+    #[test]
+    fn run_streaming_fails_with_the_last_error_line() {
+        let res = run_streaming(&argv("echo 'error: boom' >&2; exit 1"), |_| {});
+        assert_eq!(res.unwrap_err().to_string(), "error: boom");
+    }
     use crate::Package;
 
     fn simple(attr: &str) -> KeptEntry {

@@ -157,19 +157,26 @@ impl SimpleComponent for UpdatesModel {
                     return;
                 }
                 self.updating = true;
-                self.status = Some(t("Updating…"));
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let res = onyx_core::run_update(&argv).map_err(|e| e.to_string());
-                    let _ = s.send(UpdatesMsg::Updated(res));
-                });
+                crate::components::apply_dialog::present(
+                    &self.content,
+                    &t("Updating"),
+                    argv,
+                    move |res| {
+                        let _ = s.send(UpdatesMsg::Updated(res));
+                    },
+                );
             }
             UpdatesMsg::Updated(res) => {
                 self.updating = false;
+                let ok = res.is_ok();
                 self.status = Some(util::describe_apply(res));
                 self.checked_at = None;
                 self.rebuild(&sender);
+                if ok {
+                    sender.input(UpdatesMsg::Refresh);
+                }
             }
         }
     }

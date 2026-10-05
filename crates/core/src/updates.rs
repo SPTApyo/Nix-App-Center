@@ -9,7 +9,6 @@
 
 use crate::config_layout::{detect, Layout, LayoutKind};
 use crate::profiles::ProfileApp;
-use crate::ApplyOutcome;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -378,11 +377,6 @@ pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<String>> {
         }
         _ => None,
     }
-}
-
-/// Runs [`update_command`] like the apply step (terminal when sudo is needed).
-pub fn run_update(argv: &[String]) -> std::io::Result<ApplyOutcome> {
-    crate::config_gen::run_apply(argv)
 }
 
 fn quote(s: &str) -> String {

@@ -1232,14 +1232,22 @@ impl SimpleComponent for DetailModel {
                     crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e))
                 }
             },
-            DetailMsg::ApplyConfig => {
-                crate::util::toast(&self.toast_overlay, &t("Applying configuration…"));
-                let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let res = onyx_core::apply_config().map_err(|e| e.to_string());
-                    let _ = s.send(DetailMsg::Applied(res));
-                });
-            }
+            DetailMsg::ApplyConfig => match onyx_core::apply_argv() {
+                Some(argv) => {
+                    let s = sender.input_sender().clone();
+                    crate::components::apply_dialog::present(
+                        &self.toast_overlay,
+                        &t("Applying Configuration"),
+                        argv,
+                        move |res| {
+                            let _ = s.send(DetailMsg::Applied(res));
+                        },
+                    );
+                }
+                None => sender.input(DetailMsg::Applied(Ok(
+                    onyx_core::ApplyOutcome::UnknownLayout,
+                ))),
+            },
             DetailMsg::Applied(res) => {
                 crate::util::toast(&self.toast_overlay, &crate::util::describe_apply(res));
             }
