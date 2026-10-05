@@ -5,33 +5,40 @@ on:
     branches: [main]
   pull_request:
 
-# Un seul run par branche : annule le précédent si on repush.
+# One run per branch: a new push cancels the previous one.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
-    name: test · clippy · fmt
+    name: test, clippy, translations
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Nix fournit tout le toolchain (rustc, cargo, gtk4, libadwaita) via le
-      # devShell du flake — la CI exécute exactement ce que fait le dev en local.
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      # Le vrai filet : 180+ tests unitaires du core + composants GUI.
       - name: Tests
         run: nix develop -c cargo test --workspace
 
-      # Qualité : zéro warning toléré (le code est maintenu clippy-clean).
       - name: Clippy
         run: nix develop -c cargo clippy --workspace --all-targets -- -D warnings
 
-      # Informatif seulement : le dépôt n'a pas encore été normalisé au style
-      # rustfmt par défaut (pas de rustfmt.toml). Ne bloque pas la CI.
-      - name: Format (informatif)
-        continue-on-error: true
+      - name: Translations up to date
+        run: |
+          nix develop -c ./po/update-pot.sh
+          git diff --ignore-matching-lines='POT-Creation-Date' --exit-code po/
+          for po in po/*.po; do nix develop -c msgfmt --check -o /dev/null "$po"; done
+
+      - name: Format
         run: nix develop -c cargo fmt --all -- --check
+
+  package:
+    name: nix build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix build .#onyx -L
