@@ -70,13 +70,11 @@ pub struct DetailModel {
     profile_busy: bool,
     kept: bool,
     icon_tex: Option<gtk::gdk::Texture>,
-    // Closure size (Storage tile) and permissions (Safety tile) are slower
+    // Closure size (Storage tile) is slower
     // than metadata and load separately. The `*_loaded` flags tell "not known
     // yet" from "known to be unknown".
     size_loaded: bool,
     closure_size: Option<u64>,
-    safety_loaded: bool,
-    safety: Option<onyx_core::Safety>,
     // Long description, collapsible like GsDescriptionBox.
     desc_expanded: bool,
     desc_needs_toggle: bool,
@@ -148,7 +146,6 @@ pub enum DetailMsg {
     /// `nix run` exited with an error (last stderr line).
     RunFailed(String),
     SizeLoaded(Option<u64>),
-    SafetyLoaded(Option<onyx_core::Safety>),
     ToggleDescription,
     /// Applies the configuration (from the "Apply" toast action).
     ApplyConfig,
@@ -821,8 +818,6 @@ impl SimpleComponent for DetailModel {
             icon_tex,
             size_loaded: false,
             closure_size: None,
-            safety_loaded: false,
-            safety: None,
             desc_expanded: false,
             desc_needs_toggle: false,
             scale,
@@ -937,7 +932,6 @@ impl SimpleComponent for DetailModel {
                             .map(|a| a.desktop_file);
                 }
                 // Without an AppStream id there are no permissions to wait for.
-                self.safety_loaded = meta.app_id.is_none();
 
                 self.rebuild_context_bar(&meta);
                 self.rebuild_problems(&meta);
@@ -982,12 +976,6 @@ impl SimpleComponent for DetailModel {
                 });
 
                 if let Some(app_id) = meta.app_id.clone() {
-                    // Flatpak permissions (Safety tile).
-                    let s = sender.input_sender().clone();
-                    let id = app_id.clone();
-                    std::thread::spawn(move || {
-                        let _ = s.send(DetailMsg::SafetyLoaded(onyx_core::safety(&id)));
-                    });
                     // ODRS rating through the resolved app_id (reliable, unlike the nixpkgs name).
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
@@ -1059,13 +1047,6 @@ impl SimpleComponent for DetailModel {
             DetailMsg::SizeLoaded(size) => {
                 self.size_loaded = true;
                 self.closure_size = size;
-                if let Some(meta) = self.meta.clone() {
-                    self.rebuild_context_bar(&meta);
-                }
-            }
-            DetailMsg::SafetyLoaded(safety) => {
-                self.safety_loaded = true;
-                self.safety = safety;
                 if let Some(meta) = self.meta.clone() {
                     self.rebuild_context_bar(&meta);
                 }
@@ -1400,13 +1381,7 @@ impl DetailModel {
     fn rebuild_context_bar(&self, meta: &AppMeta) {
         context_bar::fill(
             &self.ctx_bar,
-            build_context_tiles(
-                meta,
-                self.size_loaded,
-                self.closure_size,
-                self.safety_loaded,
-                self.safety.as_ref(),
-            ),
+            build_context_tiles(meta, self.size_loaded, self.closure_size),
         );
     }
 
@@ -1574,16 +1549,15 @@ fn present_dialog(
 /// The four context bar tiles, in `.ui` order.
 ///
 /// - **Storage**: closure download size (`closure_size`).
-/// - **Safety**: nix `broken`/`insecure` first, then Flatpak permissions
-///   (like GNOME), else the license as fallback.
+/// - **Safety**: nix `broken`/`insecure` first. Otherwise "Not Sandboxed":
+///   a Nix app runs with the user's full rights, whatever the Flatpak build
+///   of the same app may declare, and the license nuances it.
 /// - **Hardware**: generic desktop (no usable `<relations>`).
 /// - **Age**: OARS rating, like GNOME.
 fn build_context_tiles(
     meta: &AppMeta,
     size_loaded: bool,
     closure_size: Option<u64>,
-    safety_loaded: bool,
-    safety: Option<&onyx_core::Safety>,
 ) -> [gtk::Button; 4] {
     let (storage_val, storage_desc) = if !size_loaded {
         ("…".into(), t("Computing size…"))
@@ -1621,42 +1595,18 @@ fn build_context_tiles(
             &t("Vulnerable"),
             &d,
         )
-    } else if let Some(s) = safety {
-        let desc: Vec<String> = s.descriptions.iter().map(|d| t(d.as_str())).collect();
-        context_bar::tile(
-            Content::Icon(s.icon),
-            s.color,
-            &t(s.title),
-            &desc.join("; "),
-        )
-    } else if !safety_loaded {
+    } else {
+        let (color, desc) = match meta.is_free_license {
+            Some(true) => ("grey", t("Free software with your full user rights")),
+            Some(false) => ("orange", t("Proprietary, with your full user rights")),
+            None => ("grey", t("Runs with your full user rights")),
+        };
         context_bar::tile(
             Content::Icon("app-safety-unknown-symbolic"),
-            "grey",
-            &t("Checking…"),
-            &t("Checking permissions…"),
+            color,
+            &t("Not Sandboxed"),
+            &desc,
         )
-    } else {
-        match meta.is_free_license {
-            Some(true) => context_bar::tile(
-                Content::Icon("app-safety-ok-symbolic"),
-                "green",
-                &t("Free Software"),
-                &t("Public source code, free license"),
-            ),
-            Some(false) => context_bar::tile(
-                Content::Icon("app-safety-unsafe-symbolic"),
-                "orange",
-                &t("Proprietary"),
-                &t("Source code is not public"),
-            ),
-            None => context_bar::tile(
-                Content::Icon("app-safety-unknown-symbolic"),
-                "grey",
-                &t("Unknown"),
-                &t("License not stated"),
-            ),
-        }
     };
 
     let hardware = context_bar::tile(

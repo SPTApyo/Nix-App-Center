@@ -114,8 +114,48 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     });
     updates.add(&auto);
 
+    // ── Search ────────────────────────────────────────────────────────────────
+    let search = adw::PreferencesGroup::builder().title(t("Search")).build();
+    let by_command = adw::ActionRow::builder()
+        .title(t("Search by Command"))
+        .subtitle(esc(&if onyx_core::locate_ready() {
+            t("Ready: searching a command also lists the packages that provide it.")
+        } else {
+            t("Lists the packages that provide a command. Needs the nix-index database, about 100 MB.")
+        }))
+        .build();
+    if !onyx_core::locate_ready() {
+        let download = gtk::Button::with_label(&t("Download"));
+        download.set_valign(gtk::Align::Center);
+        download.connect_clicked({
+            let row = by_command.clone();
+            move |btn| {
+                btn.set_sensitive(false);
+                row.set_subtitle(&esc(&t("Downloading the nix-index database…")));
+                let (btn, row) = (btn.clone(), row.clone());
+                gtk::glib::spawn_future_local(async move {
+                    let res = gtk::gio::spawn_blocking(onyx_core::download_locate_db).await;
+                    match res {
+                        Ok(Ok(())) => {
+                            row.set_subtitle(&esc(&t("Ready: searching a command also lists the packages that provide it.")));
+                            btn.set_visible(false);
+                        }
+                        Ok(Err(e)) => {
+                            row.set_subtitle(&esc(&t("Failed: {}").replace("{}", &e.to_string())));
+                            btn.set_sensitive(true);
+                        }
+                        Err(_) => btn.set_sensitive(true),
+                    }
+                });
+            }
+        });
+        by_command.add_suffix(&download);
+    }
+    search.add(&by_command);
+
     page.add(&config);
     page.add(&updates);
+    page.add(&search);
     dialog.add(&page);
     dialog.present(Some(parent));
 }

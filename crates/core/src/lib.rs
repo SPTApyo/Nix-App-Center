@@ -19,7 +19,6 @@
 //! - [`ratings`] / [`reviews`]: ODRS ratings and reviews
 //! - [`resolve`]: "app DNS", nixpkgs attr to app id (curated + community overlay)
 //! - [`oars`]: age rating (OARS attributes to "12" / "12+")
-//! - [`permissions`]: Safety tile (Flatpak bundle permissions)
 //! - [`categories`]: Flathub collections (popular/recent/categories) to nixpkgs
 //! - [`session_cache`]: in-session memoization of `app_meta`/icons
 //! - [`cache`]: TTL disk cache of search results
@@ -54,7 +53,6 @@ mod nix_check;
 mod oars;
 mod package;
 mod paths;
-mod permissions;
 mod profiles;
 mod ratings;
 mod resolve;
@@ -85,11 +83,10 @@ pub use config_layout::{
 pub use detail::{closure_size, detail, PackageDetail};
 pub use flathub::{Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
-pub use locate::locate_binary;
+pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
-pub use permissions::{safety, Safety};
 pub use profiles::{installed_app, profile_apps, store_sizes, ProfileApp, Scope};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
