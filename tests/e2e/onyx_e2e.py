@@ -105,7 +105,7 @@ class Environment:
             os.environ,
             GDK_BACKEND="broadway",
             BROADWAY_DISPLAY=DISPLAY,
-            LANGUAGE="en",
+            LANGUAGE=os.environ.get("ONYX_E2E_LANG", "en"),
             LANG="en_US.UTF-8",
             XDG_DATA_HOME=str(self.data),
             # Reuse the real cache: AppStream download and nix search results.
@@ -125,7 +125,9 @@ class Environment:
         if self.broadway.poll() is not None:
             sys.exit(f"gtk4-broadwayd {DISPLAY} did not start (display already in use?)")
         self.log = open(self.tmp / "onyx.log", "w")
-        self.app = subprocess.Popen([binary], env=self.env, stdout=self.log, stderr=self.log)
+        # Private bus: a running Onyx elsewhere would swallow the launch.
+        self.app = subprocess.Popen(["dbus-run-session", "--", binary], env=self.env,
+                                    stdout=self.log, stderr=self.log, start_new_session=True)
 
     def kept(self):
         path = self.data / "onyx" / "kept.json"
@@ -136,7 +138,7 @@ class Environment:
         return path.read_text() if path.exists() else ""
 
     def close(self):
-        self.app.terminate()
+        os.killpg(self.app.pid, signal.SIGTERM)
         self.broadway.terminate()
         self.app.wait(timeout=10)
         self.broadway.wait(timeout=10)

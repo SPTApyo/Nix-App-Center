@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-05 16:59+0200\n"
+"POT-Creation-Date: 2026-10-05 17:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -525,18 +525,27 @@ msgstr ""
 msgid "Unknown License"
 msgstr ""
 
-#: crates/gui/src/components/details/license_tile.rs:60
+#: crates/gui/src/components/details/license_tile.rs:62
 #, rust-format
 msgid ""
 "The source code of this app is not public. It is released under the {} "
 "license."
 msgstr ""
 
-#: crates/gui/src/components/details/license_tile.rs:63
+#: crates/gui/src/components/details/license_tile.rs:65
+msgid "The source code of this app is not public."
+msgstr ""
+
+#: crates/gui/src/components/details/license_tile.rs:66
+#, rust-format
+msgid "This app is released under the {} license."
+msgstr ""
+
+#: crates/gui/src/components/details/license_tile.rs:67
 msgid "nixpkgs does not state the license of this package."
 msgstr ""
 
-#: crates/gui/src/components/details/license_tile.rs:112
+#: crates/gui/src/components/details/license_tile.rs:116
 msgid "How to _Contribute"
 msgstr ""
 
@@ -988,40 +997,40 @@ msgstr ""
 msgid "Add-ons"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1658 crates/gui/src/views/detail.rs:1672
+#: crates/gui/src/views/detail.rs:1662 crates/gui/src/views/detail.rs:1676
 msgid "Version History"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1699
+#: crates/gui/src/views/detail.rs:1703
 msgid "_Project Website"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1703
+#: crates/gui/src/views/detail.rs:1707
 msgid "_Donate"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1705
+#: crates/gui/src/views/detail.rs:1709
 msgid "Contribute _Translations"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1710
+#: crates/gui/src/views/detail.rs:1714
 msgid "_Report an Issue"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1714
+#: crates/gui/src/views/detail.rs:1718
 msgid "_Help"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1760
+#: crates/gui/src/views/detail.rs:1764
 msgid "No Metadata"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1765
+#: crates/gui/src/views/detail.rs:1769
 msgid ""
 "This package provides no link to a website, code repository or issue tracker."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1922
+#: crates/gui/src/views/detail.rs:1926
 msgid "No description."
 msgstr ""
 

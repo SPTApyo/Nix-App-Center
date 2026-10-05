@@ -906,7 +906,7 @@ impl SimpleComponent for DetailModel {
                 build_version_history(
                     &self.version_box,
                     &meta,
-                    Some(self.package.version.as_str()),
+                    meta.version.as_deref(),
                     self.toast_overlay.clone().upcast(),
                 );
                 build_license_box(&self.license_box, &meta);
@@ -1629,8 +1629,8 @@ fn build_addons(container: &gtk::Box, meta: &AppMeta) {
     container.set_visible(true);
 }
 
-/// `list_box_version_history`: the latest release, then an `AdwButtonRow`
-/// opening the full history dialog (copy of `GsAppVersionHistoryDialog`).
+/// `list_box_version_history`: the nixpkgs release (else the latest), then an
+/// `AdwButtonRow` opening the full history dialog (`GsAppVersionHistoryDialog`).
 fn build_version_history(
     container: &gtk::Box,
     meta: &AppMeta,
@@ -1644,7 +1644,11 @@ fn build_version_history(
         container.set_visible(false);
         return;
     }
-    let latest = &meta.releases[0];
+    let latest = meta
+        .releases
+        .iter()
+        .find(|r| installed_version == Some(r.version.as_str()))
+        .unwrap_or(&meta.releases[0]);
     let list = boxed_list();
     list.append(&version_history_row::row(
         &latest.version,

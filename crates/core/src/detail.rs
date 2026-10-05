@@ -32,6 +32,8 @@ pub struct PackageDetail {
     /// `insecure`, `.meta` stays readable even for a broken package: it is the
     /// only reliable, free signal explaining why running will probably fail.
     pub broken: bool,
+    /// Package version, read next to the meta.
+    pub version: Option<String>,
 }
 
 impl PackageDetail {
@@ -49,13 +51,15 @@ impl PackageDetail {
     }
 }
 
-/// Fetches a package's rich metadata through `nix eval <attr>.meta --json`.
-/// Returns `None` when the package is not found or evaluation fails.
+/// Fetches a package's rich metadata through `nix eval <attr>.meta --json`,
+/// plus its version. Returns `None` when not found or evaluation fails.
 pub fn detail(attr: &str) -> Option<PackageDetail> {
     let output = Command::new("nix")
         .args([
             "eval",
-            &format!("nixpkgs#{attr}.meta"),
+            &format!("nixpkgs#{attr}"),
+            "--apply",
+            "p: p.meta // { version = p.version or null; }",
             "--json",
             "--extra-experimental-features",
             "nix-command flakes",
@@ -100,6 +104,10 @@ pub fn detail(attr: &str) -> Option<PackageDetail> {
             })
             .unwrap_or_default(),
         broken: v.get("broken").and_then(|x| x.as_bool()).unwrap_or(false),
+        version: v
+            .get("version")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
     })
 }
 

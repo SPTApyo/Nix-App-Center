@@ -127,6 +127,7 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
             .or_else(|| nix.and_then(|n| n.is_free_license)),
         version: Some(pkg.version.clone())
             .filter(|s| !s.is_empty())
+            .or_else(|| nix.and_then(|n| n.version.clone()))
             .or_else(|| fh.and_then(|f| f.releases.first().map(|r| r.version.clone()))),
         is_runnable: nix.map(|n| n.is_runnable()).unwrap_or(true),
         verified: fh.map(|f| f.verified).unwrap_or(false),
@@ -282,6 +283,18 @@ mod tests {
         let fh = sample_fh();
         let meta = merge_app_meta(&pkg, Some(&fh), None);
         assert_eq!(meta.version.as_deref(), Some("2.0"));
+    }
+
+    #[test]
+    fn merge_version_uses_nix_meta_before_appstream_release() {
+        let mut pkg = sample_pkg();
+        pkg.version = String::new();
+        let nix = PackageDetail {
+            version: Some("1.4".into()),
+            ..sample_nix()
+        };
+        let meta = merge_app_meta(&pkg, Some(&sample_fh()), Some(&nix));
+        assert_eq!(meta.version.as_deref(), Some("1.4"));
     }
 
     #[test]

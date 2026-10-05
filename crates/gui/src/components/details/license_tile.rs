@@ -56,11 +56,15 @@ pub fn proprietary(license: Option<&str>, is_free: Option<bool>) -> gtk::ListBox
         ),
         _ => ("app-safety-unknown-symbolic", "grey", t("Unknown License")),
     };
-    let description = match license {
-        Some(l) => t("The source code of this app is not public. It is released \
+    // AppStream placeholders like LicenseRef-proprietary say nothing.
+    let license = license.filter(|l| !l.starts_with("LicenseRef-"));
+    let description = match (is_free, license) {
+        (Some(false), Some(l)) => t("The source code of this app is not public. It is released \
                       under the {} license.")
         .replace("{}", l),
-        None => t("nixpkgs does not state the license of this package."),
+        (Some(false), None) => t("The source code of this app is not public."),
+        (_, Some(l)) => t("This app is released under the {} license.").replace("{}", l),
+        (_, None) => t("nixpkgs does not state the license of this package."),
     };
 
     let icons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
