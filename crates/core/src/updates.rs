@@ -270,6 +270,28 @@ pub fn latest(branch: &str) -> Option<Latest> {
     })
 }
 
+/// The NixOS release after a stable `branch` (`nixos-26.05` gives `26.11`),
+/// when its channel exists already.
+pub fn newer_release(branch: &str) -> Option<String> {
+    let next = next_release(branch)?;
+    let url = format!("https://channels.nixos.org/nixos-{next}/git-revision");
+    ureq::get(&url)
+        .timeout(crate::http::TIMEOUT)
+        .call()
+        .ok()
+        .map(|_| next)
+}
+
+fn next_release(branch: &str) -> Option<String> {
+    let (yy, mm) = branch.strip_prefix("nixos-")?.split_once('.')?;
+    let yy: u32 = yy.parse().ok()?;
+    match mm {
+        "05" => Some(format!("{yy}.11")),
+        "11" => Some(format!("{}.05", yy + 1)),
+        _ => None,
+    }
+}
+
 /// Installed apps that `rev` ships in a newer version. One evaluation for all
 /// apps; the pname stands for the attribute, apps without a match are skipped.
 pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
@@ -406,6 +428,13 @@ mod tests {
         assert!(!version_newer("1.0", "1.0"));
         assert!(!version_newer("1.0", "1.1"));
         assert!(version_newer("1.2.1", "1.2"));
+    }
+
+    #[test]
+    fn next_release_follows_the_may_november_cycle() {
+        assert_eq!(next_release("nixos-26.05").as_deref(), Some("26.11"));
+        assert_eq!(next_release("nixos-26.11").as_deref(), Some("27.05"));
+        assert_eq!(next_release("nixos-unstable"), None);
     }
 
     #[test]

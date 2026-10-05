@@ -32,6 +32,7 @@
 //! - [`config_gen`]: generation of the Onyx files + applying the config
 //! - [`updates`]: nixpkgs source of the config, update check and update
 //! - [`profiles`]: apps already installed in the Nix profiles
+//! - [`settings`]: user settings (detection overrides, update checks)
 //! - [`locate`]: search by binary (`nix-locate`)
 //! - [`http`] / [`util`] / [`paths`]: small shared helpers
 
@@ -59,6 +60,7 @@ mod resolve;
 mod reviews;
 mod search;
 mod session_cache;
+mod settings;
 mod tried;
 mod updates;
 mod util;
@@ -75,7 +77,9 @@ pub use config_attach::{
 };
 pub use config_gen::default_home_block;
 pub use config_gen::{apply_config, ApplyOutcome};
-pub use config_layout::{detect as detect_layout, Layout, LayoutKind, ScopeTarget};
+pub use config_layout::{
+    detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
+};
 pub use detail::{closure_size, detail, PackageDetail};
 pub use flathub::{Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
@@ -92,10 +96,11 @@ pub use search::{search, search_apps, SearchResult};
 pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, known_icon_url, remember_icon_url,
 };
+pub use settings::{load_settings, save_settings, Settings};
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
-    app_updates, current_source, latest, nixpkgs_ref, run_update, update_command, AppUpdate,
-    Latest, Source, UpdateMethod,
+    app_updates, current_source, latest, newer_release, nixpkgs_ref, run_update, update_command,
+    AppUpdate, Latest, Source, UpdateMethod,
 };
 
 // ── Test utility: global lock for tests that mutate the environment

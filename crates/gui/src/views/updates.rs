@@ -23,12 +23,30 @@ pub struct Check {
     latest: Option<Latest>,
     apps: Vec<AppUpdate>,
     command: Option<Vec<String>>,
+    new_release: Option<String>,
+}
+
+impl Check {
+    /// Number shown on the tab badge: 0 when up to date.
+    fn pending(&self) -> usize {
+        match &self.latest {
+            Some(l) if self.source.rev.as_deref() != Some(l.rev.as_str()) => self.apps.len().max(1),
+            _ => 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum UpdatesOutput {
+    /// Updates pending after a check; `notify` for background checks.
+    Pending { count: usize, notify: bool },
 }
 
 pub struct UpdatesModel {
     check: Option<Check>,
     checked_at: Option<Instant>,
     checking: bool,
+    background: bool,
     updating: bool,
     status: Option<String>,
     content: gtk::Box,
@@ -40,6 +58,8 @@ pub enum UpdatesMsg {
     Reload,
     /// "Check Again".
     Refresh,
+    /// Daily check started by the app, notifies when updates are pending.
+    Background,
     Checked(Check),
     Update,
     Updated(Result<onyx_core::ApplyOutcome, String>),
@@ -49,7 +69,7 @@ pub enum UpdatesMsg {
 impl SimpleComponent for UpdatesModel {
     type Init = ();
     type Input = UpdatesMsg;
-    type Output = onyx_core::Package;
+    type Output = UpdatesOutput;
 
     view! {
         #[root]
@@ -82,6 +102,7 @@ impl SimpleComponent for UpdatesModel {
             check: None,
             checked_at: None,
             checking: false,
+            background: false,
             updating: false,
             status: None,
             content: content.clone(),
@@ -113,9 +134,18 @@ impl SimpleComponent for UpdatesModel {
                     let _ = s.send(UpdatesMsg::Checked(check()));
                 });
             }
+            UpdatesMsg::Background => {
+                self.background = true;
+                sender.input(UpdatesMsg::Refresh);
+            }
             UpdatesMsg::Checked(c) => {
                 self.checking = false;
                 self.checked_at = Some(Instant::now());
+                let notify = std::mem::take(&mut self.background);
+                let _ = sender.output(UpdatesOutput::Pending {
+                    count: c.pending(),
+                    notify,
+                });
                 self.check = Some(c);
                 self.rebuild(&sender);
             }
@@ -156,11 +186,13 @@ fn check() -> Check {
         _ => Vec::new(),
     };
     let command = onyx_core::update_command(&source, &onyx_core::detect_layout());
+    let new_release = source.branch.as_deref().and_then(onyx_core::newer_release);
     Check {
         source,
         latest,
         apps,
         command,
+        new_release,
     }
 }
 
@@ -192,6 +224,9 @@ impl UpdatesModel {
             return;
         };
 
+        if let Some(release) = &c.new_release {
+            self.content.append(&release_banner(release));
+        }
         self.content.append(&self.source_list(c, sender));
 
         let Some(latest) = &c.latest else {
@@ -308,6 +343,24 @@ fn method_note(method: &UpdateMethod) -> Option<String> {
         UpdateMethod::Unknown => Some(t("Onyx cannot update this configuration by itself.")),
         _ => None,
     }
+}
+
+/// A newer NixOS release: moving to it means editing the branch in the
+/// config (flake input or channel), which the user does on purpose.
+fn release_banner(release: &str) -> adw::Banner {
+    let banner = adw::Banner::new(
+        &t("NixOS {0} is available. Switch your configuration to nixos-{0} when you are ready.")
+            .replace("{0}", release),
+    );
+    banner.set_button_label(Some(&t("Release _Notes")));
+    banner.set_revealed(true);
+    banner.connect_button_clicked(|_| {
+        let _ = gtk::gio::AppInfo::launch_default_for_uri(
+            "https://nixos.org/manual/nixos/unstable/release-notes",
+            None::<&gtk::gio::AppLaunchContext>,
+        );
+    });
+    banner
 }
 
 fn dim_label(text: &str) -> gtk::Label {

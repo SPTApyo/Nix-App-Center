@@ -108,6 +108,7 @@ class Environment:
             LANGUAGE=os.environ.get("ONYX_E2E_LANG", "en"),
             LANG="en_US.UTF-8",
             XDG_DATA_HOME=str(self.data),
+            XDG_CONFIG_HOME=str(self.tmp / "config"),
             # Reuse the real cache: AppStream download and nix search results.
             XDG_CACHE_HOME=str(cache),
             ONYX_CONFIG_DIR=str(self.config),

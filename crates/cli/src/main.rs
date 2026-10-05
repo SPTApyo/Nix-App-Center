@@ -10,7 +10,7 @@
 //!   onyx-cli unkeep <attr>     remove from the manifest
 //!   onyx-cli updates           nixpkgs pin vs its branch head, app changes
 //!   onyx-cli locate <bin>      packages providing a binary (nix-locate)
-//!   onyx-cli layout            what Onyx detects of your config (read only)
+//!   onyx-cli layout [--verify] what Onyx detects of your config (read only)
 //!   onyx-cli attach [--commit] consented attach (diff; --commit to write)
 //!   onyx-cli detach            remove the Onyx import line
 //!   onyx-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
@@ -192,6 +192,15 @@ fn main() -> ExitCode {
         Some("layout") => {
             let l = onyx_core::detect_layout();
             println!("layout: {:?}", l.kind);
+            if args.get(2).map(String::as_str) == Some("--verify") {
+                match onyx_core::verify_layout(&l) {
+                    Ok(v) => println!(
+                        "nix: hosts {:?}, home-manager users {:?}",
+                        v.hosts, v.hm_users
+                    ),
+                    Err(e) => println!("nix: cannot evaluate: {e}"),
+                }
+            }
             match &l.hm_user {
                 Some(u) => println!("home-manager: NixOS module, user “{u}”"),
                 None => println!("home-manager: not detected as a NixOS module"),

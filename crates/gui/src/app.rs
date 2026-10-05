@@ -11,7 +11,7 @@ use crate::i18n::t;
 use crate::util::AppItem;
 use crate::views::home::HomeOutput;
 use crate::views::installed::InstalledMsg;
-use crate::views::updates::UpdatesMsg;
+use crate::views::updates::{UpdatesMsg, UpdatesOutput};
 use crate::views::{CategoryModel, DetailModel, HomeModel, InstalledModel, UpdatesModel};
 
 /// App stylesheet: `crates/gui/data/style.css`. Rules ported from GNOME
@@ -33,7 +33,8 @@ pub struct AppModel {
     gallery: Controller<crate::views::gallery::GalleryModel>,
     stack: gtk::Stack,          // home / results (Explore tab)
     view_stack: adw::ViewStack, // Explore / Installed / Updates
-    nav: adw::NavigationView,   // "main" root + pushed pages
+    updates_page: adw::ViewStackPage,
+    nav: adw::NavigationView, // "main" root + pushed pages
     search_entry: gtk::SearchEntry,
     search_btn: gtk::ToggleButton,
     details: Vec<Controller<DetailModel>>,
@@ -51,6 +52,8 @@ pub enum AppMsg {
     /// A page was popped (back arrow): release its controller.
     PagePopped,
     GoHome,
+    Updates(UpdatesOutput),
+    ShowUpdates,
 }
 
 #[relm4::component(pub)]
@@ -107,7 +110,7 @@ impl SimpleComponent for AppModel {
             .forward(sender.input_sender(), AppMsg::OpenDetail);
         let updates = UpdatesModel::builder()
             .launch(())
-            .forward(sender.input_sender(), AppMsg::OpenDetail);
+            .forward(sender.input_sender(), AppMsg::Updates);
 
         #[cfg(feature = "dev-gallery")]
         let gallery = crate::views::gallery::GalleryModel::builder()
@@ -127,6 +130,38 @@ impl SimpleComponent for AppModel {
             .tooltip_text(t("Search"))
             .build();
         header.pack_start(&search_btn);
+
+        // Main menu, like every GNOME app.
+        let menu = gtk::gio::Menu::new();
+        menu.append(Some(&t("_Preferences")), Some("win.preferences"));
+        menu.append(Some(&t("_About Onyx")), Some("win.about"));
+        let menu_btn = gtk::MenuButton::builder()
+            .icon_name("open-menu-symbolic")
+            .menu_model(&menu)
+            .primary(true)
+            .tooltip_text(t("Main Menu"))
+            .build();
+        header.pack_end(&menu_btn);
+        let prefs = gtk::gio::SimpleAction::new("preferences", None);
+        prefs.connect_activate({
+            let win = root.clone();
+            move |_, _| crate::views::preferences::present(&win)
+        });
+        root.add_action(&prefs);
+        let about = gtk::gio::SimpleAction::new("about", None);
+        about.connect_activate({
+            let win = root.clone();
+            move |_, _| about_dialog().present(Some(&win))
+        });
+        root.add_action(&about);
+        let app = relm4::main_application();
+        app.set_accels_for_action("win.preferences", &["<Control>comma"]);
+        let show_updates = gtk::gio::SimpleAction::new("show-updates", None);
+        show_updates.connect_activate({
+            let sender = sender.clone();
+            move |_, _| sender.input(AppMsg::ShowUpdates)
+        });
+        app.add_action(&show_updates);
 
         let switcher = adw::ViewSwitcher::new();
         switcher.set_policy(adw::ViewSwitcherPolicy::Wide);
@@ -261,6 +296,19 @@ impl SimpleComponent for AppModel {
             move |_, _| sender.input(AppMsg::PagePopped)
         });
 
+        // Daily background check, a little after start.
+        let settings = onyx_core::load_settings();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
+            let su = updates.sender().clone();
+            gtk::glib::timeout_add_seconds_local_once(30, move || {
+                let _ = su.send(UpdatesMsg::Background);
+            });
+        }
+
         let model = AppModel {
             home,
             results,
@@ -270,6 +318,7 @@ impl SimpleComponent for AppModel {
             gallery,
             stack: stack.clone(),
             view_stack: view_stack.clone(),
+            updates_page,
             nav: nav.clone(),
             search_entry: search_entry.clone(),
             search_btn: search_btn.clone(),
@@ -344,6 +393,33 @@ impl SimpleComponent for AppModel {
                 self.details.retain(|c| c.widget().parent().is_some());
                 self.categories.retain(|c| c.widget().parent().is_some());
             }
+            AppMsg::Updates(UpdatesOutput::Pending { count, notify }) => {
+                self.updates_page.set_badge_number(count as u32);
+                self.updates_page.set_needs_attention(count > 0);
+                if notify {
+                    let mut s = onyx_core::load_settings();
+                    s.last_update_check = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    let _ = onyx_core::save_settings(&s);
+                }
+                if notify && count > 0 {
+                    let n = gtk::gio::Notification::new(&t("Updates Available"));
+                    n.set_body(Some(&crate::util::plural(
+                        "{} app can be updated.",
+                        "{} apps can be updated.",
+                        count as i64,
+                    )));
+                    n.set_default_action("app.show-updates");
+                    relm4::main_application().send_notification(Some("updates"), &n);
+                }
+            }
+            AppMsg::ShowUpdates => {
+                self.nav.pop_to_tag("main");
+                self.view_stack.set_visible_child_name("updates");
+                relm4::main_application().activate();
+            }
             AppMsg::GoHome => {
                 self.nav.pop_to_tag("main");
                 self.details.clear();
@@ -355,4 +431,22 @@ impl SimpleComponent for AppModel {
             }
         }
     }
+}
+
+fn about_dialog() -> adw::AboutDialog {
+    let d = adw::AboutDialog::builder()
+        .application_name("Onyx")
+        .application_icon("dev.onyx.Onyx")
+        .developer_name("SPTApyo")
+        .version(env!("CARGO_PKG_VERSION"))
+        .website("https://github.com/SPTApyo/Projet-Onyx")
+        .issue_url("https://github.com/SPTApyo/Projet-Onyx/issues")
+        .license_type(gtk::License::Gpl30)
+        .copyright("© 2026 SPTApyo")
+        .build();
+    let credits = t("translator-credits");
+    if credits != "translator-credits" {
+        d.set_translator_credits(&credits);
+    }
+    d
 }

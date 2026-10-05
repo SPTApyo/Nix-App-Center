@@ -71,6 +71,7 @@ const ONYX_SYSTEM_FILE: &str = "onyx-system.nix";
 fn nixos_dir() -> PathBuf {
     std::env::var_os("ONYX_CONFIG_DIR")
         .map(PathBuf::from)
+        .or_else(|| crate::settings::load_settings().config_dir)
         .unwrap_or_else(|| PathBuf::from("/etc/nixos"))
 }
 
@@ -93,7 +94,12 @@ pub fn detect() -> Layout {
     let flake = nixos.join("flake.nix");
     if flake.is_file() {
         let src = read(&flake);
-        if let Some(host) = first_nixos_host(&src) {
+        // ONYX_CONFIG_DIR (tests, e2e) bypasses the saved settings.
+        let chosen = std::env::var_os("ONYX_CONFIG_DIR")
+            .is_none()
+            .then(|| crate::settings::load_settings().host)
+            .flatten();
+        if let Some(host) = chosen.or_else(|| first_nixos_host(&src)) {
             let hm_user = hm_user_in_dir(&nixos);
             return nixos_flake_layout(nixos, host, hm_user);
         }
@@ -119,6 +125,71 @@ pub fn detect() -> Layout {
         system: None,
         apply: Vec::new(),
         hm_user: None,
+    }
+}
+
+// ── Verification ──────────────────────────────────────────────────────────────
+
+/// What Nix itself reports about a flake layout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Verified {
+    /// Configurations the flake really outputs.
+    pub hosts: Vec<String>,
+    /// Home Manager users of the chosen host (empty without Home Manager),
+    /// or why Nix could not evaluate the host.
+    pub hm_users: Result<Vec<String>, String>,
+}
+
+/// Asks Nix what the text scan guessed. Evaluates the flake (seconds):
+/// call it from a thread. `Err` carries the last line Nix printed.
+pub fn verify(layout: &Layout) -> Result<Verified, String> {
+    let names = |expr: String| -> Result<Vec<String>, String> {
+        let out = std::process::Command::new("nix")
+            .args(["eval", "--json", &expr, "--apply", "builtins.attrNames"])
+            .args(["--extra-experimental-features", "nix-command flakes"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            let line = err
+                .lines()
+                .rev()
+                .find_map(|l| {
+                    l.trim()
+                        .strip_prefix("error:")
+                        .map(str::trim)
+                        .filter(|l| !l.is_empty())
+                })
+                .or_else(|| err.lines().rev().map(str::trim).find(|l| !l.is_empty()))
+                .unwrap_or("");
+            return Err(line.to_string());
+        }
+        serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
+    };
+    match &layout.kind {
+        LayoutKind::NixosFlake { dir, host } => {
+            let flake = dir.display();
+            let hosts = names(format!("{flake}#nixosConfigurations"))?;
+            let hm_users = names(format!(
+                "{flake}#nixosConfigurations.\"{host}\".config.home-manager.users"
+            ))
+            .or_else(|e| {
+                if e.contains("'home-manager' missing") {
+                    Ok(Vec::new())
+                } else {
+                    Err(e)
+                }
+            });
+            Ok(Verified { hosts, hm_users })
+        }
+        LayoutKind::HmFlake { dir, .. } => Ok(Verified {
+            hosts: names(format!("{}#homeConfigurations", dir.display()))?,
+            hm_users: Ok(Vec::new()),
+        }),
+        _ => Ok(Verified {
+            hosts: Vec::new(),
+            hm_users: Ok(Vec::new()),
+        }),
     }
 }
 

@@ -5,6 +5,7 @@ pub mod category;
 pub mod detail;
 pub mod home;
 pub mod installed;
+pub mod preferences;
 pub mod updates;
 
 #[cfg(feature = "dev-gallery")]
