@@ -150,11 +150,12 @@ class Environment:
 SEARCH_TOGGLE = "click:47,48"
 BACK = "click:47,48"
 FIRST_RESULT = "click:400,230"
-TAB_INSTALLED = "click:505,48"
+TAB_INSTALLED = "click:443,48"
 # Installed tab: Remove buttons of the first kept and first tried rows.
 KEPT_REMOVE = "click:846,159"
 TRIED_REMOVE = "click:846,304"
-TAB_UPDATES = "click:627,48"
+TAB_UPDATES = "click:566,48"
+TAB_STORAGE = "click:690,48"
 # Details page of a CLI tool ("Try in a Shell" primary): menu arrow and entries.
 MENU = "click:895,145"
 MENU_KEEP_TOGGLE = "click:894,221"
@@ -218,6 +219,10 @@ def scenario(env, s):
     s.do(TAB_UPDATES)
     s.do("wait:60000")
     s.shot("updates")
+
+    s.do(TAB_STORAGE)
+    s.do("wait:30000")
+    s.shot("storage")
 
 
 def main():
