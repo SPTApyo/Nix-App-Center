@@ -32,6 +32,7 @@
 //! - [`config_gen`]: generation of the Onyx files + applying the config
 //! - [`updates`]: nixpkgs source of the config, update check and update
 //! - [`profiles`]: apps already installed in the Nix profiles
+//! - [`user_profile`]: `nix profile` installs when no config is managed
 //! - [`settings`]: user settings (detection overrides, update checks)
 //! - [`locate`]: search by binary (`nix-locate`)
 //! - [`http`] / [`util`] / [`paths`]: small shared helpers
@@ -63,6 +64,7 @@ mod session_cache;
 mod settings;
 mod tried;
 mod updates;
+mod user_profile;
 mod util;
 
 pub use app_meta::{app_meta, AppMeta};
@@ -102,6 +104,7 @@ pub use updates::{
     app_updates, current_source, latest, newer_release, nixpkgs_ref, update_command, AppUpdate,
     Latest, Source, UpdateMethod,
 };
+pub use user_profile::{profile_add, profile_elements, profile_remove, ProfileElement};
 
 // ── Test utility: global lock for tests that mutate the environment
 // (`set_var`/`remove_var` are process global and Rust tests run in

@@ -63,6 +63,11 @@ pub struct DetailModel {
     loading: bool,
     /// Desktop file when a Nix profile already holds the app.
     installed: Option<std::path::PathBuf>,
+    /// Onyx knows the config: keep edits it. Otherwise `nix profile`.
+    managed: bool,
+    /// `nix profile` element of this package (unmanaged machines).
+    profile_name: Option<String>,
+    profile_busy: bool,
     kept: bool,
     icon_tex: Option<gtk::gdk::Texture>,
     // Closure size (Storage tile) and permissions (Safety tile) are slower
@@ -119,6 +124,9 @@ pub enum DetailMsg {
     Primary,
     /// Launch the copy a Nix profile already holds.
     Open,
+    /// Unmanaged machine: `nix profile add` / `remove`.
+    ProfileToggle,
+    ProfileDone(Result<Option<String>, String>),
     /// Menu entry holding the launch mode the primary did not take.
     AltLaunch,
     Run,
@@ -432,11 +440,14 @@ impl SimpleComponent for DetailModel {
                                                                 // (replaces the old trash button).
                                                                 gtk::Button {
                                                                     #[watch]
-                                                                    set_label: &if model.kept {
-                                                                        t("Remove from Configuration")
-                                                                    } else {
-                                                                        t("Add to Configuration")
+                                                                    set_label: &match (model.managed, model.kept, model.profile_name.is_some()) {
+                                                                        (true, true, _) => t("Remove from Configuration"),
+                                                                        (true, false, _) => t("Add to Configuration"),
+                                                                        (false, _, true) => t("Uninstall"),
+                                                                        (false, _, false) => t("Install for This User"),
                                                                     },
+                                                                    #[watch]
+                                                                    set_sensitive: !model.profile_busy,
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ToggleKeep,
                                                                 },
@@ -790,11 +801,22 @@ impl SimpleComponent for DetailModel {
             .and_then(|url| onyx_core::cached_bytes_if_present(&url))
             .and_then(|bytes| texture_from_bytes_sized(&bytes, 128));
 
+        let managed = onyx_core::detect_layout().is_usable();
         let model = DetailModel {
             package: pkg.clone(),
             meta: None,
             loading: true,
             installed: onyx_core::installed_app(&pkg.attr, None).map(|a| a.desktop_file),
+            managed,
+            profile_name: if managed {
+                None
+            } else {
+                onyx_core::profile_elements()
+                    .into_iter()
+                    .find(|e| e.is_attr(&pkg.attr))
+                    .map(|e| e.name)
+            },
+            profile_busy: false,
             kept,
             icon_tex,
             size_loaded: false,
@@ -1171,6 +1193,55 @@ impl SimpleComponent for DetailModel {
                         .replace("{name}", &name)
                         .replace("{err}", &err),
                 );
+            }
+            DetailMsg::ToggleKeep if !self.managed => sender.input(DetailMsg::ProfileToggle),
+            DetailMsg::ProfileToggle => {
+                if self.profile_busy {
+                    return;
+                }
+                self.profile_busy = true;
+                let (attr, name) = (self.package.attr.clone(), self.profile_name.clone());
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &if name.is_some() {
+                        t("Uninstalling…")
+                    } else {
+                        t("Installing…")
+                    },
+                );
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = match &name {
+                        Some(n) => onyx_core::profile_remove(n).map(|()| None),
+                        None => onyx_core::profile_add(&attr).map(|()| {
+                            onyx_core::profile_elements()
+                                .into_iter()
+                                .find(|e| e.is_attr(&attr))
+                                .map(|e| e.name)
+                        }),
+                    };
+                    let _ = s.send(DetailMsg::ProfileDone(res.map_err(|e| e.to_string())));
+                });
+            }
+            DetailMsg::ProfileDone(res) => {
+                self.profile_busy = false;
+                let text = match res {
+                    Ok(Some(name)) => {
+                        self.profile_name = Some(name);
+                        t("Installed for your user.")
+                    }
+                    Ok(None) => {
+                        self.profile_name = None;
+                        t("Uninstalled.")
+                    }
+                    Err(e) => t("Failed: {}").replace("{}", &e),
+                };
+                self.installed = onyx_core::installed_app(
+                    &self.package.attr,
+                    self.meta.as_ref().and_then(|m| m.app_id.as_deref()),
+                )
+                .map(|a| a.desktop_file);
+                crate::util::toast(&self.toast_overlay, &text);
             }
             DetailMsg::ToggleKeep => {
                 let next = if self.kept {

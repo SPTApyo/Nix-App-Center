@@ -35,9 +35,19 @@ pub struct Data {
     tried: Vec<Item>,
     profile: Vec<ProfileApp>,
     sizes: std::collections::HashMap<PathBuf, u64>,
+    elements: Vec<onyx_core::ProfileElement>,
 }
 
 impl Data {
+    /// The `nix profile` element holding `store_path`, Home Manager's excluded.
+    fn removable(&self, store_path: &Path) -> Option<&str> {
+        let path = store_path.to_string_lossy();
+        self.elements
+            .iter()
+            .find(|e| !e.is_home_manager() && e.store_paths.iter().any(|p| *p == path))
+            .map(|e| e.name.as_str())
+    }
+
     /// " · 120 MB" for the given paths, empty when unknown.
     fn size_suffix<'a>(&self, paths: impl IntoIterator<Item = &'a PathBuf>) -> String {
         let total: u64 = paths.into_iter().filter_map(|p| self.sizes.get(p)).sum();
@@ -66,6 +76,7 @@ pub enum InstalledMsg {
     Open(Package),
     Unkeep(String),
     RemoveTried(String),
+    ProfileRemove(String),
     Removed(String, Result<u64, String>),
     Apply,
     Applied(Result<onyx_core::ApplyOutcome, String>),
@@ -182,6 +193,13 @@ impl SimpleComponent for InstalledModel {
                     let res = onyx_core::remove_tried(&attr).map_err(|e| e.to_string());
                     let _ = s.send(InstalledMsg::Removed(attr, res));
                 });
+            }
+            InstalledMsg::ProfileRemove(name) => {
+                self.status = Some(match onyx_core::profile_remove(&name) {
+                    Ok(()) => t("{} uninstalled.").replace("{}", &name),
+                    Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
+                });
+                sender.input(InstalledMsg::Reload);
             }
             InstalledMsg::Removed(attr, res) => {
                 self.removing.remove(&attr);
@@ -372,11 +390,18 @@ impl InstalledModel {
                 .filter(|a| a.scope == scope && !kept_attrs.contains(&a.pname.to_lowercase()))
                 .filter_map(|a| {
                     let sub = a.version.clone() + &data.size_suffix([&a.store_path]);
-                    util::desktop_row(&a.desktop_file, &sub)
-                })
-                .map(|row| {
-                    row.add_css_class("dim-label");
-                    row.upcast()
+                    let row = util::desktop_row(&a.desktop_file, &sub)?;
+                    match data.removable(&a.store_path) {
+                        // Installed with nix profile: Onyx may remove it.
+                        Some(name) => row.add_suffix(&self.action_button(
+                            &t("Remove"),
+                            false,
+                            InstalledMsg::ProfileRemove(name.to_string()),
+                            sender,
+                        )),
+                        None => row.add_css_class("dim-label"),
+                    }
+                    Some(row.upcast())
                 })
                 .collect();
             if !rows.is_empty() {
@@ -536,6 +561,7 @@ fn load_data() -> Data {
         .collect();
     Data {
         sizes: onyx_core::store_sizes(&paths),
+        elements: onyx_core::profile_elements(),
         kept,
         tried,
         profile,
