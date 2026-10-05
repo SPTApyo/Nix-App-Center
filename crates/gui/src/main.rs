@@ -9,15 +9,18 @@
 mod app;
 mod components;
 mod i18n;
+mod search_provider;
 mod util;
 mod views;
 
 use app::AppModel;
+use gtk::prelude::*;
 use relm4::RelmApp;
 
 fn main() {
     // Before any widget: bind gettext to the system locale.
     i18n::init();
     let app = RelmApp::new("dev.onyx.Onyx");
+    relm4::main_application().connect_startup(|app| search_provider::register(app.upcast_ref()));
     app.run::<AppModel>(());
 }

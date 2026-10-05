@@ -69,7 +69,8 @@ mod util;
 
 pub use app_meta::{app_meta, AppMeta};
 pub use appstream_db::{
-    init_background as init_appstream_db, is_settled as appstream_settled, wait_appstream,
+    init_background as init_appstream_db, is_settled as appstream_settled, local_app,
+    package_for_app, search_local, wait_appstream, LocalHit,
 };
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,

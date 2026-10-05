@@ -41,6 +41,12 @@
             $out/share/applications/dev.onyx.Onyx.desktop
           install -Dm644 crates/gui/data/dev.onyx.Onyx.metainfo.xml \
             $out/share/metainfo/dev.onyx.Onyx.metainfo.xml
+          install -Dm644 crates/gui/data/dev.onyx.Onyx.search-provider.ini \
+            $out/share/gnome-shell/search-providers/dev.onyx.Onyx.search-provider.ini
+          # Lets GNOME Shell start Onyx to answer searches.
+          install -d $out/share/dbus-1/services
+          printf '[D-BUS Service]\nName=dev.onyx.Onyx\nExec=%s --gapplication-service\n' \
+            "$out/bin/onyx" > $out/share/dbus-1/services/dev.onyx.Onyx.service
           mkdir -p $out/share/icons
           cp -r crates/gui/data/icons/hicolor $out/share/icons/
           for po in po/*.po; do

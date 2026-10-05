@@ -233,6 +233,78 @@ pub fn lookup(name: &str) -> Option<&'static Entry> {
     DB.get()?.lookup(name)
 }
 
+/// Apps whose name, summary or id holds every term, best first. Local and
+/// instant; empty while the database loads.
+pub fn search_local(terms: &[String], limit: usize) -> Vec<LocalHit> {
+    DB.get()
+        .map(|db| rank_local(&db.entries, terms, limit))
+        .unwrap_or_default()
+}
+
+fn rank_local(entries: &[Entry], terms: &[String], limit: usize) -> Vec<LocalHit> {
+    let terms: Vec<String> = terms.iter().map(|t| t.to_lowercase()).collect();
+    let mut hits: Vec<(i32, &Entry)> = entries
+        .iter()
+        .filter_map(|e| {
+            let name = e.name.to_lowercase();
+            let rest = format!(
+                "{} {}",
+                e.summary.as_deref().unwrap_or("").to_lowercase(),
+                e.app_id.to_lowercase()
+            );
+            if !terms.iter().all(|t| name.contains(t) || rest.contains(t)) {
+                return None;
+            }
+            let mut score = 10 * terms.iter().filter(|t| name.contains(t.as_str())).count() as i32;
+            if terms.first().is_some_and(|t| name.starts_with(t.as_str())) {
+                score += 5;
+            }
+            Some((score, e))
+        })
+        .collect();
+    hits.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.name.cmp(&b.1.name)));
+    hits.into_iter()
+        .take(limit)
+        .map(|(_, e)| LocalHit {
+            app_id: e.app_id.clone(),
+            name: e.name.clone(),
+            summary: e.summary.clone().unwrap_or_default(),
+        })
+        .collect()
+}
+
+/// One app of the local database, by its id.
+pub fn local_app(app_id: &str) -> Option<LocalHit> {
+    let e = lookup(app_id).filter(|e| e.app_id.eq_ignore_ascii_case(app_id))?;
+    Some(LocalHit {
+        app_id: e.app_id.clone(),
+        name: e.name.clone(),
+        summary: e.summary.clone().unwrap_or_default(),
+    })
+}
+
+/// An app found by [`search_local`].
+#[derive(Debug, Clone)]
+pub struct LocalHit {
+    pub app_id: String,
+    pub name: String,
+    pub summary: String,
+}
+
+/// The nixpkgs package of an AppStream app, when nixpkgs has it. Runs a
+/// (cached) `nix search`: call it from a thread.
+pub fn package_for_app(app_id: &str, name: &str) -> Option<Package> {
+    let app = DevApp {
+        app_id: app_id.to_string(),
+        name: name.to_string(),
+        icon_url: None,
+    };
+    crate::categories::resolve_dev_apps(&[app], "")
+        .into_iter()
+        .next()
+        .map(|(p, _)| p)
+}
+
 /// `true` once the DB is loaded and ready (lookups will not hit the network).
 pub fn is_ready() -> bool {
     DB.get().is_some()
@@ -1426,6 +1498,28 @@ mod tests {
             icon.starts_with("https://dl.flathub.org/media/"),
             "a relative URL must be prefixed with media_baseurl, got: {icon}"
         );
+    }
+
+    #[test]
+    fn rank_local_needs_every_term_and_prefers_names() {
+        let e = |id: &str, name: &str, summary: &str| Entry {
+            app_id: id.into(),
+            name: name.into(),
+            summary: Some(summary.into()),
+            ..Entry::default()
+        };
+        let entries = [
+            e("org.a.Player", "Player", "Plays videos"),
+            e("org.b.Vlc", "VLC", "Media player"),
+            e("org.c.Edit", "Editor", "Text"),
+        ];
+        let terms = |q: &str| vec![q.to_string()];
+        let hits = rank_local(&entries, &terms("player"), 10);
+        assert_eq!(
+            hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(),
+            ["Player", "VLC"]
+        );
+        assert!(rank_local(&entries, &["media".into(), "text".into()], 10).is_empty());
     }
 
     #[test]

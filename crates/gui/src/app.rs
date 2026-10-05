@@ -329,6 +329,7 @@ impl SimpleComponent for AppModel {
 
         let widgets = view_output!();
         root.set_content(Some(&nav));
+        let _ = crate::search_provider::APP_SENDER.set(sender.input_sender().clone());
 
         ComponentParts { model, widgets }
     }
