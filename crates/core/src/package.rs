@@ -256,16 +256,14 @@ const KIND_WORDS: &[(IconKind, &[&str])] = &[
     ),
 ];
 
-/// Package sets that only hold libraries.
+/// Prefixes of package sets that only hold libraries (`python314Packages`).
 const LIBRARY_SETS: &[&str] = &[
-    "python3Packages",
-    "python312Packages",
-    "python313Packages",
+    "python",
     "haskellPackages",
     "perlPackages",
     "nodePackages",
     "rubyPackages",
-    "luaPackages",
+    "lua",
     "ocamlPackages",
     "rPackages",
     "coqPackages",
@@ -273,6 +271,11 @@ const LIBRARY_SETS: &[&str] = &[
     "emacsPackages",
     "vimPlugins",
     "texlivePackages",
+    "php",
+    "beamPackages",
+    "chickenPackages",
+    "idrisPackages",
+    "akkuPackages",
 ];
 
 impl Package {
@@ -281,7 +284,7 @@ impl Package {
     pub fn icon_kind(&self) -> IconKind {
         if self
             .package_set()
-            .is_some_and(|set| LIBRARY_SETS.contains(&set))
+            .is_some_and(|set| LIBRARY_SETS.iter().any(|p| set.starts_with(p)))
         {
             return IconKind::Library;
         }

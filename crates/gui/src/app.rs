@@ -46,6 +46,7 @@ pub enum AppMsg {
     Search(String),
     SearchDone(Vec<onyx_core::SearchResult>),
     LocateDone(String, Vec<Package>),
+    OptionsDone(Vec<onyx_core::NixOption>),
     Home(HomeOutput),
     OpenCategory(&'static [&'static str], &'static str),
     OpenDetail(Package),
@@ -357,6 +358,13 @@ impl SimpleComponent for AppModel {
                         onyx_core::locate_binary(&q2),
                     ));
                 });
+                // NixOS options only make sense on NixOS.
+                if onyx_core::detect_layout().system.is_some() {
+                    let s3 = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s3.send(AppMsg::OptionsDone(onyx_core::search_options(&query, 6)));
+                    });
+                }
             }
             AppMsg::SearchDone(items) => {
                 let items = items.into_iter().map(AppItem::from_search).collect();
@@ -364,6 +372,9 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::LocateDone(query, packages) => {
                 self.results.emit(AppListInput::SetLocate(query, packages));
+            }
+            AppMsg::OptionsDone(options) => {
+                self.results.emit(AppListInput::SetOptions(options));
             }
             AppMsg::Home(HomeOutput::Category(cats, label)) => {
                 sender.input(AppMsg::OpenCategory(cats, label));

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-05 22:00+0200\n"
+"POT-Creation-Date: 2026-10-05 22:05+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -319,92 +319,100 @@ msgstr "Aucun partage de la position physique"
 msgid "Sharing physical location with other users"
 msgstr "Partage de la position physique avec d'autres utilisateurs"
 
-#: crates/core/src/reviews.rs:155 crates/core/src/reviews.rs:173
+#: crates/core/src/reviews.rs:150
+msgid "No random source to create your reviewer id."
+msgstr "Aucune source aléatoire pour créer votre identifiant de relecteur."
+
+#: crates/core/src/reviews.rs:159 crates/core/src/reviews.rs:177
 msgid "ODRS cannot be reached."
 msgstr "ODRS est injoignable."
 
-#: crates/core/src/reviews.rs:159
+#: crates/core/src/reviews.rs:163
 msgid "ODRS did not accept this app."
 msgstr "ODRS n'accepte pas cette application."
 
-#: crates/gui/src/app.rs:130 crates/gui/src/views/preferences.rs:118
+#: crates/gui/src/app.rs:131 crates/gui/src/views/preferences.rs:118
 msgid "Search"
 msgstr "Rechercher"
 
-#: crates/gui/src/app.rs:136
+#: crates/gui/src/app.rs:137
 msgid "_Preferences"
 msgstr "_Préférences"
 
-#: crates/gui/src/app.rs:137
+#: crates/gui/src/app.rs:138
 msgid "_About Onyx"
 msgstr "À _propos d'Onyx"
 
-#: crates/gui/src/app.rs:142
+#: crates/gui/src/app.rs:143
 msgid "Main Menu"
 msgstr "Menu principal"
 
-#: crates/gui/src/app.rs:175
+#: crates/gui/src/app.rs:176
 msgid "Search Nix packages…"
 msgstr "Rechercher des paquets Nix…"
 
-#: crates/gui/src/app.rs:237
+#: crates/gui/src/app.rs:238
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:241
+#: crates/gui/src/app.rs:242
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:244 crates/gui/src/views/preferences.rs:102
+#: crates/gui/src/app.rs:245 crates/gui/src/views/preferences.rs:102
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: crates/gui/src/app.rs:408
+#: crates/gui/src/app.rs:419
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:410
+#: crates/gui/src/app.rs:421
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:447
+#: crates/gui/src/app.rs:458
 msgid "translator-credits"
 msgstr "SPTApyo"
 
-#: crates/gui/src/components/app_list.rs:80
+#: crates/gui/src/components/app_list.rs:84
 msgid "All"
 msgstr "Tous"
 
-#: crates/gui/src/components/app_list.rs:88
+#: crates/gui/src/components/app_list.rs:92
 msgid "Applications"
 msgstr "Applications"
 
-#: crates/gui/src/components/app_list.rs:89
+#: crates/gui/src/components/app_list.rs:93
 msgid "Other Packages"
 msgstr "Autres paquets"
 
-#: crates/gui/src/components/app_list.rs:150
+#: crates/gui/src/components/app_list.rs:103
+msgid "NixOS Options"
+msgstr "Options NixOS"
+
+#: crates/gui/src/components/app_list.rs:164
 msgid "No Results"
 msgstr "Aucun résultat"
 
-#: crates/gui/src/components/app_list.rs:151
+#: crates/gui/src/components/app_list.rs:165
 msgid "Try different keywords"
 msgstr "Essayez d'autres mots-clés"
 
-#: crates/gui/src/components/app_list.rs:197
+#: crates/gui/src/components/app_list.rs:214
 #, rust-format
 msgid "Provides the “{}” command"
 msgstr "Fournit la commande « {} »"
 
-#: crates/gui/src/components/app_list.rs:255
+#: crates/gui/src/components/app_list.rs:305
 #, rust-format
 msgid "All ({})"
 msgstr "Tous ({})"
 
-#: crates/gui/src/components/app_list.rs:258
+#: crates/gui/src/components/app_list.rs:308
 #, rust-format
 msgid "No package set ({})"
 msgstr "Sans jeu de paquets ({})"
@@ -697,6 +705,30 @@ msgstr "Dans nixpkgs"
 #: crates/gui/src/components/details/version_history_row.rs:60
 msgid "No details for this version."
 msgstr "Aucun détail pour cette version."
+
+#: crates/gui/src/components/option_dialog.rs:36
+msgid "Type"
+msgstr "Type"
+
+#: crates/gui/src/components/option_dialog.rs:37
+msgid "Default"
+msgstr "Par défaut"
+
+#: crates/gui/src/components/option_dialog.rs:38
+msgid "Example"
+msgstr "Exemple"
+
+#: crates/gui/src/components/option_dialog.rs:39
+msgid "Declared in"
+msgstr "Déclarée dans"
+
+#: crates/gui/src/components/option_dialog.rs:62
+msgid "_Copy"
+msgstr "_Copier"
+
+#: crates/gui/src/components/option_dialog.rs:77
+msgid "NixOS Option"
+msgstr "Option NixOS"
 
 #: crates/gui/src/util.rs:26
 msgid "Configuration applied."

@@ -28,6 +28,8 @@ pub struct AppList {
     heading_others: gtk::Label,
     heading_locate: gtk::Label,
     locate_list: gtk::ListBox,
+    heading_options: gtk::Label,
+    options_list: gtk::ListBox,
     filter_dropdown: gtk::DropDown,
     items: Vec<AppItem>,
     filters: Vec<Filter>, // DropDown index to filter
@@ -39,6 +41,8 @@ pub enum AppListInput {
     Set(Vec<AppItem>),
     /// Results of `nix-locate bin/<query>` (section 3).
     SetLocate(String, Vec<Package>),
+    /// NixOS options matching the query (last section).
+    SetOptions(Vec<onyx_core::NixOption>),
     Filter,
     Open(Package),
 }
@@ -96,6 +100,14 @@ impl SimpleComponent for AppList {
         locate_list.set_valign(gtk::Align::Start);
         locate_list.set_visible(false);
 
+        let heading_options = section_heading(&t("NixOS Options"));
+        heading_options.set_visible(false);
+        let options_list = gtk::ListBox::new();
+        options_list.add_css_class("boxed-list");
+        options_list.set_selection_mode(gtk::SelectionMode::None);
+        options_list.set_valign(gtk::Align::Start);
+        options_list.set_visible(false);
+
         let content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
@@ -107,6 +119,8 @@ impl SimpleComponent for AppList {
         content.append(others.widget());
         content.append(&heading_locate);
         content.append(&locate_list);
+        content.append(&heading_options);
+        content.append(&options_list);
 
         let clamp = adw::Clamp::new();
         clamp.set_maximum_size(820);
@@ -166,6 +180,8 @@ impl SimpleComponent for AppList {
             heading_others,
             heading_locate: heading_locate.clone(),
             locate_list: locate_list.clone(),
+            heading_options: heading_options.clone(),
+            options_list: options_list.clone(),
             filter_dropdown,
             items: Vec::new(),
             filters: vec![Filter::All],
@@ -180,6 +196,7 @@ impl SimpleComponent for AppList {
         match msg {
             AppListInput::SetLoading => {
                 self.clear_locate();
+                self.set_options(&[]);
                 self.stack.set_visible_child_name("loading");
             }
             AppListInput::Set(items) => {
@@ -216,6 +233,14 @@ impl SimpleComponent for AppList {
                     self.stack.set_visible_child_name("filled");
                 }
             }
+            AppListInput::SetOptions(options) => {
+                self.set_options(&options);
+                if !options.is_empty()
+                    && self.stack.visible_child_name().as_deref() == Some("empty")
+                {
+                    self.stack.set_visible_child_name("filled");
+                }
+            }
             AppListInput::Filter => {
                 self.apply();
             }
@@ -227,6 +252,31 @@ impl SimpleComponent for AppList {
 }
 
 impl AppList {
+    fn set_options(&self, options: &[onyx_core::NixOption]) {
+        while let Some(child) = self.options_list.first_child() {
+            self.options_list.remove(&child);
+        }
+        for o in options {
+            let first = o
+                .description
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            let row = adw::ActionRow::builder()
+                .title(crate::util::esc(&o.name))
+                .subtitle(crate::util::esc(&first))
+                .subtitle_lines(1)
+                .activatable(true)
+                .build();
+            row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+            let opt = o.clone();
+            row.connect_activated(move |row| crate::components::option_dialog::present(row, &opt));
+            self.options_list.append(&row);
+        }
+        self.heading_options.set_visible(!options.is_empty());
+        self.options_list.set_visible(!options.is_empty());
+    }
+
     fn clear_locate(&self) {
         while let Some(child) = self.locate_list.first_child() {
             self.locate_list.remove(&child);

@@ -33,6 +33,7 @@
 //! - [`profiles`]: apps already installed in the Nix profiles
 //! - [`user_profile`]: `nix profile` installs when no config is managed
 //! - [`settings`]: user settings (detection overrides, update checks)
+//! - [`options`]: NixOS option search (channel options.json)
 //! - [`locate`]: search by binary (`nix-locate`)
 //! - [`http`] / [`util`] / [`paths`]: small shared helpers
 
@@ -51,6 +52,7 @@ mod locate;
 mod manifest;
 mod nix_check;
 mod oars;
+mod options;
 mod package;
 mod paths;
 mod profiles;
@@ -86,6 +88,7 @@ pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutco
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};
 pub use nix_check::{dry_build, parse_block, DryRun};
+pub use options::{search_options, NixOption};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use profiles::{installed_app, profile_apps, store_sizes, ProfileApp, Scope};
 pub use ratings::{rating_for, Rating};
