@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-05 21:57+0200\n"
+"POT-Creation-Date: 2026-10-05 22:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -318,6 +318,14 @@ msgstr ""
 msgid "Sharing physical location with other users"
 msgstr ""
 
+#: crates/core/src/reviews.rs:155 crates/core/src/reviews.rs:173
+msgid "ODRS cannot be reached."
+msgstr ""
+
+#: crates/core/src/reviews.rs:159
+msgid "ODRS did not accept this app."
+msgstr ""
+
 #: crates/gui/src/app.rs:130 crates/gui/src/views/preferences.rs:118
 msgid "Search"
 msgstr ""
@@ -597,6 +605,28 @@ msgstr ""
 msgid "Cannot check: {}"
 msgstr ""
 
+#: crates/gui/src/components/details/review_dialog.rs:34
+msgid "Summary"
+msgstr ""
+
+#: crates/gui/src/components/details/review_dialog.rs:35
+msgid "Your Name"
+msgstr ""
+
+#: crates/gui/src/components/details/review_dialog.rs:61
+msgid ""
+"Reviews are public and go to the Open Desktop Ratings Service, shared with "
+"GNOME Software."
+msgstr ""
+
+#: crates/gui/src/components/details/review_dialog.rs:77
+msgid "_Post"
+msgstr ""
+
+#: crates/gui/src/components/details/review_dialog.rs:86
+msgid "Write a Review"
+msgstr ""
+
 #: crates/gui/src/components/details/review_histogram.rs:64
 msgid "out of 5 stars"
 msgstr ""
@@ -655,10 +685,11 @@ msgid "Onyx cannot find your Nix configuration. Nothing was applied."
 msgstr ""
 
 #: crates/gui/src/util.rs:35 crates/gui/src/util.rs:36
-#: crates/gui/src/views/detail.rs:1218 crates/gui/src/views/detail.rs:1264
-#: crates/gui/src/views/detail.rs:1278 crates/gui/src/views/detail.rs:1317
-#: crates/gui/src/views/installed.rs:182 crates/gui/src/views/installed.rs:200
-#: crates/gui/src/views/installed.rs:223 crates/gui/src/views/installed.rs:267
+#: crates/gui/src/views/detail.rs:1219 crates/gui/src/views/detail.rs:1265
+#: crates/gui/src/views/detail.rs:1279 crates/gui/src/views/detail.rs:1318
+#: crates/gui/src/views/detail.rs:1504 crates/gui/src/views/installed.rs:182
+#: crates/gui/src/views/installed.rs:200 crates/gui/src/views/installed.rs:223
+#: crates/gui/src/views/installed.rs:267
 #: crates/gui/src/views/preferences.rs:144
 #, rust-format
 msgid "Failed: {}"
@@ -817,224 +848,224 @@ msgstr ""
 msgid "Show More"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1032
+#: crates/gui/src/views/detail.rs:1033
 msgid "Other Apps"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1034
+#: crates/gui/src/views/detail.rs:1035
 #, rust-format
 msgid "Other Apps by {}"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1091
+#: crates/gui/src/views/detail.rs:1092
 msgid "Enlarge"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1119
+#: crates/gui/src/views/detail.rs:1120
 msgid "Could not open the app."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1144
+#: crates/gui/src/views/detail.rs:1145
 #, rust-format
 msgid "{} is marked broken in nixpkgs. Trying anyway…"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1149
+#: crates/gui/src/views/detail.rs:1150
 #, rust-format
 msgid "Starting {}…"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1164
+#: crates/gui/src/views/detail.rs:1165
 #, rust-format
 msgid "Could not start: {}"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1173
+#: crates/gui/src/views/detail.rs:1174
 #, rust-format
 msgid "{name} stopped with an error: {err}"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1188
+#: crates/gui/src/views/detail.rs:1189
 msgid "Uninstalling…"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1190
+#: crates/gui/src/views/detail.rs:1191
 msgid "Installing…"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1212
+#: crates/gui/src/views/detail.rs:1213
 msgid "Installed for your user."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1216
+#: crates/gui/src/views/detail.rs:1217
 msgid "Uninstalled."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1238
+#: crates/gui/src/views/detail.rs:1239
 #, rust-format
 msgid "{} opened in a terminal…"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1249
+#: crates/gui/src/views/detail.rs:1250
 msgid "No terminal found. Command copied."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1254
+#: crates/gui/src/views/detail.rs:1255
 #, rust-format
 msgid "Could not open a shell: {}"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1273
+#: crates/gui/src/views/detail.rs:1274
 msgid "Removed from your configuration. Apply it to uninstall."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1325 crates/gui/src/views/installed.rs:242
+#: crates/gui/src/views/detail.rs:1326 crates/gui/src/views/installed.rs:242
 msgid "Applying Configuration"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1345
+#: crates/gui/src/views/detail.rs:1346
 msgid "Command copied."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1367
+#: crates/gui/src/views/detail.rs:1368
 msgid "Loading App Details"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1374
+#: crates/gui/src/views/detail.rs:1375
 msgid "Unable to Show App Details"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1375
+#: crates/gui/src/views/detail.rs:1376
 msgid "No metadata could be retrieved for this package."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1448
+#: crates/gui/src/views/detail.rs:1463
 msgid "Ratings & Reviews"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1474
+#: crates/gui/src/views/detail.rs:1489
 msgid "_Write a Review"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1480
-msgid "Publishing a review needs an ODRS account"
+#: crates/gui/src/views/detail.rs:1503
+msgid "Thanks, your review was sent."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1490 crates/gui/src/views/detail.rs:1515
+#: crates/gui/src/views/detail.rs:1522 crates/gui/src/views/detail.rs:1547
 msgid "All Reviews"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1563
+#: crates/gui/src/views/detail.rs:1595
 msgid "Computing size…"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1567
+#: crates/gui/src/views/detail.rs:1599
 msgid "Total download including dependencies"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1570
+#: crates/gui/src/views/detail.rs:1602
 msgid "Needs a local build"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1575
+#: crates/gui/src/views/detail.rs:1607
 msgid "Download Size"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1583
+#: crates/gui/src/views/detail.rs:1615
 msgid "Broken"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1584
+#: crates/gui/src/views/detail.rs:1616
 msgid "Marked broken in nixpkgs: running it will probably fail"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1588
+#: crates/gui/src/views/detail.rs:1620
 msgid "Marked insecure in nixpkgs"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1590
+#: crates/gui/src/views/detail.rs:1622
 #, rust-format
 msgid "Known vulnerabilities: {}"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1595
+#: crates/gui/src/views/detail.rs:1627
 msgid "Vulnerable"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1600
+#: crates/gui/src/views/detail.rs:1632
 msgid "Free software with your full user rights"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1601
+#: crates/gui/src/views/detail.rs:1633
 msgid "Proprietary, with your full user rights"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1602
+#: crates/gui/src/views/detail.rs:1634
 msgid "Runs with your full user rights"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1607
+#: crates/gui/src/views/detail.rs:1639
 msgid "Not Sandboxed"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1615
+#: crates/gui/src/views/detail.rs:1647
 msgid "Desktop Only"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1616
+#: crates/gui/src/views/detail.rs:1648
 msgid "Works on desktops and laptops"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1622
+#: crates/gui/src/views/detail.rs:1654
 msgid "No inappropriate content"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1634 crates/gui/src/views/detail.rs:1641
+#: crates/gui/src/views/detail.rs:1666 crates/gui/src/views/detail.rs:1673
 msgid "Age Rating"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1642
+#: crates/gui/src/views/detail.rs:1674
 msgid "No age rating information"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1677
+#: crates/gui/src/views/detail.rs:1709
 msgid "Add-ons"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1728 crates/gui/src/views/detail.rs:1742
+#: crates/gui/src/views/detail.rs:1760 crates/gui/src/views/detail.rs:1774
 msgid "Version History"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1769
+#: crates/gui/src/views/detail.rs:1801
 msgid "_Project Website"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1773
+#: crates/gui/src/views/detail.rs:1805
 msgid "_Donate"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1775
+#: crates/gui/src/views/detail.rs:1807
 msgid "Contribute _Translations"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1780
+#: crates/gui/src/views/detail.rs:1812
 msgid "_Report an Issue"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1784
+#: crates/gui/src/views/detail.rs:1816
 msgid "_Help"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1830
+#: crates/gui/src/views/detail.rs:1862
 msgid "No Metadata"
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1835
+#: crates/gui/src/views/detail.rs:1867
 msgid ""
 "This package provides no link to a website, code repository or issue tracker."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:1996
+#: crates/gui/src/views/detail.rs:2028
 msgid "No description."
 msgstr ""
 

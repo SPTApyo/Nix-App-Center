@@ -3,18 +3,34 @@
 //! (`lib/gs-odrs-provider.c:889-915`): `POST /1.0/reviews/api/fetch` with a
 //! `{user_hash, app_id, locale, distro, version, limit}` body.
 //!
-//! Purely cosmetic: on network failure an empty list is returned and the
-//! "Ratings & Reviews" section stays hidden.
+//! Reading is cosmetic: on network failure an empty list is returned and the
+//! "Ratings & Reviews" section stays hidden. Writing goes to
+//! `POST /1.0/reviews/api/submit`, signed with the `user_skey` ODRS returns
+//! with every fetch for the user's hash.
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 const ENDPOINT: &str = "https://odrs.gnome.org/1.0/reviews/api/fetch";
+const SUBMIT: &str = "https://odrs.gnome.org/1.0/reviews/api/submit";
 const LIMIT: u32 = 10;
 
-/// GNOME derives a salted SHA-1 of the user to link their own reviews. Onyx
-/// only reads: a constant hash is enough and identifies nobody.
-const USER_HASH: &str = "0000000000000000000000000000000000000000";
+/// The user's ODRS id: 40 random hex digits made once and kept in the
+/// settings. GNOME hashes the machine id instead; a random id says even less.
+fn user_hash() -> String {
+    let mut settings = crate::settings::load_settings();
+    if let Some(h) = &settings.odrs_user_hash {
+        return h.clone();
+    }
+    let mut bytes = [0u8; 20];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        let _ = std::io::Read::read_exact(&mut f, &mut bytes);
+    }
+    let hash: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    settings.odrs_user_hash = Some(hash.clone());
+    let _ = crate::settings::save_settings(&settings);
+    hash
+}
 
 /// An ODRS review. `stars` is already converted from the API's 0–100 `rating`.
 #[derive(Debug, Clone)]
@@ -31,15 +47,16 @@ pub struct Review {
 static CACHE: LazyLock<Mutex<HashMap<String, Vec<Review>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// An app's reviews, cached for the session (like metadata).
-pub fn reviews_for(app_id: &str) -> Vec<Review> {
+/// An app's reviews, cached for the session (like metadata). ODRS ranks
+/// reviews of the same version first.
+pub fn reviews_for(app_id: &str, version: &str) -> Vec<Review> {
     if app_id.is_empty() {
         return Vec::new();
     }
     if let Some(hit) = CACHE.lock().ok().and_then(|c| c.get(app_id).cloned()) {
         return hit;
     }
-    let fetched = fetch_reviews(app_id).unwrap_or_default();
+    let fetched = fetch_reviews(app_id, version).unwrap_or_default();
     if let Ok(mut c) = CACHE.lock() {
         c.insert(app_id.to_string(), fetched.clone());
     }
@@ -52,16 +69,25 @@ pub fn featured_review(reviews: &[Review]) -> Option<&Review> {
     reviews.iter().max_by_key(|r| r.score)
 }
 
-fn fetch_reviews(app_id: &str) -> Option<Vec<Review>> {
+fn fetch_reviews(app_id: &str, version: &str) -> Option<Vec<Review>> {
     let body = serde_json::json!({
-        "user_hash": USER_HASH,
+        "user_hash": user_hash(),
         "app_id": app_id,
         "locale": locale(),
         "distro": "NixOS",
-        "version": "",
+        "version": odrs_version(version),
         "limit": LIMIT,
     });
     crate::http::post_json(ENDPOINT, &body).map(|v| parse_reviews(&v))
+}
+
+/// ODRS rejects an empty version ("missing data, expected version").
+fn odrs_version(version: &str) -> &str {
+    if version.is_empty() {
+        "unknown"
+    } else {
+        version
+    }
 }
 
 /// Locale in ODRS format (`fr_FR`), from the environment. `C` by default.
@@ -107,6 +133,55 @@ fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
             })
         })
         .collect()
+}
+
+/// Sends a review of `app_id` to ODRS. `stars` from 1 to 5. Blocking.
+pub fn submit_review(
+    app_id: &str,
+    version: &str,
+    stars: u8,
+    summary: &str,
+    description: &str,
+    author: &str,
+) -> Result<(), String> {
+    let hash = user_hash();
+    let fetched = crate::http::post_json(
+        ENDPOINT,
+        &serde_json::json!({
+            "user_hash": hash, "app_id": app_id, "locale": locale(),
+            "distro": "NixOS", "version": odrs_version(version), "limit": 1,
+        }),
+    )
+    .ok_or_else(|| crate::util::n_("ODRS cannot be reached.").to_string())?;
+    let skey = fetched
+        .as_array()
+        .and_then(|a| a.iter().find_map(|i| i["user_skey"].as_str()))
+        .ok_or_else(|| crate::util::n_("ODRS did not accept this app.").to_string())?;
+    let body = serde_json::json!({
+        "user_hash": hash,
+        "user_skey": skey,
+        "app_id": app_id,
+        "locale": locale(),
+        "distro": "NixOS",
+        "version": odrs_version(version),
+        "summary": summary,
+        "description": description,
+        "user_display": author,
+        "rating": u32::from(stars.clamp(1, 5)) * 20,
+    });
+    let res = crate::http::post_json(SUBMIT, &body)
+        .ok_or_else(|| crate::util::n_("ODRS cannot be reached.").to_string())?;
+    if res["success"].as_bool() == Some(true) {
+        if let Ok(mut c) = CACHE.lock() {
+            c.remove(app_id);
+        }
+        Ok(())
+    } else {
+        Err(res["msg"]
+            .as_str()
+            .unwrap_or("ODRS refused the review.")
+            .to_string())
+    }
 }
 
 #[cfg(test)]

@@ -15,6 +15,8 @@ pub struct Settings {
     pub auto_check_updates: bool,
     /// Last background update check (Unix seconds).
     pub last_update_check: u64,
+    /// Random id sent to ODRS to tie the user's reviews together.
+    pub odrs_user_hash: Option<String>,
 }
 
 impl Default for Settings {
@@ -24,6 +26,7 @@ impl Default for Settings {
             host: None,
             auto_check_updates: true,
             last_update_check: 0,
+            odrs_user_hash: None,
         }
     }
 }

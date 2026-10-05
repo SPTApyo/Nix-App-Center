@@ -986,8 +986,9 @@ impl SimpleComponent for DetailModel {
                     });
                     // Review texts (right column of "Ratings & Reviews").
                     let s = sender.input_sender().clone();
+                    let version = meta.version.clone().unwrap_or_default();
                     std::thread::spawn(move || {
-                        let reviews = onyx_core::reviews_for(&app_id);
+                        let reviews = onyx_core::reviews_for(&app_id, &version);
                         if !reviews.is_empty() {
                             let _ = s.send(DetailMsg::ReviewsLoaded(reviews));
                         }
@@ -1402,7 +1403,15 @@ impl DetailModel {
     /// left column shows with the rating, the right one fills when reviews arrive.
     fn rebuild_reviews(&self, reviews: Option<&[Review]>) {
         match self.rating.filter(|r| r.total > 0) {
-            Some(rating) => build_reviews(&self.reviews_box, &rating, reviews),
+            Some(rating) => build_reviews(
+                &self.reviews_box,
+                &rating,
+                reviews,
+                self.meta
+                    .as_ref()
+                    .and_then(|m| Some((m.app_id.clone()?, m.version.clone().unwrap_or_default()))),
+                &self.toast_overlay,
+            ),
             None => self.reviews_box.set_visible(false),
         }
     }
@@ -1440,7 +1449,13 @@ fn build_stars(container: &gtk::Box, rating: &Rating) {
 
 /// `box_reviews`: `.title-2` title then two `boxed-list`s side by side
 /// (`spacing 12`, homogeneous).
-fn build_reviews(container: &gtk::Box, rating: &Rating, reviews: Option<&[Review]>) {
+fn build_reviews(
+    container: &gtk::Box,
+    rating: &Rating,
+    reviews: Option<&[Review]>,
+    app: Option<(String, String)>,
+    overlay: &adw::ToastOverlay,
+) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
@@ -1474,10 +1489,27 @@ fn build_reviews(container: &gtk::Box, rating: &Rating, reviews: Option<&[Review
     write.set_title(&t("_Write a Review"));
     write.set_use_underline(true);
     write.set_end_icon_name(Some("go-next-symbolic"));
-    // GNOME greys this out offline or when not installed. Onyx cannot
-    // publish at all: no ODRS account, read only.
-    write.set_sensitive(false);
-    write.set_tooltip_text(Some(&t("Publishing a review needs an ODRS account")));
+    match app {
+        Some((app_id, version)) => {
+            let overlay = overlay.clone();
+            write.connect_activated(move |row| {
+                let overlay = overlay.clone();
+                crate::components::details::review_dialog::present(
+                    row,
+                    app_id.clone(),
+                    version.clone(),
+                    move |res| {
+                        let text = match res {
+                            Ok(()) => t("Thanks, your review was sent."),
+                            Err(e) => t("Failed: {}").replace("{}", &t(&e)),
+                        };
+                        crate::util::toast(&overlay, &text);
+                    },
+                );
+            });
+        }
+        None => write.set_sensitive(false),
+    }
     left.append(&write);
     inner.append(&left);
 
