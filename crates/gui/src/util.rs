@@ -368,21 +368,47 @@ mod tests {
     }
 }
 
-/// Fallback icon glyph (when AppStream/Flathub provides no icon).
-pub const FALLBACK_GLYPH: &str = "application-x-executable-symbolic";
+/// Fallback icon (no AppStream icon): a glyph and a color class per family
+/// of package, so lists of unknown packages stay tellable apart at a glance.
+/// Colors live in `style.css` (`.kind-*`).
+pub fn fallback_icon(pkg: &Package) -> (&'static str, &'static str) {
+    use onyx_core::IconKind::*;
+    match pkg.icon_kind() {
+        Game => ("applications-games-symbolic", "kind-game"),
+        Audio => ("audio-x-generic-symbolic", "kind-audio"),
+        Video => ("video-x-generic-symbolic", "kind-video"),
+        Graphics => ("applications-graphics-symbolic", "kind-graphics"),
+        Office => ("x-office-document-symbolic", "kind-office"),
+        Development => ("applications-engineering-symbolic", "kind-development"),
+        Terminal => ("utilities-terminal-symbolic", "kind-terminal"),
+        Internet => ("web-browser-symbolic", "kind-internet"),
+        Security => ("security-high-symbolic", "kind-security"),
+        Science => ("applications-science-symbolic", "kind-science"),
+        Education => ("accessories-dictionary-symbolic", "kind-education"),
+        System => ("emblem-system-symbolic", "kind-system"),
+        Font => ("font-x-generic-symbolic", "kind-font"),
+        Theme => ("preferences-desktop-appearance-symbolic", "kind-theme"),
+        Library => ("application-x-addon-symbolic", "kind-library"),
+        Generic => ("package-x-generic-symbolic", "kind-generic"),
+    }
+}
 
-/// **Deterministic** color CSS class (name hash) for the fallback thumbnail:
-/// a rounded colored background with [`FALLBACK_GLYPH`] in white on top.
-/// Colors are defined in `APP_CSS` (`.fb-0`..`.fb-11`).
-pub fn fallback_class(name: &str) -> &'static str {
-    const C: [&str; 12] = [
-        "fb-0", "fb-1", "fb-2", "fb-3", "fb-4", "fb-5", "fb-6", "fb-7", "fb-8", "fb-9", "fb-10",
-        "fb-11",
-    ];
-    let h = name
-        .bytes()
-        .fold(0u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
-    C[(h as usize) % C.len()]
+/// Small fallback tile for list rows, `px` square.
+pub fn fallback_badge(pkg: &Package, px: i32) -> gtk::Widget {
+    use gtk::prelude::*;
+    let (icon, class) = fallback_icon(pkg);
+    let tile = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    tile.set_size_request(px, px);
+    tile.set_valign(gtk::Align::Center);
+    tile.add_css_class("fallback-tile");
+    tile.add_css_class("small");
+    tile.add_css_class(class);
+    let glyph = gtk::Image::from_icon_name(icon);
+    glyph.set_pixel_size(px * 5 / 8);
+    glyph.set_hexpand(true);
+    glyph.add_css_class("fallback-glyph");
+    tile.append(&glyph);
+    tile.upcast()
 }
 
 /// A displayable app: the nix package + an optional Flathub icon URL (set for

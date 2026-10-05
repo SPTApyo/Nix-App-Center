@@ -32,6 +32,281 @@ impl Package {
     }
 }
 
+// ── Icon kind ─────────────────────────────────────────────────────────────────
+
+/// Broad family of a package, for a fallback icon when AppStream has none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IconKind {
+    Game,
+    Audio,
+    Video,
+    Graphics,
+    Office,
+    Development,
+    Terminal,
+    Internet,
+    Security,
+    Science,
+    Education,
+    System,
+    Font,
+    Theme,
+    Library,
+    Generic,
+}
+
+/// Keywords per kind, checked in this order: the first family that matches
+/// wins, so specific words come before broad ones.
+const KIND_WORDS: &[(IconKind, &[&str])] = &[
+    (
+        IconKind::Game,
+        &[
+            "game",
+            "games",
+            "emulator",
+            "puzzle",
+            "arcade",
+            "roguelike",
+            "chess",
+            "minecraft",
+            "steam",
+        ],
+    ),
+    (IconKind::Font, &["font", "fonts", "typeface", "glyphs"]),
+    (
+        IconKind::Theme,
+        &[
+            "theme",
+            "themes",
+            "icon theme",
+            "cursor theme",
+            "wallpaper",
+            "wallpapers",
+        ],
+    ),
+    (
+        IconKind::Security,
+        &[
+            "password",
+            "encryption",
+            "encrypt",
+            "security",
+            "firewall",
+            "vulnerability",
+            "pentest",
+            "gpg",
+            "keyring",
+            "2fa",
+        ],
+    ),
+    (
+        IconKind::Audio,
+        &[
+            "audio",
+            "music",
+            "sound",
+            "synthesizer",
+            "podcast",
+            "mp3",
+            "radio",
+            "midi",
+            "pulseaudio",
+            "pipewire",
+        ],
+    ),
+    (
+        IconKind::Video,
+        &[
+            "video",
+            "videos",
+            "movie",
+            "movies",
+            "media player",
+            "streaming",
+            "webcam",
+            "screencast",
+            "youtube",
+        ],
+    ),
+    (
+        IconKind::Graphics,
+        &[
+            "image", "images", "photo", "photos", "graphics", "drawing", "paint", "svg", "3d",
+            "pixel", "raster", "vector", "cad",
+        ],
+    ),
+    (
+        IconKind::Office,
+        &[
+            "pdf",
+            "document",
+            "documents",
+            "office",
+            "spreadsheet",
+            "word processor",
+            "notes",
+            "note-taking",
+            "ebook",
+            "calendar",
+            "presentation",
+        ],
+    ),
+    (
+        IconKind::Internet,
+        &[
+            "browser",
+            "web",
+            "email",
+            "mail",
+            "chat",
+            "messenger",
+            "irc",
+            "matrix",
+            "xmpp",
+            "vpn",
+            "torrent",
+            "download",
+            "downloader",
+            "network",
+            "http",
+            "ssh",
+            "dns",
+            "proxy",
+        ],
+    ),
+    (
+        IconKind::Development,
+        &[
+            "compiler",
+            "programming",
+            "ide",
+            "debugger",
+            "language server",
+            "sdk",
+            "build system",
+            "version control",
+            "git",
+            "linter",
+            "formatter",
+            "interpreter",
+            "framework",
+            "api",
+        ],
+    ),
+    (
+        IconKind::Science,
+        &[
+            "science",
+            "scientific",
+            "math",
+            "mathematics",
+            "chemistry",
+            "physics",
+            "astronomy",
+            "statistics",
+            "biology",
+            "simulation",
+        ],
+    ),
+    (
+        IconKind::Education,
+        &[
+            "education",
+            "educational",
+            "learn",
+            "learning",
+            "dictionary",
+            "language learning",
+            "typing",
+        ],
+    ),
+    (
+        IconKind::Terminal,
+        &[
+            "command-line",
+            "command line",
+            "cli",
+            "terminal",
+            "tui",
+            "shell",
+        ],
+    ),
+    (
+        IconKind::System,
+        &[
+            "system",
+            "disk",
+            "monitor",
+            "monitoring",
+            "kernel",
+            "driver",
+            "hardware",
+            "backup",
+            "filesystem",
+            "boot",
+            "usb",
+            "bluetooth",
+            "firmware",
+            "partition",
+        ],
+    ),
+    (
+        IconKind::Library,
+        &["library", "bindings", "module", "plugin", "extension"],
+    ),
+];
+
+/// Package sets that only hold libraries.
+const LIBRARY_SETS: &[&str] = &[
+    "python3Packages",
+    "python312Packages",
+    "python313Packages",
+    "haskellPackages",
+    "perlPackages",
+    "nodePackages",
+    "rubyPackages",
+    "luaPackages",
+    "ocamlPackages",
+    "rPackages",
+    "coqPackages",
+    "lispPackages",
+    "emacsPackages",
+    "vimPlugins",
+    "texlivePackages",
+];
+
+impl Package {
+    /// Guesses the family of the package from its attr and description.
+    /// A rough guess: it only picks a fallback icon.
+    pub fn icon_kind(&self) -> IconKind {
+        if self
+            .package_set()
+            .is_some_and(|set| LIBRARY_SETS.contains(&set))
+        {
+            return IconKind::Library;
+        }
+        let attr = self.attr.to_lowercase();
+        if attr.contains("font") || attr.ends_with("-fonts") {
+            return IconKind::Font;
+        }
+        let text = format!(" {} ", normalize(&self.description));
+        KIND_WORDS
+            .iter()
+            .find(|(_, words)| words.iter().any(|w| text.contains(&format!(" {w} "))))
+            .map(|(kind, _)| *kind)
+            .unwrap_or(IconKind::Generic)
+    }
+}
+
+/// Lowercase words separated by single spaces (dashes kept).
+fn normalize(text: &str) -> String {
+    text.to_lowercase()
+        .split(|c: char| !(c.is_alphanumeric() || c == '-'))
+        .filter(|w| !w.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 // ── Taxonomy ──────────────────────────────────────────────────────────────────
 
 /// Kind of package, which decides its primary action.
@@ -111,6 +386,45 @@ pub fn actions_for(pkg: &Package) -> Actions {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn kind(attr: &str, description: &str) -> IconKind {
+        Package {
+            description: description.into(),
+            ..Package::from_attr(attr)
+        }
+        .icon_kind()
+    }
+
+    #[test]
+    fn icon_kind_from_description_and_attr() {
+        assert_eq!(
+            kind("supertux", "Classic 2D jump'n run sidescroller game"),
+            IconKind::Game
+        );
+        assert_eq!(
+            kind("ripgrep", "Command-line search tool, like grep"),
+            IconKind::Terminal
+        );
+        assert_eq!(
+            kind("python3Packages.requests", "HTTP library for Python"),
+            IconKind::Library
+        );
+        assert_eq!(
+            kind("noto-fonts", "Beautiful and free fonts"),
+            IconKind::Font
+        );
+        assert_eq!(
+            kind("audacity", "Sound editor with graphical UI"),
+            IconKind::Audio
+        );
+        assert_eq!(
+            kind(
+                "hello",
+                "Program that produces a familiar, friendly greeting"
+            ),
+            IconKind::Generic
+        );
+    }
 
     #[test]
     fn package_set_returns_prefix_for_dotted_attr() {

@@ -409,8 +409,8 @@ fn display_name(p: &Package) -> String {
     }
 }
 
-/// Flathub icon, else the icon the package ships, else a generic one.
-fn item_icon(item: &Item) -> gtk::Image {
+/// Flathub icon, else the icon the package ships, else a family badge.
+fn item_icon(item: &Item) -> gtk::Widget {
     if let Some(tex) = item
         .icon
         .as_deref()
@@ -418,7 +418,7 @@ fn item_icon(item: &Item) -> gtk::Image {
     {
         let img = gtk::Image::from_paintable(Some(&tex));
         img.set_pixel_size(32);
-        return img;
+        return img.upcast();
     }
     let local = item.desktop_file.as_deref().and_then(|f| {
         use gtk::gio::prelude::AppInfoExt;
@@ -430,7 +430,10 @@ fn item_icon(item: &Item) -> gtk::Image {
         }
         gtk::gio::DesktopAppInfo::from_filename(f)?.icon()
     });
-    util::row_icon(local.as_ref())
+    match local {
+        Some(icon) => util::row_icon(Some(&icon)).upcast(),
+        None => util::fallback_badge(&item.package, 32),
+    }
 }
 
 /// A titled boxed list, or the `empty` text when there are no rows.

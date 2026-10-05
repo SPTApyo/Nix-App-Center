@@ -242,8 +242,20 @@ pub fn is_ready() -> bool {
 /// first, then by attr (some packages only match one of them). `Db::lookup`
 /// already tries suffix/name/id for EACH key, so trying both keys raises
 /// recall without any extra false positive risk.
+///
+/// The curated overlay wins both ways: an attr it maps goes to that app, and
+/// an app it pins to another attr is never matched by name (`zoom`, the
+/// Z-code player, is not `us.zoom.Zoom`, which is `zoom-us`).
 pub(crate) fn lookup_package(p: &Package) -> Option<&'static Entry> {
-    lookup(&p.name).or_else(|| lookup(&p.attr))
+    if let Some(e) = crate::resolve::resolve_app_id(&p.attr).and_then(|id| lookup(&id)) {
+        return Some(e);
+    }
+    let free = |e: &&Entry| {
+        crate::resolve::attr_for_app_id(&e.app_id).is_none_or(|a| a.eq_ignore_ascii_case(&p.attr))
+    };
+    lookup(&p.name)
+        .filter(free)
+        .or_else(|| lookup(&p.attr).filter(free))
 }
 
 /// Add-ons/extensions extending the app with the given `app_id`.

@@ -43,8 +43,7 @@ use crate::components::details::{
 use crate::components::AppTile;
 use crate::i18n::t;
 use crate::util::{
-    esc, fallback_class, stars_widget, texture_from_bytes, texture_from_bytes_sized, AppItem,
-    FALLBACK_GLYPH,
+    esc, fallback_icon, stars_widget, texture_from_bytes, texture_from_bytes_sized, AppItem,
 };
 
 /// Section clamp, repeated identically for every child of the `.ui`.
@@ -265,10 +264,10 @@ impl SimpleComponent for DetailModel {
                                                 set_hexpand: false,
                                                 set_vexpand: false,
                                                 add_css_class: "fallback-tile",
-                                                add_css_class: fallback_class(&model.package.name),
+                                                add_css_class: fallback_icon(&model.package).1,
 
                                                 gtk::Image {
-                                                    set_icon_name: Some(FALLBACK_GLYPH),
+                                                    set_icon_name: Some(fallback_icon(&model.package).0),
                                                     set_pixel_size: 96,
                                                     // hexpand/vexpand: else halign Center is
                                                     // ignored on the main axis.
@@ -1817,8 +1816,12 @@ fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk
     fallback.set_hexpand(false);
     fallback.set_vexpand(false);
     fallback.add_css_class("fallback-tile");
-    fallback.add_css_class(fallback_class(name));
-    let glyph = gtk::Image::from_icon_name(FALLBACK_GLYPH);
+    let (icon, class) = fallback_icon(&Package {
+        description: summary.unwrap_or_default().to_string(),
+        ..Package::from_attr(name)
+    });
+    fallback.add_css_class(class);
+    let glyph = gtk::Image::from_icon_name(icon);
     glyph.set_pixel_size(48);
     glyph.set_hexpand(true);
     glyph.set_vexpand(true);

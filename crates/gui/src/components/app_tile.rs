@@ -5,7 +5,7 @@ use adw::prelude::*;
 use onyx_core::Package;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
 
-use crate::util::{fallback_class, texture_from_bytes_sized, AppItem, IconState, FALLBACK_GLYPH};
+use crate::util::{fallback_icon, texture_from_bytes_sized, AppItem, IconState};
 
 pub struct AppTile {
     package: Package,
@@ -71,10 +71,10 @@ impl FactoryComponent for AppTile {
                         set_hexpand: false,
                         set_vexpand: false,
                         add_css_class: "fallback-tile",
-                        add_css_class: fallback_class(&self.package.name),
+                        add_css_class: fallback_icon(&self.package).1,
 
                         gtk::Image {
-                            set_icon_name: Some(FALLBACK_GLYPH),
+                            set_icon_name: Some(fallback_icon(&self.package).0),
                             set_pixel_size: 48,
                             // hexpand/vexpand are required: in a Box, halign Center
                             // only acts on the main axis when the child takes all

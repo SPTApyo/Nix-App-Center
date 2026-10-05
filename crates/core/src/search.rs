@@ -203,7 +203,11 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
             }
             let hit = hits
                 .get(&p.attr.to_lowercase())
-                .or_else(|| hits.get(&sanitize(&p.name)));
+                .or_else(|| hits.get(&sanitize(&p.name)))
+                .filter(|h| {
+                    crate::resolve::attr_for_app_id(&h.app_id)
+                        .is_none_or(|a| a.eq_ignore_ascii_case(&p.attr))
+                });
             if let Some(h) = hit.filter(|h| !claimed.insert(h.app_id.clone())) {
                 return variant(p, Some(h.icon.clone()));
             }

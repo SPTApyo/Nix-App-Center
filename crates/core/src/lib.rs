@@ -82,7 +82,7 @@ pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutco
 pub use locate::locate_binary;
 pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};
 pub use nix_check::{dry_build, parse_block, DryRun};
-pub use package::{actions_for, Action, Actions, Kind, Package};
+pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use permissions::{safety, Safety};
 pub use profiles::{profile_apps, ProfileApp, Scope};
 pub use ratings::{rating_for, Rating};
