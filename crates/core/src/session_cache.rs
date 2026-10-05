@@ -74,7 +74,24 @@ static ICON_URL_CACHE: LazyLock<Mutex<HashMap<String, String>>> =
 /// Downloads a file (image) into memory. `None` when the URL fails. Generous
 /// timeout (screenshots weigh several MB) but bounded: without it, a silent
 /// server hung the calling thread forever.
+/// Fetches `url`, else the smaller Flathub icons of the same app.
 fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
+    icon_fallbacks(url).iter().find_map(|u| fetch_one(u))
+}
+
+/// `…/icons/128x128@2/x.png`, then `128x128`, then `64x64`. Other URLs as is.
+fn icon_fallbacks(url: &str) -> Vec<String> {
+    let mut out = vec![url.to_string()];
+    for (from, to) in [("/128x128@2/", "/128x128/"), ("/128x128/", "/64x64/")] {
+        let last = out.last().cloned().unwrap_or_default();
+        if last.contains(from) {
+            out.push(last.replace(from, to));
+        }
+    }
+    out
+}
+
+fn fetch_one(url: &str) -> Option<Vec<u8>> {
     let resp = ureq::get(url)
         .timeout(std::time::Duration::from_secs(30))
         .call()
@@ -206,5 +223,24 @@ mod tests {
         c.insert("a".into(), vec![0; 6]);
         c.insert("a".into(), vec![0; 6]); // already present, no-op
         assert_eq!(c.total, 6);
+    }
+}
+
+#[cfg(test)]
+mod icon_tests {
+    #[test]
+    fn icon_fallbacks_go_down_in_size() {
+        assert_eq!(
+            super::icon_fallbacks("https://x/icons/128x128@2/a.png"),
+            [
+                "https://x/icons/128x128@2/a.png",
+                "https://x/icons/128x128/a.png",
+                "https://x/icons/64x64/a.png"
+            ]
+        );
+        assert_eq!(
+            super::icon_fallbacks("https://x/a.png"),
+            ["https://x/a.png"]
+        );
     }
 }

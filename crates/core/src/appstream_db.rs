@@ -525,6 +525,8 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     // ── Field context ─────────────────────────────────────────────────────────
     let mut icon_remote = false;
     let mut icon_w: u32 = 0;
+    let mut icon_scale: u32 = 1;
+    let mut entry_icon_px: u32 = 0;
     let mut url_kind = String::new();
     let mut custom_key = String::new();
     let mut cur_rel = EntryRelease::default();
@@ -597,6 +599,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                         match comp_type.as_str() {
                             "desktop-application" | "desktop" | "addon" => {
                                 cur = Some(Entry::default());
+                                entry_icon_px = 0;
                                 comp_depth = depth;
                             }
                             _ => {
@@ -653,6 +656,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     "icon" => {
                         let mut itype = String::new();
                         let mut w: u32 = 0;
+                        icon_scale = 1;
                         for attr in e.attributes().flatten() {
                             match attr.key.as_ref() {
                                 b"type" => {
@@ -660,6 +664,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                                 }
                                 b"width" => {
                                     w = String::from_utf8_lossy(&attr.value).parse().unwrap_or(0)
+                                }
+                                b"scale" => {
+                                    icon_scale =
+                                        String::from_utf8_lossy(&attr.value).parse().unwrap_or(1)
                                 }
                                 _ => {}
                             }
@@ -953,8 +961,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     }
                     Collect::Icon if icon_remote => {
                         let url = abs(text);
-                        // Prefer 128×128; otherwise take the first available.
-                        if icon_w == 128 || entry.icon_url.is_none() {
+                        // Keep the sharpest; fetching falls back to smaller ones.
+                        let px = icon_w * icon_scale;
+                        if px > entry_icon_px || entry.icon_url.is_none() {
+                            entry_icon_px = px;
                             entry.icon_url = Some(url);
                         }
                     }
@@ -1403,6 +1413,20 @@ mod tests {
         assert!(
             icon.starts_with("https://dl.flathub.org/media/"),
             "a relative URL must be prefixed with media_baseurl, got: {icon}"
+        );
+    }
+
+    #[test]
+    fn parser_icon_prefers_the_sharpest() {
+        let xml = r#"<components origin="flathub"><component type="desktop-application">
+    <id>org.videolan.VLC</id><name>VLC</name>
+    <icon type="remote" width="128" height="128">https://x/128x128/vlc.png</icon>
+    <icon type="remote" width="128" height="128" scale="2">https://x/128x128@2/vlc.png</icon>
+  </component></components>"#;
+        let entries = parse(xml.as_bytes());
+        assert_eq!(
+            entries[0].icon_url.as_deref(),
+            Some("https://x/128x128@2/vlc.png")
         );
     }
 
