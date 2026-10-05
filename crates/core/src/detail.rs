@@ -34,6 +34,11 @@ pub struct PackageDetail {
     pub broken: bool,
     /// Package version, read next to the meta.
     pub version: Option<String>,
+    /// `meta.position`: the Nix file defining the package, `file:line`.
+    pub position: Option<String>,
+    /// `meta.teams[].shortName`: teams maintaining the package.
+    pub teams: Vec<String>,
+    pub download_page: Option<String>,
 }
 
 impl PackageDetail {
@@ -106,6 +111,24 @@ pub fn detail(attr: &str) -> Option<PackageDetail> {
         broken: v.get("broken").and_then(|x| x.as_bool()).unwrap_or(false),
         version: v
             .get("version")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
+        position: v
+            .get("position")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
+        teams: v
+            .get("teams")
+            .and_then(|x| x.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|t| t.get("shortName").and_then(|n| n.as_str()))
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        download_page: v
+            .get("downloadPage")
             .and_then(|x| x.as_str())
             .map(str::to_string),
     })

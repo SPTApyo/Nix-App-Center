@@ -122,6 +122,9 @@ pub enum DetailMsg {
     Primary,
     /// Launch the copy a Nix profile already holds.
     Open,
+    /// The Flathub app shown is not this package.
+    ReportMatch,
+    Unmatch,
     /// Unmanaged machine: `nix profile add` / `remove`.
     ProfileToggle,
     ProfileDone(Result<Option<String>, String>),
@@ -462,6 +465,13 @@ impl SimpleComponent for DetailModel {
                                                                     set_sensitive: !model.installed_elsewhere(),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
+                                                                },
+                                                                gtk::Button {
+                                                                    set_label: &t("Wrong App?"),
+                                                                    #[watch]
+                                                                    set_visible: model.meta.as_ref().is_some_and(|m| m.app_id.is_some()),
+                                                                    add_css_class: "flat",
+                                                                    connect_clicked => DetailMsg::ReportMatch,
                                                                 },
                                                                 gtk::Separator {
                                                                     set_orientation: gtk::Orientation::Horizontal,
@@ -1102,6 +1112,39 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::DismissShot => {
                 self.lightbox_visible = false;
+            }
+            DetailMsg::ReportMatch => {
+                let name = self
+                    .meta
+                    .as_ref()
+                    .map(|m| m.name.clone())
+                    .unwrap_or_default();
+                let dialog = adw::AlertDialog::new(
+                    Some(&t("Not the Same App?")),
+                    Some(&t("Onyx matched the nixpkgs package “{attr}” with the Flathub app “{name}”. If they are different apps, Onyx stops showing Flathub data (icon, screenshots, reviews) for this package.")
+                        .replace("{attr}", &self.package.attr)
+                        .replace("{name}", &name)),
+                );
+                dialog.add_response("cancel", &t("_Cancel"));
+                dialog.add_response("unmatch", &t("_Not the Same App"));
+                dialog.set_response_appearance("unmatch", adw::ResponseAppearance::Destructive);
+                let s = sender.input_sender().clone();
+                dialog.connect_response(None, move |_, r| {
+                    if r == "unmatch" {
+                        let _ = s.send(DetailMsg::Unmatch);
+                    }
+                });
+                dialog.present(Some(&self.toast_overlay));
+            }
+            DetailMsg::Unmatch => {
+                let text = match onyx_core::report_mapping(&self.package.attr, "") {
+                    Ok(()) => {
+                        onyx_core::forget_app_meta(&self.package.attr);
+                        t("Saved. Open the page again to see the package alone.")
+                    }
+                    Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
+                };
+                crate::util::toast(&self.toast_overlay, &text);
             }
             DetailMsg::Open => {
                 use gtk::gio::prelude::AppInfoExt;
@@ -1771,6 +1814,7 @@ fn build_version_history(
         latest.timestamp,
         latest.description.as_deref(),
         installed_version == Some(latest.version.as_str()),
+        latest.url.as_deref(),
     ));
 
     if meta.releases.len() > 1 {
@@ -1787,6 +1831,7 @@ fn build_version_history(
                     r.timestamp,
                     r.description.as_deref(),
                     installed.as_deref() == Some(r.version.as_str()),
+                    r.url.as_deref(),
                 ));
             }
             present_dialog(&t("Version History"), &list, 480, 560, &parent);
@@ -1832,6 +1877,16 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
             meta.bugtracker.clone(),
         ),
         (t("_Help"), "help-link-symbolic", meta.help.clone()),
+        (
+            t("Package _Recipe"),
+            "document-edit-symbolic",
+            meta.source_url.clone(),
+        ),
+        (
+            t("Download _Page"),
+            "folder-download-symbolic",
+            meta.download_page.clone(),
+        ),
     ];
     let present: Vec<_> = links
         .into_iter()
@@ -1851,6 +1906,10 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
         let list = boxed_list();
         for (label, icon, url) in present {
             list.append(&link_row(&label, icon, &url));
+        }
+        // A position means nixpkgs answered: maintainers are then known.
+        if meta.source_url.is_some() {
+            list.append(&maintainers_row(meta));
         }
         stack.add_named(&list, Some("links"));
     }
@@ -1891,6 +1950,31 @@ fn no_metadata_card() -> gtk::Box {
 
     card.append(&inner);
     card
+}
+
+/// Who looks after the package in nixpkgs. An orphan is a trust signal too.
+fn maintainers_row(meta: &AppMeta) -> adw::ActionRow {
+    let people: Vec<String> = meta
+        .maintainers
+        .iter()
+        .cloned()
+        .chain(meta.teams.iter().map(|t| format!("{t} team")))
+        .collect();
+    let row = adw::ActionRow::builder()
+        .title(t("nixpkgs Maintainers"))
+        .subtitle(esc(&if people.is_empty() {
+            t("Nobody maintains this package in nixpkgs.")
+        } else {
+            people.join(", ")
+        }))
+        .subtitle_selectable(true)
+        .build();
+    row.add_prefix(&gtk::Image::from_icon_name(if people.is_empty() {
+        "dialog-warning-symbolic"
+    } else {
+        "system-users-symbolic"
+    }));
+    row
 }
 
 fn link_row(label: &str, icon: &str, url: &str) -> adw::ActionRow {

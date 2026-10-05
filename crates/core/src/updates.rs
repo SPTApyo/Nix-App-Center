@@ -53,6 +53,12 @@ pub struct AppUpdate {
     pub new_version: String,
 }
 
+/// The nixpkgs revision the config is pinned to, computed once.
+pub(crate) fn pinned_rev() -> Option<&'static str> {
+    static REV: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    REV.get_or_init(|| current_source().rev).as_deref()
+}
+
 /// Flake reference of the nixpkgs the config is pinned to, so what Onyx
 /// shows and runs matches what Keep installs. The registry `nixpkgs` when
 /// NixOS pins it to the system (local, no download), else the pinned GitHub
@@ -73,7 +79,7 @@ pub fn nixpkgs_ref() -> &'static str {
                     .lines()
                     .any(|l| l.starts_with("system flake:nixpkgs "))
             });
-        match current_source().rev {
+        match pinned_rev() {
             Some(rev) if !pinned => format!("github:NixOS/nixpkgs/{rev}"),
             _ => "nixpkgs".to_string(),
         }

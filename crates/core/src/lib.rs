@@ -99,7 +99,8 @@ pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{featured_review, reviews_for, submit_review, Review};
 pub use search::{search, search_apps, SearchResult};
 pub use session_cache::{
-    cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, known_icon_url, remember_icon_url,
+    cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, forget_app_meta, known_icon_url,
+    remember_icon_url,
 };
 pub use settings::{load_settings, save_settings, Settings};
 pub use storage::{

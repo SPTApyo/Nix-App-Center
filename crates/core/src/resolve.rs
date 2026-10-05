@@ -62,6 +62,11 @@ pub fn resolve_app_id(attr: &str) -> Option<String> {
     community().get(attr).cloned()
 }
 
+/// True when the user said `attr` is no Flathub app at all (empty mapping).
+pub(crate) fn is_unmatched(attr: &str) -> bool {
+    resolve_app_id(attr).is_some_and(|id| id.is_empty())
+}
+
 /// Reverse lookup: the nixpkgs attr the overlays pin to `app_id`, if any.
 pub(crate) fn attr_for_app_id(app_id: &str) -> Option<String> {
     let find = |m: &HashMap<String, String>| {
@@ -85,6 +90,19 @@ pub fn report_mapping(attr: &str, app_id: &str) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_mapping_marks_a_package_unmatched() {
+        let _g = crate::env_lock();
+        let dir = std::env::temp_dir().join(format!("onyx-resolve-u-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::env::set_var("XDG_DATA_HOME", &dir);
+        assert!(!is_unmatched("zoom"));
+        report_mapping("zoom", "").unwrap();
+        assert!(is_unmatched("zoom"));
+        std::env::remove_var("XDG_DATA_HOME");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn community_overlay_covers_known_gaps() {

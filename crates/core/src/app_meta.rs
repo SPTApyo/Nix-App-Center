@@ -35,6 +35,11 @@ pub struct AppMeta {
     /// nixpkgs maintainers, a Nix native trust signal (no AppStream
     /// equivalent, never provided by `fh`).
     pub maintainers: Vec<String>,
+    /// Teams maintaining the package in nixpkgs.
+    pub teams: Vec<String>,
+    /// The package recipe on GitHub, at the revision the config is pinned to.
+    pub source_url: Option<String>,
+    pub download_page: Option<String>,
     /// The package is marked `meta.insecure` in nixpkgs.
     pub insecure: bool,
     pub known_vulnerabilities: Vec<String>,
@@ -74,11 +79,28 @@ pub fn app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
 /// seconds beat a poorer listing. Without a load in progress (CLI), returns
 /// at once.
 fn flathub_meta_for(pkg: &Package, screenshot_target_w: u32) -> Option<FlathubMeta> {
+    if crate::resolve::is_unmatched(&pkg.attr) {
+        return None;
+    }
     appstream_db::wait_until_settled(std::time::Duration::from_secs(15));
     if let Some(entry) = appstream_db::lookup_package(pkg) {
         return Some(meta_from_db(entry));
     }
     flathub_meta(&pkg.name, screenshot_target_w)
+}
+
+/// GitHub link of a `meta.position` (`/nix/store/…-source/pkgs/x.nix:42`).
+fn source_url(position: &str, rev: &str) -> Option<String> {
+    let (_, rest) = position.split_once("-source/")?;
+    let (file, line) = rest.rsplit_once(':').unwrap_or((rest, ""));
+    let anchor = if line.is_empty() {
+        String::new()
+    } else {
+        format!("#L{line}")
+    };
+    Some(format!(
+        "https://github.com/NixOS/nixpkgs/blob/{rev}/{file}{anchor}"
+    ))
 }
 
 /// Merges the AppStream metadata (Flathub, local or REST) and Nix (`nix eval
@@ -144,6 +166,11 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
         translate: fh.and_then(|f| f.translate.clone()),
         changelog: nix.and_then(|n| n.changelog.clone()),
         maintainers: nix.map(|n| n.maintainers.clone()).unwrap_or_default(),
+        teams: nix.map(|n| n.teams.clone()).unwrap_or_default(),
+        source_url: nix
+            .and_then(|n| n.position.as_deref())
+            .and_then(|p| source_url(p, crate::updates::pinned_rev().unwrap_or("master"))),
+        download_page: nix.and_then(|n| n.download_page.clone()),
         insecure: nix.map(|n| n.insecure).unwrap_or(false),
         known_vulnerabilities: nix
             .map(|n| n.known_vulnerabilities.clone())
@@ -325,6 +352,15 @@ mod tests {
         let meta_no_fh = merge_app_meta(&pkg, None, Some(&nix));
         assert!(meta_no_fh.icon_url.is_none());
         assert!(meta_no_fh.screenshot_urls.is_empty());
+    }
+
+    #[test]
+    fn source_url_points_at_the_recipe_line() {
+        assert_eq!(
+            source_url("/nix/store/abc-source/pkgs/by-name/vl/vlc/package.nix:315", "cf5e765").as_deref(),
+            Some("https://github.com/NixOS/nixpkgs/blob/cf5e765/pkgs/by-name/vl/vlc/package.nix#L315")
+        );
+        assert_eq!(source_url("/home/me/overlay.nix:3", "x"), None);
     }
 
     #[test]

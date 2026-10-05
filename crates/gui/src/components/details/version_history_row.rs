@@ -14,7 +14,13 @@ use crate::util::format_relative;
 
 /// Row body. `installed` adds the "In nixpkgs" badge (Nix signal: the release
 /// matches the version currently in nixpkgs).
-fn body(version: &str, timestamp: i64, description: Option<&str>, installed: bool) -> gtk::Box {
+fn body(
+    version: &str,
+    timestamp: i64,
+    description: Option<&str>,
+    installed: bool,
+    url: Option<&str>,
+) -> gtk::Box {
     let vb = gtk::Box::new(gtk::Orientation::Vertical, 0);
     vb.set_margin_top(15);
     vb.set_margin_bottom(15);
@@ -46,6 +52,21 @@ fn body(version: &str, timestamp: i64, description: Option<&str>, installed: boo
     date.set_xalign(1.0);
     date.add_css_class("dim-label");
     head.append(&date);
+    if let Some(url) = url.filter(|u| !u.is_empty()) {
+        let link = gtk::Button::from_icon_name("external-link-symbolic");
+        link.add_css_class("flat");
+        link.set_valign(gtk::Align::Center);
+        link.set_margin_start(6);
+        link.set_tooltip_text(Some(&t("Release Notes")));
+        let url = url.to_string();
+        link.connect_clicked(move |_| {
+            let _ = gtk::gio::AppInfo::launch_default_for_uri(
+                &url,
+                None::<&gtk::gio::AppLaunchContext>,
+            );
+        });
+        head.append(&link);
+    }
     vb.append(&head);
 
     match description.filter(|s| !s.trim().is_empty()) {
@@ -73,10 +94,11 @@ pub fn row(
     timestamp: i64,
     description: Option<&str>,
     installed: bool,
+    url: Option<&str>,
 ) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();
     row.set_selectable(false);
     row.set_activatable(false);
-    row.set_child(Some(&body(version, timestamp, description, installed)));
+    row.set_child(Some(&body(version, timestamp, description, installed, url)));
     row
 }

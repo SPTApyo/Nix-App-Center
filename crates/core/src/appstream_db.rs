@@ -319,6 +319,9 @@ pub fn is_ready() -> bool {
 /// an app it pins to another attr is never matched by name (`zoom`, the
 /// Z-code player, is not `us.zoom.Zoom`, which is `zoom-us`).
 pub(crate) fn lookup_package(p: &Package) -> Option<&'static Entry> {
+    if crate::resolve::is_unmatched(&p.attr) {
+        return None;
+    }
     if let Some(e) = crate::resolve::resolve_app_id(&p.attr).and_then(|id| lookup(&id)) {
         return Some(e);
     }

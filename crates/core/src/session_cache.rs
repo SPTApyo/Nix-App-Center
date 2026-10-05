@@ -124,6 +124,13 @@ pub fn cached_app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     m
 }
 
+/// Drops the memoized metadata of `attr` (after a match correction).
+pub fn forget_app_meta(attr: &str) {
+    if let Ok(mut cache) = APP_META_CACHE.lock() {
+        cache.remove(attr);
+    }
+}
+
 /// Like `fetch_bytes()` but memoized by URL for the session (bounded cache).
 pub fn cached_fetch_bytes(url: &str) -> Option<Vec<u8>> {
     if let Ok(cache) = BYTES_CACHE.lock() {
@@ -162,7 +169,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cached_fetch_bytes_lit_depuis_le_cache() {
+    fn cached_fetch_bytes_reads_from_the_cache() {
         BYTES_CACHE
             .lock()
             .unwrap()
@@ -176,16 +183,16 @@ mod tests {
     }
 
     #[test]
-    fn cached_app_meta_lit_depuis_le_cache() {
+    fn cached_app_meta_reads_from_the_cache() {
         let pkg = Package::from_attr("test-cache-sentinel-pkg");
-        let fausse_meta = AppMeta {
+        let fake_meta = AppMeta {
             name: "SentinelApp".to_string(),
             ..Default::default()
         };
         APP_META_CACHE
             .lock()
             .unwrap()
-            .insert(pkg.attr.clone(), fausse_meta);
+            .insert(pkg.attr.clone(), fake_meta);
         let result = cached_app_meta(&pkg, 1920);
         assert_eq!(result.name, "SentinelApp");
         APP_META_CACHE.lock().unwrap().remove(&pkg.attr);
