@@ -88,7 +88,7 @@ fn out_paths(attr: &str) -> Vec<String> {
             "eval",
             "--impure",
             "--json",
-            &format!("nixpkgs#{attr}"),
+            &format!("{}#{attr}", crate::nixpkgs_ref()),
             "--apply",
             "p: map (o: p.${o}.outPath) (p.meta.outputsToInstall or [ \"out\" ])",
             "--extra-experimental-features",

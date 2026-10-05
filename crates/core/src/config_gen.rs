@@ -213,10 +213,12 @@ pub(crate) fn sync_to(layout: &Layout, kept: &[KeptEntry]) -> std::io::Result<()
     if let Some(home) = &layout.home {
         let body = render_home(kept, &HomeShape::of(layout));
         crate::paths::write_atomic(&home.onyx_file, body.as_bytes())?;
+        crate::paths::track_in_git(&home.onyx_file);
     }
     if let Some(system) = &layout.system {
         let body = render_system(kept);
         crate::paths::write_atomic(&system.onyx_file, body.as_bytes())?;
+        crate::paths::track_in_git(&system.onyx_file);
     }
     Ok(())
 }

@@ -27,14 +27,27 @@ fn try_argv(sub: &str, attr: &str) -> Vec<String> {
     ]
     .into_iter()
     .map(str::to_string)
-    .chain([format!("nixpkgs#{attr}")])
+    .chain([target(attr)])
     .chain(NIX_FEATURES.iter().map(|s| s.to_string()))
     .collect()
 }
 
-/// The matching `nix run` command (for display / copy).
-pub fn run_command(pkg: &Package) -> String {
-    format!("nix run nixpkgs#{}", pkg.attr)
+/// The matching `nix run` command (for display / copy). An unfree package
+/// needs the opt-in, or the copied command fails.
+pub fn run_command(pkg: &Package, unfree: bool) -> String {
+    copy_command("run", &target(&pkg.attr), unfree)
+}
+
+fn target(attr: &str) -> String {
+    format!("{}#{attr}", crate::nixpkgs_ref())
+}
+
+fn copy_command(sub: &str, target: &str, unfree: bool) -> String {
+    if unfree {
+        format!("NIXPKGS_ALLOW_UNFREE=1 nix {sub} --impure {target}")
+    } else {
+        format!("nix {sub} {target}")
+    }
 }
 
 /// Spawns `nix run nixpkgs#<attr>` without waiting for the application. The
@@ -77,8 +90,8 @@ pub fn run_failure(mut child: Child) -> Option<String> {
 // ── nix shell ─────────────────────────────────────────────────────────────────
 
 /// The matching `nix shell` command (for display / copy).
-pub fn shell_command(pkg: &Package) -> String {
-    format!("nix shell nixpkgs#{}", pkg.attr)
+pub fn shell_command(pkg: &Package, unfree: bool) -> String {
+    copy_command("shell", &target(&pkg.attr), unfree)
 }
 
 /// What happened to a shell request.
@@ -193,18 +206,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn run_command_targets_nixpkgs_attr() {
+    fn copy_command_adds_the_unfree_opt_in_only_when_needed() {
         assert_eq!(
-            run_command(&Package::from_attr("ripgrep")),
+            copy_command("run", "nixpkgs#ripgrep", false),
             "nix run nixpkgs#ripgrep"
         );
-    }
-
-    #[test]
-    fn shell_command_targets_nixpkgs_attr() {
         assert_eq!(
-            shell_command(&Package::from_attr("ripgrep")),
-            "nix shell nixpkgs#ripgrep"
+            copy_command("shell", "nixpkgs#steam", true),
+            "NIXPKGS_ALLOW_UNFREE=1 nix shell --impure nixpkgs#steam"
         );
     }
 
@@ -216,7 +225,7 @@ mod tests {
             ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1"]
         );
         assert!(argv.contains(&"--impure".to_string()));
-        assert!(argv.contains(&"nixpkgs#spotify".to_string()));
+        assert!(argv.iter().any(|a| a.ends_with("#spotify")));
         assert!(!argv.iter().any(|a| a.contains("INSECURE")));
     }
 

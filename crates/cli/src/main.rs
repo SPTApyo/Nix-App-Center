@@ -80,7 +80,7 @@ fn main() -> ExitCode {
         Some("run") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                eprintln!("→ {}", onyx_core::run_command(&pkg));
+                eprintln!("→ {}", onyx_core::run_command(&pkg, false));
                 match onyx_core::run(&pkg).map(onyx_core::run_failure) {
                     Ok(None) => ExitCode::SUCCESS,
                     Ok(Some(err)) => {
@@ -99,7 +99,7 @@ fn main() -> ExitCode {
         Some("shell") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                eprintln!("→ {}", onyx_core::shell_command(&pkg));
+                eprintln!("→ {}", onyx_core::shell_command(&pkg, false));
                 match onyx_core::shell(&pkg) {
                     Ok(onyx_core::ShellOutcome::Spawned) => ExitCode::SUCCESS,
                     Ok(onyx_core::ShellOutcome::NoTerminal) => {

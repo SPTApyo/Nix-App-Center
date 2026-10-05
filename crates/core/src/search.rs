@@ -28,7 +28,7 @@ pub(crate) const SEARCH_CACHE_TTL_SECS: u64 = 3600;
 /// or is missing, or the JSON is invalid: never panics on a machine without
 /// `nix` or with unexpected output.
 pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
-    let mut args: Vec<String> = vec!["search".into(), "nixpkgs".into()];
+    let mut args: Vec<String> = vec!["search".into(), crate::nixpkgs_ref().into()];
     args.extend(patterns.iter().cloned());
     args.extend([
         "--json".into(),

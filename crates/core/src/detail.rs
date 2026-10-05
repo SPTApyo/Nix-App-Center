@@ -57,7 +57,7 @@ pub fn detail(attr: &str) -> Option<PackageDetail> {
     let output = Command::new("nix")
         .args([
             "eval",
-            &format!("nixpkgs#{attr}"),
+            &format!("{}#{attr}", crate::nixpkgs_ref()),
             "--apply",
             "p: p.meta // { version = p.version or null; }",
             "--json",
@@ -143,7 +143,7 @@ pub fn closure_size(attr: &str) -> Option<u64> {
             "eval",
             "--impure",
             "--raw",
-            &format!("nixpkgs#{attr}.outPath"),
+            &format!("{}#{attr}.outPath", crate::nixpkgs_ref()),
             "--extra-experimental-features",
             "nix-command flakes",
         ])

@@ -1158,7 +1158,7 @@ impl SimpleComponent for DetailModel {
                     if let Some(display) = gtk::gdk::Display::default() {
                         display
                             .clipboard()
-                            .set_text(&onyx_core::shell_command(&self.package));
+                            .set_text(&onyx_core::shell_command(&self.package, self.unfree()));
                     }
                     crate::util::toast(
                         &self.toast_overlay,
@@ -1248,7 +1248,7 @@ impl SimpleComponent for DetailModel {
                 if let Some(display) = gtk::gdk::Display::default() {
                     display
                         .clipboard()
-                        .set_text(&onyx_core::run_command(&self.package));
+                        .set_text(&onyx_core::run_command(&self.package, self.unfree()));
                 }
                 crate::util::toast(&self.toast_overlay, &t("Command copied."));
             }
@@ -1259,6 +1259,11 @@ impl SimpleComponent for DetailModel {
 impl DetailModel {
     /// A package without AppStream identity is treated as a CLI tool: `nix run`
     /// would start and exit at once, a shell is the useful way to try it.
+    /// True when the license is known to be unfree.
+    fn unfree(&self) -> bool {
+        self.meta.as_ref().and_then(|m| m.is_free_license) == Some(false)
+    }
+
     fn cli_first(&self) -> bool {
         self.meta.as_ref().is_some_and(|m| m.app_id.is_none())
     }

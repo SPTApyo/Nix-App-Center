@@ -94,8 +94,8 @@ pub use session_cache::{
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
-    app_updates, current_source, latest, run_update, update_command, AppUpdate, Latest, Source,
-    UpdateMethod,
+    app_updates, current_source, latest, nixpkgs_ref, run_update, update_command, AppUpdate,
+    Latest, Source, UpdateMethod,
 };
 
 // ── Test utility: global lock for tests that mutate the environment

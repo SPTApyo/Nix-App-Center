@@ -31,6 +31,22 @@ pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Res
     std::fs::rename(&tmp, path)
 }
 
+/// A flake in a git repository only sees tracked files: mark a file Onyx
+/// created as intended for addition. No-op outside a git work tree.
+pub(crate) fn track_in_git(path: &std::path::Path) {
+    let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+        return;
+    };
+    let _ = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["add", "--intent-to-add", "--"])
+        .arg(name)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,5 +67,30 @@ mod tests {
             .filter_map(Result::ok)
             .any(|e| e.file_name().to_string_lossy().contains(".tmp"));
         assert!(!tmp_left, "no temporary file may remain");
+    }
+
+    #[test]
+    fn track_in_git_marks_new_files() {
+        let dir = std::env::temp_dir().join(format!("onyx-git-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(args)
+                .output()
+                .unwrap()
+        };
+        git(&["init", "-q"]);
+        let file = dir.join("onyx-home.nix");
+        std::fs::write(&file, "{ }").unwrap();
+        track_in_git(&file);
+        let listed = git(&["ls-files"]);
+        assert_eq!(
+            String::from_utf8_lossy(&listed.stdout).trim(),
+            "onyx-home.nix"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
