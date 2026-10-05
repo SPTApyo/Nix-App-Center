@@ -49,10 +49,13 @@ Done:
 - "Open" on the page of an app already installed.
 - GNOME Shell search provider.
 - Writing reviews to ODRS.
+- Storage tab: where the store space goes (system, user, running programs,
+  old generations, development, tried apps, garbage), every generation with
+  what deleting it frees, apps by size, and the two clean-ups.
 
 Missing:
 
-- Cache and data usage per app (only the package size is shown).
+- Cache and data usage per app in the home folder (only the store is measured).
 - Metered connection awareness for the background check.
 - Reporting or voting on a review.
 - Firmware updates (fwupd) and web apps: out of scope for Onyx.

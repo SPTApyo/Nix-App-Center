@@ -53,8 +53,7 @@ const DETAIL_SCENARIOS: &[(&str, &str, &str)] = &[
 
 pub struct GalleryModel {
     // Kept alive: the real home is embedded in the gallery.
-    #[allow(dead_code)]
-    home: Controller<HomeModel>,
+    _home: Controller<HomeModel>,
 }
 
 #[derive(Debug)]
@@ -114,7 +113,7 @@ impl SimpleComponent for GalleryModel {
         clamp.set_child(Some(&content));
         root.set_child(Some(&clamp));
 
-        let model = GalleryModel { home };
+        let model = GalleryModel { _home: home };
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }

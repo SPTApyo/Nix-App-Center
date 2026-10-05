@@ -127,6 +127,18 @@ Updating moves the pin and applies the config in one terminal command. When
 nixpkgs comes through another flake input, Onyx says which one and does not
 touch it.
 
+## Storage
+
+The Storage tab reads every store path once (`nix path-info --all --json`,
+sizes and references) and the GC roots (`nix-store --gc --print-roots`), then
+walks the reference graph in memory. Each path counts in the first category
+that reaches it, so the pie chart adds up to the store: the current system
+(not entering the user environments), the user environments, programs
+running now (`/proc` roots), old generations, other roots (dev shells, build
+results), apps tried with Onyx, and garbage. A generation's "frees" figure is
+what only it reaches among all roots. The two clean-ups run through the build
+log dialog: `nix-store --gc`, and `nix-collect-garbage --delete-old` as root.
+
 ## Applying, settings and integration
 
 Every apply or update runs through one dialog that streams the command

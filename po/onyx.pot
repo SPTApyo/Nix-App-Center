@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-05 22:05+0200\n"
+"POT-Creation-Date: 2026-10-05 22:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -330,50 +330,54 @@ msgstr ""
 msgid "ODRS did not accept this app."
 msgstr ""
 
-#: crates/gui/src/app.rs:131 crates/gui/src/views/preferences.rs:118
+#: crates/gui/src/app.rs:132 crates/gui/src/views/preferences.rs:118
 msgid "Search"
 msgstr ""
 
-#: crates/gui/src/app.rs:137
+#: crates/gui/src/app.rs:138
 msgid "_Preferences"
 msgstr ""
 
-#: crates/gui/src/app.rs:138
+#: crates/gui/src/app.rs:139
 msgid "_About Onyx"
 msgstr ""
 
-#: crates/gui/src/app.rs:143
+#: crates/gui/src/app.rs:144
 msgid "Main Menu"
 msgstr ""
 
-#: crates/gui/src/app.rs:176
+#: crates/gui/src/app.rs:177
 msgid "Search Nix packages…"
 msgstr ""
 
-#: crates/gui/src/app.rs:238
+#: crates/gui/src/app.rs:239
 msgid "Explore"
 msgstr ""
 
-#: crates/gui/src/app.rs:242
+#: crates/gui/src/app.rs:243
 msgid "Installed"
 msgstr ""
 
-#: crates/gui/src/app.rs:245 crates/gui/src/views/preferences.rs:102
+#: crates/gui/src/app.rs:246 crates/gui/src/views/preferences.rs:102
 msgid "Updates"
 msgstr ""
 
-#: crates/gui/src/app.rs:419
+#: crates/gui/src/app.rs:249
+msgid "Storage"
+msgstr ""
+
+#: crates/gui/src/app.rs:429
 msgid "Updates Available"
 msgstr ""
 
-#: crates/gui/src/app.rs:421
+#: crates/gui/src/app.rs:431
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/app.rs:458
+#: crates/gui/src/app.rs:468
 msgid "translator-credits"
 msgstr ""
 
@@ -545,13 +549,14 @@ msgid "How to _Contribute"
 msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:73
-#: crates/gui/src/views/installed.rs:378
+#: crates/gui/src/views/installed.rs:378 crates/gui/src/views/storage.rs:135
 msgid "User"
 msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:77
 #: crates/gui/src/components/details/nix_editor.rs:88
-#: crates/gui/src/views/installed.rs:383
+#: crates/gui/src/views/installed.rs:383 crates/gui/src/views/storage.rs:130
+#: crates/gui/src/views/storage.rs:347
 msgid "System"
 msgstr ""
 
@@ -722,7 +727,7 @@ msgstr ""
 #: crates/gui/src/views/detail.rs:1504 crates/gui/src/views/installed.rs:182
 #: crates/gui/src/views/installed.rs:200 crates/gui/src/views/installed.rs:223
 #: crates/gui/src/views/installed.rs:267
-#: crates/gui/src/views/preferences.rs:144
+#: crates/gui/src/views/preferences.rs:144 crates/gui/src/views/storage.rs:179
 #, rust-format
 msgid "Failed: {}"
 msgstr ""
@@ -1173,7 +1178,7 @@ msgstr ""
 msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
 msgstr ""
 
-#: crates/gui/src/views/installed.rs:354
+#: crates/gui/src/views/installed.rs:354 crates/gui/src/views/storage.rs:224
 msgid "Free Up Space"
 msgstr ""
 
@@ -1324,6 +1329,224 @@ msgstr ""
 #: crates/gui/src/views/preferences.rs:198
 #, rust-format
 msgid "This host does not evaluate: {}"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:110
+msgid "Cleaning Up"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:131
+msgid "What your system configuration installs"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:136
+msgid "Your user packages and Home Manager"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:140
+msgid "In Use"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:141
+msgid "Kept by programs running right now"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:145
+msgid "Old Generations"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:146
+msgid "Kept so you can roll back"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:150
+msgid "Development"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:151
+msgid "Dev shells, build results and other roots"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:153
+msgid "Apps you ran with Onyx"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:153
+msgid "Tried Apps"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:154
+msgid "Garbage"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:154
+msgid "Nothing uses it anymore"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:174
+msgid "Measuring the Nix store…"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:199
+msgid "Empty Garbage"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:200
+#, rust-format
+msgid "{} that nothing uses anymore. Safe to delete."
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:206
+msgid "Clean"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:215
+msgid "Delete Old Generations"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:216
+#, rust-format
+msgid ""
+"About {}, and you can no longer roll back to them. The boot menu follows at "
+"the next rebuild."
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:218
+msgid "Delete…"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:323
+#, rust-format
+msgid ""
+"{store} in {paths} store paths, before hard link sharing. The disk has "
+"{free} free of {disk}."
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:330
+msgid "Measure Again"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:337
+msgid "Nix Store"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:348
+msgid "Home Manager"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:349
+msgid "User Profile"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:364
+#, rust-format
+msgid "{} generation"
+msgid_plural "{} generations"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/storage.rs:365
+#, rust-format
+msgid "{} old"
+msgid_plural "{} old"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/storage.rs:371
+msgid "current"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:374
+msgid "same as current"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:377
+msgid "booted"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:380 crates/gui/src/views/storage.rs:384
+#, rust-format
+msgid "Generation {}"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:393
+#, rust-format
+msgid "frees {}"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:404
+msgid "Generations"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:405
+msgid ""
+"Each rebuild keeps the previous state so you can roll back. Old ones share "
+"most of their files: deleting one frees only what it alone keeps."
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:413
+msgid "System Apps"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:414
+msgid "User Apps"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:415
+msgid "Onyx Apps"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:427
+#, rust-format
+msgid "{} app"
+msgid_plural "{} apps"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/storage.rs:431
+#, rust-format
+msgid "{} itself"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:435
+#, rust-format
+msgid "{} with its dependencies"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:438
+msgid "kept by Onyx"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:439
+msgid "tried"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:457
+msgid "Apps"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:458
+msgid ""
+"Sizes include every dependency, so apps sharing libraries add up to more "
+"than the store."
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:465
+msgid "Delete Old Generations?"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:466
+msgid ""
+"You will not be able to roll back to them. The current system and your "
+"current user setup stay."
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:468
+msgid "_Cancel"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:469
+msgid "_Delete"
 msgstr ""
 
 #: crates/gui/src/views/updates.rs:164

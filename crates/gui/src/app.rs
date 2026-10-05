@@ -11,8 +11,11 @@ use crate::i18n::t;
 use crate::util::AppItem;
 use crate::views::home::HomeOutput;
 use crate::views::installed::InstalledMsg;
+use crate::views::storage::StorageMsg;
 use crate::views::updates::{UpdatesMsg, UpdatesOutput};
-use crate::views::{CategoryModel, DetailModel, HomeModel, InstalledModel, UpdatesModel};
+use crate::views::{
+    CategoryModel, DetailModel, HomeModel, InstalledModel, StorageModel, UpdatesModel,
+};
 
 /// App stylesheet: `crates/gui/data/style.css`. Rules ported from GNOME
 /// Software are annotated with their source line.
@@ -21,16 +24,13 @@ const APP_CSS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/st
 pub struct AppModel {
     // Kept alive for the app lifetime (their widgets live in the stack/tabs),
     // driven at init or through cloned senders.
-    #[allow(dead_code)]
-    home: Controller<HomeModel>,
+    _home: Controller<HomeModel>,
     results: Controller<AppList>,
-    #[allow(dead_code)]
-    installed: Controller<InstalledModel>,
-    #[allow(dead_code)]
-    updates: Controller<UpdatesModel>,
+    _installed: Controller<InstalledModel>,
+    _updates: Controller<UpdatesModel>,
+    _storage: Controller<StorageModel>,
     #[cfg(feature = "dev-gallery")]
-    #[allow(dead_code)]
-    gallery: Controller<crate::views::gallery::GalleryModel>,
+    _gallery: Controller<crate::views::gallery::GalleryModel>,
     stack: gtk::Stack,          // home / results (Explore tab)
     view_stack: adw::ViewStack, // Explore / Installed / Updates
     updates_page: adw::ViewStackPage,
@@ -112,6 +112,7 @@ impl SimpleComponent for AppModel {
         let updates = UpdatesModel::builder()
             .launch(())
             .forward(sender.input_sender(), AppMsg::Updates);
+        let storage = StorageModel::builder().launch(()).detach();
 
         #[cfg(feature = "dev-gallery")]
         let gallery = crate::views::gallery::GalleryModel::builder()
@@ -245,6 +246,9 @@ impl SimpleComponent for AppModel {
         let updates_page = view_stack.add_titled(updates.widget(), Some("updates"), &t("Updates"));
         updates_page.set_icon_name(Some("software-updates-symbolic"));
 
+        let storage_page = view_stack.add_titled(storage.widget(), Some("storage"), &t("Storage"));
+        storage_page.set_icon_name(Some("drive-harddisk-symbolic"));
+
         #[cfg(feature = "dev-gallery")]
         {
             // Any developer icon from the system theme; when missing the tab
@@ -257,6 +261,7 @@ impl SimpleComponent for AppModel {
         view_stack.connect_visible_child_notify({
             let si = installed.sender().clone();
             let su = updates.sender().clone();
+            let ss = storage.sender().clone();
             let search_btn = search_btn.clone();
             move |vs| {
                 let tab = vs.visible_child_name();
@@ -270,6 +275,9 @@ impl SimpleComponent for AppModel {
                     }
                     Some("updates") => {
                         let _ = su.send(UpdatesMsg::Reload);
+                    }
+                    Some("storage") => {
+                        let _ = ss.send(StorageMsg::Reload);
                     }
                     _ => {}
                 }
@@ -311,12 +319,13 @@ impl SimpleComponent for AppModel {
         }
 
         let model = AppModel {
-            home,
+            _home: home,
             results,
-            installed,
-            updates,
+            _installed: installed,
+            _updates: updates,
+            _storage: storage,
             #[cfg(feature = "dev-gallery")]
-            gallery,
+            _gallery: gallery,
             stack: stack.clone(),
             view_stack: view_stack.clone(),
             updates_page,

@@ -32,6 +32,7 @@
 //! - [`updates`]: nixpkgs source of the config, update check and update
 //! - [`profiles`]: apps already installed in the Nix profiles
 //! - [`user_profile`]: `nix profile` installs when no config is managed
+//! - [`storage`]: where the store space goes (categories, generations, apps)
 //! - [`settings`]: user settings (detection overrides, update checks)
 //! - [`options`]: NixOS option search (channel options.json)
 //! - [`locate`]: search by binary (`nix-locate`)
@@ -62,6 +63,7 @@ mod reviews;
 mod search;
 mod session_cache;
 mod settings;
+mod storage;
 mod tried;
 mod updates;
 mod user_profile;
@@ -100,6 +102,9 @@ pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, known_icon_url, remember_icon_url,
 };
 pub use settings::{load_settings, save_settings, Settings};
+pub use storage::{
+    storage_report, AppOrigin, AppSize, Category, GenProfile, Generation, StorageReport,
+};
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
     app_updates, current_source, latest, newer_release, nixpkgs_ref, update_command, AppUpdate,
