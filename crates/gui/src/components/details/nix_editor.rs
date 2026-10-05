@@ -39,7 +39,9 @@ fn block_or_none(buf: &gtk::TextBuffer) -> Option<String> {
     (!s.trim().is_empty()).then_some(s)
 }
 
-fn editor_view(buf: &gtk::TextBuffer) -> gtk::ScrolledWindow {
+/// A code area with a hint shown while it is empty: an empty scope otherwise
+/// looks like a broken, blank dialog.
+fn editor_view(buf: &gtk::TextBuffer, hint: &str) -> gtk::Overlay {
     let view = gtk::TextView::with_buffer(buf);
     view.set_monospace(true);
     view.set_top_margin(8);
@@ -50,8 +52,30 @@ fn editor_view(buf: &gtk::TextBuffer) -> gtk::ScrolledWindow {
     let scroller = gtk::ScrolledWindow::new();
     scroller.set_child(Some(&view));
     scroller.set_vexpand(true);
+    scroller.set_hexpand(true);
     scroller.add_css_class("card");
-    scroller
+
+    let placeholder = gtk::Label::new(Some(hint));
+    placeholder.add_css_class("dim-label");
+    placeholder.add_css_class("monospace");
+    placeholder.set_wrap(true);
+    placeholder.set_xalign(0.0);
+    placeholder.set_halign(gtk::Align::Start);
+    placeholder.set_valign(gtk::Align::Start);
+    placeholder.set_margin_top(9);
+    placeholder.set_margin_start(10);
+    placeholder.set_margin_end(10);
+    placeholder.set_can_target(false);
+    placeholder.set_visible(buf.char_count() == 0);
+    buf.connect_changed({
+        let placeholder = placeholder.clone();
+        move |b| placeholder.set_visible(b.char_count() == 0)
+    });
+
+    let overlay = gtk::Overlay::new();
+    overlay.set_child(Some(&scroller));
+    overlay.add_overlay(&placeholder);
+    overlay
 }
 
 /// Opens the editor. `on_save` receives the saved blocks; it is only called when
@@ -70,11 +94,24 @@ pub fn present(
     system_buf.set_text(&system_nix.unwrap_or_default());
 
     let stack = adw::ViewStack::new();
-    let home_page = stack.add_titled(&editor_view(&home_buf), Some("home"), &t("User"));
+    let home_page = stack.add_titled(
+        &editor_view(
+            &home_buf,
+            &t("Nothing for your user yet. Packages and user options for this app go here."),
+        ),
+        Some("home"),
+        &t("User"),
+    );
     home_page.set_icon_name(Some("user-home-symbolic"));
 
     if system_available {
-        let page = stack.add_titled(&editor_view(&system_buf), Some("system"), &t("System"));
+        let hint = t("No system options for this app yet. NixOS options go here, for example:\n\nprograms.{0}.enable = true;\nnetworking.firewall.allowedTCPPorts = [ 8080 ];")
+            .replace("{0}", package.attr.rsplit('.').next().unwrap_or(&package.attr));
+        let page = stack.add_titled(
+            &editor_view(&system_buf, &hint),
+            Some("system"),
+            &t("System"),
+        );
         page.set_icon_name(Some("computer-symbolic"));
     } else {
         // Standalone home-manager cannot write NixOS options; say so.

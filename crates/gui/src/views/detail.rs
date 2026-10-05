@@ -62,7 +62,7 @@ pub struct DetailModel {
     meta: Option<AppMeta>,
     loading: bool,
     /// Desktop file when a Nix profile already holds the app.
-    installed: Option<std::path::PathBuf>,
+    installed: Option<onyx_core::ProfileApp>,
     /// Onyx knows the config: keep edits it. Otherwise `nix profile`.
     managed: bool,
     /// `nix profile` element of this package (unmanaged machines).
@@ -437,14 +437,9 @@ impl SimpleComponent for DetailModel {
                                                                 // (replaces the old trash button).
                                                                 gtk::Button {
                                                                     #[watch]
-                                                                    set_label: &match (model.managed, model.kept, model.profile_name.is_some()) {
-                                                                        (true, true, _) => t("Remove from Configuration"),
-                                                                        (true, false, _) => t("Add to Configuration"),
-                                                                        (false, _, true) => t("Uninstall"),
-                                                                        (false, _, false) => t("Install for This User"),
-                                                                    },
+                                                                    set_label: &model.keep_label(),
                                                                     #[watch]
-                                                                    set_sensitive: !model.profile_busy,
+                                                                    set_sensitive: !model.profile_busy && !model.installed_elsewhere(),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ToggleKeep,
                                                                 },
@@ -463,6 +458,8 @@ impl SimpleComponent for DetailModel {
                                                                 // the app (service options, port, override).
                                                                 gtk::Button {
                                                                     set_label: &t("Advanced Options…"),
+                                                                    #[watch]
+                                                                    set_sensitive: !model.installed_elsewhere(),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
@@ -803,7 +800,7 @@ impl SimpleComponent for DetailModel {
             package: pkg.clone(),
             meta: None,
             loading: true,
-            installed: onyx_core::installed_app(&pkg.attr, None).map(|a| a.desktop_file),
+            installed: onyx_core::installed_app(&pkg.attr, None),
             managed,
             profile_name: if managed {
                 None
@@ -928,8 +925,7 @@ impl SimpleComponent for DetailModel {
                 self.stack.set_visible_child_name("ready");
                 if self.installed.is_none() {
                     self.installed =
-                        onyx_core::installed_app(&self.package.attr, meta.app_id.as_deref())
-                            .map(|a| a.desktop_file);
+                        onyx_core::installed_app(&self.package.attr, meta.app_id.as_deref());
                 }
                 // Without an AppStream id there are no permissions to wait for.
 
@@ -1112,7 +1108,7 @@ impl SimpleComponent for DetailModel {
                 let launched = self
                     .installed
                     .as_ref()
-                    .and_then(gtk::gio::DesktopAppInfo::from_filename)
+                    .and_then(|a| gtk::gio::DesktopAppInfo::from_filename(&a.desktop_file))
                     .is_some_and(|app| {
                         app.launch(&[], None::<&gtk::gio::AppLaunchContext>).is_ok()
                     });
@@ -1176,6 +1172,7 @@ impl SimpleComponent for DetailModel {
                         .replace("{err}", &err),
                 );
             }
+            DetailMsg::ToggleKeep if self.installed_elsewhere() => {}
             DetailMsg::ToggleKeep if !self.managed => sender.input(DetailMsg::ProfileToggle),
             DetailMsg::ProfileToggle => {
                 if self.profile_busy {
@@ -1221,8 +1218,7 @@ impl SimpleComponent for DetailModel {
                 self.installed = onyx_core::installed_app(
                     &self.package.attr,
                     self.meta.as_ref().and_then(|m| m.app_id.as_deref()),
-                )
-                .map(|a| a.desktop_file);
+                );
                 crate::util::toast(&self.toast_overlay, &text);
             }
             DetailMsg::ToggleKeep => {
@@ -1279,6 +1275,7 @@ impl SimpleComponent for DetailModel {
                     &t("Failed: {}").replace("{}", &e.to_string()),
                 ),
             },
+            DetailMsg::AdvancedEdit if self.installed_elsewhere() => {}
             DetailMsg::AdvancedEdit => {
                 // Current Nix blocks of the app, if any, to prefill the editor.
                 let m = onyx_core::load_manifest();
@@ -1352,6 +1349,27 @@ impl SimpleComponent for DetailModel {
 impl DetailModel {
     /// A package without AppStream identity is treated as a CLI tool: `nix run`
     /// would start and exit at once, a shell is the useful way to try it.
+    /// Installed by the user's own configuration, not by Onyx: adding it again
+    /// would declare it twice.
+    fn installed_elsewhere(&self) -> bool {
+        !self.kept && self.profile_name.is_none() && self.installed.is_some()
+    }
+
+    fn keep_label(&self) -> String {
+        if self.installed_elsewhere() {
+            return match self.installed.as_ref().map(|a| a.scope) {
+                Some(onyx_core::Scope::System) => t("In Your System Configuration"),
+                _ => t("In Your User Configuration"),
+            };
+        }
+        match (self.managed, self.kept, self.profile_name.is_some()) {
+            (true, true, _) => t("Remove from Configuration"),
+            (true, false, _) => t("Add to Configuration"),
+            (false, _, true) => t("Uninstall"),
+            (false, _, false) => t("Install for This User"),
+        }
+    }
+
     /// True when the license is known to be unfree.
     fn unfree(&self) -> bool {
         self.meta.as_ref().and_then(|m| m.is_free_license) == Some(false)
