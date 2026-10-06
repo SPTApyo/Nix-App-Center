@@ -9,7 +9,8 @@
 //! holding the exact diff, the backup path and the resulting content. The front
 //! end shows all of it and asks for consent. Only [`commit`] writes.
 //!
-//! The attach is **one line** in the top-level `imports` list. No nested Nix is
+//! The attach is **one line** in the top-level `imports` list (or, for a
+//! flake without `configuration.nix`, in its `modules` list). No nested Nix is
 //! parsed and no file is ever rebuilt from an AST: the user's formatting,
 //! comments and logic survive untouched.
 //!
@@ -113,7 +114,7 @@ pub fn plan(layout: &Layout) -> AttachPlan {
     match splice_imports(&src, &missing) {
         Some((patched, at)) => AttachPlan::Patch {
             backup: backup_path(&site),
-            diff: unified_insert_diff(&site, &src, &missing, at),
+            diff: unified_insert_diff(&site, &src, &patched, missing.len(), at),
             added: missing,
             site,
             patched,
@@ -145,8 +146,10 @@ pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
             // The backup comes before any change: if the write fails
             // midway, the user still has their original file.
             let original = std::fs::read(site)?;
-            crate::paths::write_atomic(backup, &original)?;
-            crate::paths::write_atomic(site, patched.as_bytes())
+            crate::paths::write_files(&[
+                (backup.clone(), original),
+                (site.clone(), patched.clone().into_bytes()),
+            ])
         }
         _ => Ok(()),
     }
@@ -167,7 +170,7 @@ pub fn detach(layout: &Layout) -> std::io::Result<()> {
             out.push('\n');
         }
         if out != src {
-            crate::paths::write_atomic(&site, out.as_bytes())?;
+            crate::paths::write_files(&[(site.clone(), out.into_bytes())])?;
         }
     }
     Ok(())
@@ -181,13 +184,14 @@ fn backup_path(site: &Path) -> PathBuf {
 
 // ── Text splice ───────────────────────────────────────────────────────────────
 
-/// Inserts `lines` right before the `]` of the top-level `imports` list.
+/// Inserts `lines` right before the `]` of the top-level `imports` list, or
+/// of the `modules` list of a flake (`nixosConfigurations.x = … { modules = [ … ]; }`).
 /// Returns the patched content and the index of the insertion line.
 ///
 /// `None` without a usable `imports` list: Onyx would rather do nothing than
 /// guess where to write in someone else's file.
 fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
-    let open = find_imports_bracket(src)?;
+    let open = find_list_bracket(src, "imports").or_else(|| find_list_bracket(src, "modules"))?;
     let close = matching_bracket(src, open)?;
 
     // Indentation: that of the last list entry, else two spaces.
@@ -212,17 +216,17 @@ fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
     Some((patched, at))
 }
 
-/// Index of the `[` of `imports = [`, outside comments.
-fn find_imports_bracket(src: &str) -> Option<usize> {
+/// Index of the `[` of `<key> = [`, outside comments.
+fn find_list_bracket(src: &str, key: &str) -> Option<usize> {
     let mut from = 0usize;
-    while let Some(rel) = src[from..].find("imports") {
+    while let Some(rel) = src[from..].find(key) {
         let idx = from + rel;
-        from = idx + "imports".len();
+        from = idx + key.len();
 
         if is_in_comment(src, idx) {
             continue;
         }
-        // A longer identifier ending in "imports" is not our list.
+        // A longer identifier ending in the key is not our list.
         let prev_ok = src[..idx]
             .chars()
             .next_back()
@@ -293,8 +297,9 @@ fn matching_bracket(src: &str, open: usize) -> Option<usize> {
 
 /// Unified diff of a pure insertion: no diff algorithm needed, the exact
 /// place and content of the insertion are known.
-fn unified_insert_diff(site: &Path, src: &str, added: &[String], at: usize) -> String {
+fn unified_insert_diff(site: &Path, src: &str, patched: &str, added: usize, at: usize) -> String {
     let lines: Vec<&str> = src.lines().collect();
+    let inserted: Vec<&str> = patched.lines().skip(at).take(added).collect();
     let ctx = 3usize;
     let start = at.saturating_sub(ctx);
     let end = (at + ctx).min(lines.len());
@@ -305,13 +310,13 @@ fn unified_insert_diff(site: &Path, src: &str, added: &[String], at: usize) -> S
         start + 1,
         end - start,
         start + 1,
-        end - start + added.len()
+        end - start + added
     ));
     for line in &lines[start..at] {
         out.push_str(&format!(" {line}\n"));
     }
-    for a in added {
-        out.push_str(&format!("+    {a}\n"));
+    for a in inserted {
+        out.push_str(&format!("+{a}\n"));
     }
     for line in &lines[at..end] {
         out.push_str(&format!(" {line}\n"));
@@ -322,6 +327,16 @@ fn unified_insert_diff(site: &Path, src: &str, added: &[String], at: usize) -> S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flake_without_configuration_nix_gets_a_modules_line() {
+        let flake = "{\n  outputs = { c, ... }: {\n    nixosConfigurations.pc = c.extendModules {\n      modules = [\n        ./hardware-configuration.nix\n        ./custom.nix\n      ];\n    };\n  };\n}\n";
+        let (patched, _) = splice_imports(flake, &["./onyx-system.nix".to_string()]).unwrap();
+        assert!(
+            patched.contains("        ./custom.nix\n        ./onyx-system.nix\n      ];"),
+            "{patched}"
+        );
+    }
     use crate::config_layout::{LayoutKind, ScopeTarget};
 
     const CONFIG: &str = "{ config, pkgs, ... }:\n\
@@ -458,7 +473,7 @@ mod tests {
     #[test]
     fn matches_bracket_across_nesting() {
         let src = "{ imports = [ ./a.nix (lib.mkIf x [ ./b.nix ]) ]; }";
-        let open = find_imports_bracket(src).unwrap();
+        let open = find_list_bracket(src, "imports").unwrap();
         let close = matching_bracket(src, open).unwrap();
         assert_eq!(&src[close..close + 1], "]");
         // The `]` kept is the list's, not the sub-array's.

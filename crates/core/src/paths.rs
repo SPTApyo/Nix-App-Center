@@ -31,6 +31,70 @@ pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Res
     std::fs::rename(&tmp, path)
 }
 
+/// Writes several files, in order. Files the user may write are written
+/// directly; the others (a root-owned `/etc/nixos`) are staged and copied in
+/// ONE pkexec call, so the user types the password once.
+pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
+    let mut denied: Vec<&(PathBuf, Vec<u8>)> = Vec::new();
+    for f in files {
+        // Keep the order: once one needs rights, the next ones follow it.
+        if !denied.is_empty() {
+            denied.push(f);
+            continue;
+        }
+        match write_atomic(&f.0, &f.1) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => denied.push(f),
+            Err(e) => return Err(e),
+        }
+    }
+    if denied.is_empty() {
+        return Ok(());
+    }
+    let Some(pkexec) = crate::launch::find_in_path("pkexec") else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            crate::util::n_("Writing there needs administrator rights, and pkexec is missing."),
+        ));
+    };
+    let stage = crate::cache::cache_dir().join(format!("staged-{}", std::process::id()));
+    std::fs::create_dir_all(&stage)?;
+    let mut script = Vec::new();
+    for (i, (dest, bytes)) in denied.iter().enumerate() {
+        let src = stage.join(i.to_string());
+        std::fs::write(&src, bytes)?;
+        script.push(format!(
+            "install -m 644 {} {}",
+            sh_quote(&src.to_string_lossy()),
+            sh_quote(&dest.to_string_lossy())
+        ));
+    }
+    let status = std::process::Command::new(pkexec)
+        .arg("env")
+        .arg(format!(
+            "PATH={}",
+            std::env::var("PATH").unwrap_or_default()
+        ))
+        .args(["sh", "-c", &script.join(" && ")])
+        .status();
+    let _ = std::fs::remove_dir_all(&stage);
+    match status?.code() {
+        Some(0) => Ok(()),
+        Some(126 | 127) => Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            crate::util::n_("Authentication was cancelled."),
+        )),
+        _ => Err(std::io::Error::other(crate::util::n_(
+            "Writing the configuration failed.",
+        ))),
+    }
+}
+
+/// Single-quotes `s` for `sh`.
+pub(crate) fn sh_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', r"'\''"))
+}
+
 /// A flake in a git repository only sees tracked files: mark a file Onyx
 /// created as intended for addition. No-op outside a git work tree.
 pub(crate) fn track_in_git(path: &std::path::Path) {
@@ -67,6 +131,18 @@ mod tests {
             .filter_map(Result::ok)
             .any(|e| e.file_name().to_string_lossy().contains(".tmp"));
         assert!(!tmp_left, "no temporary file may remain");
+    }
+
+    #[test]
+    fn write_files_writes_in_order_without_rights_when_allowed() {
+        let dir = std::env::temp_dir().join(format!("onyx-files-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (a, b) = (dir.join("a.nix"), dir.join("b.nix"));
+        write_files(&[(a.clone(), b"one".to_vec()), (b.clone(), b"two".to_vec())]).unwrap();
+        assert_eq!(std::fs::read(&a).unwrap(), b"one");
+        assert_eq!(std::fs::read(&b).unwrap(), b"two");
+        assert_eq!(sh_quote("it's"), r"'it'\''s'");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

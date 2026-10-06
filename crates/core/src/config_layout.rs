@@ -282,7 +282,13 @@ pub(crate) fn current_user() -> String {
 /// "home" file is then a NixOS module wrapping its content in
 /// `home-manager.users.<user>`, not a home-manager module.
 fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
-    let site = dir.join("configuration.nix");
+    // A flake may have no configuration.nix: its modules list is the place.
+    let config = dir.join("configuration.nix");
+    let site = if config.is_file() || !dir.join("flake.nix").is_file() {
+        config
+    } else {
+        dir.join("flake.nix")
+    };
     (
         Some(ScopeTarget {
             onyx_file: dir.join(ONYX_HOME_FILE),

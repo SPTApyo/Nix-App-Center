@@ -210,15 +210,21 @@ pub(crate) fn sync_config(kept: &[KeptEntry]) -> std::io::Result<()> {
 }
 
 pub(crate) fn sync_to(layout: &Layout, kept: &[KeptEntry]) -> std::io::Result<()> {
+    let mut files = Vec::new();
     if let Some(home) = &layout.home {
-        let body = render_home(kept, &HomeShape::of(layout));
-        crate::paths::write_atomic(&home.onyx_file, body.as_bytes())?;
-        crate::paths::track_in_git(&home.onyx_file);
+        files.push((
+            home.onyx_file.clone(),
+            render_home(kept, &HomeShape::of(layout)).into_bytes(),
+        ));
     }
     if let Some(system) = &layout.system {
-        let body = render_system(kept);
-        crate::paths::write_atomic(&system.onyx_file, body.as_bytes())?;
-        crate::paths::track_in_git(&system.onyx_file);
+        files.push((system.onyx_file.clone(), render_system(kept).into_bytes()));
+    }
+    // Unchanged files are not rewritten: no password asked for nothing.
+    files.retain(|(path, body)| std::fs::read(path).ok().as_ref() != Some(body));
+    crate::paths::write_files(&files)?;
+    for (path, _) in &files {
+        crate::paths::track_in_git(path);
     }
     Ok(())
 }

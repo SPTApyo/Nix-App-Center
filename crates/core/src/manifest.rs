@@ -77,13 +77,19 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
     crate::paths::write_atomic(&manifest_path(), &json)
 }
 
+/// Writes the Onyx files, then the manifest: when the configuration cannot be
+/// written (no rights, cancelled password), the manifest stays as it was.
+fn commit(m: &Manifest) -> std::io::Result<()> {
+    config_gen::sync_config(&m.kept)?;
+    save_manifest(m)
+}
+
 /// Adds a package to the manifest (idempotent on `attr`).
 pub fn keep(pkg: &Package) -> std::io::Result<()> {
     let mut m = load_manifest();
     if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
         m.kept.push(KeptEntry::simple(pkg.clone()));
-        save_manifest(&m)?;
-        config_gen::sync_config(&m.kept)?;
+        commit(&m)?;
     }
     Ok(())
 }
@@ -94,8 +100,7 @@ pub fn unkeep(attr: &str) -> std::io::Result<()> {
     let before = m.kept.len();
     m.kept.retain(|e| e.package.attr != attr);
     if m.kept.len() != before {
-        save_manifest(&m)?;
-        config_gen::sync_config(&m.kept)?;
+        commit(&m)?;
     }
     Ok(())
 }
@@ -122,8 +127,7 @@ pub fn set_blocks(
             system_nix,
         }),
     }
-    save_manifest(&m)?;
-    config_gen::sync_config(&m.kept)
+    commit(&m)
 }
 
 #[cfg(test)]
