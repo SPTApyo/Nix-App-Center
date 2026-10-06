@@ -40,7 +40,7 @@ pub fn community(license: Option<&str>, get_involved_url: Option<String>) -> gtk
         icons.append(&circular(Content::Icon(name), "green"));
     }
 
-    let list = boxed_list();
+    let list = crate::util::boxed_list();
     list.append(&info_row(&icons, &t("Community Built"), &description));
     list.append(&get_involved_row(get_involved_url));
     list
@@ -71,19 +71,10 @@ pub fn proprietary(license: Option<&str>, is_free: Option<bool>) -> gtk::ListBox
     icons.set_halign(gtk::Align::Center);
     icons.append(&circular(Content::Icon(icon), color));
 
-    let list = boxed_list();
+    let list = crate::util::boxed_list();
     list.append(&info_row(&icons, &title, &description));
     list
 }
-
-fn boxed_list() -> gtk::ListBox {
-    let list = gtk::ListBox::new();
-    list.set_selection_mode(gtk::SelectionMode::None);
-    list.set_valign(gtk::Align::Start);
-    list.add_css_class("boxed-list");
-    list
-}
-
 fn info_row(icons: &gtk::Box, title: &str, description: &str) -> gtk::ListBoxRow {
     let inner = gtk::Box::new(gtk::Orientation::Vertical, 8);
     inner.set_margin_top(14);

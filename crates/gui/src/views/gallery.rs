@@ -140,7 +140,7 @@ fn build_index(
 
     // ── Search ────────────────────────────────────────────────────────────
     content.append(&heading("Search"));
-    let search_list = boxed_list();
+    let search_list = crate::util::boxed_list();
     for (label, query, expected) in SEARCH_SCENARIOS {
         let row = scenario_row(label, expected);
         let s = sender.clone();
@@ -154,7 +154,7 @@ fn build_index(
 
     // ── Details ───────────────────────────────────────────────────────────
     content.append(&heading("Details"));
-    let detail_list = boxed_list();
+    let detail_list = crate::util::boxed_list();
     for (label, attr, expected) in DETAIL_SCENARIOS {
         let row = scenario_row(label, expected);
         let s = sender.clone();
@@ -191,15 +191,6 @@ fn heading(text: &str) -> gtk::Label {
     l.add_css_class("title-2");
     l
 }
-
-fn boxed_list() -> gtk::ListBox {
-    let lb = gtk::ListBox::new();
-    lb.add_css_class("boxed-list");
-    lb.set_selection_mode(gtk::SelectionMode::None);
-    lb.set_valign(gtk::Align::Start);
-    lb
-}
-
 /// A scenario row: title + subtitle = expected behavior.
 fn scenario_row(label: &str, expected: &str) -> adw::ActionRow {
     let row = adw::ActionRow::builder()

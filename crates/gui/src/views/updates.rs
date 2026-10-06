@@ -223,10 +223,11 @@ impl UpdatesModel {
             self.content.remove(&child);
         }
         if let Some(status) = &self.status {
-            self.content.append(&dim_label(status));
+            self.content.append(&util::dim_label(status));
         }
         let Some(c) = self.check.as_ref().filter(|_| !self.checking) else {
-            self.content.append(&dim_label(&t("Checking for updates…")));
+            self.content
+                .append(&util::dim_label(&t("Checking for updates…")));
             self.content.append(&util::skeleton_list(3));
             return;
         };
@@ -242,7 +243,7 @@ impl UpdatesModel {
             } else {
                 t("Onyx could not reach nixpkgs to check for updates.")
             };
-            self.content.append(&dim_label(&text));
+            self.content.append(&util::dim_label(&text));
             return;
         };
         if c.source.rev.as_deref() == Some(latest.rev.as_str()) {
@@ -252,12 +253,10 @@ impl UpdatesModel {
 
         self.content.append(&self.header(c, latest, sender));
         if let Some(note) = method_note(&c.source.method).filter(|_| c.command.is_none()) {
-            self.content.append(&dim_label(&note));
+            self.content.append(&util::dim_label(&note));
         }
         if !c.apps.is_empty() {
-            let list = gtk::ListBox::new();
-            list.add_css_class("boxed-list");
-            list.set_selection_mode(gtk::SelectionMode::None);
+            let list = util::boxed_list();
             for u in &c.apps {
                 let change = format!("{} → {}", u.app.version, u.new_version);
                 let row = util::desktop_row(&u.app.desktop_file, &change).unwrap_or_else(|| {
@@ -295,9 +294,7 @@ impl UpdatesModel {
             }
         });
         row.add_suffix(&again);
-        let list = gtk::ListBox::new();
-        list.add_css_class("boxed-list");
-        list.set_selection_mode(gtk::SelectionMode::None);
+        let list = util::boxed_list();
         list.append(&row);
         list
     }
@@ -311,7 +308,7 @@ impl UpdatesModel {
         }));
         title.add_css_class("title-2");
         title.set_xalign(0.0);
-        let sub = dim_label(&t("Available: {}").replace(
+        let sub = util::dim_label(&t("Available: {}").replace(
             "{}",
             &revision_line(Some(&latest.rev), Some(latest.last_modified)),
         ));
@@ -369,15 +366,6 @@ fn release_banner(release: &str) -> adw::Banner {
     });
     banner
 }
-
-fn dim_label(text: &str) -> gtk::Label {
-    let l = gtk::Label::new(Some(text));
-    l.add_css_class("dim-label");
-    l.set_wrap(true);
-    l.set_xalign(0.0);
-    l
-}
-
 /// "Everything is up to date" illustration (borrowed from GNOME Software), centered.
 fn up_to_date_view() -> gtk::Box {
     // Embedded: the source tree does not exist once installed.

@@ -264,13 +264,14 @@ impl StorageModel {
                 return;
             }
             (Some(Err(e)), _) => {
-                self.content.append(&dim(&t("Failed: {}").replace("{}", e)));
+                self.content
+                    .append(&util::dim_label(&t("Failed: {}").replace("{}", e)));
                 return;
             }
             (Some(Ok(r)), _) => r,
         };
         if let Some(status) = &self.status {
-            self.content.append(&dim(status));
+            self.content.append(&util::dim_label(status));
         }
         let sections = [
             overview(report, sender),
@@ -307,7 +308,7 @@ impl StorageModel {
                 .find(|(k, _)| *k == c)
                 .map_or(0, |x| x.1)
         };
-        let list = boxed();
+        let list = util::boxed_list();
         let garbage = adw::ActionRow::builder()
             .title(t("Empty Garbage"))
             .subtitle(esc(&t("{} that nothing uses anymore. Safe to delete.")
@@ -334,7 +335,7 @@ impl StorageModel {
             move || confirm_delete_generations(&parent, s.clone())
         }));
         list.append(&old);
-        section(&t("Free Up Space"), None, &list)
+        util::section(&t("Free Up Space"), None, &list)
     }
 }
 
@@ -463,7 +464,7 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
             let _ = s.send(StorageMsg::Refresh);
         }
     });
-    let sec = section(&t("Nix Store"), Some(&summary), &chart);
+    let sec = util::section(&t("Nix Store"), Some(&summary), &chart);
     if let Some(head) = sec.first_child().and_downcast::<gtk::Box>() {
         head.append(&refresh);
     }
@@ -471,7 +472,7 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
 }
 
 fn generations(r: &StorageReport) -> gtk::Box {
-    let list = boxed();
+    let list = util::boxed_list();
     for (profile, title) in [
         (GenProfile::System, t("System")),
         (GenProfile::HomeManager, t("Home Manager")),
@@ -529,7 +530,7 @@ fn generations(r: &StorageReport) -> gtk::Box {
         }
         list.append(&exp);
     }
-    section(
+    util::section(
         &t("Generations"),
         Some(&t("Each rebuild keeps the previous state so you can roll back. Old ones share most of their files: deleting one frees only what it alone keeps.")),
         &list,
@@ -537,7 +538,7 @@ fn generations(r: &StorageReport) -> gtk::Box {
 }
 
 fn apps(r: &StorageReport) -> gtk::Box {
-    let list = boxed();
+    let list = util::boxed_list();
     for (origins, title) in [
         (vec![AppOrigin::System], t("System Apps")),
         (vec![AppOrigin::User], t("User Apps")),
@@ -582,7 +583,7 @@ fn apps(r: &StorageReport) -> gtk::Box {
         }
         list.append(&exp);
     }
-    section(
+    util::section(
         &t("Apps"),
         Some(&t("Sizes include every dependency, so apps sharing libraries add up to more than the store.")),
         &list,
@@ -595,7 +596,7 @@ fn home_files(
     report: &StorageReport,
     sender: &ComponentSender<StorageModel>,
 ) -> gtk::Box {
-    let list = boxed();
+    let list = util::boxed_list();
     let total: u64 = dirs.iter().map(|d| d.size).sum();
     for d in dirs.iter().take(15) {
         let kind = match d.kind {
@@ -625,7 +626,7 @@ fn home_files(
         }
         list.append(&row);
     }
-    section(
+    util::section(
         &t("Your Files"),
         Some(&t("Folders apps keep in your home: {} in all. A cache is rebuilt when needed; data and settings are yours, Onyx never deletes them.").replace("{}", &size(total))),
         &list,
@@ -681,38 +682,4 @@ fn button(label: &str, destructive: bool, on_click: impl Fn() + 'static) -> gtk:
     }
     b.connect_clicked(move |_| on_click());
     b
-}
-
-fn boxed() -> gtk::ListBox {
-    let list = gtk::ListBox::new();
-    list.add_css_class("boxed-list");
-    list.set_selection_mode(gtk::SelectionMode::None);
-    list
-}
-
-fn dim(text: &str) -> gtk::Label {
-    let l = gtk::Label::new(Some(text));
-    l.add_css_class("dim-label");
-    l.set_wrap(true);
-    l.set_xalign(0.0);
-    l
-}
-
-/// Title, optional explanation, then the content.
-fn section(title: &str, subtitle: Option<&str>, child: &impl IsA<gtk::Widget>) -> gtk::Box {
-    let sec = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    let head = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    let titles = gtk::Box::new(gtk::Orientation::Vertical, 2);
-    titles.set_hexpand(true);
-    let h = gtk::Label::new(Some(title));
-    h.add_css_class("title-2");
-    h.set_xalign(0.0);
-    titles.append(&h);
-    if let Some(s) = subtitle {
-        titles.append(&dim(s));
-    }
-    head.append(&titles);
-    sec.append(&head);
-    sec.append(child);
-    sec
 }

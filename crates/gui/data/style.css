@@ -358,24 +358,28 @@ label.app-tile-summary { opacity: 0.6; }
 .icon-shimmer { border-radius: 14px; }
 .skeleton.round { border-radius: 9999px; }
 
-/* Appearance: lists and grids fade and rise in, one item after the other.
-   GTK skips it when the system turns animations off. */
+/* Appearance: every boxed list row and every grid item of the app fades and
+   rises in, one after the other. Set here, at the root, so no view has to
+   ask for it. GTK skips it when the system turns animations off. */
+/* No "to": each widget ends on its own opacity (dimmed rows stay dimmed). */
 @keyframes onyx-appear {
 	from { opacity: 0; transform: translateY(8px); }
-	to   { opacity: 1; transform: none; }
 }
+list.boxed-list > row,
+flowbox > flowboxchild,
 .appear { animation: onyx-appear 320ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
-.appear-1  { animation-delay: 30ms; }
-.appear-2  { animation-delay: 60ms; }
-.appear-3  { animation-delay: 90ms; }
-.appear-4  { animation-delay: 120ms; }
-.appear-5  { animation-delay: 150ms; }
-.appear-6  { animation-delay: 180ms; }
-.appear-7  { animation-delay: 210ms; }
-.appear-8  { animation-delay: 240ms; }
-.appear-9  { animation-delay: 270ms; }
-.appear-10 { animation-delay: 300ms; }
-.appear-11 { animation-delay: 330ms; }
+list.boxed-list > row:nth-child(2), flowbox > flowboxchild:nth-child(2), .appear-1 { animation-delay: 30ms; }
+list.boxed-list > row:nth-child(3), flowbox > flowboxchild:nth-child(3), .appear-2 { animation-delay: 60ms; }
+list.boxed-list > row:nth-child(4), flowbox > flowboxchild:nth-child(4), .appear-3 { animation-delay: 90ms; }
+list.boxed-list > row:nth-child(5), flowbox > flowboxchild:nth-child(5), .appear-4 { animation-delay: 120ms; }
+list.boxed-list > row:nth-child(6), flowbox > flowboxchild:nth-child(6), .appear-5 { animation-delay: 150ms; }
+list.boxed-list > row:nth-child(7), flowbox > flowboxchild:nth-child(7), .appear-6 { animation-delay: 180ms; }
+list.boxed-list > row:nth-child(8), flowbox > flowboxchild:nth-child(8), .appear-7 { animation-delay: 210ms; }
+list.boxed-list > row:nth-child(9), flowbox > flowboxchild:nth-child(9), .appear-8 { animation-delay: 240ms; }
+list.boxed-list > row:nth-child(10), flowbox > flowboxchild:nth-child(10), .appear-9 { animation-delay: 270ms; }
+list.boxed-list > row:nth-child(11), flowbox > flowboxchild:nth-child(11), .appear-10 { animation-delay: 300ms; }
+list.boxed-list > row:nth-child(12), flowbox > flowboxchild:nth-child(12), .appear-11 { animation-delay: 330ms; }
+list.boxed-list > row:nth-child(n+13), flowbox > flowboxchild:nth-child(n+13) { animation-delay: 360ms; }
 .skeleton { border-radius: 7px; }
 .skeleton.large { border-radius: 12px; }
 

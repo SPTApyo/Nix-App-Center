@@ -29,9 +29,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
     description.set_selectable(true);
     body.append(&description);
 
-    let facts = gtk::ListBox::new();
-    facts.add_css_class("boxed-list");
-    facts.set_selection_mode(gtk::SelectionMode::None);
+    let facts = crate::util::boxed_list();
     for (title, value) in [
         (t("Type"), Some(option.type_.clone())),
         (t("Default"), option.default.clone()),

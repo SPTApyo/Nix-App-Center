@@ -77,6 +77,7 @@ impl SimpleComponent for AppList {
             .launch(gtk::ListBox::new())
             .forward(sender.input_sender(), AppListInput::Open);
 
+        // Same look as crate::util::boxed_list (factories own these two).
         let lists: [&gtk::ListBox; 2] = [apps.widget(), others.widget()];
         for lb in lists {
             lb.add_css_class("boxed-list");
@@ -98,26 +99,17 @@ impl SimpleComponent for AppList {
         let heading_locate = section_heading("");
         heading_locate.set_visible(false);
 
-        let locate_list = gtk::ListBox::new();
-        locate_list.add_css_class("boxed-list");
-        locate_list.set_selection_mode(gtk::SelectionMode::None);
-        locate_list.set_valign(gtk::Align::Start);
+        let locate_list = crate::util::boxed_list();
         locate_list.set_visible(false);
 
         let heading_types = section_heading("");
         heading_types.set_visible(false);
-        let types_list = gtk::ListBox::new();
-        types_list.add_css_class("boxed-list");
-        types_list.set_selection_mode(gtk::SelectionMode::None);
-        types_list.set_valign(gtk::Align::Start);
+        let types_list = crate::util::boxed_list();
         types_list.set_visible(false);
 
         let heading_options = section_heading(&t("NixOS Options"));
         heading_options.set_visible(false);
-        let options_list = gtk::ListBox::new();
-        options_list.add_css_class("boxed-list");
-        options_list.set_selection_mode(gtk::SelectionMode::None);
-        options_list.set_valign(gtk::Align::Start);
+        let options_list = crate::util::boxed_list();
         options_list.set_visible(false);
 
         let content = gtk::Box::builder()

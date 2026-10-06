@@ -1514,15 +1514,6 @@ impl DetailModel {
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────
-
-fn boxed_list() -> gtk::ListBox {
-    let l = gtk::ListBox::new();
-    l.set_selection_mode(gtk::SelectionMode::None);
-    l.set_valign(gtk::Align::Start);
-    l.add_css_class("boxed-list");
-    l
-}
-
 /// Header rating: five stars + review count (`label_review_count`).
 fn build_stars(container: &gtk::Box, rating: &Rating) {
     while let Some(c) = container.first_child() {
@@ -1568,7 +1559,7 @@ fn build_reviews(
     inner.set_homogeneous(true);
 
     // Left column: histogram + "Write a Review".
-    let left = boxed_list();
+    let left = crate::util::boxed_list();
     let hist_row = gtk::ListBoxRow::new();
     hist_row.set_activatable(false);
     hist_row.set_selectable(false);
@@ -1610,7 +1601,7 @@ fn build_reviews(
     inner.append(&left);
 
     // Right column: featured review + "All Reviews".
-    let right = boxed_list();
+    let right = crate::util::boxed_list();
     if let Some(featured) = reviews.and_then(onyx_core::featured_review) {
         right.append(&review_row::row(featured));
     }
@@ -1634,7 +1625,7 @@ fn build_reviews(
 
 /// "All Reviews" dialog: one `GsReviewRow` per review, best ranked first.
 fn show_reviews_dialog(reviews: &[Review], parent: &impl IsA<gtk::Widget>) {
-    let list = boxed_list();
+    let list = crate::util::boxed_list();
     let mut sorted: Vec<&Review> = reviews.iter().collect();
     sorted.sort_by_key(|r| std::cmp::Reverse(r.score));
     for r in sorted {
@@ -1843,7 +1834,7 @@ fn build_version_history(
         .iter()
         .find(|r| installed_version == Some(r.version.as_str()))
         .unwrap_or(&meta.releases[0]);
-    let list = boxed_list();
+    let list = crate::util::boxed_list();
     list.append(&version_history_row::row(
         &latest.version,
         latest.timestamp,
@@ -1859,7 +1850,7 @@ fn build_version_history(
         let releases = meta.releases.clone();
         let installed = installed_version.map(str::to_string);
         more.connect_activated(move |_| {
-            let list = boxed_list();
+            let list = crate::util::boxed_list();
             for r in &releases {
                 list.append(&version_history_row::row(
                     &r.version,
@@ -1938,7 +1929,7 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
     if present.is_empty() {
         stack.add_named(&no_metadata_card(), Some("empty"));
     } else {
-        let list = boxed_list();
+        let list = crate::util::boxed_list();
         for (label, icon, url) in present {
             list.append(&link_row(&label, icon, &url));
         }

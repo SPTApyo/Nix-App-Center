@@ -495,45 +495,18 @@ fn section(
     empty: &str,
     header_suffix: Option<gtk::Button>,
 ) -> gtk::Box {
-    let sec = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(12)
-        .build();
-    let head = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    let titles = gtk::Box::new(gtk::Orientation::Vertical, 2);
-    titles.set_hexpand(true);
-    let h = gtk::Label::new(Some(title));
-    h.add_css_class("title-2");
-    h.set_xalign(0.0);
-    titles.append(&h);
-    if let Some(sub) = subtitle {
-        let l = gtk::Label::new(Some(sub));
-        l.add_css_class("dim-label");
-        l.set_xalign(0.0);
-        l.set_wrap(true);
-        titles.append(&l);
-    }
-    head.append(&titles);
-    if let Some(b) = header_suffix {
-        b.add_css_class("flat");
-        head.append(&b);
-    }
-    sec.append(&head);
-
-    if rows.is_empty() {
-        let l = gtk::Label::new(Some(empty));
-        l.add_css_class("dim-label");
-        l.set_xalign(0.0);
-        l.set_wrap(true);
-        sec.append(&l);
+    let sec = if rows.is_empty() {
+        util::section(title, subtitle, &util::dim_label(empty))
     } else {
-        let list = gtk::ListBox::new();
-        list.add_css_class("boxed-list");
-        list.set_selection_mode(gtk::SelectionMode::None);
+        let list = util::boxed_list();
         for r in rows {
             list.append(&r);
         }
-        sec.append(&list);
+        util::section(title, subtitle, &list)
+    };
+    if let (Some(b), Some(head)) = (header_suffix, sec.first_child().and_downcast::<gtk::Box>()) {
+        b.add_css_class("flat");
+        head.append(&b);
     }
     sec
 }

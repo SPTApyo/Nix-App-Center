@@ -184,10 +184,7 @@ pub fn skeleton_tile() -> gtk::Box {
 
 /// Skeleton list in a `boxed-list` (same container as the real lists).
 pub fn skeleton_list(n: usize) -> gtk::ListBox {
-    let lb = gtk::ListBox::new();
-    lb.add_css_class("boxed-list");
-    lb.set_selection_mode(gtk::SelectionMode::None);
-    lb.set_valign(gtk::Align::Start);
+    let lb = boxed_list();
     for _ in 0..n {
         lb.append(&skeleton_row());
     }
@@ -395,9 +392,10 @@ pub fn fallback_icon(pkg: &Package) -> (&'static str, &'static str) {
     }
 }
 
-/// CSS classes making the `index`-th item of a list or grid fade in after
-/// the ones before it (capped, so long lists do not wait).
-pub fn appear_classes(index: usize) -> [&'static str; 2] {
+/// Makes a widget outside lists fade in, `index` steps after the page shows.
+/// Rows of boxed lists and grid items get it from the stylesheet already.
+pub fn appear(widget: &impl gtk::prelude::IsA<gtk::Widget>, index: usize) {
+    use gtk::prelude::WidgetExt;
     const DELAYS: [&str; 12] = [
         "appear-0",
         "appear-1",
@@ -412,15 +410,52 @@ pub fn appear_classes(index: usize) -> [&'static str; 2] {
         "appear-10",
         "appear-11",
     ];
-    ["appear", DELAYS[index.min(DELAYS.len() - 1)]]
+    widget.add_css_class("appear");
+    widget.add_css_class(DELAYS[index.min(DELAYS.len() - 1)]);
 }
 
-/// Adds [`appear_classes`] to `widget`.
-pub fn appear(widget: &impl gtk::prelude::IsA<gtk::Widget>, index: usize) {
+/// The app's boxed list: rounded card of rows, no selection.
+pub fn boxed_list() -> gtk::ListBox {
     use gtk::prelude::WidgetExt;
-    for c in appear_classes(index) {
-        widget.add_css_class(c);
+    let list = gtk::ListBox::new();
+    list.add_css_class("boxed-list");
+    list.set_selection_mode(gtk::SelectionMode::None);
+    list.set_valign(gtk::Align::Start);
+    list
+}
+
+/// Wrapped, dimmed text, left aligned.
+pub fn dim_label(text: &str) -> gtk::Label {
+    use gtk::prelude::WidgetExt;
+    let l = gtk::Label::new(Some(text));
+    l.add_css_class("dim-label");
+    l.set_wrap(true);
+    l.set_xalign(0.0);
+    l
+}
+
+/// A page section: title, optional explanation, then the content.
+pub fn section(
+    title: &str,
+    subtitle: Option<&str>,
+    child: &impl gtk::prelude::IsA<gtk::Widget>,
+) -> gtk::Box {
+    use gtk::prelude::{BoxExt, WidgetExt};
+    let sec = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    let titles = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    titles.set_hexpand(true);
+    let h = gtk::Label::new(Some(title));
+    h.add_css_class("title-2");
+    h.set_xalign(0.0);
+    titles.append(&h);
+    if let Some(s) = subtitle {
+        titles.append(&dim_label(s));
     }
+    head.append(&titles);
+    sec.append(&head);
+    sec.append(child);
+    sec
 }
 
 /// Small fallback tile for list rows, `px` square.

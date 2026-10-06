@@ -39,9 +39,7 @@ pub fn present(
     } else {
         real
     });
-    let fields = gtk::ListBox::new();
-    fields.add_css_class("boxed-list");
-    fields.set_selection_mode(gtk::SelectionMode::None);
+    let fields = crate::util::boxed_list();
     fields.append(&summary);
     fields.append(&name);
 
