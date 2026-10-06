@@ -78,8 +78,8 @@ pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
 
 /// The `sh` script root runs to write `files`. The content travels inside
 /// the script: no file a user process could swap before root reads it. Each
-/// file goes to a temporary name in its own (root-owned) folder, then is
-/// renamed over the target.
+/// file goes to a fresh temporary file in its own folder (head drops the
+/// newline a here-document always adds), then is renamed over the target.
 fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
     let mut parts = Vec::new();
     for (dest, bytes) in files {
@@ -88,12 +88,17 @@ fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
         while text.contains(&mark) {
             mark.push('_');
         }
-        let dest = dest.to_string_lossy();
-        let tmp = sh_quote(&format!("{dest}.onyx-tmp"));
-        // head drops the newline a here-document always adds.
+        let dir = sh_quote(
+            &dest
+                .parent()
+                .unwrap_or(std::path::Path::new("/"))
+                .to_string_lossy(),
+        );
+        // mktemp creates a fresh file exclusively: no name to guess, no link
+        // to follow.
         parts.push(format!(
-            "cat <<'{mark}' | head -c -1 > {tmp} && chmod 644 {tmp} && mv {tmp} {}\n{text}\n{mark}",
-            sh_quote(&dest)
+            "tmp=$(mktemp {dir}/.onyx-XXXXXX)\ncat <<'{mark}' | head -c -1 > \"$tmp\"\n{text}\n{mark}\nchmod 644 \"$tmp\" && mv \"$tmp\" {}",
+            sh_quote(&dest.to_string_lossy())
         ));
     }
     // Stop at the first failure: never rename over a target after an error.
