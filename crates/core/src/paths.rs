@@ -57,28 +57,12 @@ pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
             crate::util::n_("Writing there needs administrator rights, and pkexec is missing."),
         ));
     };
-    // The content travels inside the script: no file a user process could
-    // swap before root reads it. Root writes a temporary file in the target
-    // folder (root-owned) and renames it.
-    let mut script = Vec::new();
-    for (dest, bytes) in &denied {
-        let text = String::from_utf8_lossy(bytes);
-        let mut mark = format!("ONYX_{}", std::process::id());
-        while text.contains(&mark) {
-            mark.push('_');
-        }
-        let dest = dest.to_string_lossy();
-        let tmp = sh_quote(&format!("{dest}.onyx-tmp"));
-        script.push(format!(
-            "cat > {tmp} <<'{mark}'\n{text}\n{mark}\nchmod 644 {tmp} && mv {tmp} {}",
-            sh_quote(&dest)
-        ));
-    }
+    let script = root_write_script(&denied);
     let env = root_tool("env").ok_or_else(|| std::io::Error::other("env not found"))?;
     let status = std::process::Command::new(pkexec)
         .arg(env)
         .arg(format!("PATH={ROOT_PATH}"))
-        .args(["sh", "-c", &script.join(" && \\\n")])
+        .args(["sh", "-c", &script])
         .status();
     match status?.code() {
         Some(0) => Ok(()),
@@ -90,6 +74,30 @@ pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
             "Writing the configuration failed.",
         ))),
     }
+}
+
+/// The `sh` script root runs to write `files`. The content travels inside
+/// the script: no file a user process could swap before root reads it. Each
+/// file goes to a temporary name in its own (root-owned) folder, then is
+/// renamed over the target.
+fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
+    let mut parts = Vec::new();
+    for (dest, bytes) in files {
+        let text = String::from_utf8_lossy(bytes);
+        let mut mark = String::from("ONYX_EOF");
+        while text.contains(&mark) {
+            mark.push('_');
+        }
+        let dest = dest.to_string_lossy();
+        let tmp = sh_quote(&format!("{dest}.onyx-tmp"));
+        // head drops the newline a here-document always adds.
+        parts.push(format!(
+            "cat <<'{mark}' | head -c -1 > {tmp} && chmod 644 {tmp} && mv {tmp} {}\n{text}\n{mark}",
+            sh_quote(&dest)
+        ));
+    }
+    // Stop at the first failure: never rename over a target after an error.
+    format!("set -e\n{}\n", parts.join("\n"))
 }
 
 /// PATH given to commands run as root: system folders only, never the
@@ -157,6 +165,27 @@ mod tests {
         assert_eq!(std::fs::read(&a).unwrap(), b"one");
         assert_eq!(std::fs::read(&b).unwrap(), b"two");
         assert_eq!(sh_quote("it's"), r"'it'\''s'");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn root_write_script_round_trips_any_content() {
+        let dir = std::env::temp_dir().join(format!("onyx-root-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let tricky = b"{ x = \"$HOME `id` 'q' \\n\"; }\nONYX_EOF\nend".to_vec();
+        let files = [
+            (dir.join("a b.nix"), tricky.clone()),
+            (dir.join("c.nix"), b"two\n".to_vec()),
+        ];
+        let refs: Vec<&(PathBuf, Vec<u8>)> = files.iter().collect();
+        let status = std::process::Command::new("sh")
+            .args(["-c", &root_write_script(&refs)])
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert_eq!(std::fs::read(dir.join("a b.nix")).unwrap(), tricky);
+        assert_eq!(std::fs::read(dir.join("c.nix")).unwrap(), b"two\n");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
