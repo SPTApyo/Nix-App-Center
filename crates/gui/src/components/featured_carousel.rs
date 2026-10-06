@@ -10,6 +10,8 @@ use crate::util::{texture_from_bytes, AppItem};
 
 pub struct FeaturedCarousel {
     carousel: adw::Carousel,
+    /// Brand colors of the current slides.
+    brand_css: gtk::CssProvider,
     slides: Vec<gtk::Widget>,
     images: Vec<gtk::Image>,
 }
@@ -79,8 +81,17 @@ impl SimpleComponent for FeaturedCarousel {
         let carousel = adw::Carousel::new();
         let dots = adw::CarouselIndicatorDots::new();
 
+        let brand_css = gtk::CssProvider::new();
+        if let Some(display) = gtk::gdk::Display::default() {
+            gtk::style_context_add_provider_for_display(
+                &display,
+                &brand_css,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
         let model = FeaturedCarousel {
             carousel: carousel.clone(),
+            brand_css,
             slides: Vec::new(),
             images: Vec::new(),
         };
@@ -97,8 +108,26 @@ impl SimpleComponent for FeaturedCarousel {
                 }
                 self.images.clear();
 
+                let dark = adw::StyleManager::default().is_dark();
+                let mut css = String::new();
                 for (idx, item) in items.into_iter().take(6).enumerate() {
                     let (slide, img) = build_slide(&item, idx, &sender);
+                    // The app's own color when it declares one, like GNOME.
+                    let brand = onyx_core::brand_colors(&item.package).and_then(|(light, d)| {
+                        if dark {
+                            d.or(light)
+                        } else {
+                            light.or(d)
+                        }
+                    });
+                    if let Some(color) = brand.filter(|c| c.starts_with('#') && c.len() == 7) {
+                        slide.add_css_class(&format!("brand-{idx}"));
+                        css.push_str(&format!(
+                            "button.carousel-slide.brand-{idx} {{ background: {color}; }} \
+                             button.carousel-slide.brand-{idx} label {{ color: {}; }}\n",
+                            text_color(&color)
+                        ));
+                    }
                     self.carousel.append(&slide);
                     self.slides.push(slide.upcast());
                     self.images.push(img);
@@ -112,6 +141,7 @@ impl SimpleComponent for FeaturedCarousel {
                         });
                     }
                 }
+                self.brand_css.load_from_data(&css);
             }
             FeaturedInput::Open(pkg) => {
                 let _ = sender.output(pkg);
@@ -138,6 +168,17 @@ impl FeaturedCarousel {
         if let Some(w) = self.slides.get(target) {
             self.carousel.scroll_to(w, true);
         }
+    }
+}
+
+/// Black or white, whichever reads better on `hex` (`#rrggbb`).
+fn text_color(hex: &str) -> &'static str {
+    let c = |i: usize| f64::from(u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0)) / 255.0;
+    let luminance = 0.2126 * c(1) + 0.7152 * c(3) + 0.0722 * c(5);
+    if luminance > 0.55 {
+        "#000000"
+    } else {
+        "#ffffff"
     }
 }
 

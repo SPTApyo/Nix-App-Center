@@ -71,8 +71,9 @@ mod util;
 
 pub use app_meta::{app_meta, AppMeta};
 pub use appstream_db::{
-    init_background as init_appstream_db, is_settled as appstream_settled, local_app,
-    package_for_app, search_local, wait_appstream, LocalHit,
+    apps_for_file_type, brand_colors, init_background as init_appstream_db,
+    is_settled as appstream_settled, local_app, package_for_app, search_local, wait_appstream,
+    LocalHit,
 };
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
@@ -86,7 +87,7 @@ pub use config_layout::{
     detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
 };
 pub use detail::{closure_size, detail, PackageDetail};
-pub use flathub::{Addon, DevApp, Release};
+pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};

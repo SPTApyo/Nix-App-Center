@@ -40,6 +40,15 @@ pub struct AppMeta {
     /// The package recipe on GitHub, at the revision the config is pinned to.
     pub source_url: Option<String>,
     pub download_page: Option<String>,
+    /// Commands the app installs (AppStream `provides`, else `mainProgram`).
+    pub binaries: Vec<String>,
+    /// File types the app opens.
+    pub mediatypes: Vec<String>,
+    /// Desktop file id, to recognize the installed app.
+    pub launchable: Option<String>,
+    /// Brand colors for light and dark backgrounds.
+    pub brand_light: Option<String>,
+    pub brand_dark: Option<String>,
     /// The package is marked `meta.insecure` in nixpkgs.
     pub insecure: bool,
     pub known_vulnerabilities: Vec<String>,
@@ -171,6 +180,15 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
             .and_then(|n| n.position.as_deref())
             .and_then(|p| source_url(p, crate::updates::pinned_rev().unwrap_or("master"))),
         download_page: nix.and_then(|n| n.download_page.clone()),
+        binaries: fh
+            .map(|f| f.binaries.clone())
+            .filter(|b| !b.is_empty())
+            .or_else(|| nix.and_then(|n| n.main_program.clone()).map(|m| vec![m]))
+            .unwrap_or_default(),
+        mediatypes: fh.map(|f| f.mediatypes.clone()).unwrap_or_default(),
+        launchable: fh.and_then(|f| f.launchable.clone()),
+        brand_light: fh.and_then(|f| f.brand_light.clone()),
+        brand_dark: fh.and_then(|f| f.brand_dark.clone()),
         insecure: nix.map(|n| n.insecure).unwrap_or(false),
         known_vulnerabilities: nix
             .map(|n| n.known_vulnerabilities.clone())

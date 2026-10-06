@@ -30,6 +30,8 @@ pub struct AppList {
     locate_list: gtk::ListBox,
     heading_options: gtk::Label,
     options_list: gtk::ListBox,
+    heading_types: gtk::Label,
+    types_list: gtk::ListBox,
     filter_dropdown: gtk::DropDown,
     items: Vec<AppItem>,
     filters: Vec<Filter>, // DropDown index to filter
@@ -41,6 +43,8 @@ pub enum AppListInput {
     Set(Vec<AppItem>),
     /// Results of `nix-locate bin/<query>` (section 3).
     SetLocate(String, Vec<Package>),
+    /// Apps that open files of the queried type.
+    SetFileTypes(String, Vec<Package>),
     /// NixOS options matching the query (last section).
     SetOptions(Vec<onyx_core::NixOption>),
     Filter,
@@ -100,6 +104,14 @@ impl SimpleComponent for AppList {
         locate_list.set_valign(gtk::Align::Start);
         locate_list.set_visible(false);
 
+        let heading_types = section_heading("");
+        heading_types.set_visible(false);
+        let types_list = gtk::ListBox::new();
+        types_list.add_css_class("boxed-list");
+        types_list.set_selection_mode(gtk::SelectionMode::None);
+        types_list.set_valign(gtk::Align::Start);
+        types_list.set_visible(false);
+
         let heading_options = section_heading(&t("NixOS Options"));
         heading_options.set_visible(false);
         let options_list = gtk::ListBox::new();
@@ -115,6 +127,8 @@ impl SimpleComponent for AppList {
         content.append(&filter_dropdown);
         content.append(&heading_apps);
         content.append(apps.widget());
+        content.append(&heading_types);
+        content.append(&types_list);
         content.append(&heading_others);
         content.append(others.widget());
         content.append(&heading_locate);
@@ -181,6 +195,8 @@ impl SimpleComponent for AppList {
             heading_locate: heading_locate.clone(),
             locate_list: locate_list.clone(),
             heading_options: heading_options.clone(),
+            heading_types: heading_types.clone(),
+            types_list: types_list.clone(),
             options_list: options_list.clone(),
             filter_dropdown,
             items: Vec::new(),
@@ -196,42 +212,34 @@ impl SimpleComponent for AppList {
         match msg {
             AppListInput::SetLoading => {
                 self.clear_locate();
+                clear(&self.heading_types, &self.types_list);
                 self.set_options(&[]);
                 self.stack.set_visible_child_name("loading");
             }
             AppListInput::Set(items) => {
-                self.clear_locate();
                 self.items = items;
                 self.rebuild_filter();
                 self.apply();
             }
             AppListInput::SetLocate(query, packages) => {
-                self.clear_locate();
-                if packages.is_empty() {
-                    return;
-                }
-                self.heading_locate
-                    .set_label(&t("Provides the “{}” command").replace("{}", &query));
-                self.heading_locate.set_visible(true);
-                self.locate_list.set_visible(true);
-                for pkg in packages {
-                    let row = adw::ActionRow::builder()
-                        .title(crate::util::esc(&pkg.attr))
-                        .subtitle(crate::util::esc(&pkg.description))
-                        .activatable(true)
-                        .build();
-                    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-                    let s = sender.input_sender().clone();
-                    let p = pkg.clone();
-                    row.connect_activated(move |_| {
-                        let _ = s.send(AppListInput::Open(p.clone()));
-                    });
-                    self.locate_list.append(&row);
-                }
-                // Make sure "filled" is visible even when the text is empty.
-                if self.stack.visible_child_name().as_deref() == Some("empty") {
-                    self.stack.set_visible_child_name("filled");
-                }
+                let title = t("Provides the “{}” command").replace("{}", &query);
+                self.fill(
+                    &self.heading_locate,
+                    &self.locate_list,
+                    &title,
+                    packages,
+                    &sender,
+                );
+            }
+            AppListInput::SetFileTypes(query, packages) => {
+                let title = t("Opens “{}” files").replace("{}", &query);
+                self.fill(
+                    &self.heading_types,
+                    &self.types_list,
+                    &title,
+                    packages,
+                    &sender,
+                );
             }
             AppListInput::SetOptions(options) => {
                 self.set_options(&options);
@@ -278,11 +286,46 @@ impl AppList {
     }
 
     fn clear_locate(&self) {
-        while let Some(child) = self.locate_list.first_child() {
-            self.locate_list.remove(&child);
+        clear(&self.heading_locate, &self.locate_list);
+    }
+
+    /// Fills a side section (command, file type) with package rows.
+    fn fill(
+        &self,
+        heading: &gtk::Label,
+        list: &gtk::ListBox,
+        title: &str,
+        packages: Vec<Package>,
+        sender: &ComponentSender<Self>,
+    ) {
+        clear(heading, list);
+        if packages.is_empty() {
+            return;
         }
-        self.heading_locate.set_visible(false);
-        self.locate_list.set_visible(false);
+        heading.set_label(title);
+        heading.set_visible(true);
+        list.set_visible(true);
+        for pkg in packages {
+            let row = adw::ActionRow::builder()
+                .title(crate::util::esc(if pkg.name.is_empty() {
+                    &pkg.attr
+                } else {
+                    &pkg.name
+                }))
+                .subtitle(crate::util::esc(&pkg.description))
+                .activatable(true)
+                .build();
+            row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+            let s = sender.input_sender().clone();
+            row.connect_activated(move |_| {
+                let _ = s.send(AppListInput::Open(pkg.clone()));
+            });
+            list.append(&row);
+        }
+        // Make sure "filled" is visible even when the text is empty.
+        if self.stack.visible_child_name().as_deref() == Some("empty") {
+            self.stack.set_visible_child_name("filled");
+        }
     }
 
     /// Recomputes the package sets present (with counts) and fills the
@@ -363,6 +406,14 @@ impl AppList {
                 "empty"
             });
     }
+}
+
+fn clear(heading: &gtk::Label, list: &gtk::ListBox) {
+    while let Some(child) = list.first_child() {
+        list.remove(&child);
+    }
+    heading.set_visible(false);
+    list.set_visible(false);
 }
 
 fn section_heading(text: &str) -> gtk::Label {

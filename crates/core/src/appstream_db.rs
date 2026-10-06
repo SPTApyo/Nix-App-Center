@@ -46,6 +46,19 @@ pub struct Entry {
     pub oars: Vec<(String, String)>,
     /// Set for an `addon` component: the app_id of the parent it extends.
     pub extends: Option<String>,
+    /// Search keywords (untranslated).
+    pub keywords: Vec<String>,
+    /// Freedesktop categories (`AudioVideo`, `Game`…).
+    pub categories: Vec<String>,
+    /// Commands the app installs (`<provides><binary>`).
+    pub binaries: Vec<String>,
+    /// File types the app opens (`<provides><mediatype>`).
+    pub mediatypes: Vec<String>,
+    /// Desktop file id (`<launchable type="desktop-id">`).
+    pub launchable: Option<String>,
+    /// Brand color for a light and a dark background (`<branding>`).
+    pub brand_light: Option<String>,
+    pub brand_dark: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -248,10 +261,14 @@ fn rank_local(entries: &[Entry], terms: &[String], limit: usize) -> Vec<LocalHit
         .filter_map(|e| {
             let name = e.name.to_lowercase();
             let rest = format!(
-                "{} {}",
-                e.summary.as_deref().unwrap_or("").to_lowercase(),
-                e.app_id.to_lowercase()
-            );
+                "{} {} {} {} {}",
+                e.summary.as_deref().unwrap_or(""),
+                e.app_id,
+                e.keywords.join(" "),
+                e.binaries.join(" "),
+                e.categories.join(" ")
+            )
+            .to_lowercase();
             if !terms.iter().all(|t| name.contains(t) || rest.contains(t)) {
                 return None;
             }
@@ -271,6 +288,47 @@ fn rank_local(entries: &[Entry], terms: &[String], limit: usize) -> Vec<LocalHit
             summary: e.summary.clone().unwrap_or_default(),
         })
         .collect()
+}
+
+/// True when `mediatype` is the file type named by `query` (`pdf` for
+/// `application/pdf`, `mp4` for `video/mp4`, `x-` prefixes ignored).
+fn opens(mediatype: &str, query: &str) -> bool {
+    let sub = mediatype.rsplit('/').next().unwrap_or(mediatype);
+    let sub = sub.strip_prefix("x-").unwrap_or(sub);
+    mediatype.eq_ignore_ascii_case(query) || sub.eq_ignore_ascii_case(query)
+}
+
+/// Apps that open files of type `query`, resolved to nixpkgs. Runs a
+/// (cached) `nix search`: call it from a thread.
+pub fn apps_for_file_type(query: &str, limit: usize) -> Vec<(Package, Option<String>)> {
+    let q = query.trim();
+    if q.len() < 2 || q.contains(char::is_whitespace) {
+        return Vec::new();
+    }
+    let Some(db) = DB.get() else {
+        return Vec::new();
+    };
+    let apps: Vec<DevApp> = db
+        .entries
+        .iter()
+        .filter(|e| e.mediatypes.iter().any(|m| opens(m, q)))
+        .take(limit * 3)
+        .map(|e| DevApp {
+            app_id: e.app_id.clone(),
+            name: e.name.clone(),
+            icon_url: e.icon_url.clone(),
+        })
+        .collect();
+    let mut out = crate::categories::resolve_dev_apps(&apps, "");
+    out.truncate(limit);
+    out
+}
+
+/// Brand colors `(light, dark)` of a package's AppStream app, if declared.
+pub fn brand_colors(p: &Package) -> Option<(Option<String>, Option<String>)> {
+    let e = lookup_package(p)?;
+    (e.brand_light.is_some() || e.brand_dark.is_some())
+        .then(|| (e.brand_light.clone(), e.brand_dark.clone()))
 }
 
 /// One app of the local database, by its id.
@@ -541,6 +599,12 @@ enum Collect {
     Extends,
     ContentAttr,
     Caption,
+    Keyword,
+    Category,
+    Binary,
+    MediaType,
+    Launchable,
+    Color,
 }
 
 /// Appends markup text the way HTML flows it: whitespace runs (XML
@@ -613,6 +677,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     let mut icon_remote = false;
     let mut icon_w: u32 = 0;
     let mut icon_scale: u32 = 1;
+    let mut color_scheme = String::new();
     let mut entry_icon_px: u32 = 0;
     let mut url_kind = String::new();
     let mut custom_key = String::new();
@@ -780,6 +845,39 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
 
                     "extends" if !has_lang => {
                         collect = Collect::Extends;
+                    }
+                    "keyword" if !has_lang => {
+                        collect = Collect::Keyword;
+                    }
+                    "category" => {
+                        collect = Collect::Category;
+                    }
+                    "binary" => {
+                        collect = Collect::Binary;
+                    }
+                    "mediatype" => {
+                        collect = Collect::MediaType;
+                    }
+                    "launchable" => {
+                        let desktop = e.attributes().flatten().any(|a| {
+                            a.key.as_ref() == b"type" && a.value.as_ref() == b"desktop-id"
+                        });
+                        if desktop {
+                            collect = Collect::Launchable;
+                        }
+                    }
+                    "color" => {
+                        let attr = |k: &[u8]| {
+                            e.attributes()
+                                .flatten()
+                                .find(|a| a.key.as_ref() == k)
+                                .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                                .unwrap_or_default()
+                        };
+                        if attr(b"type") == "primary" {
+                            color_scheme = attr(b"scheme_preference");
+                            collect = Collect::Color;
+                        }
                     }
 
                     "content_attribute" => {
@@ -1064,6 +1162,21 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     }
                     Collect::Extends if entry.extends.is_none() => {
                         entry.extends = Some(text.to_string());
+                    }
+                    Collect::Keyword => entry.keywords.push(text.to_string()),
+                    Collect::Category => entry.categories.push(text.to_string()),
+                    Collect::Binary => entry.binaries.push(text.to_string()),
+                    Collect::MediaType => entry.mediatypes.push(text.to_string()),
+                    Collect::Launchable if entry.launchable.is_none() => {
+                        entry.launchable = Some(text.to_string());
+                    }
+                    Collect::Color => {
+                        let color = Some(text.to_string());
+                        if color_scheme == "dark" {
+                            entry.brand_dark = color;
+                        } else {
+                            entry.brand_light = color;
+                        }
                     }
                     Collect::ContentAttr if !content_attr_id.is_empty() => {
                         entry.oars.push((content_attr_id.clone(), text.to_string()));
@@ -1501,6 +1614,35 @@ mod tests {
             icon.starts_with("https://dl.flathub.org/media/"),
             "a relative URL must be prefixed with media_baseurl, got: {icon}"
         );
+    }
+
+    #[test]
+    fn parser_reads_keywords_provides_launchable_and_branding() {
+        let xml = r#"<components origin="flathub"><component type="desktop-application">
+    <id>org.videolan.VLC</id><name>VLC</name>
+    <launchable type="desktop-id">org.videolan.VLC.desktop</launchable>
+    <categories><category>AudioVideo</category></categories>
+    <keywords><keyword>player</keyword><keyword xml:lang="fr">lecteur</keyword></keywords>
+    <provides><binary>vlc</binary><mediatype>video/mp4</mediatype></provides>
+    <branding><color type="primary" scheme_preference="light">#ff8800</color>
+      <color type="primary" scheme_preference="dark">#552200</color></branding>
+  </component></components>"#;
+        let e = &parse(xml.as_bytes())[0];
+        assert_eq!(e.keywords, ["player"]);
+        assert_eq!(e.categories, ["AudioVideo"]);
+        assert_eq!(e.binaries, ["vlc"]);
+        assert_eq!(e.mediatypes, ["video/mp4"]);
+        assert_eq!(e.launchable.as_deref(), Some("org.videolan.VLC.desktop"));
+        assert_eq!(e.brand_light.as_deref(), Some("#ff8800"));
+        assert_eq!(e.brand_dark.as_deref(), Some("#552200"));
+    }
+
+    #[test]
+    fn opens_matches_the_subtype_only() {
+        assert!(opens("application/pdf", "pdf"));
+        assert!(opens("application/x-bittorrent", "bittorrent"));
+        assert!(opens("video/mp4", "video/mp4"));
+        assert!(!opens("application/pdfa", "pdf"));
     }
 
     #[test]

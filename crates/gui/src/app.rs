@@ -47,6 +47,7 @@ pub enum AppMsg {
     SearchDone(Vec<onyx_core::SearchResult>),
     LocateDone(String, Vec<Package>),
     OptionsDone(Vec<onyx_core::NixOption>),
+    FileTypesDone(String, Vec<Package>),
     Home(HomeOutput),
     OpenCategory(&'static [&'static str], &'static str),
     OpenDetail(Package),
@@ -368,6 +369,15 @@ impl SimpleComponent for AppModel {
                         onyx_core::locate_binary(&q2),
                     ));
                 });
+                let s4 = sender.input_sender().clone();
+                let q4 = query.clone();
+                std::thread::spawn(move || {
+                    let apps = onyx_core::apps_for_file_type(&q4, 6)
+                        .into_iter()
+                        .map(|(p, _)| p)
+                        .collect();
+                    let _ = s4.send(AppMsg::FileTypesDone(q4, apps));
+                });
                 // NixOS options only make sense on NixOS.
                 if onyx_core::detect_layout().system.is_some() {
                     let s3 = sender.input_sender().clone();
@@ -382,6 +392,10 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::LocateDone(query, packages) => {
                 self.results.emit(AppListInput::SetLocate(query, packages));
+            }
+            AppMsg::FileTypesDone(query, packages) => {
+                self.results
+                    .emit(AppListInput::SetFileTypes(query, packages));
             }
             AppMsg::OptionsDone(options) => {
                 self.results.emit(AppListInput::SetOptions(options));

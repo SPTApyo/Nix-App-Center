@@ -94,6 +94,7 @@ pub struct DetailModel {
     stack: gtk::Stack,
     carousel: ScreenshotCarousel,
     star_box: gtk::Box,
+    installs_label: gtk::Label,
     ctx_bar: gtk::Box,
     addons_box: gtk::Box,
     version_box: gtk::Box,
@@ -113,6 +114,7 @@ pub enum DetailMsg {
     Loaded(Box<AppMeta>),
     LoadFailed,
     RatingLoaded(Rating),
+    InstallsLoaded(u64),
     ReviewsLoaded(Vec<Review>),
     IconLoaded(Vec<u8>),
     ScreenshotLoaded(Vec<u8>, Option<String>),
@@ -388,6 +390,15 @@ impl SimpleComponent for DetailModel {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_valign: gtk::Align::Start,
                                                     set_visible: false,
+                                                },
+
+                                                // Flathub installs, filled on InstallsLoaded.
+                                                #[local_ref]
+                                                installs_label -> gtk::Label {
+                                                    set_xalign: 0.0,
+                                                    set_visible: false,
+                                                    add_css_class: "dim-label",
+                                                    add_css_class: "caption",
                                                 },
                                             },
 
@@ -769,6 +780,7 @@ impl SimpleComponent for DetailModel {
         let carousel = ScreenshotCarousel::new();
         let carousel_widget = carousel.widget().clone();
         let star_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        let installs_label = gtk::Label::new(None);
         let ctx_bar = context_bar::container();
         let addons_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let version_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -837,6 +849,7 @@ impl SimpleComponent for DetailModel {
             stack: stack.clone(),
             carousel,
             star_box: star_box.clone(),
+            installs_label: installs_label.clone(),
             ctx_bar: ctx_bar.clone(),
             addons_box: addons_box.clone(),
             version_box: version_box.clone(),
@@ -934,8 +947,12 @@ impl SimpleComponent for DetailModel {
                 self.loading = false;
                 self.stack.set_visible_child_name("ready");
                 if self.installed.is_none() {
-                    self.installed =
-                        onyx_core::installed_app(&self.package.attr, meta.app_id.as_deref());
+                    let desktop_id = meta
+                        .launchable
+                        .as_deref()
+                        .map(|l| l.trim_end_matches(".desktop"))
+                        .or(meta.app_id.as_deref());
+                    self.installed = onyx_core::installed_app(&self.package.attr, desktop_id);
                 }
                 // Without an AppStream id there are no permissions to wait for.
 
@@ -988,6 +1005,13 @@ impl SimpleComponent for DetailModel {
                     std::thread::spawn(move || {
                         if let Some(r) = onyx_core::rating_for(&id) {
                             let _ = s.send(DetailMsg::RatingLoaded(r));
+                        }
+                    });
+                    let s = sender.input_sender().clone();
+                    let id = app_id.clone();
+                    std::thread::spawn(move || {
+                        if let Some(n) = onyx_core::flathub_installs(&id).filter(|n| *n > 0) {
+                            let _ = s.send(DetailMsg::InstallsLoaded(n));
                         }
                     });
                     // Review texts (right column of "Ratings & Reviews").
@@ -1060,6 +1084,17 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::ToggleDescription => {
                 self.desc_expanded = !self.desc_expanded;
+            }
+            DetailMsg::InstallsLoaded(n) => {
+                self.installs_label.set_label(
+                    &gettextrs::ngettext(
+                        "{} install on Flathub last month",
+                        "{} installs on Flathub last month",
+                        n.min(u64::from(u32::MAX)) as u32,
+                    )
+                    .replace("{}", &compact(n)),
+                );
+                self.installs_label.set_visible(true);
             }
             DetailMsg::RatingLoaded(rating) => {
                 build_stars(&self.star_box, &rating);
@@ -1911,6 +1946,9 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
         if meta.source_url.is_some() {
             list.append(&maintainers_row(meta));
         }
+        for row in [commands_row(meta), opens_row(meta)].into_iter().flatten() {
+            list.append(&row);
+        }
         stack.add_named(&list, Some("links"));
     }
     container.append(&stack);
@@ -1950,6 +1988,72 @@ fn no_metadata_card() -> gtk::Box {
 
     card.append(&inner);
     card
+}
+
+/// `105082` gives `105K`, readable at a glance.
+fn compact(n: u64) -> String {
+    match n {
+        0..=9_999 => n.to_string(),
+        10_000..=999_999 => format!("{}K", n / 1000),
+        _ => format!("{:.1}M", n as f64 / 1e6),
+    }
+}
+
+fn info_row(title: &str, subtitle: &str, icon: &str) -> adw::ActionRow {
+    let row = adw::ActionRow::builder()
+        .title(esc(title))
+        .subtitle(esc(subtitle))
+        .subtitle_selectable(true)
+        .build();
+    row.add_prefix(&gtk::Image::from_icon_name(icon));
+    row
+}
+
+/// Commands the package puts in your PATH.
+fn commands_row(meta: &AppMeta) -> Option<adw::ActionRow> {
+    (!meta.binaries.is_empty()).then(|| {
+        info_row(
+            &t("Commands"),
+            &meta.binaries.join(", "),
+            "utilities-terminal-symbolic",
+        )
+    })
+}
+
+/// File types the app opens: their names when few (`MPEG-4 video`), else
+/// the families they belong to.
+fn opens_row(meta: &AppMeta) -> Option<adw::ActionRow> {
+    let types = &meta.mediatypes;
+    if types.is_empty() {
+        return None;
+    }
+    let text = if types.len() <= 6 {
+        types
+            .iter()
+            .map(|m| gtk::gio::content_type_get_description(m).to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    } else {
+        let mut families: Vec<String> = Vec::new();
+        for m in types {
+            let family = match m.split('/').next().unwrap_or("") {
+                "video" => t("Video"),
+                "audio" => t("Audio"),
+                "image" => t("Images"),
+                "text" => t("Text"),
+                _ => t("Other files"),
+            };
+            if !families.contains(&family) {
+                families.push(family);
+            }
+        }
+        format!(
+            "{} · {}",
+            families.join(", "),
+            crate::util::plural("{} file type", "{} file types", types.len() as i64)
+        )
+    };
+    Some(info_row(&t("Opens"), &text, "document-open-symbolic"))
 }
 
 /// Who looks after the package in nixpkgs. An orphan is a trust signal too.

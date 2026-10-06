@@ -53,6 +53,11 @@ pub struct FlathubMeta {
     pub addons: Vec<Addon>,
     /// Other apps by the same developer (local database).
     pub developer_apps: Vec<DevApp>,
+    pub binaries: Vec<String>,
+    pub mediatypes: Vec<String>,
+    pub launchable: Option<String>,
+    pub brand_light: Option<String>,
+    pub brand_dark: Option<String>,
 }
 
 /// A Flathub candidate: its icon + its `app_id` (to find the ODRS rating).
@@ -187,7 +192,28 @@ pub(crate) fn meta_from_db(e: &appstream_db::Entry) -> FlathubMeta {
             .unwrap_or_default(),
         // Only available through the Flathub REST API (absent from the XML).
         is_free_license: None,
+        binaries: e.binaries.clone(),
+        mediatypes: e.mediatypes.clone(),
+        launchable: e.launchable.clone(),
+        brand_light: e.brand_light.clone(),
+        brand_dark: e.brand_dark.clone(),
     }
+}
+
+/// Installs of the last 30 days on Flathub, memoized for the session.
+pub fn flathub_installs(app_id: &str) -> Option<u64> {
+    static CACHE: std::sync::LazyLock<
+        std::sync::Mutex<std::collections::HashMap<String, Option<u64>>>,
+    > = std::sync::LazyLock::new(Default::default);
+    if let Some(hit) = CACHE.lock().ok().and_then(|c| c.get(app_id).copied()) {
+        return hit;
+    }
+    let n = crate::http::get_json(&format!("https://flathub.org/api/v2/stats/{app_id}"))
+        .and_then(|v| v["installs_last_month"].as_u64());
+    if let Ok(mut c) = CACHE.lock() {
+        c.insert(app_id.to_string(), n);
+    }
+    n
 }
 
 /// Looks up Flathub visual metadata for a package (by name). Tries the local
