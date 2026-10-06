@@ -325,10 +325,19 @@ pub fn apps_for_file_type(query: &str, limit: usize) -> Vec<(Package, Option<Str
 }
 
 /// Brand colors `(light, dark)` of a package's AppStream app, if declared.
+/// Only well formed `#rrggbb` colors: the value ends up in CSS.
 pub fn brand_colors(p: &Package) -> Option<(Option<String>, Option<String>)> {
     let e = lookup_package(p)?;
-    (e.brand_light.is_some() || e.brand_dark.is_some())
-        .then(|| (e.brand_light.clone(), e.brand_dark.clone()))
+    let (light, dark) = (valid_color(&e.brand_light), valid_color(&e.brand_dark));
+    (light.is_some() || dark.is_some()).then_some((light, dark))
+}
+
+fn valid_color(c: &Option<String>) -> Option<String> {
+    c.as_ref()
+        .filter(|c| {
+            c.len() == 7 && c.starts_with('#') && c[1..].bytes().all(|b| b.is_ascii_hexdigit())
+        })
+        .cloned()
 }
 
 /// One app of the local database, by its id.
@@ -1635,6 +1644,15 @@ mod tests {
         assert_eq!(e.launchable.as_deref(), Some("org.videolan.VLC.desktop"));
         assert_eq!(e.brand_light.as_deref(), Some("#ff8800"));
         assert_eq!(e.brand_dark.as_deref(), Some("#552200"));
+    }
+
+    #[test]
+    fn only_hex_colors_reach_css() {
+        let ok = Some("#1E3A8A".to_string());
+        assert_eq!(valid_color(&ok), ok);
+        for bad in ["#;}*{a:", "red", "#12345", "#12345é"] {
+            assert_eq!(valid_color(&Some(bad.to_string())), None, "{bad}");
+        }
     }
 
     #[test]

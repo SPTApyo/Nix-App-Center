@@ -120,7 +120,8 @@ impl SimpleComponent for FeaturedCarousel {
                             light.or(d)
                         }
                     });
-                    if let Some(color) = brand.filter(|c| c.starts_with('#') && c.len() == 7) {
+                    // brand_colors only gives validated `#rrggbb` values.
+                    if let Some(color) = brand {
                         slide.add_css_class(&format!("brand-{idx}"));
                         css.push_str(&format!(
                             "button.carousel-slide.brand-{idx} {{ background: {color}; }} \
