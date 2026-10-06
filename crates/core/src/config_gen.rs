@@ -278,15 +278,14 @@ pub fn run_streaming(
         Some((_, rest)) if elevated => {
             let (Some(pkexec), Some(env)) = (
                 crate::launch::find_in_path("pkexec"),
-                crate::launch::find_in_path("env"),
+                crate::paths::root_tool("env"),
             ) else {
                 return run_apply(argv);
             };
-            let path = std::env::var("PATH").unwrap_or_default();
             [
                 pkexec.display().to_string(),
                 env.display().to_string(),
-                format!("PATH={path}"),
+                format!("PATH={}", crate::paths::ROOT_PATH),
             ]
             .into_iter()
             .chain(rest.iter().cloned())
