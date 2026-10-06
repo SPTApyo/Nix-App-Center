@@ -53,9 +53,16 @@ Done:
   old generations, development, tried apps, garbage), every generation with
   what deleting it frees, apps by size, and the two clean-ups.
 
-Missing:
+- App pages show the nixpkgs recipe, maintainers (or that nobody maintains
+  the package), download page, commands, file types it opens, Flathub
+  installs of the last month, and a link per release.
+- Search by file type ("pdf" lists the apps that open PDFs), AppStream
+  keywords in the GNOME Shell search, brand colors on the home banner.
+- Review votes, reports, and the version and distribution of each review.
+- Storage: the folders apps keep in the home, with a cache clean-up.
+- "Wrong App?" removes a bad Flathub match for one package.
 
-- Cache and data usage per app in the home folder (only the store is measured).
+Missing:
 - Metered connection awareness for the background check.
 - Reporting or voting on a review.
 - Firmware updates (fwupd) and web apps: out of scope for Onyx.
@@ -94,6 +101,12 @@ Done:
   color per family (game, audio, development, library…).
 
 ## Still open
+
+- Data still unused: screenshot videos (would need GStreamer), Flathub
+  install trends by country, nixpkgs platforms, AppStream categories on app
+  pages.
+- Matching Flathub apps to nixpkgs by name stays a guess ("Flow" the PDF
+  reader is not the flow type checker); "Wrong App?" fixes it locally only.
 
 - Layout detection scans text. Preferences let the user correct it and check
   it with Nix, but layouts built from another flake are still guessed.

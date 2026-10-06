@@ -8,7 +8,7 @@
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use onyx_core::{AppOrigin, Category, GenProfile, StorageReport};
+use onyx_core::{AppOrigin, Category, GenProfile, HomeDir, HomeKind, StorageReport};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -18,6 +18,10 @@ const RELOAD_AFTER: Duration = Duration::from_secs(60);
 
 pub struct StorageModel {
     report: Option<Result<StorageReport, String>>,
+    /// Folders apps keep in the home, measured apart (slower).
+    home: Option<Vec<HomeDir>>,
+    /// Outcome of the last cache clean-up.
+    status: Option<String>,
     loaded_at: Option<Instant>,
     loading: bool,
     content: gtk::Box,
@@ -32,6 +36,10 @@ pub enum StorageMsg {
     /// Run a clean-up command in the build log dialog.
     Clean(Vec<String>),
     Cleaned,
+    HomeLoaded(Vec<HomeDir>),
+    /// Confirmed: delete this cache folder.
+    ClearCache(HomeDir),
+    CacheCleared(Result<(), String>),
 }
 
 #[relm4::component(pub)]
@@ -68,6 +76,8 @@ impl SimpleComponent for StorageModel {
             .build();
         let model = StorageModel {
             report: None,
+            home: None,
+            status: None,
             loaded_at: None,
             loading: false,
             content: content.clone(),
@@ -95,6 +105,31 @@ impl SimpleComponent for StorageModel {
                 std::thread::spawn(move || {
                     let res = onyx_core::storage_report().map_err(|e| e.to_string());
                     let _ = s.send(StorageMsg::Loaded(res));
+                });
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let _ = s.send(StorageMsg::HomeLoaded(onyx_core::home_usage()));
+                });
+            }
+            StorageMsg::HomeLoaded(dirs) => {
+                self.home = Some(dirs);
+                self.rebuild(&sender);
+            }
+            StorageMsg::ClearCache(dir) => {
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = onyx_core::clear_cache(&dir).map_err(|e| e.to_string());
+                    let _ = s.send(StorageMsg::CacheCleared(res));
+                });
+            }
+            StorageMsg::CacheCleared(res) => {
+                self.status = Some(match res {
+                    Ok(()) => t("Cache cleared."),
+                    Err(e) => t("Failed: {}").replace("{}", &e),
+                });
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let _ = s.send(StorageMsg::HomeLoaded(onyx_core::home_usage()));
                 });
             }
             StorageMsg::Loaded(res) => {
@@ -181,10 +216,16 @@ impl StorageModel {
             }
             (Some(Ok(r)), _) => r,
         };
+        if let Some(status) = &self.status {
+            self.content.append(&dim(status));
+        }
         self.content.append(&overview(report, sender));
         self.content.append(&self.cleanups(report, sender));
         self.content.append(&generations(report));
         self.content.append(&apps(report));
+        if let Some(dirs) = &self.home {
+            self.content.append(&home_files(dirs, report, sender));
+        }
     }
 
     fn cleanups(&self, r: &StorageReport, sender: &ComponentSender<Self>) -> gtk::Box {
@@ -458,6 +499,68 @@ fn apps(r: &StorageReport) -> gtk::Box {
         Some(&t("Sizes include every dependency, so apps sharing libraries add up to more than the store.")),
         &list,
     )
+}
+
+/// The biggest folders apps keep in the home. Caches can be cleared.
+fn home_files(
+    dirs: &[HomeDir],
+    report: &StorageReport,
+    sender: &ComponentSender<StorageModel>,
+) -> gtk::Box {
+    let list = boxed();
+    let total: u64 = dirs.iter().map(|d| d.size).sum();
+    for d in dirs.iter().take(15) {
+        let kind = match d.kind {
+            HomeKind::Cache => t("Cache"),
+            HomeKind::Data => t("Data"),
+            HomeKind::Config => t("Settings"),
+        };
+        // Name the app when the folder is obviously its own.
+        let owner = report
+            .apps
+            .iter()
+            .find(|a| a.name.eq_ignore_ascii_case(&d.name))
+            .map(|a| format!(" · {}", t("used by {}").replace("{}", &a.name)))
+            .unwrap_or_default();
+        let row = adw::ActionRow::builder()
+            .title(esc(&d.name))
+            .subtitle(esc(&format!("{kind} · {}{owner}", size(d.size))))
+            .tooltip_text(d.path.display().to_string())
+            .build();
+        if d.kind == HomeKind::Cache {
+            let dir = d.clone();
+            let s = sender.input_sender().clone();
+            let parent = list.clone();
+            row.add_suffix(&button(&t("Clear…"), false, move || {
+                confirm_clear(&parent, dir.clone(), s.clone())
+            }));
+        }
+        list.append(&row);
+    }
+    section(
+        &t("Your Files"),
+        Some(&t("Folders apps keep in your home: {} in all. A cache is rebuilt when needed; data and settings are yours, Onyx never deletes them.").replace("{}", &size(total))),
+        &list,
+    )
+}
+
+fn confirm_clear(parent: &gtk::ListBox, dir: HomeDir, s: relm4::Sender<StorageMsg>) {
+    let dialog = adw::AlertDialog::new(
+        Some(&t("Clear the “{}” Cache?").replace("{}", &dir.name)),
+        Some(
+            &t("This frees {}. The app rebuilds what it needs; close it first if it is running.")
+                .replace("{}", &size(dir.size)),
+        ),
+    );
+    dialog.add_response("cancel", &t("_Cancel"));
+    dialog.add_response("clear", &t("C_lear"));
+    dialog.set_response_appearance("clear", adw::ResponseAppearance::Destructive);
+    dialog.connect_response(None, move |_, r| {
+        if r == "clear" {
+            let _ = s.send(StorageMsg::ClearCache(dir.clone()));
+        }
+    });
+    dialog.present(Some(parent));
 }
 
 fn confirm_delete_generations(parent: &gtk::Box, s: relm4::Sender<StorageMsg>) {

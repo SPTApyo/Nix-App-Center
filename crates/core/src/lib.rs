@@ -107,7 +107,8 @@ pub use session_cache::{
 };
 pub use settings::{load_settings, save_settings, Settings};
 pub use storage::{
-    storage_report, AppOrigin, AppSize, Category, GenProfile, Generation, StorageReport,
+    clear_cache, home_usage, storage_report, AppOrigin, AppSize, Category, GenProfile, Generation,
+    HomeDir, HomeKind, StorageReport,
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{

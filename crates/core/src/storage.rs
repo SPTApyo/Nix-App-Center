@@ -87,6 +87,93 @@ pub struct StorageReport {
     pub apps: Vec<AppSize>,
 }
 
+// ── Home folder ───────────────────────────────────────────────────────────────
+
+/// What a folder of the home holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HomeKind {
+    /// `~/.cache`: rebuilt by the app when needed.
+    Cache,
+    /// `~/.local/share`, `~/.var/app`: the app's data.
+    Data,
+    /// `~/.config`: settings.
+    Config,
+}
+
+/// One folder an app keeps in the home.
+#[derive(Debug, Clone)]
+pub struct HomeDir {
+    pub kind: HomeKind,
+    pub name: String,
+    pub path: PathBuf,
+    pub size: u64,
+}
+
+fn home_bases() -> Vec<(HomeKind, PathBuf)> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    vec![
+        (HomeKind::Cache, home.join(".cache")),
+        (HomeKind::Data, home.join(".local/share")),
+        (HomeKind::Data, home.join(".var/app")),
+        (HomeKind::Config, home.join(".config")),
+    ]
+}
+
+/// Sizes of the folders apps keep in the home, biggest first. Walks them
+/// (seconds): call it from a thread.
+pub fn home_usage() -> Vec<HomeDir> {
+    let mut out: Vec<HomeDir> = home_bases()
+        .into_iter()
+        .filter(|(_, base)| base.is_dir())
+        .flat_map(|(kind, base)| {
+            let text = Command::new("du")
+                .args(["-B1", "-d1", "-x"])
+                .arg(&base)
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .unwrap_or_default();
+            parse_du(&text, &base, kind)
+        })
+        .collect();
+    out.sort_by_key(|d| std::cmp::Reverse(d.size));
+    out
+}
+
+/// Reads `du -d1` lines (`size<TAB>path`), keeping the children of `base`.
+fn parse_du(text: &str, base: &Path, kind: HomeKind) -> Vec<HomeDir> {
+    text.lines()
+        .filter_map(|l| {
+            let (size, path) = l.split_once('\t')?;
+            let path = PathBuf::from(path);
+            if path.parent() != Some(base) {
+                return None;
+            }
+            Some(HomeDir {
+                kind,
+                name: path.file_name()?.to_string_lossy().into_owned(),
+                size: size.trim().parse().ok()?,
+                path,
+            })
+        })
+        .collect()
+}
+
+/// Deletes a cache folder. Only a direct, real folder of `~/.cache`: never
+/// data, settings, or anything reached through a link.
+pub fn clear_cache(dir: &HomeDir) -> std::io::Result<()> {
+    let cache = home_bases()
+        .into_iter()
+        .find(|(k, _)| *k == HomeKind::Cache)
+        .map(|(_, p)| p);
+    let is_real_dir = std::fs::symlink_metadata(&dir.path).is_ok_and(|m| m.is_dir());
+    if dir.kind != HomeKind::Cache || dir.path.parent() != cache.as_deref() || !is_real_dir {
+        return Err(std::io::Error::other("not a cache folder"));
+    }
+    std::fs::remove_dir_all(&dir.path)
+}
+
 // ── Store graph ───────────────────────────────────────────────────────────────
 
 /// Every store path as an index, with its size and references.
@@ -567,6 +654,31 @@ mod tests {
         let cur = gens.iter().find(|g| g.number == 2).unwrap();
         assert!(cur.current);
         assert_eq!(gens[0].number, 2, "newest first");
+    }
+
+    #[test]
+    fn parse_du_keeps_only_the_children() {
+        let text = "120\t/h/.cache/spotify\n40\t/h/.cache/uv/sub\n200\t/h/.cache\n";
+        let dirs = parse_du(text, Path::new("/h/.cache"), HomeKind::Cache);
+        assert_eq!(dirs.len(), 1);
+        assert_eq!(dirs[0].name, "spotify");
+        assert_eq!(dirs[0].size, 120);
+    }
+
+    #[test]
+    fn clear_cache_refuses_anything_but_a_cache_child() {
+        let data = HomeDir {
+            kind: HomeKind::Data,
+            name: "x".into(),
+            path: PathBuf::from("/nonexistent/x"),
+            size: 0,
+        };
+        assert!(clear_cache(&data).is_err());
+        let outside = HomeDir {
+            kind: HomeKind::Cache,
+            ..data
+        };
+        assert!(clear_cache(&outside).is_err());
     }
 
     #[test]
