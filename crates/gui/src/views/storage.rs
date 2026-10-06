@@ -25,6 +25,7 @@ pub struct StorageModel {
     loaded_at: Option<Instant>,
     loading: bool,
     content: gtk::Box,
+    home_slot: gtk::Box,
 }
 
 #[derive(Debug)]
@@ -81,6 +82,7 @@ impl SimpleComponent for StorageModel {
             loaded_at: None,
             loading: false,
             content: content.clone(),
+            home_slot: gtk::Box::new(gtk::Orientation::Vertical, 0),
         };
         let widgets = view_output!();
         widgets.clamp.set_child(Some(&content));
@@ -113,7 +115,7 @@ impl SimpleComponent for StorageModel {
             }
             StorageMsg::HomeLoaded(dirs) => {
                 self.home = Some(dirs);
-                self.rebuild(&sender);
+                self.fill_home(&sender);
             }
             StorageMsg::ClearCache(dir) => {
                 let s = sender.input_sender().clone();
@@ -190,6 +192,58 @@ fn category_info(c: Category) -> (&'static str, String, String) {
     }
 }
 
+/// Loading placeholder shaped like the page: title, chart card with its
+/// disc and legend, then the clean-up and generation lists.
+fn storage_skeleton() -> gtk::Box {
+    let bar = |w: i32, h: i32| {
+        let b = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        b.set_size_request(w, h);
+        b.set_halign(gtk::Align::Start);
+        b.add_css_class("skeleton");
+        b
+    };
+    let page = gtk::Box::new(gtk::Orientation::Vertical, 24);
+
+    let head = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    head.append(&bar(140, 24));
+    head.append(&bar(460, 14));
+    page.append(&head);
+
+    let disc = bar(200, 200);
+    disc.add_css_class("round");
+    disc.set_valign(gtk::Align::Center);
+    let legend = gtk::Box::new(gtk::Orientation::Vertical, 14);
+    legend.set_hexpand(true);
+    legend.set_valign(gtk::Align::Center);
+    for w in [220, 180, 200, 240, 160, 190] {
+        let line = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let dot = bar(14, 14);
+        dot.add_css_class("round");
+        line.append(&dot);
+        line.append(&bar(w, 14));
+        legend.append(&line);
+    }
+    let inner = gtk::Box::new(gtk::Orientation::Horizontal, 24);
+    inner.set_margin_top(18);
+    inner.set_margin_bottom(18);
+    inner.set_margin_start(18);
+    inner.set_margin_end(18);
+    inner.append(&disc);
+    inner.append(&legend);
+    let card = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    card.add_css_class("card");
+    card.append(&inner);
+    page.append(&card);
+
+    for rows in [2, 1] {
+        let sec = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        sec.append(&bar(180, 24));
+        sec.append(&util::skeleton_list(rows));
+        page.append(&sec);
+    }
+    page
+}
+
 fn rgb(hex: &str) -> (f64, f64, f64) {
     let c = |i: usize| f64::from(u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0)) / 255.0;
     (c(1), c(3), c(5))
@@ -206,8 +260,7 @@ impl StorageModel {
         }
         let report = match (&self.report, self.loading) {
             (_, true) | (None, _) => {
-                self.content.append(&dim(&t("Measuring the Nix store…")));
-                self.content.append(&util::skeleton_list(4));
+                self.content.append(&storage_skeleton());
                 return;
             }
             (Some(Err(e)), _) => {
@@ -219,13 +272,32 @@ impl StorageModel {
         if let Some(status) = &self.status {
             self.content.append(&dim(status));
         }
-        self.content.append(&overview(report, sender));
-        self.content.append(&self.cleanups(report, sender));
-        self.content.append(&generations(report));
-        self.content.append(&apps(report));
-        if let Some(dirs) = &self.home {
-            self.content.append(&home_files(dirs, report, sender));
+        let sections = [
+            overview(report, sender),
+            self.cleanups(report, sender),
+            generations(report),
+            apps(report),
+        ];
+        for (i, sec) in sections.iter().enumerate() {
+            util::appear(sec, i * 2);
+            self.content.append(sec);
         }
+        self.content.append(&self.home_slot);
+        self.fill_home(sender);
+    }
+
+    /// The home folder section arrives later: filled alone, so the rest of
+    /// the page (and its animations) stays as it is.
+    fn fill_home(&self, sender: &ComponentSender<Self>) {
+        while let Some(child) = self.home_slot.first_child() {
+            self.home_slot.remove(&child);
+        }
+        let (Some(dirs), Some(Ok(report))) = (&self.home, &self.report) else {
+            return;
+        };
+        let sec = home_files(dirs, report, sender);
+        util::appear(&sec, 0);
+        self.home_slot.append(&sec);
     }
 
     fn cleanups(&self, r: &StorageReport, sender: &ComponentSender<Self>) -> gtk::Box {
@@ -281,12 +353,15 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
     pie.set_content_height(200);
     pie.set_valign(gtk::Align::Center);
     let parts = slices.clone();
+    // Share of the circle drawn so far, animated from 0 to 1 on first show.
+    let progress = std::rc::Rc::new(std::cell::Cell::new(0.0_f64));
+    let drawn = progress.clone();
     pie.set_draw_func(move |_, cr, w, h| {
         let (cx, cy) = (f64::from(w) / 2.0, f64::from(h) / 2.0);
         let radius = cx.min(cy) - 2.0;
         let mut angle = -std::f64::consts::FRAC_PI_2;
         for (cat, bytes) in &parts {
-            let sweep = *bytes as f64 / total.max(1) as f64 * std::f64::consts::TAU;
+            let sweep = *bytes as f64 / total.max(1) as f64 * std::f64::consts::TAU * drawn.get();
             let (r, g, b) = rgb(category_info(*cat).0);
             cr.set_source_rgb(r, g, b);
             cr.move_to(cx, cy);
@@ -301,10 +376,22 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
         let _ = cr.fill();
     });
 
+    let target = adw::CallbackAnimationTarget::new({
+        let (pie, progress) = (pie.clone(), progress.clone());
+        move |v| {
+            progress.set(v);
+            pie.queue_draw();
+        }
+    });
+    let sweep = adw::TimedAnimation::new(&pie, 0.0, 1.0, 900, target);
+    sweep.set_easing(adw::Easing::EaseOutCubic);
+    // Animations of an unmapped widget are skipped: start once shown.
+    pie.connect_map(move |_| sweep.play());
+
     let legend = gtk::Box::new(gtk::Orientation::Vertical, 8);
     legend.set_hexpand(true);
     legend.set_valign(gtk::Align::Center);
-    for (cat, bytes) in &slices {
+    for (i, (cat, bytes)) in slices.iter().enumerate() {
         let (color, title, desc) = category_info(*cat);
         let swatch = gtk::DrawingArea::new();
         swatch.set_content_width(14);
@@ -346,6 +433,7 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
         let entry = gtk::Box::new(gtk::Orientation::Vertical, 0);
         entry.append(&top);
         entry.append(&d);
+        util::appear(&entry, i + 2);
         legend.append(&entry);
     }
 

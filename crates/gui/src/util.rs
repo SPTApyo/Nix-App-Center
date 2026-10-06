@@ -395,6 +395,34 @@ pub fn fallback_icon(pkg: &Package) -> (&'static str, &'static str) {
     }
 }
 
+/// CSS classes making the `index`-th item of a list or grid fade in after
+/// the ones before it (capped, so long lists do not wait).
+pub fn appear_classes(index: usize) -> [&'static str; 2] {
+    const DELAYS: [&str; 12] = [
+        "appear-0",
+        "appear-1",
+        "appear-2",
+        "appear-3",
+        "appear-4",
+        "appear-5",
+        "appear-6",
+        "appear-7",
+        "appear-8",
+        "appear-9",
+        "appear-10",
+        "appear-11",
+    ];
+    ["appear", DELAYS[index.min(DELAYS.len() - 1)]]
+}
+
+/// Adds [`appear_classes`] to `widget`.
+pub fn appear(widget: &impl gtk::prelude::IsA<gtk::Widget>, index: usize) {
+    use gtk::prelude::WidgetExt;
+    for c in appear_classes(index) {
+        widget.add_css_class(c);
+    }
+}
+
 /// Small fallback tile for list rows, `px` square.
 pub fn fallback_badge(pkg: &Package, px: i32) -> gtk::Widget {
     use gtk::prelude::*;

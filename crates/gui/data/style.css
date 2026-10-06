@@ -356,6 +356,26 @@ label.app-tile-summary { opacity: 0.6; }
 	animation: icon-shimmer-sweep 1.4s ease-in-out infinite;
 }
 .icon-shimmer { border-radius: 14px; }
+.skeleton.round { border-radius: 9999px; }
+
+/* Appearance: lists and grids fade and rise in, one item after the other.
+   GTK skips it when the system turns animations off. */
+@keyframes onyx-appear {
+	from { opacity: 0; transform: translateY(8px); }
+	to   { opacity: 1; transform: none; }
+}
+.appear { animation: onyx-appear 320ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
+.appear-1  { animation-delay: 30ms; }
+.appear-2  { animation-delay: 60ms; }
+.appear-3  { animation-delay: 90ms; }
+.appear-4  { animation-delay: 120ms; }
+.appear-5  { animation-delay: 150ms; }
+.appear-6  { animation-delay: 180ms; }
+.appear-7  { animation-delay: 210ms; }
+.appear-8  { animation-delay: 240ms; }
+.appear-9  { animation-delay: 270ms; }
+.appear-10 { animation-delay: 300ms; }
+.appear-11 { animation-delay: 330ms; }
 .skeleton { border-radius: 7px; }
 .skeleton.large { border-radius: 12px; }
 

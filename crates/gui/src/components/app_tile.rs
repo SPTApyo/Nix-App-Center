@@ -11,6 +11,8 @@ pub struct AppTile {
     package: Package,
     icon_tex: Option<gtk::gdk::Texture>,
     icon_state: IconState,
+    /// Position when created, for the cascade.
+    appear: usize,
 }
 
 #[derive(Debug)]
@@ -33,6 +35,9 @@ impl FactoryComponent for AppTile {
         #[root]
         gtk::Button {
             add_css_class: "card",
+            // Fades in after the items before it.
+            add_css_class: "appear",
+            add_css_class: crate::util::appear_classes(self.appear)[1],
             set_width_request: 190,
             set_hexpand: true,
             set_halign: gtk::Align::Fill,
@@ -131,7 +136,7 @@ impl FactoryComponent for AppTile {
         }
     }
 
-    fn init_model(init: Self::Init, _idx: &DynamicIndex, sender: FactorySender<Self>) -> Self {
+    fn init_model(init: Self::Init, idx: &DynamicIndex, sender: FactorySender<Self>) -> Self {
         let AppItem {
             package, icon_url, ..
         } = init;
@@ -152,6 +157,7 @@ impl FactoryComponent for AppTile {
             package,
             icon_tex: None,
             icon_state,
+            appear: idx.current_index(),
         }
     }
 

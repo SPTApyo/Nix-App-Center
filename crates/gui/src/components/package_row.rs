@@ -14,6 +14,8 @@ pub struct PackageRow {
     rating: Option<Rating>,
     icon_tex: Option<gtk::gdk::Texture>,
     icon_state: IconState,
+    /// Position when created, for the cascade.
+    appear: usize,
 }
 
 #[derive(Debug)]
@@ -37,6 +39,9 @@ impl FactoryComponent for PackageRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 14,
+            // Fades in after the items before it.
+            add_css_class: "appear",
+            add_css_class: crate::util::appear_classes(self.appear)[1],
             set_margin_top: 10,
             set_margin_bottom: 10,
             set_margin_start: 12,
@@ -143,7 +148,7 @@ impl FactoryComponent for PackageRow {
         }
     }
 
-    fn init_model(item: Self::Init, _idx: &DynamicIndex, sender: FactorySender<Self>) -> Self {
+    fn init_model(item: Self::Init, idx: &DynamicIndex, sender: FactorySender<Self>) -> Self {
         let AppItem {
             package,
             icon_url,
@@ -169,6 +174,7 @@ impl FactoryComponent for PackageRow {
             rating,
             icon_tex: None,
             icon_state,
+            appear: idx.current_index(),
         }
     }
 
