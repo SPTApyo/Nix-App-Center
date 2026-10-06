@@ -44,6 +44,22 @@ pub struct Review {
     pub timestamp: i64,
     /// Relevance computed by ODRS (karma, age…), used to pick the featured review.
     pub score: i64,
+    pub review_id: i64,
+    pub app_id: String,
+    /// People who found it useful / not useful.
+    pub karma_up: i64,
+    pub karma_down: i64,
+    /// Version and distribution the author used.
+    pub version: String,
+    pub distro: String,
+}
+
+/// What a reader can do with someone else's review.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewAction {
+    Useful,
+    NotUseful,
+    Report,
 }
 
 static CACHE: LazyLock<Mutex<HashMap<String, Vec<Review>>>> =
@@ -132,20 +148,19 @@ fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
                 stars: int_of("rating") as f32 / 20.0,
                 timestamp: int_of("date_created"),
                 score: int_of("score"),
+                review_id: int_of("review_id"),
+                app_id: str_of("app_id"),
+                karma_up: int_of("karma_up"),
+                karma_down: int_of("karma_down"),
+                version: str_of("version"),
+                distro: str_of("distro"),
             })
         })
         .collect()
 }
 
-/// Sends a review of `app_id` to ODRS. `stars` from 1 to 5. Blocking.
-pub fn submit_review(
-    app_id: &str,
-    version: &str,
-    stars: u8,
-    summary: &str,
-    description: &str,
-    author: &str,
-) -> Result<(), String> {
+/// The user's id and the key ODRS gives it for `app_id`. Blocking.
+fn author_key(app_id: &str, version: &str) -> Result<(String, String), String> {
     let hash = author_hash().ok_or_else(|| {
         crate::util::n_("No random source to create your reviewer id.").to_string()
     })?;
@@ -160,7 +175,50 @@ pub fn submit_review(
     let skey = fetched
         .as_array()
         .and_then(|a| a.iter().find_map(|i| i["user_skey"].as_str()))
-        .ok_or_else(|| crate::util::n_("ODRS did not accept this app.").to_string())?;
+        .ok_or_else(|| crate::util::n_("ODRS did not accept this app.").to_string())?
+        .to_string();
+    Ok((hash, skey))
+}
+
+/// Votes on or reports a review (`/upvote`, `/downvote`, `/report`). Blocking.
+pub fn act_on_review(review: &Review, action: ReviewAction) -> Result<(), String> {
+    let (hash, skey) = author_key(&review.app_id, &review.version)?;
+    let path = match action {
+        ReviewAction::Useful => "upvote",
+        ReviewAction::NotUseful => "downvote",
+        ReviewAction::Report => "report",
+    };
+    let body = serde_json::json!({
+        "user_hash": hash,
+        "user_skey": skey,
+        "app_id": review.app_id,
+        "review_id": review.review_id,
+    });
+    let res = crate::http::post_json(
+        &format!("https://odrs.gnome.org/1.0/reviews/api/{path}"),
+        &body,
+    )
+    .ok_or_else(|| crate::util::n_("ODRS cannot be reached.").to_string())?;
+    if res["success"].as_bool() == Some(true) {
+        Ok(())
+    } else {
+        Err(res["msg"]
+            .as_str()
+            .unwrap_or("ODRS refused it.")
+            .to_string())
+    }
+}
+
+/// Sends a review of `app_id` to ODRS. `stars` from 1 to 5. Blocking.
+pub fn submit_review(
+    app_id: &str,
+    version: &str,
+    stars: u8,
+    summary: &str,
+    description: &str,
+    author: &str,
+) -> Result<(), String> {
+    let (hash, skey) = author_key(app_id, version)?;
     let body = serde_json::json!({
         "user_hash": hash,
         "user_skey": skey,
@@ -215,6 +273,8 @@ mod tests {
         assert_eq!(r[1].stars, 5.0);
         assert_eq!(r[1].author.as_deref(), Some("Bob"));
         assert_eq!(r[1].timestamp, 1_700_000_000);
+        assert_eq!(r[1].karma_up, 9);
+        assert_eq!(r[1].app_id, "org.gnome.gedit");
     }
 
     #[test]

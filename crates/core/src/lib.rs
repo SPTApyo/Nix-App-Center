@@ -97,7 +97,9 @@ pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use profiles::{installed_app, profile_apps, store_sizes, ProfileApp, Scope};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
-pub use reviews::{featured_review, reviews_for, submit_review, Review};
+pub use reviews::{
+    act_on_review, featured_review, reviews_for, submit_review, Review, ReviewAction,
+};
 pub use search::{search, search_apps, SearchResult};
 pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, forget_app_meta, known_icon_url,
