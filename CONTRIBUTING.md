@@ -31,7 +31,10 @@ just         # lists every command
 1. main is protected. Every change goes through a pull request.
 2. Branch from main and name the branch after its intent:
    feat/..., fix/..., refactor/..., docs/..., test/..., ci/..., chore/...
-3. One pull request, one topic. Keep it small enough to review in one sitting.
+3. One pull request, one topic. If its description needs the word "and", it
+   is probably two pull requests. As a guide, stay under 400 changed lines
+   and 10 files, lockfiles and generated files aside. Bigger than that: open
+   an issue first and agree on the approach.
 4. CI must be green before merging.
 5. Pull requests are squash merged: the pull request title becomes the commit
    on main, so it follows the commit rules below.
@@ -63,11 +66,28 @@ of a pull request.
 - Code that writes files, runs commands as root or deletes store paths needs
   tests for its error cases, not only the happy path.
 - Tests never touch the real system: use the sandboxes the existing tests
-  use (temporary directories, NIX_SOFTWARE_CONFIG_DIR, fake binaries).
+  use (temporary directories, NIX_SOFTWARE_CONFIG_DIR, fake binaries). See
+  [docs/testing.md](docs/testing.md).
 - Core line coverage must stay at or above the threshold in the justfile
   (just cov). Raise the threshold when coverage goes up, never lower it to
   make CI pass. Use just cov-html to see which lines no test reaches.
 - UI changes: run just e2e and look at the screenshots in target/e2e.
+
+## AI-assisted contributions
+
+Use whatever tools you like. The rule is the same either way: you are the
+author, and you understand every line you submit. You have run it, read the
+diff, and can explain why it is written that way. "The model wrote it" is not
+an answer to a review question.
+
+The repository is set up for coding agents: [AGENTS.md](AGENTS.md) gives them
+the verification commands and the safety rules (never touch the real
+configuration, never run pkexec or nixos-rebuild), and points them to the
+right doc in [docs/](docs/README.md). CLAUDE.md loads the same file, and
+.claude/skills holds reusable workflows such as adding an end-to-end step.
+
+Large generated pull requests nobody has read get closed without a detailed
+review. The size guide above applies however the code was written.
 
 ## Code
 

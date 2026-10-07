@@ -102,7 +102,7 @@ just e2e      # end-to-end tests, screenshots in target/e2e
 - crates/gui: GTK 4 and libadwaita front end, written with relm4.
 - crates/cli: text front end.
 
-End-to-end tests drive the app through the GTK Broadway backend with Playwright. Each run uses a throwaway home and config, so your real configuration is never touched. Design notes live in [docs/design.md](docs/design.md). Workflow, commit rules, tests and translations are in [CONTRIBUTING.md](CONTRIBUTING.md).
+End-to-end tests drive the app through the GTK Broadway backend with Playwright. Each run uses a throwaway home and config, so your real configuration is never touched. Documentation lives in [docs/](docs/README.md), agent instructions in [AGENTS.md](AGENTS.md). Workflow, commit rules, tests and translations are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 # Community
 

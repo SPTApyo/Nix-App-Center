@@ -12,6 +12,7 @@
 
 ## Checklist
 
+- [ ] I have read and understand every line of this diff, generated or not
 - [ ] nix develop -c just check passes
 - [ ] New logic in crates/core has unit tests
 - [ ] UI changes checked with just e2e
