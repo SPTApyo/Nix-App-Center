@@ -3,7 +3,7 @@
 //! scroll/clamp (max 1000, tightening 600).
 
 use adw::prelude::*;
-use onyx_core::Package;
+use nix_software_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
@@ -259,13 +259,15 @@ impl SimpleComponent for HomeModel {
         // Background loads.
         let s1 = sender.input_sender().clone();
         std::thread::spawn(move || {
-            let _ = s1.send(HomeMsg::PopularLoaded(onyx_core::popular_packages(30)));
+            let _ = s1.send(HomeMsg::PopularLoaded(nix_software_core::popular_packages(
+                30,
+            )));
         });
         let s2 = sender.input_sender().clone();
         std::thread::spawn(move || {
-            let _ = s2.send(HomeMsg::RecentLoaded(onyx_core::recently_updated_packages(
-                20,
-            )));
+            let _ = s2.send(HomeMsg::RecentLoaded(
+                nix_software_core::recently_updated_packages(20),
+            ));
         });
 
         ComponentParts { model, widgets }

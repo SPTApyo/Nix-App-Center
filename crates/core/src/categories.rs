@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn candidate_attrs_prefers_overlay_and_rejects_contradicted_keys() {
         let _g = crate::env_lock();
-        let dir = std::env::temp_dir().join(format!("onyx-cand-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-software-cand-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
 

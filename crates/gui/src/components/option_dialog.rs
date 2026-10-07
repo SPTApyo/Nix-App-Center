@@ -2,7 +2,7 @@
 //! is declared, and a line ready to paste in the configuration.
 
 use adw::prelude::*;
-use onyx_core::NixOption;
+use nix_software_core::NixOption;
 
 use crate::i18n::t;
 use crate::util::esc;

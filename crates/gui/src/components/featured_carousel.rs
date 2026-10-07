@@ -3,7 +3,7 @@
 //! buttons, indicator dots). Slides are Flathub apps on a gradient background.
 
 use adw::prelude::*;
-use onyx_core::Package;
+use nix_software_core::Package;
 use relm4::prelude::*;
 
 use crate::util::{texture_from_bytes, AppItem};
@@ -113,13 +113,14 @@ impl SimpleComponent for FeaturedCarousel {
                 for (idx, item) in items.into_iter().take(6).enumerate() {
                     let (slide, img) = build_slide(&item, idx, &sender);
                     // The app's own color when it declares one, like GNOME.
-                    let brand = onyx_core::brand_colors(&item.package).and_then(|(light, d)| {
-                        if dark {
-                            d.or(light)
-                        } else {
-                            light.or(d)
-                        }
-                    });
+                    let brand =
+                        nix_software_core::brand_colors(&item.package).and_then(|(light, d)| {
+                            if dark {
+                                d.or(light)
+                            } else {
+                                light.or(d)
+                            }
+                        });
                     // brand_colors only gives validated `#rrggbb` values.
                     if let Some(color) = brand {
                         slide.add_css_class(&format!("brand-{idx}"));
@@ -136,7 +137,7 @@ impl SimpleComponent for FeaturedCarousel {
                     if let Some(url) = item.icon_url {
                         let s = sender.input_sender().clone();
                         std::thread::spawn(move || {
-                            if let Some(bytes) = onyx_core::cached_fetch_bytes(&url) {
+                            if let Some(bytes) = nix_software_core::cached_fetch_bytes(&url) {
                                 let _ = s.send(FeaturedInput::IconLoaded(idx, bytes));
                             }
                         });

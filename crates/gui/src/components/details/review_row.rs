@@ -9,7 +9,7 @@
 //!  4. like GNOME, "Was this review useful?" with Yes / No and a report button.
 
 use adw::prelude::*;
-use onyx_core::{Review, ReviewAction};
+use nix_software_core::{Review, ReviewAction};
 
 use crate::i18n::t;
 use crate::util::{format_relative, stars_widget};
@@ -145,9 +145,10 @@ fn send(review: Review, action: ReviewAction, bar: gtk::Box, question: gtk::Labe
         w.set_sensitive(false);
     }
     gtk::glib::spawn_future_local(async move {
-        let res = gtk::gio::spawn_blocking(move || onyx_core::act_on_review(&review, action))
-            .await
-            .unwrap_or_else(|_| Err(String::new()));
+        let res =
+            gtk::gio::spawn_blocking(move || nix_software_core::act_on_review(&review, action))
+                .await
+                .unwrap_or_else(|_| Err(String::new()));
         let mut child = question.next_sibling();
         while let Some(w) = child {
             child = w.next_sibling();

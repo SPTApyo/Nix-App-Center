@@ -26,13 +26,13 @@
 //! A horizontal `GtkSizeGroup` binds every section, like the `.ui`: it keeps
 //! them the same width whatever their content.
 //!
-//! **Onyx semantics** under the GNOME layout: the primary action stays
+//! **Nix Software semantics** under the GNOME layout: the primary action stays
 //! `nix run` ("Run"), keeping it permanently is secondary. Context bar tiles
 //! carry Nix signals (closure size, `broken`/`insecure`). Deliberate
 //! divergences.
 
 use adw::prelude::*;
-use onyx_core::{AppMeta, Package, Rating, Review};
+use nix_software_core::{AppMeta, Package, Rating, Review};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
@@ -62,8 +62,8 @@ pub struct DetailModel {
     meta: Option<AppMeta>,
     loading: bool,
     /// Desktop file when a Nix profile already holds the app.
-    installed: Option<onyx_core::ProfileApp>,
-    /// Onyx knows the config: keep edits it. Otherwise `nix profile`.
+    installed: Option<nix_software_core::ProfileApp>,
+    /// Nix Software knows the config: keep edits it. Otherwise `nix profile`.
     managed: bool,
     /// `nix profile` element of this package (unmanaged machines).
     profile_name: Option<String>,
@@ -84,7 +84,7 @@ pub struct DetailModel {
     // The rating feeds the header stars AND the histogram; reviews feed the
     // right column. Both arrive independently.
     rating: Option<Rating>,
-    // Screenshot lightbox (Onyx addition).
+    // Screenshot lightbox (Nix Software addition).
     shots: Vec<gtk::gdk::Texture>,
     shot_widths: Vec<i32>,
     lightbox_tex: Option<gtk::gdk::Texture>,
@@ -154,16 +154,16 @@ pub enum DetailMsg {
     ToggleDescription,
     /// Applies the configuration (from the "Apply" toast action).
     ApplyConfig,
-    Applied(Result<onyx_core::ApplyOutcome, String>),
+    Applied(Result<nix_software_core::ApplyOutcome, String>),
 }
 
 impl DetailModel {
-    /// After keeping an app (or editing its blocks): when Onyx is already
+    /// After keeping an app (or editing its blocks): when Nix Software is already
     /// connected to the config, an "apply" toast is enough. Otherwise the generated
     /// file is an orphan with no effect, so offer the consented attach (diff shown).
     fn prompt_apply_or_attach(&self, sender: &ComponentSender<Self>) {
-        let layout = onyx_core::detect_layout();
-        if onyx_core::is_attached(&layout) {
+        let layout = nix_software_core::detect_layout();
+        if nix_software_core::is_attached(&layout) {
             apply_toast(
                 &self.toast_overlay,
                 sender,
@@ -174,7 +174,7 @@ impl DetailModel {
             let sender = sender.clone();
             attach_dialog::present(
                 &self.toast_overlay,
-                onyx_core::attach_plan(&layout),
+                nix_software_core::attach_plan(&layout),
                 move |res| match res {
                     Ok(()) => apply_toast(
                         &overlay,
@@ -260,7 +260,7 @@ impl SimpleComponent for DetailModel {
                                         set_spacing: 24,
 
                                         // 128 icon. GNOME uses a plain GtkImage;
-                                        // Onyx keeps its colored fallback thumbnail
+                                        // Nix Software keeps its colored fallback thumbnail
                                         // (deliberate: most nixpkgs packages have no
                                         // AppStream icon).
                                         gtk::Box {
@@ -359,7 +359,7 @@ impl SimpleComponent for DetailModel {
 
                                                 // "Verified" badge. GNOME tints it with the
                                                 // packaging color (@blue_4 for Flatpak);
-                                                // Onyx does the same with @nix_packaging_color.
+                                                // Nix Software does the same with @nix_packaging_color.
                                                 gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_spacing: 3,
@@ -716,7 +716,7 @@ impl SimpleComponent for DetailModel {
                             }
                         },
 
-                        // Lightbox (Onyx addition): fade in/out.
+                        // Lightbox (Nix Software addition): fade in/out.
                         add_overlay = &gtk::Revealer {
                             #[watch]
                             set_reveal_child: model.lightbox_visible,
@@ -773,7 +773,9 @@ impl SimpleComponent for DetailModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let kept = onyx_core::load_manifest().entry(&pkg.attr).is_some();
+        let kept = nix_software_core::load_manifest()
+            .entry(&pkg.attr)
+            .is_some();
 
         let toast_overlay = adw::ToastOverlay::new();
         let stack = gtk::Stack::new();
@@ -813,21 +815,21 @@ impl SimpleComponent for DetailModel {
 
         // The clicked tile/row already downloaded this icon: reuse it rather
         // than showing the generic glyph while everything resolves again.
-        let icon_tex = onyx_core::known_icon_url(&pkg.attr)
-            .and_then(|url| onyx_core::cached_bytes_if_present(&url))
+        let icon_tex = nix_software_core::known_icon_url(&pkg.attr)
+            .and_then(|url| nix_software_core::cached_bytes_if_present(&url))
             .and_then(|bytes| texture_from_bytes_sized(&bytes, 128));
 
-        let managed = onyx_core::detect_layout().is_usable();
+        let managed = nix_software_core::detect_layout().is_usable();
         let model = DetailModel {
             package: pkg.clone(),
             meta: None,
             loading: true,
-            installed: onyx_core::installed_app(&pkg.attr, None),
+            installed: nix_software_core::installed_app(&pkg.attr, None),
             managed,
             profile_name: if managed {
                 None
             } else {
-                onyx_core::profile_elements()
+                nix_software_core::profile_elements()
                     .into_iter()
                     .find(|e| e.is_attr(&pkg.attr))
                     .map(|e| e.name)
@@ -929,7 +931,7 @@ impl SimpleComponent for DetailModel {
         let s = sender.input_sender().clone();
         let pkg_meta = pkg.clone();
         std::thread::spawn(move || {
-            let meta = onyx_core::cached_app_meta(&pkg_meta, target_w);
+            let meta = nix_software_core::cached_app_meta(&pkg_meta, target_w);
             let _ = s.send(if is_empty_meta(&meta) {
                 DetailMsg::LoadFailed
             } else {
@@ -952,7 +954,8 @@ impl SimpleComponent for DetailModel {
                         .as_deref()
                         .map(|l| l.trim_end_matches(".desktop"))
                         .or(meta.app_id.as_deref());
-                    self.installed = onyx_core::installed_app(&self.package.attr, desktop_id);
+                    self.installed =
+                        nix_software_core::installed_app(&self.package.attr, desktop_id);
                 }
                 // Without an AppStream id there are no permissions to wait for.
 
@@ -978,7 +981,7 @@ impl SimpleComponent for DetailModel {
                     std::thread::spawn(move || {
                         // Exclude the current attr: "Steam Link" falls back on
                         // attr `steam` and showed Steam on its own page.
-                        let resolved = onyx_core::resolve_dev_apps(&apps, &attr);
+                        let resolved = nix_software_core::resolve_dev_apps(&apps, &attr);
                         if !resolved.is_empty() {
                             let _ = s.send(DetailMsg::DevAppsResolved(resolved));
                         }
@@ -995,7 +998,9 @@ impl SimpleComponent for DetailModel {
                 let attr = self.package.attr.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(DetailMsg::SizeLoaded(onyx_core::closure_size(&attr)));
+                    let _ = s.send(DetailMsg::SizeLoaded(nix_software_core::closure_size(
+                        &attr,
+                    )));
                 });
 
                 if let Some(app_id) = meta.app_id.clone() {
@@ -1003,14 +1008,15 @@ impl SimpleComponent for DetailModel {
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
-                        if let Some(r) = onyx_core::rating_for(&id) {
+                        if let Some(r) = nix_software_core::rating_for(&id) {
                             let _ = s.send(DetailMsg::RatingLoaded(r));
                         }
                     });
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
-                        if let Some(n) = onyx_core::flathub_installs(&id).filter(|n| *n > 0) {
+                        if let Some(n) = nix_software_core::flathub_installs(&id).filter(|n| *n > 0)
+                        {
                             let _ = s.send(DetailMsg::InstallsLoaded(n));
                         }
                     });
@@ -1018,7 +1024,7 @@ impl SimpleComponent for DetailModel {
                     let s = sender.input_sender().clone();
                     let version = meta.version.clone().unwrap_or_default();
                     std::thread::spawn(move || {
-                        let reviews = onyx_core::reviews_for(&app_id, &version);
+                        let reviews = nix_software_core::reviews_for(&app_id, &version);
                         if !reviews.is_empty() {
                             let _ = s.send(DetailMsg::ReviewsLoaded(reviews));
                         }
@@ -1028,7 +1034,7 @@ impl SimpleComponent for DetailModel {
                 if let Some(url) = meta.icon_url.clone() {
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        if let Some(b) = onyx_core::cached_fetch_bytes(&url) {
+                        if let Some(b) = nix_software_core::cached_fetch_bytes(&url) {
                             let _ = s.send(DetailMsg::IconLoaded(b));
                         }
                     });
@@ -1037,7 +1043,7 @@ impl SimpleComponent for DetailModel {
                     let caption = meta.screenshot_captions.get(i).cloned().flatten();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        if let Some(b) = onyx_core::cached_fetch_bytes(&url) {
+                        if let Some(b) = nix_software_core::cached_fetch_bytes(&url) {
                             let _ = s.send(DetailMsg::ScreenshotLoaded(b, caption));
                         }
                     });
@@ -1172,9 +1178,9 @@ impl SimpleComponent for DetailModel {
                 dialog.present(Some(&self.toast_overlay));
             }
             DetailMsg::Unmatch => {
-                let text = match onyx_core::report_mapping(&self.package.attr, "") {
+                let text = match nix_software_core::report_mapping(&self.package.attr, "") {
                     Ok(()) => {
-                        onyx_core::forget_app_meta(&self.package.attr);
+                        nix_software_core::forget_app_meta(&self.package.attr);
                         t("Saved. Open the page again to see the package alone.")
                     }
                     Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
@@ -1224,11 +1230,11 @@ impl SimpleComponent for DetailModel {
                         &t("Starting {}…").replace("{}", &name),
                     );
                 }
-                match onyx_core::run(&self.package) {
+                match nix_software_core::run(&self.package) {
                     Ok(child) => {
                         let s = sender.input_sender().clone();
                         std::thread::spawn(move || {
-                            if let Some(err) = onyx_core::run_failure(child) {
+                            if let Some(err) = nix_software_core::run_failure(child) {
                                 let _ = s.send(DetailMsg::RunFailed(err));
                             }
                         });
@@ -1269,9 +1275,9 @@ impl SimpleComponent for DetailModel {
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let res = match &name {
-                        Some(n) => onyx_core::profile_remove(n).map(|()| None),
-                        None => onyx_core::profile_add(&attr).map(|()| {
-                            onyx_core::profile_elements()
+                        Some(n) => nix_software_core::profile_remove(n).map(|()| None),
+                        None => nix_software_core::profile_add(&attr).map(|()| {
+                            nix_software_core::profile_elements()
                                 .into_iter()
                                 .find(|e| e.is_attr(&attr))
                                 .map(|e| e.name)
@@ -1293,7 +1299,7 @@ impl SimpleComponent for DetailModel {
                     }
                     Err(e) => t("Failed: {}").replace("{}", &e),
                 };
-                self.installed = onyx_core::installed_app(
+                self.installed = nix_software_core::installed_app(
                     &self.package.attr,
                     self.meta.as_ref().and_then(|m| m.app_id.as_deref()),
                 );
@@ -1307,17 +1313,20 @@ impl SimpleComponent for DetailModel {
                 };
                 sender.input(next);
             }
-            DetailMsg::Shell => match onyx_core::shell(&self.package) {
-                Ok(onyx_core::ShellOutcome::Spawned) => crate::util::toast(
+            DetailMsg::Shell => match nix_software_core::shell(&self.package) {
+                Ok(nix_software_core::ShellOutcome::Spawned) => crate::util::toast(
                     &self.toast_overlay,
                     &t("{} opened in a terminal…").replace("{}", &self.package.name),
                 ),
                 // The front end owns the clipboard fallback.
-                Ok(onyx_core::ShellOutcome::NoTerminal) => {
+                Ok(nix_software_core::ShellOutcome::NoTerminal) => {
                     if let Some(display) = gtk::gdk::Display::default() {
                         display
                             .clipboard()
-                            .set_text(&onyx_core::shell_command(&self.package, self.unfree()));
+                            .set_text(&nix_software_core::shell_command(
+                                &self.package,
+                                self.unfree(),
+                            ));
                     }
                     crate::util::toast(
                         &self.toast_overlay,
@@ -1329,7 +1338,7 @@ impl SimpleComponent for DetailModel {
                     &t("Could not open a shell: {}").replace("{}", &e.to_string()),
                 ),
             },
-            DetailMsg::Keep => match onyx_core::keep(&self.package) {
+            DetailMsg::Keep => match nix_software_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
@@ -1339,7 +1348,7 @@ impl SimpleComponent for DetailModel {
                     &t("Failed: {}").replace("{}", &e.to_string()),
                 ),
             },
-            DetailMsg::Unkeep => match onyx_core::unkeep(&self.package.attr) {
+            DetailMsg::Unkeep => match nix_software_core::unkeep(&self.package.attr) {
                 Ok(()) => {
                     self.kept = false;
                     apply_toast(
@@ -1356,18 +1365,22 @@ impl SimpleComponent for DetailModel {
             DetailMsg::AdvancedEdit if self.installed_elsewhere() => {}
             DetailMsg::AdvancedEdit => {
                 // Current Nix blocks of the app, if any, to prefill the editor.
-                let m = onyx_core::load_manifest();
+                let m = nix_software_core::load_manifest();
                 let (home, system) = m
                     .kept
                     .iter()
                     .find(|e| e.package.attr == self.package.attr)
                     .map(|e| (e.home_nix.clone(), e.system_nix.clone()))
                     .unwrap_or((None, None));
-                let layout = onyx_core::detect_layout();
+                let layout = nix_software_core::detect_layout();
                 let system_available = layout.system.is_some();
                 // Without a block, start from the plain entry equivalent.
-                let home = home
-                    .or_else(|| Some(onyx_core::default_home_block(&layout, &self.package.attr)));
+                let home = home.or_else(|| {
+                    Some(nix_software_core::default_home_block(
+                        &layout,
+                        &self.package.attr,
+                    ))
+                });
                 let pkg = self.package.clone();
                 let s = sender.input_sender().clone();
                 nix_editor::present(
@@ -1377,7 +1390,7 @@ impl SimpleComponent for DetailModel {
                     system,
                     system_available,
                     move |blocks| {
-                        let res = onyx_core::set_blocks(&pkg, blocks.home, blocks.system)
+                        let res = nix_software_core::set_blocks(&pkg, blocks.home, blocks.system)
                             .map_err(|e| e.to_string());
                         let _ = s.send(DetailMsg::BlocksSaved(res));
                     },
@@ -1393,7 +1406,7 @@ impl SimpleComponent for DetailModel {
                     crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e))
                 }
             },
-            DetailMsg::ApplyConfig => match onyx_core::apply_argv() {
+            DetailMsg::ApplyConfig => match nix_software_core::apply_argv() {
                 Some(argv) => {
                     let s = sender.input_sender().clone();
                     crate::components::apply_dialog::present(
@@ -1406,7 +1419,7 @@ impl SimpleComponent for DetailModel {
                     );
                 }
                 None => sender.input(DetailMsg::Applied(Ok(
-                    onyx_core::ApplyOutcome::UnknownLayout,
+                    nix_software_core::ApplyOutcome::UnknownLayout,
                 ))),
             },
             DetailMsg::Applied(res) => {
@@ -1416,7 +1429,10 @@ impl SimpleComponent for DetailModel {
                 if let Some(display) = gtk::gdk::Display::default() {
                     display
                         .clipboard()
-                        .set_text(&onyx_core::run_command(&self.package, self.unfree()));
+                        .set_text(&nix_software_core::run_command(
+                            &self.package,
+                            self.unfree(),
+                        ));
                 }
                 crate::util::toast(&self.toast_overlay, &t("Command copied."));
             }
@@ -1427,7 +1443,7 @@ impl SimpleComponent for DetailModel {
 impl DetailModel {
     /// A package without AppStream identity is treated as a CLI tool: `nix run`
     /// would start and exit at once, a shell is the useful way to try it.
-    /// Installed by the user's own configuration, not by Onyx: adding it again
+    /// Installed by the user's own configuration, not by Nix Software: adding it again
     /// would declare it twice.
     fn installed_elsewhere(&self) -> bool {
         !self.kept && self.profile_name.is_none() && self.installed.is_some()
@@ -1436,7 +1452,7 @@ impl DetailModel {
     fn keep_label(&self) -> String {
         if self.installed_elsewhere() {
             return match self.installed.as_ref().map(|a| a.scope) {
-                Some(onyx_core::Scope::System) => t("In Your System Configuration"),
+                Some(nix_software_core::Scope::System) => t("In Your System Configuration"),
                 _ => t("In Your User Configuration"),
             };
         }
@@ -1602,7 +1618,7 @@ fn build_reviews(
 
     // Right column: featured review + "All Reviews".
     let right = crate::util::boxed_list();
-    if let Some(featured) = reviews.and_then(onyx_core::featured_review) {
+    if let Some(featured) = reviews.and_then(nix_software_core::featured_review) {
         right.append(&review_row::row(featured));
     }
     let all = adw::ButtonRow::new();
@@ -2132,10 +2148,11 @@ fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk
         let img = img.clone();
         let fallback = fallback.clone();
         gtk::glib::spawn_future_local(async move {
-            let bytes = gtk::gio::spawn_blocking(move || onyx_core::cached_fetch_bytes(&url))
-                .await
-                .ok()
-                .flatten();
+            let bytes =
+                gtk::gio::spawn_blocking(move || nix_software_core::cached_fetch_bytes(&url))
+                    .await
+                    .ok()
+                    .flatten();
             if let Some(tex) = bytes
                 .as_deref()
                 .and_then(|b| texture_from_bytes_sized(b, 128))
@@ -2304,7 +2321,7 @@ mod tests {
     }
 
     /// Checks the real GTK tree against `gs-details-page.ui`. Needs a display,
-    /// hence `#[ignore]`: `cargo test -p onyx-gui -- --ignored`.
+    /// hence `#[ignore]`: `cargo test -p nix-software-gui -- --ignored`.
     #[test]
     #[ignore = "needs a GTK display"]
     fn widget_tree_matches_gnome_ui() {
@@ -2390,7 +2407,7 @@ mod tests {
     /// equivalent to open).
     fn assert_addons_render_as_tile_grid() {
         let meta = AppMeta {
-            addons: vec![onyx_core::Addon {
+            addons: vec![nix_software_core::Addon {
                 name: "Highlighter".into(),
                 summary: Some("Syntax highlighting".into()),
                 icon_url: None,

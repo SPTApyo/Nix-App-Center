@@ -1,4 +1,4 @@
-//! Onyx data directory (`$XDG_DATA_HOME/onyx`), shared by `manifest`
+//! Nix Software data directory (`$XDG_DATA_HOME/nix-software`), shared by `manifest`
 //! (`kept.json`) and `tried` (`tried.json`).
 
 use std::path::PathBuf;
@@ -10,7 +10,7 @@ pub(crate) fn data_dir() -> PathBuf {
             let home = crate::util::home();
             home.join(".local/share")
         });
-    base.join("onyx")
+    base.join("nix-software")
 }
 
 /// Atomic write: sibling temp file then `rename` (atomic on the same file
@@ -22,7 +22,9 @@ pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Res
     std::fs::create_dir_all(dir)?;
     let tmp = dir.join(format!(
         ".{}.tmp-{}",
-        path.file_name().and_then(|n| n.to_str()).unwrap_or("onyx"),
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("nix-software"),
         std::process::id()
     ));
     std::fs::write(&tmp, bytes)?;
@@ -82,7 +84,7 @@ fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
     let mut parts = Vec::new();
     for (dest, bytes) in files {
         let text = String::from_utf8_lossy(bytes);
-        let mut mark = String::from("ONYX_EOF");
+        let mut mark = String::from("NIX_SOFTWARE_EOF");
         while text.contains(&mark) {
             mark.push('_');
         }
@@ -95,7 +97,7 @@ fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
         // mktemp creates a fresh file exclusively: no name to guess, no link
         // to follow.
         parts.push(format!(
-            "tmp=$(mktemp {dir}/.onyx-XXXXXX)\ncat <<'{mark}' | head -c -1 > \"$tmp\"\n{text}\n{mark}\nchmod 644 \"$tmp\" && mv \"$tmp\" {}",
+            "tmp=$(mktemp {dir}/.nix-software-XXXXXX)\ncat <<'{mark}' | head -c -1 > \"$tmp\"\n{text}\n{mark}\nchmod 644 \"$tmp\" && mv \"$tmp\" {}",
             sh_quote(&dest.to_string_lossy())
         ));
     }
@@ -121,7 +123,7 @@ pub(crate) fn sh_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
 }
 
-/// A flake in a git repository only sees tracked files: mark a file Onyx
+/// A flake in a git repository only sees tracked files: mark a file Nix Software
 /// created as intended for addition. No-op outside a git work tree.
 pub(crate) fn track_in_git(path: &std::path::Path) {
     let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
@@ -144,7 +146,7 @@ mod tests {
     #[test]
     fn write_atomic_replaces_content_and_leaves_no_tmp() {
         // No env mutation, so no env_lock needed.
-        let dir = std::env::temp_dir().join(format!("onyx-atomic-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-software-atomic-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let path = dir.join("kept.json");
 
@@ -161,7 +163,7 @@ mod tests {
 
     #[test]
     fn write_files_writes_in_order_without_rights_when_allowed() {
-        let dir = std::env::temp_dir().join(format!("onyx-files-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-software-files-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let (a, b) = (dir.join("a.nix"), dir.join("b.nix"));
         write_files(&[(a.clone(), b"one".to_vec()), (b.clone(), b"two".to_vec())]).unwrap();
@@ -173,10 +175,10 @@ mod tests {
 
     #[test]
     fn root_write_script_round_trips_any_content() {
-        let dir = std::env::temp_dir().join(format!("onyx-root-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-software-root-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let tricky = b"{ x = \"$HOME `id` 'q' \\n\"; }\nONYX_EOF\nend".to_vec();
+        let tricky = b"{ x = \"$HOME `id` 'q' \\n\"; }\nNIX_SOFTWARE_EOF\nend".to_vec();
         let files = [
             (dir.join("a b.nix"), tricky.clone()),
             (dir.join("c.nix"), b"two\n".to_vec()),
@@ -194,7 +196,7 @@ mod tests {
 
     #[test]
     fn track_in_git_marks_new_files() {
-        let dir = std::env::temp_dir().join(format!("onyx-git-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-software-git-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let git = |args: &[&str]| {
@@ -206,13 +208,13 @@ mod tests {
                 .unwrap()
         };
         git(&["init", "-q"]);
-        let file = dir.join("onyx-home.nix");
+        let file = dir.join("nix-software-home.nix");
         std::fs::write(&file, "{ }").unwrap();
         track_in_git(&file);
         let listed = git(&["ls-files"]);
         assert_eq!(
             String::from_utf8_lossy(&listed.stdout).trim(),
-            "onyx-home.nix"
+            "nix-software-home.nix"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }

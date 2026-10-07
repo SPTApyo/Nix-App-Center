@@ -26,7 +26,7 @@ Keep commits small and use Conventional Commits (feat:, fix:, docs:, ...).
 
 ## Translations
 
-Translations live in po/. The template is po/onyx.pot.
+Translations live in po/. The template is po/nix-software.pot.
 
 Update the template and the catalogs after changing strings:
 
@@ -36,19 +36,19 @@ Update the template and the catalogs after changing strings:
 
 Add a language:
 
-1. Copy po/onyx.pot to po/xx.po and fill the header.
+1. Copy po/nix-software.pot to po/xx.po and fill the header.
 2. Add xx to po/LINGUAS.
 3. Translate, then check with msgfmt --check po/xx.po.
 
 To try a translation locally (cargo compiles po/ for you):
 
 ```bash
-LANGUAGE=xx cargo run -p onyx-gui
+LANGUAGE=xx cargo run -p nix-software-gui
 ```
 
 ## Matching Flathub apps to nixpkgs
 
-Onyx guesses which nixpkgs attribute matches a Flathub app. When the guess is
+Nix Software guesses which nixpkgs attribute matches a Flathub app. When the guess is
 wrong or missing, add an entry to crates/core/src/data/app_mapping.json
 (nixpkgs attribute to AppStream id) and check the id against the Flathub
 AppStream data.

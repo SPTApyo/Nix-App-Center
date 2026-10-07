@@ -1,6 +1,6 @@
 //! "Installed" tab, a list per origin like GNOME Software:
 //!
-//! • "In Your Configuration": packages Onyx keeps (`kept.json`), removable.
+//! • "In Your Configuration": packages Nix Software keeps (`kept.json`), removable.
 //! • "Recently Tried": `nix run` history, each one removable from the store.
 //! • "System" / "User": apps the Nix profiles already hold, read only and
 //!   dimmed, drawn from their desktop files with the local icons.
@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use adw::prelude::*;
-use onyx_core::{Package, ProfileApp, Scope};
+use nix_software_core::{Package, ProfileApp, Scope};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -35,7 +35,7 @@ pub struct Data {
     tried: Vec<Item>,
     profile: Vec<ProfileApp>,
     sizes: std::collections::HashMap<PathBuf, u64>,
-    elements: Vec<onyx_core::ProfileElement>,
+    elements: Vec<nix_software_core::ProfileElement>,
 }
 
 impl Data {
@@ -79,7 +79,7 @@ pub enum InstalledMsg {
     ProfileRemove(String),
     Removed(String, Result<u64, String>),
     Apply,
-    Applied(Result<onyx_core::ApplyOutcome, String>),
+    Applied(Result<nix_software_core::ApplyOutcome, String>),
     Gc,
     GcDone(String),
 }
@@ -157,8 +157,8 @@ impl SimpleComponent for InstalledModel {
                 std::thread::spawn(move || {
                     let _ = s.send(InstalledMsg::DataReady(load_data()));
                     // Icons come from AppStream: list again once it is loaded.
-                    if !onyx_core::appstream_settled() {
-                        onyx_core::wait_appstream(std::time::Duration::from_secs(180));
+                    if !nix_software_core::appstream_settled() {
+                        nix_software_core::wait_appstream(std::time::Duration::from_secs(180));
                         let _ = s.send(InstalledMsg::DataReady(load_data()));
                     }
                 });
@@ -171,7 +171,7 @@ impl SimpleComponent for InstalledModel {
                 let _ = sender.output(pkg);
             }
             InstalledMsg::Unkeep(attr) => {
-                match onyx_core::unkeep(&attr) {
+                match nix_software_core::unkeep(&attr) {
                     Ok(()) => {
                         if let Some(d) = self.data.as_mut() {
                             d.kept.retain(|i| i.package.attr != attr);
@@ -190,12 +190,12 @@ impl SimpleComponent for InstalledModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = onyx_core::remove_tried(&attr).map_err(|e| e.to_string());
+                    let res = nix_software_core::remove_tried(&attr).map_err(|e| e.to_string());
                     let _ = s.send(InstalledMsg::Removed(attr, res));
                 });
             }
             InstalledMsg::ProfileRemove(name) => {
-                self.status = Some(match onyx_core::profile_remove(&name) {
+                self.status = Some(match nix_software_core::profile_remove(&name) {
                     Ok(()) => t("{} uninstalled.").replace("{}", &name),
                     Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
                 });
@@ -229,9 +229,9 @@ impl SimpleComponent for InstalledModel {
                     return;
                 }
                 self.banner.set_revealed(false);
-                let Some(argv) = onyx_core::apply_argv() else {
+                let Some(argv) = nix_software_core::apply_argv() else {
                     sender.input(InstalledMsg::Applied(Ok(
-                        onyx_core::ApplyOutcome::UnknownLayout,
+                        nix_software_core::ApplyOutcome::UnknownLayout,
                     )));
                     return;
                 };
@@ -261,7 +261,7 @@ impl SimpleComponent for InstalledModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let msg = match onyx_core::garbage_collect() {
+                    let msg = match nix_software_core::garbage_collect() {
                         Ok(s) if !s.is_empty() => s,
                         Ok(_) => t("Done."),
                         Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
@@ -392,7 +392,7 @@ impl InstalledModel {
                     let sub = a.version.clone() + &data.size_suffix([&a.store_path]);
                     let row = util::desktop_row(&a.desktop_file, &sub)?;
                     match data.removable(&a.store_path) {
-                        // Installed with nix profile: Onyx may remove it.
+                        // Installed with nix profile: Nix Software may remove it.
                         Some(name) => row.add_suffix(&self.action_button(
                             &t("Remove"),
                             false,
@@ -514,8 +514,8 @@ fn section(
 /// Reads the manifest, the history and the profiles, with icons. Blocking:
 /// call it from a thread.
 fn load_data() -> Data {
-    let tried = onyx_core::load_tried().tried;
-    let kept: Vec<(Package, Option<u64>, Vec<String>)> = onyx_core::load_manifest()
+    let tried = nix_software_core::load_tried().tried;
+    let kept: Vec<(Package, Option<u64>, Vec<String>)> = nix_software_core::load_manifest()
         .packages()
         .into_iter()
         .map(|p| (p, None, Vec::new()))
@@ -526,15 +526,15 @@ fn load_data() -> Data {
         .collect();
     let kept = with_icons(kept);
     let tried = with_icons(tried);
-    let profile = onyx_core::profile_apps();
+    let profile = nix_software_core::profile_apps();
     let paths: Vec<PathBuf> = profile
         .iter()
         .map(|a| a.store_path.clone())
         .chain(tried.iter().flat_map(|i| i.paths.clone()))
         .collect();
     Data {
-        sizes: onyx_core::store_sizes(&paths),
-        elements: onyx_core::profile_elements(),
+        sizes: nix_software_core::store_sizes(&paths),
+        elements: nix_software_core::profile_elements(),
         kept,
         tried,
         profile,
@@ -551,12 +551,12 @@ fn with_icons(entries: Vec<(Package, Option<u64>, Vec<String>)>) -> Vec<Item> {
             .cloned()
             .map(|(package, tried_at, out_paths)| {
                 std::thread::spawn(move || {
-                    let meta = onyx_core::cached_app_meta(&package, 1280);
+                    let meta = nix_software_core::cached_app_meta(&package, 1280);
                     Item {
                         icon: meta
                             .icon_url
                             .as_deref()
-                            .and_then(onyx_core::cached_fetch_bytes),
+                            .and_then(nix_software_core::cached_fetch_bytes),
                         desktop_file: out_paths.iter().find_map(|p| first_desktop(Path::new(p))),
                         paths: out_paths.iter().map(PathBuf::from).collect(),
                         package,

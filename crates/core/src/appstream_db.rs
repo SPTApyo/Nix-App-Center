@@ -3,10 +3,10 @@
 //! Flatpak keeps `~/.local/share/flatpak/appstream/flathub/<arch>/active/appstream.xml.gz`,
 //! which holds ALL the Flathub metadata (icons, descriptions, screenshots…) for
 //! every package. GNOME Software reads this same file, which is why it is so
-//! fast: zero network requests while browsing. Without Flatpak, Onyx downloads
+//! fast: zero network requests while browsing. Without Flatpak, Nix Software downloads
 //! the same file from Flathub into its cache directory.
 //!
-//! Onyx loads it at startup through [`init_background`] (separate, non
+//! Nix Software loads it at startup through [`init_background`] (separate, non
 //! blocking thread). Once loaded, [`lookup`] is an O(1) HashMap.
 
 use std::{

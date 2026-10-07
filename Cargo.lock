@@ -884,6 +884,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix-software-cli"
+version = "0.1.0"
+dependencies = [
+ "nix-software-core",
+]
+
+[[package]]
+name = "nix-software-core"
+version = "0.1.0"
+dependencies = [
+ "brotli-decompressor",
+ "flate2",
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
+name = "nix-software-gui"
+version = "0.1.0"
+dependencies = [
+ "async-channel",
+ "gettext-rs",
+ "gtk4",
+ "libadwaita",
+ "nix-software-core",
+ "relm4",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -917,37 +948,6 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
-
-[[package]]
-name = "onyx-cli"
-version = "0.1.0"
-dependencies = [
- "onyx-core",
-]
-
-[[package]]
-name = "onyx-core"
-version = "0.1.0"
-dependencies = [
- "brotli-decompressor",
- "flate2",
- "quick-xml",
- "serde",
- "serde_json",
- "ureq",
-]
-
-[[package]]
-name = "onyx-gui"
-version = "0.1.0"
-dependencies = [
- "async-channel",
- "gettext-rs",
- "gtk4",
- "libadwaita",
- "onyx-core",
- "relm4",
-]
 
 [[package]]
 name = "pango"

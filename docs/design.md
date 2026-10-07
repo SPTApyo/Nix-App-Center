@@ -1,16 +1,16 @@
-# Onyx design notes
+# Nix Software design notes
 
-This document explains why Onyx works the way it does. The code says what it
+This document explains why Nix Software works the way it does. The code says what it
 does; these notes keep the reasons.
 
 ## Product principles
 
 - **Try first.** Running a package with `nix run` is the primary action. Keeping
   it permanently is a deliberate, secondary step.
-- **Onyx never overwrites anything.** It owns its own generated files. Its only
+- **Nix Software never overwrites anything.** It owns its own generated files. Its only
   change to a file the user wrote is one import line, added once, after showing
   the exact diff, with explicit consent, and removable later.
-- **No silent magic.** When Onyx cannot tell where the configuration lives, it
+- **No silent magic.** When Nix Software cannot tell where the configuration lives, it
   does not guess. It shows the snippet to paste and stops there.
 - **The network is optional.** Flathub and ODRS only provide cosmetics (icons,
   screenshots, ratings). Every network call has a short timeout and a silent
@@ -29,9 +29,9 @@ The core models packages and actions as data (`Package`, `Action`,
 
 ## Package identity: nixpkgs vs AppStream
 
-nixpkgs and Flathub have no official mapping. Onyx matches them in this order:
+nixpkgs and Flathub have no official mapping. Nix Software matches them in this order:
 
-1. the user overlay (`$XDG_DATA_HOME/onyx/app-mapping.json`), for local fixes;
+1. the user overlay (`$XDG_DATA_HOME/nix-software/app-mapping.json`), for local fixes;
 2. the community overlay (`crates/core/src/data/app_mapping.json`), curated in
    this repository;
 3. name heuristics: name without spaces, last app id segment, first word.
@@ -48,9 +48,9 @@ request.
 ## AppStream data
 
 GNOME Software reads Flatpak's local `appstream.xml.gz`, which is why it can
-browse without network requests. Onyx does the same when Flatpak is
-installed. Most NixOS machines have no Flatpak, so Onyx downloads the same
-file from `dl.flathub.org` into `$XDG_CACHE_HOME/onyx/`. A copy older than a
+browse without network requests. Nix Software does the same when Flatpak is
+installed. Most NixOS machines have no Flatpak, so Nix Software downloads the same
+file from `dl.flathub.org` into `$XDG_CACHE_HOME/nix-software/`. A copy older than a
 day is used at once and refreshed in the background for the next start.
 
 The database loads in a background thread at startup. A details page opened
@@ -61,7 +61,7 @@ hour.
 
 ## Config engine
 
-Onyx detects the layout of the user's configuration by scanning text, never
+Nix Software detects the layout of the user's configuration by scanning text, never
 by parsing Nix:
 
 | Layout          | Apply command                                   |
@@ -70,29 +70,29 @@ by parsing Nix:
 | NixOS (legacy)  | `sudo nixos-rebuild switch`                     |
 | HM flake        | `home-manager switch --flake <dir>#<user>`      |
 | HM standalone   | `home-manager switch`                           |
-| Unknown         | none, Onyx shows a snippet                      |
+| Unknown         | none, Nix Software shows a snippet                      |
 
-`$ONYX_CONFIG_DIR` overrides the NixOS root. Tests use it so they never touch
+`$NIX_SOFTWARE_CONFIG_DIR` overrides the NixOS root. Tests use it so they never touch
 `/etc/nixos` or `~`.
 
-Onyx writes `onyx-home.nix` and `onyx-system.nix`, generated from its
+Nix Software writes `nix-software-home.nix` and `nix-software-system.nix`, generated from its
 manifest (`kept.json`). On NixOS both files are imported from the top-level
 `imports` list of `configuration.nix`, the safest place to splice a line. A
 flake without `configuration.nix` (one that extends another flake, say) gets
 them in the `modules` list of `flake.nix` instead. When home-manager is a
-NixOS module, `onyx-home.nix` wraps its content in
+NixOS module, `nix-software-home.nix` wraps its content in
 `home-manager.users.<user>`; without home-manager it fills
 `users.users.<user>.packages`.
 
 `/etc/nixos` belongs to root. Files the user cannot write are written in one
 pkexec call, so the password is asked once per change: the content travels
 inside the script, each file goes through `mktemp` in its own folder, and root
-runs with the system PATH only. The Onyx files are written before the
+runs with the system PATH only. The Nix Software files are written before the
 manifest, so a refused password leaves everything as it was.
 
 A plain kept app is one entry of an aggregated `home.packages` list. When the
 user edits its Nix in the advanced editor, the app is promoted to its own
-module, delimited by `# onyx:begin <attr>` / `# onyx:end <attr>` markers.
+module, delimited by `# nix-software:begin <attr>` / `# nix-software:end <attr>` markers.
 Each promoted app is a separate module so two blocks defining the same option
 are merged by the module system instead of clashing.
 
@@ -116,11 +116,11 @@ command is copied to the clipboard instead.
 See [roadmap.md](roadmap.md) for how each Nix setup stores and pins its
 packages.
 
-Installed lists, in this order: packages Onyx keeps, apps tried with nix run,
+Installed lists, in this order: packages Nix Software keeps, apps tried with nix run,
 then the apps the user and system profiles already hold. The last two come
 from the desktop files of `/etc/profiles/per-user/<user>`, `~/.nix-profile`
 and `/run/current-system/sw`, so they show the local names and icons without
-any evaluation. They are read only: Onyx does not edit what it did not write.
+any evaluation. They are read only: Nix Software does not edit what it did not write.
 
 Removing a tried app deletes its dead closure from the store, minus what the
 other tried apps need and minus anything a dead path outside that set still
@@ -132,7 +132,7 @@ Updates reads the nixpkgs revision the system runs (`nixos-version --json`),
 finds its branch in the config flake.lock, asks `nix flake metadata` for the
 branch head and evaluates the versions the head ships for the installed apps.
 Updating moves the pin and applies the config in one terminal command. When
-nixpkgs comes through another flake input, Onyx says which one and does not
+nixpkgs comes through another flake input, Nix Software says which one and does not
 touch it.
 
 ## Storage
@@ -143,7 +143,7 @@ walks the reference graph in memory. Each path counts in the first category
 that reaches it, so the pie chart adds up to the store: the current system
 (not entering the user environments), the user environments, programs
 running now (`/proc` roots), old generations, other roots (dev shells, build
-results), apps tried with Onyx, and garbage. A generation's "frees" figure is
+results), apps tried with Nix Software, and garbage. A generation's "frees" figure is
 what only it reaches among all roots. The two clean-ups run through the build
 log dialog: `nix-store --gc`, and `nix-collect-garbage --delete-old` as root.
 
@@ -154,9 +154,9 @@ output. A command that starts with sudo runs with pkexec instead, so the
 password prompt is graphical and the build stays in the app; without pkexec
 it falls back on a terminal.
 
-Settings live in `$XDG_CONFIG_HOME/onyx/settings.json`: configuration folder
+Settings live in `$XDG_CONFIG_HOME/nix-software/settings.json`: configuration folder
 and host overrides, the daily update check, and the random id used only when
-posting a review (reading reviews is anonymous). ONYX_CONFIG_DIR, used by the
+posting a review (reading reviews is anonymous). NIX_SOFTWARE_CONFIG_DIR, used by the
 tests, bypasses the saved overrides.
 
 Without a managed configuration, Keep installs with nix profile instead.
@@ -171,7 +171,7 @@ nixpkgs and opens its page.
 
 The details page copies the layout of GNOME Software's `gs-details-page.ui`
 widget by widget (one module per widget in `crates/gui/src/components/details`),
-while keeping Onyx semantics: context tiles show Nix signals (closure
+while keeping Nix Software semantics: context tiles show Nix signals (closure
 download size, `broken`/`insecure`), the version badge means "this release is
 the one in nixpkgs", and sections without Nix data stay hidden.
 
@@ -179,13 +179,13 @@ the one in nixpkgs", and sections without Nix data stay hidden.
 
 Same mechanism as GNOME Software: gettext driven by the system locale, no
 language picker. English source strings are the msgids. Translations live in
-`po/<lang>.po`; `po/update-pot.sh` regenerates `po/onyx.pot` and merges it into
+`po/<lang>.po`; `po/update-pot.sh` regenerates `po/nix-software.pot` and merges it into
 every catalog. Core strings shown in the UI are marked with `n_()` and
 translated by the GUI where they are displayed.
 
 ## Development gallery
 
-`cargo run -p onyx-gui --features dev-gallery` adds a "Gallery" tab listing
+`cargo run -p nix-software-gui --features dev-gallery` adds a "Gallery" tab listing
 real, labeled scenarios (app with rating, broken package, no metadata…) that
 open the real views. The feature is off by default and absent from release
 builds.

@@ -4,7 +4,7 @@
 //! split button: one row, one gesture, one target.
 
 use adw::prelude::*;
-use onyx_core::{Package, Rating};
+use nix_software_core::{Package, Rating};
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
 
 use crate::util::{fallback_icon, texture_from_bytes_sized, AppItem, IconState};
@@ -156,12 +156,14 @@ impl FactoryComponent for PackageRow {
             IconState::Generic
         };
         if let Some(url) = icon_url {
-            onyx_core::remember_icon_url(&package.attr, &url);
+            nix_software_core::remember_icon_url(&package.attr, &url);
             // input_sender().send() (unlike input()) does not panic if the row
             // was destroyed meanwhile (cleared by a new search or filter).
             let s = sender.input_sender().clone();
             std::thread::spawn(move || {
-                let _ = s.send(RowMsg::IconLoaded(onyx_core::cached_fetch_bytes(&url)));
+                let _ = s.send(RowMsg::IconLoaded(nix_software_core::cached_fetch_bytes(
+                    &url,
+                )));
             });
         }
         Self {

@@ -11,13 +11,13 @@
 //!   (30 s to 2 min): that is the "Check" button, triggered by the user and never
 //!   forced, since forcing it on every edit would make the editor painful.
 //!
-//! Onyx writes **only** to its own files; the user's Nix is kept verbatim, never
+//! Nix Software writes **only** to its own files; the user's Nix is kept verbatim, never
 //! reformatted.
 
 use crate::i18n::t;
 use adw::prelude::*;
 use gtk::glib;
-use onyx_core::Package;
+use nix_software_core::Package;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -155,7 +155,7 @@ pub fn present(
                 (t("System scope:"), &system_buf),
             ] {
                 if let Some(block) = block_or_none(buf) {
-                    if let Err(e) = onyx_core::parse_block(&block) {
+                    if let Err(e) = nix_software_core::parse_block(&block) {
                         errs.push(format!("{scope}\n{e}"));
                     }
                 }
@@ -239,7 +239,7 @@ pub fn present(
 
             let (tx, rx) = async_channel::bounded(1);
             std::thread::spawn(move || {
-                let _ = tx.send_blocking(onyx_core::dry_build());
+                let _ = tx.send_blocking(nix_software_core::dry_build());
             });
 
             let status = status.clone();
@@ -247,17 +247,17 @@ pub fn present(
             glib::spawn_future_local(async move {
                 if let Ok(res) = rx.recv().await {
                     match res {
-                        onyx_core::DryRun::Ok => {
+                        nix_software_core::DryRun::Ok => {
                             status.remove_css_class("error");
                             status.set_label(&t(
                                 "✓ The whole configuration evaluates, options and types included",
                             ));
                         }
-                        onyx_core::DryRun::Failed(e) => {
+                        nix_software_core::DryRun::Failed(e) => {
                             status.add_css_class("error");
                             status.set_label(&e);
                         }
-                        onyx_core::DryRun::Unavailable(e) => {
+                        nix_software_core::DryRun::Unavailable(e) => {
                             status.set_label(&t("Cannot check: {}").replace("{}", &t(&e)));
                         }
                     }

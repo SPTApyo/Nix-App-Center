@@ -94,7 +94,8 @@ mod tests {
     #[test]
     fn empty_mapping_marks_a_package_unmatched() {
         let _g = crate::env_lock();
-        let dir = std::env::temp_dir().join(format!("onyx-resolve-u-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("nix-software-resolve-u-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
         assert!(!is_unmatched("zoom"));
@@ -107,7 +108,8 @@ mod tests {
     #[test]
     fn community_overlay_covers_known_gaps() {
         let _g = crate::env_lock();
-        let dir = std::env::temp_dir().join(format!("onyx-resolve-c-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("nix-software-resolve-c-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir); // empty user overlay, falls back on community
 
@@ -129,7 +131,8 @@ mod tests {
     #[test]
     fn user_overlay_takes_precedence_and_report_persists() {
         let _g = crate::env_lock();
-        let dir = std::env::temp_dir().join(format!("onyx-resolve-u-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("nix-software-resolve-u-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
 
@@ -155,7 +158,8 @@ mod tests {
     #[test]
     fn attr_for_app_id_inverts_the_overlay() {
         let _g = crate::env_lock();
-        let dir = std::env::temp_dir().join(format!("onyx-resolve-r-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("nix-software-resolve-r-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
 

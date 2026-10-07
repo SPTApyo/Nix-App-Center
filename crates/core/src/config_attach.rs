@@ -1,6 +1,6 @@
-//! Attach: connect the Onyx files to the user's configuration.
+//! Attach: connect the Nix Software files to the user's configuration.
 //!
-//! This is the only place where Onyx touches a file it did not write. Hard
+//! This is the only place where Nix Software touches a file it did not write. Hard
 //! rule, and the sole reason this module exists:
 //!
 //! > **No write without a displayed plan and explicit approval.**
@@ -14,7 +14,7 @@
 //! parsed and no file is ever rebuilt from an AST: the user's formatting,
 //! comments and logic survive untouched.
 //!
-//! When the file has no top-level `imports` list, Onyx **does not guess**: it
+//! When the file has no top-level `imports` list, Nix Software **does not guess**: it
 //! returns a "manual" plan (the snippet to paste) and writes nothing.
 
 use crate::config_layout::Layout;
@@ -24,32 +24,32 @@ use std::path::{Path, PathBuf};
 pub enum AttachPlan {
     /// Already attached: nothing to do.
     AlreadyAttached,
-    /// Onyx can patch. Everything is computed, nothing is written.
+    /// Nix Software can patch. Everything is computed, nothing is written.
     Patch {
         /// The user's file to modify.
         site: PathBuf,
         /// The backup written before any modification.
         backup: PathBuf,
-        /// The added import lines (`./onyx-home.nix`…).
+        /// The added import lines (`./nix-software-home.nix`…).
         added: Vec<String>,
         /// Unified diff, shown as is to the user.
         diff: String,
         /// The resulting content, already computed.
         patched: String,
     },
-    /// Onyx cannot find a top-level `imports` list: it refuses to guess. The
+    /// Nix Software cannot find a top-level `imports` list: it refuses to guess. The
     /// user pastes these lines wherever they want.
     Manual { site: PathBuf, snippet: String },
     /// Unknown layout: there is nothing to attach to.
     NoLayout,
 }
 
-/// Import path relative to the attached file (`./onyx-home.nix`).
-fn import_line(onyx_file: &Path) -> String {
-    let name = onyx_file
+/// Import path relative to the attached file (`./nix-software-home.nix`).
+fn import_line(nix_software_file: &Path) -> String {
+    let name = nix_software_file
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("onyx.nix");
+        .unwrap_or("nix-software.nix");
     format!("./{name}")
 }
 
@@ -58,7 +58,10 @@ fn import_line(onyx_file: &Path) -> String {
 fn required_imports(layout: &Layout) -> Vec<(PathBuf, String)> {
     let mut out: Vec<(PathBuf, String)> = Vec::new();
     for scope in [&layout.home, &layout.system].into_iter().flatten() {
-        let entry = (scope.import_site.clone(), import_line(&scope.onyx_file));
+        let entry = (
+            scope.import_site.clone(),
+            import_line(&scope.nix_software_file),
+        );
         if !out.contains(&entry) {
             out.push(entry);
         }
@@ -155,7 +158,7 @@ pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
     }
 }
 
-/// Removes Onyx's import lines. The Onyx files stay on disk, inert.
+/// Removes Nix Software's import lines. The Nix Software files stay on disk, inert.
 pub fn detach(layout: &Layout) -> std::io::Result<()> {
     for (site, line) in required_imports(layout) {
         let Ok(src) = std::fs::read_to_string(&site) else {
@@ -178,7 +181,7 @@ pub fn detach(layout: &Layout) -> std::io::Result<()> {
 
 fn backup_path(site: &Path) -> PathBuf {
     let mut name = site.file_name().unwrap_or_default().to_os_string();
-    name.push(".onyx-bak");
+    name.push(".nix-software-bak");
     site.with_file_name(name)
 }
 
@@ -188,7 +191,7 @@ fn backup_path(site: &Path) -> PathBuf {
 /// of the `modules` list of a flake (`nixosConfigurations.x = … { modules = [ … ]; }`).
 /// Returns the patched content and the index of the insertion line.
 ///
-/// `None` without a usable `imports` list: Onyx would rather do nothing than
+/// `None` without a usable `imports` list: Nix Software would rather do nothing than
 /// guess where to write in someone else's file.
 fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
     let open = find_list_bracket(src, "imports").or_else(|| find_list_bracket(src, "modules"))?;
@@ -331,9 +334,10 @@ mod tests {
     #[test]
     fn flake_without_configuration_nix_gets_a_modules_line() {
         let flake = "{\n  outputs = { c, ... }: {\n    nixosConfigurations.pc = c.extendModules {\n      modules = [\n        ./hardware-configuration.nix\n        ./custom.nix\n      ];\n    };\n  };\n}\n";
-        let (patched, _) = splice_imports(flake, &["./onyx-system.nix".to_string()]).unwrap();
+        let (patched, _) =
+            splice_imports(flake, &["./nix-software-system.nix".to_string()]).unwrap();
         assert!(
-            patched.contains("        ./custom.nix\n        ./onyx-system.nix\n      ];"),
+            patched.contains("        ./custom.nix\n        ./nix-software-system.nix\n      ];"),
             "{patched}"
         );
     }
@@ -348,7 +352,11 @@ mod tests {
                           }\n";
 
     fn fixture(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("onyx-attach-{}-{}", std::process::id(), name));
+        let dir = std::env::temp_dir().join(format!(
+            "nix-software-attach-{}-{}",
+            std::process::id(),
+            name
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("configuration.nix"), CONFIG).unwrap();
@@ -363,11 +371,11 @@ mod tests {
                 host: "Test".into(),
             },
             home: Some(ScopeTarget {
-                onyx_file: dir.join("onyx-home.nix"),
+                nix_software_file: dir.join("nix-software-home.nix"),
                 import_site: site.clone(),
             }),
             system: Some(ScopeTarget {
-                onyx_file: dir.join("onyx-system.nix"),
+                nix_software_file: dir.join("nix-software-system.nix"),
                 import_site: site,
             }),
             apply: vec!["sudo".into(), "nixos-rebuild".into(), "switch".into()],
@@ -390,8 +398,11 @@ mod tests {
         else {
             panic!("attendu un patch, obtenu {p:?}");
         };
-        assert_eq!(added, &["./onyx-home.nix", "./onyx-system.nix"]);
-        assert!(diff.contains("+    ./onyx-home.nix"));
+        assert_eq!(
+            added,
+            &["./nix-software-home.nix", "./nix-software-system.nix"]
+        );
+        assert!(diff.contains("+    ./nix-software-home.nix"));
         assert!(patched.contains("./hardware-configuration.nix"));
 
         // The file on disk is UNTOUCHED until commit() is called.
@@ -407,13 +418,14 @@ mod tests {
         commit(&plan(&layout)).unwrap();
 
         let patched = std::fs::read_to_string(dir.join("configuration.nix")).unwrap();
-        assert!(patched.contains("./onyx-home.nix"));
-        assert!(patched.contains("./onyx-system.nix"));
+        assert!(patched.contains("./nix-software-home.nix"));
+        assert!(patched.contains("./nix-software-system.nix"));
         // What existed is still there, unchanged.
         assert!(patched.contains("./hardware-configuration.nix"));
         assert!(patched.contains("services.foo.enable = true;"));
 
-        let backup = std::fs::read_to_string(dir.join("configuration.nix.onyx-bak")).unwrap();
+        let backup =
+            std::fs::read_to_string(dir.join("configuration.nix.nix-software-bak")).unwrap();
         assert_eq!(backup, CONFIG, "the backup must come before the change");
     }
 
@@ -428,7 +440,7 @@ mod tests {
 
         commit(&plan(&layout)).unwrap();
         let src = std::fs::read_to_string(dir.join("configuration.nix")).unwrap();
-        assert_eq!(src.matches("./onyx-home.nix").count(), 1);
+        assert_eq!(src.matches("./nix-software-home.nix").count(), 1);
     }
 
     #[test]
@@ -455,17 +467,17 @@ mod tests {
 
         let p = plan(&layout);
         let AttachPlan::Manual { snippet, .. } = &p else {
-            panic!("Onyx must not guess where to write; got {p:?}");
+            panic!("Nix Software must not guess where to write; got {p:?}");
         };
-        assert!(snippet.contains("./onyx-home.nix"));
+        assert!(snippet.contains("./nix-software-home.nix"));
     }
 
     #[test]
     fn ignores_imports_inside_a_comment() {
         let src = "{\n  # imports = [ ./vieux.nix ];\n  imports = [\n    ./vrai.nix\n  ];\n}\n";
-        let (patched, _) = splice_imports(src, &["./onyx-home.nix".to_string()]).unwrap();
+        let (patched, _) = splice_imports(src, &["./nix-software-home.nix".to_string()]).unwrap();
         assert!(patched.contains("./vrai.nix"));
-        assert!(patched.contains("./onyx-home.nix"));
+        assert!(patched.contains("./nix-software-home.nix"));
         // The commented line stays commented, and untouched.
         assert!(patched.contains("# imports = [ ./vieux.nix ];"));
     }

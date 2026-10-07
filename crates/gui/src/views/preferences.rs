@@ -1,15 +1,15 @@
-//! Preferences dialog: what Onyx detected of the Nix configuration, overrides
+//! Preferences dialog: what Nix Software detected of the Nix configuration, overrides
 //! when the text scan guesses wrong, a check by Nix itself, and the update
 //! check preference. Settings are saved as soon as they change.
 
 use adw::prelude::*;
-use onyx_core::{Layout, LayoutKind};
+use nix_software_core::{Layout, LayoutKind};
 
 use crate::i18n::t;
 use crate::util::esc;
 
 pub fn present(parent: &impl IsA<gtk::Widget>) {
-    let settings = onyx_core::load_settings();
+    let settings = nix_software_core::load_settings();
     let dialog = adw::PreferencesDialog::new();
     let page = adw::PreferencesPage::new();
 
@@ -22,7 +22,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         .build();
     let detected = adw::ActionRow::builder()
         .title(t("Detected"))
-        .subtitle(esc(&describe(&onyx_core::detect_layout())))
+        .subtitle(esc(&describe(&nix_software_core::detect_layout())))
         .subtitle_selectable(true)
         .build();
     let dir = adw::EntryRow::builder()
@@ -41,11 +41,11 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     }
     let save = {
         let detected = detected.clone();
-        move |edit: &dyn Fn(&mut onyx_core::Settings)| {
-            let mut s = onyx_core::load_settings();
+        move |edit: &dyn Fn(&mut nix_software_core::Settings)| {
+            let mut s = nix_software_core::load_settings();
             edit(&mut s);
-            let _ = onyx_core::save_settings(&s);
-            detected.set_subtitle(&esc(&describe(&onyx_core::detect_layout())));
+            let _ = nix_software_core::save_settings(&s);
+            detected.set_subtitle(&esc(&describe(&nix_software_core::detect_layout())));
         }
     };
     dir.connect_apply({
@@ -76,10 +76,11 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             verdict.set_subtitle(&esc(&t("Evaluating your configuration…")));
             let (row, verdict) = (row.clone(), verdict.clone());
             gtk::glib::spawn_future_local(async move {
-                let layout = onyx_core::detect_layout();
-                let res = gtk::gio::spawn_blocking(move || onyx_core::verify_layout(&layout))
-                    .await
-                    .unwrap_or_else(|_| Err(String::new()));
+                let layout = nix_software_core::detect_layout();
+                let res =
+                    gtk::gio::spawn_blocking(move || nix_software_core::verify_layout(&layout))
+                        .await
+                        .unwrap_or_else(|_| Err(String::new()));
                 verdict.set_subtitle(&esc(&match res {
                     Ok(v) => verified_text(&v),
                     Err(e) => t("Nix could not evaluate it: {}").replace("{}", &e),
@@ -108,9 +109,9 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         .active(settings.auto_check_updates)
         .build();
     auto.connect_active_notify(move |row| {
-        let mut s = onyx_core::load_settings();
+        let mut s = nix_software_core::load_settings();
         s.auto_check_updates = row.is_active();
-        let _ = onyx_core::save_settings(&s);
+        let _ = nix_software_core::save_settings(&s);
     });
     updates.add(&auto);
 
@@ -118,13 +119,13 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     let search = adw::PreferencesGroup::builder().title(t("Search")).build();
     let by_command = adw::ActionRow::builder()
         .title(t("Search by Command"))
-        .subtitle(esc(&if onyx_core::locate_ready() {
+        .subtitle(esc(&if nix_software_core::locate_ready() {
             t("Ready: searching a command also lists the packages that provide it.")
         } else {
             t("Lists the packages that provide a command. Needs the nix-index database, about 100 MB.")
         }))
         .build();
-    if !onyx_core::locate_ready() {
+    if !nix_software_core::locate_ready() {
         let download = gtk::Button::with_label(&t("Download"));
         download.set_valign(gtk::Align::Center);
         download.connect_clicked({
@@ -134,7 +135,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
                 row.set_subtitle(&esc(&t("Downloading the nix-index database…")));
                 let (btn, row) = (btn.clone(), row.clone());
                 gtk::glib::spawn_future_local(async move {
-                    let res = gtk::gio::spawn_blocking(onyx_core::download_locate_db).await;
+                    let res = gtk::gio::spawn_blocking(nix_software_core::download_locate_db).await;
                     match res {
                         Ok(Ok(())) => {
                             row.set_subtitle(&esc(&t("Ready: searching a command also lists the packages that provide it.")));
@@ -185,7 +186,7 @@ fn describe(layout: &Layout) -> String {
     }
 }
 
-fn verified_text(v: &onyx_core::Verified) -> String {
+fn verified_text(v: &nix_software_core::Verified) -> String {
     let mut lines = Vec::new();
     if !v.hosts.is_empty() {
         lines.push(t("Configurations: {}").replace("{}", &v.hosts.join(", ")));

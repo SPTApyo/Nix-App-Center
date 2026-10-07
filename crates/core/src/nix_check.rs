@@ -31,7 +31,8 @@ pub fn parse_block(block: &str) -> Result<(), String> {
     // concurrent checks sharing a temp file delete it under each other.
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path = std::env::temp_dir().join(format!("onyx-parse-{}-{n}.nix", std::process::id()));
+    let path =
+        std::env::temp_dir().join(format!("nix-software-parse-{}-{n}.nix", std::process::id()));
     std::fs::write(&path, wrap(block)).map_err(|e| e.to_string())?;
 
     let out = Command::new("nix-instantiate")

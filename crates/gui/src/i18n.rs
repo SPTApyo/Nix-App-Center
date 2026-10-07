@@ -11,23 +11,23 @@ use gettextrs::{bind_textdomain_codeset, bindtextdomain, setlocale, textdomain, 
 /// string: `t("Search…")`.
 pub use gettextrs::gettext as t;
 
-const DOMAIN: &str = "onyx";
+const DOMAIN: &str = "nix-software";
 
 /// Where to find `.mo` catalogs, by priority:
-/// 1. `ONYX_LOCALEDIR`, set by the Nix package wrapper (`share/locale`);
-/// 2. `ONYX_DEV_LOCALEDIR`, compiled by `build.rs` (dev: `cargo run`/`cargo test`);
+/// 1. `NIX_SOFTWARE_LOCALEDIR`, set by the Nix package wrapper (`share/locale`);
+/// 2. `NIX_SOFTWARE_DEV_LOCALEDIR`, compiled by `build.rs` (dev: `cargo run`/`cargo test`);
 /// 3. the standard system path.
 fn localedir() -> String {
-    if let Ok(dir) = std::env::var("ONYX_LOCALEDIR") {
+    if let Ok(dir) = std::env::var("NIX_SOFTWARE_LOCALEDIR") {
         return dir;
     }
-    if let Some(dir) = option_env!("ONYX_DEV_LOCALEDIR") {
+    if let Some(dir) = option_env!("NIX_SOFTWARE_DEV_LOCALEDIR") {
         return dir.to_string();
     }
     "/usr/share/locale".to_string()
 }
 
-/// Binds gettext to the system locale and the "onyx" domain. Call once, at the
+/// Binds gettext to the system locale and the "nix-software" domain. Call once, at the
 /// very start of `main`, before building any widget.
 pub fn init() {
     setlocale(LocaleCategory::LcAll, "");

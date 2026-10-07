@@ -15,7 +15,7 @@ const ENDPOINT: &str = "https://odrs.gnome.org/1.0/reviews/api/fetch";
 const SUBMIT: &str = "https://odrs.gnome.org/1.0/reviews/api/submit";
 const LIMIT: u32 = 10;
 
-/// Hash sent when only reading: shared by every Onyx user, so reading tells
+/// Hash sent when only reading: shared by every Nix Software user, so reading tells
 /// ODRS nothing about who looks at which app.
 const ANONYMOUS_HASH: &str = "0000000000000000000000000000000000000000";
 

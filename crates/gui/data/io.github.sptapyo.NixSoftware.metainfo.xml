@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2026 SPTApyo -->
 <component type="desktop-application">
-  <id>dev.onyx.Onyx</id>
-  <launchable type="desktop-id">dev.onyx.Onyx.desktop</launchable>
+  <id>io.github.sptapyo.NixSoftware</id>
+  <launchable type="desktop-id">io.github.sptapyo.NixSoftware.desktop</launchable>
 
   <name>Nix Software</name>
   <summary>Declarative app store for Nix</summary>
@@ -11,7 +11,7 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
 
-  <developer id="dev.onyx">
+  <developer id="io.github.sptapyo">
     <name>SPTApyo</name>
   </developer>
 
@@ -37,8 +37,8 @@
 
   <content_rating type="oars-1.1"/>
 
-  <url type="homepage">https://github.com/SPTApyo/Projet-Onyx</url>
-  <url type="bugtracker">https://github.com/SPTApyo/Projet-Onyx/issues</url>
+  <url type="homepage">https://github.com/SPTApyo/nix-software</url>
+  <url type="bugtracker">https://github.com/SPTApyo/nix-software/issues</url>
 
   <releases>
     <release version="0.1.0" date="2026-07-15">

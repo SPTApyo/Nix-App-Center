@@ -2,7 +2,7 @@
 //! GNOME Software). Click opens the details page.
 
 use adw::prelude::*;
-use onyx_core::Package;
+use nix_software_core::Package;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
 
 use crate::util::{fallback_icon, texture_from_bytes_sized, AppItem, IconState};
@@ -141,11 +141,13 @@ impl FactoryComponent for AppTile {
             IconState::Generic
         };
         if let Some(url) = icon_url {
-            onyx_core::remember_icon_url(&package.attr, &url);
+            nix_software_core::remember_icon_url(&package.attr, &url);
             // send() (unlike input()) does not panic if the tile was destroyed.
             let s = sender.input_sender().clone();
             std::thread::spawn(move || {
-                let _ = s.send(TileMsg::IconLoaded(onyx_core::cached_fetch_bytes(&url)));
+                let _ = s.send(TileMsg::IconLoaded(nix_software_core::cached_fetch_bytes(
+                    &url,
+                )));
             });
         }
         Self {

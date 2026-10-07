@@ -1,13 +1,13 @@
 //! Detection of the user's Nix configuration layout.
 //!
-//! Onyx used to assume *standalone* home-manager: it wrote
-//! `~/.config/home-manager/onyx-packages.nix` and applied with `home-manager switch`.
+//! Nix Software used to assume *standalone* home-manager: it wrote
+//! `~/.config/home-manager/nix-software-packages.nix` and applied with `home-manager switch`.
 //! Both assumptions break outside that case, and the most common NixOS setup
 //! (flake + home-manager as a NixOS module) has neither that file imported nor that
 //! binary. The generated file was then an **orphan**: "keep" had no effect.
 //!
 //! This module identifies the real layout and derives three things from it: where to
-//! put the Onyx files, which `imports` to patch, and **the real apply command**.
+//! put the Nix Software files, which `imports` to patch, and **the real apply command**.
 //!
 //! Detection is *text scanning*, not Nix parsing: it looks for markers and never
 //! rebuilds a file from an AST. So it can be wrong, which is why it is never applied
@@ -27,16 +27,16 @@ pub enum LayoutKind {
     HmFlake { dir: PathBuf, user: String },
     /// Standalone home-manager (`~/.config/home-manager/home.nix`).
     HmStandalone { dir: PathBuf },
-    /// Nothing recognizable. Onyx does not guess: it falls back on the manual snippet.
+    /// Nothing recognizable. Nix Software does not guess: it falls back on the manual snippet.
     Unknown,
 }
 
-/// A scope Onyx can write to: its file, and the file whose `imports` list must be
-/// patched so Onyx's file is taken into account.
+/// A scope Nix Software can write to: its file, and the file whose `imports` list must be
+/// patched so Nix Software's file is taken into account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeTarget {
-    /// The file Onyx owns (generated, never edited by hand).
-    pub onyx_file: PathBuf,
+    /// The file Nix Software owns (generated, never edited by hand).
+    pub nix_software_file: PathBuf,
     /// The user's file whose `imports = [ … ]` gets patched, a single line.
     pub import_site: PathBuf,
 }
@@ -52,24 +52,24 @@ pub struct Layout {
     /// The full apply argv. Empty when the layout is unknown.
     pub apply: Vec<String>,
     /// The home-manager user, when HM is plugged in as a NixOS module. It decides
-    /// the wrapping of the Onyx file (`home-manager.users.<user> = { … }`).
+    /// the wrapping of the Nix Software file (`home-manager.users.<user> = { … }`).
     pub hm_user: Option<String>,
 }
 
 impl Layout {
-    /// True when Onyx knows where to write and how to apply.
+    /// True when Nix Software knows where to write and how to apply.
     pub fn is_usable(&self) -> bool {
         !matches!(self.kind, LayoutKind::Unknown)
     }
 }
 
-const ONYX_HOME_FILE: &str = "onyx-home.nix";
-const ONYX_SYSTEM_FILE: &str = "onyx-system.nix";
+const NIX_SOFTWARE_HOME_FILE: &str = "nix-software-home.nix";
+const NIX_SOFTWARE_SYSTEM_FILE: &str = "nix-software-system.nix";
 
-/// Root of the NixOS configuration. `$ONYX_CONFIG_DIR` is the escape hatch (and
+/// Root of the NixOS configuration. `$NIX_SOFTWARE_CONFIG_DIR` is the escape hatch (and
 /// the test injection point: no test may ever touch the real `/etc/nixos`).
 fn nixos_dir() -> PathBuf {
-    std::env::var_os("ONYX_CONFIG_DIR")
+    std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
         .map(PathBuf::from)
         .or_else(|| crate::settings::load_settings().config_dir)
         .unwrap_or_else(|| PathBuf::from("/etc/nixos"))
@@ -92,8 +92,8 @@ pub fn detect() -> Layout {
     let flake = nixos.join("flake.nix");
     if flake.is_file() {
         let src = read(&flake);
-        // ONYX_CONFIG_DIR (tests, e2e) bypasses the saved settings.
-        let chosen = std::env::var_os("ONYX_CONFIG_DIR")
+        // NIX_SOFTWARE_CONFIG_DIR (tests, e2e) bypasses the saved settings.
+        let chosen = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
             .is_none()
             .then(|| crate::settings::load_settings().host)
             .flatten();
@@ -182,7 +182,7 @@ pub fn verify(layout: &Layout) -> Result<Verified, String> {
 
 /// First `nixosConfigurations.<host>` or `nixosConfigurations = { <host> = …`.
 /// When the machine hostname is among the configurations found, it wins: a
-/// multi-machine flake must not make Onyx write into another machine's config.
+/// multi-machine flake must not make Nix Software write into another machine's config.
 pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
     let hosts = nixos_hosts(flake_src);
     if hosts.is_empty() {
@@ -276,11 +276,11 @@ fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
     };
     (
         Some(ScopeTarget {
-            onyx_file: dir.join(ONYX_HOME_FILE),
+            nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
             import_site: site.clone(),
         }),
         Some(ScopeTarget {
-            onyx_file: dir.join(ONYX_SYSTEM_FILE),
+            nix_software_file: dir.join(NIX_SOFTWARE_SYSTEM_FILE),
             import_site: site,
         }),
     )
@@ -318,7 +318,7 @@ fn nixos_legacy_layout(dir: PathBuf, hm_user: Option<String>) -> Layout {
 
 fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
     let home = Some(ScopeTarget {
-        onyx_file: dir.join(ONYX_HOME_FILE),
+        nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
         import_site: dir.join("home.nix"),
     });
     let apply = vec![
@@ -340,7 +340,7 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
 
 fn hm_standalone_layout(dir: PathBuf) -> Layout {
     let home = Some(ScopeTarget {
-        onyx_file: dir.join(ONYX_HOME_FILE),
+        nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
         import_site: dir.join("home.nix"),
     });
     let apply = vec!["home-manager".into(), "switch".into()];
@@ -359,7 +359,11 @@ mod tests {
 
     /// Throwaway fixture. No test ever touches the real `/etc/nixos` or `~`.
     fn fixture(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("onyx-layout-{}-{}", std::process::id(), name));
+        let dir = std::env::temp_dir().join(format!(
+            "nix-software-layout-{}-{}",
+            std::process::id(),
+            name
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -384,10 +388,10 @@ mod tests {
             "{ imports = [ ./hardware-configuration.nix ]; }",
         );
         write(&dir, "home.nix", "{ home-manager.users.alice = { ... }; }");
-        std::env::set_var("ONYX_CONFIG_DIR", &dir);
+        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &dir);
 
         let layout = detect();
-        std::env::remove_var("ONYX_CONFIG_DIR");
+        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
 
         assert_eq!(
             layout.kind,
@@ -410,8 +414,11 @@ mod tests {
         // Both scopes attach in the same configuration.nix.
         let home = layout.home.unwrap();
         let system = layout.system.unwrap();
-        assert_eq!(home.onyx_file, dir.join("onyx-home.nix"));
-        assert_eq!(system.onyx_file, dir.join("onyx-system.nix"));
+        assert_eq!(home.nix_software_file, dir.join("nix-software-home.nix"));
+        assert_eq!(
+            system.nix_software_file,
+            dir.join("nix-software-system.nix")
+        );
         assert_eq!(home.import_site, dir.join("configuration.nix"));
         assert_eq!(system.import_site, dir.join("configuration.nix"));
     }
@@ -421,10 +428,10 @@ mod tests {
         let _g = crate::env_lock();
         let dir = fixture("legacy");
         write(&dir, "configuration.nix", "{ imports = [ ]; }");
-        std::env::set_var("ONYX_CONFIG_DIR", &dir);
+        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &dir);
 
         let layout = detect();
-        std::env::remove_var("ONYX_CONFIG_DIR");
+        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
 
         assert_eq!(layout.kind, LayoutKind::NixosLegacy { dir });
         assert_eq!(layout.apply, ["sudo", "nixos-rebuild", "switch"]);
@@ -436,11 +443,11 @@ mod tests {
         let _g = crate::env_lock();
         let dir = fixture("vide");
         let home = fixture("home-vide");
-        std::env::set_var("ONYX_CONFIG_DIR", &dir);
+        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &dir);
         std::env::set_var("HOME", &home);
 
         let layout = detect();
-        std::env::remove_var("ONYX_CONFIG_DIR");
+        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
 
         assert_eq!(layout.kind, LayoutKind::Unknown);
         assert!(layout.apply.is_empty(), "no apply may be offered");

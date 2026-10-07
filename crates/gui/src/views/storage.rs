@@ -1,6 +1,6 @@
 //! "Storage" tab: where the Nix store space goes, as a pie chart over
 //! categories that never double count, the generations with what each one
-//! alone keeps, the apps by size, and the two clean-ups Onyx can run.
+//! alone keeps, the apps by size, and the two clean-ups Nix Software can run.
 //!
 //! The report reads the whole store database (seconds): it runs when the tab
 //! is entered and the last one is older than a minute, or after a clean-up.
@@ -8,7 +8,7 @@
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use onyx_core::{AppOrigin, Category, GenProfile, HomeDir, HomeKind, StorageReport};
+use nix_software_core::{AppOrigin, Category, GenProfile, HomeDir, HomeKind, StorageReport};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -105,12 +105,12 @@ impl SimpleComponent for StorageModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = onyx_core::storage_report().map_err(|e| e.to_string());
+                    let res = nix_software_core::storage_report().map_err(|e| e.to_string());
                     let _ = s.send(StorageMsg::Loaded(res));
                 });
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(StorageMsg::HomeLoaded(onyx_core::home_usage()));
+                    let _ = s.send(StorageMsg::HomeLoaded(nix_software_core::home_usage()));
                 });
             }
             StorageMsg::HomeLoaded(dirs) => {
@@ -120,7 +120,7 @@ impl SimpleComponent for StorageModel {
             StorageMsg::ClearCache(dir) => {
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = onyx_core::clear_cache(&dir).map_err(|e| e.to_string());
+                    let res = nix_software_core::clear_cache(&dir).map_err(|e| e.to_string());
                     let _ = s.send(StorageMsg::CacheCleared(res));
                 });
             }
@@ -131,7 +131,7 @@ impl SimpleComponent for StorageModel {
                 });
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(StorageMsg::HomeLoaded(onyx_core::home_usage()));
+                    let _ = s.send(StorageMsg::HomeLoaded(nix_software_core::home_usage()));
                 });
             }
             StorageMsg::Loaded(res) => {

@@ -1,7 +1,7 @@
 //! Compiles `po/<lang>.po` catalogs into `.mo` files under `OUT_DIR/locale/…` so that
 //! `cargo run` / `cargo test` find translations without a system install, and
-//! exposes that folder through `ONYX_DEV_LOCALEDIR`. The Nix package installs the `.mo`
-//! files in `share/locale` and points `ONYX_LOCALEDIR` there (preferred at runtime).
+//! exposes that folder through `NIX_SOFTWARE_DEV_LOCALEDIR`. The Nix package installs the `.mo`
+//! files in `share/locale` and points `NIX_SOFTWARE_LOCALEDIR` there (preferred at runtime).
 
 use std::path::Path;
 use std::process::Command;
@@ -24,7 +24,7 @@ fn main() {
             let lang = po.file_stem().unwrap().to_string_lossy().into_owned();
             let dest_dir = locale_root.join(&lang).join("LC_MESSAGES");
             std::fs::create_dir_all(&dest_dir).unwrap();
-            let dest = dest_dir.join("onyx.mo");
+            let dest = dest_dir.join("nix-software.mo");
             match Command::new("msgfmt")
                 .arg(&po)
                 .arg("-o")
@@ -38,7 +38,7 @@ fn main() {
     }
 
     println!(
-        "cargo:rustc-env=ONYX_DEV_LOCALEDIR={}",
+        "cargo:rustc-env=NIX_SOFTWARE_DEV_LOCALEDIR={}",
         locale_root.display()
     );
 }

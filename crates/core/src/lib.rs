@@ -1,4 +1,4 @@
-//! Onyx core: pure logic (search / run / keep), no UI dependency.
+//! Nix Software core: pure logic (search / run / keep), no UI dependency.
 //!
 //! Front ends (CLI, relm4 GUI) consume this crate; it knows neither GTK nor
 //! the terminal. The API is deliberately shaped as *data* (taxonomy + actions)
@@ -28,7 +28,7 @@
 //! - [`config_layout`]: Nix layout detection (where to write, how to apply)
 //! - [`config_attach`]: consented attach to the user's config (plan, diff, commit)
 //! - [`nix_check`]: validation of the user's Nix (instant parse, dry-build)
-//! - [`config_gen`]: generation of the Onyx files + applying the config
+//! - [`config_gen`]: generation of the Nix Software files + applying the config
 //! - [`updates`]: nixpkgs source of the config, update check and update
 //! - [`profiles`]: apps already installed in the Nix profiles
 //! - [`user_profile`]: `nix profile` installs when no config is managed
@@ -120,7 +120,7 @@ pub use util::now_unix;
 
 // ── Test utility: global lock for tests that mutate the environment
 // (`set_var`/`remove_var` are process global and Rust tests run in
-// parallel, so tests touching ONYX_*/XDG_* variables are serialized).
+// parallel, so tests touching NIX_SOFTWARE_*/XDG_* variables are serialized).
 // Cross-module (`manifest`, `config_gen`), hence at the crate root.
 #[cfg(test)]
 pub(crate) fn env_lock() -> std::sync::MutexGuard<'static, ()> {

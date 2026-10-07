@@ -1,11 +1,11 @@
 [package]
-name = "onyx-gui"
+name = "nix-software-gui"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
 [[bin]]
-name = "onyx"
+name = "nix-software"
 path = "src/main.rs"
 
 [features]
@@ -14,7 +14,7 @@ path = "src/main.rs"
 dev-gallery = []
 
 [dependencies]
-onyx-core = { path = "../core" }
+nix-software-core = { path = "../core" }
 relm4 = { version = "0.9", features = ["libadwaita"] }
 # gtk + adw déclarés explicitement, aux mêmes versions que celles tirées par
 # relm4 0.9 (gtk4 0.9.x, libadwaita 0.7.x), pour que les chemins `gtk::` /

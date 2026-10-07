@@ -1,4 +1,4 @@
-//! User settings (`$XDG_CONFIG_HOME/onyx/settings.json`): overrides of the
+//! User settings (`$XDG_CONFIG_HOME/nix-software/settings.json`): overrides of the
 //! layout detection and the update check preferences.
 
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ fn settings_path() -> PathBuf {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| crate::util::home().join(".config"));
-    base.join("onyx/settings.json")
+    base.join("nix-software/settings.json")
 }
 
 /// The saved settings, defaults when missing or unreadable.

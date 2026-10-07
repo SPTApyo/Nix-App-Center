@@ -1,5 +1,5 @@
 //! GNOME Shell search provider (`org.gnome.Shell.SearchProvider2`), like
-//! GNOME Software's: the Shell overview lists Onyx apps while the user types.
+//! GNOME Software's: the Shell overview lists Nix Software apps while the user types.
 //! Results come from the local AppStream database (instant, no network);
 //! activating one resolves it to nixpkgs and opens its page.
 
@@ -12,7 +12,7 @@ use gtk::prelude::*;
 
 use crate::app::AppMsg;
 
-const PATH: &str = "/dev/onyx/Onyx/SearchProvider";
+const PATH: &str = "/io/github/sptapyo/NixSoftware/SearchProvider";
 const XML: &str = r#"<node>
   <interface name="org.gnome.Shell.SearchProvider2">
     <method name="GetInitialResultSet">
@@ -55,7 +55,7 @@ pub fn register(app: &gtk::Application) {
         return;
     };
     // Searches need the database: start loading it now.
-    onyx_core::init_appstream_db();
+    nix_software_core::init_appstream_db();
     let app = app.clone();
     let _ = conn
         .register_object(PATH, &iface)
@@ -87,9 +87,10 @@ fn handle(app: &gtk::Application, method: &str, params: &glib::Variant) -> Optio
             app.activate();
             let name = name_of(&id);
             std::thread::spawn(move || {
-                if let (Some(pkg), Some(tx)) =
-                    (onyx_core::package_for_app(&id, &name), APP_SENDER.get())
-                {
+                if let (Some(pkg), Some(tx)) = (
+                    nix_software_core::package_for_app(&id, &name),
+                    APP_SENDER.get(),
+                ) {
                     let _ = tx.send(AppMsg::OpenDetail(pkg));
                 }
             });
@@ -108,20 +109,20 @@ fn handle(app: &gtk::Application, method: &str, params: &glib::Variant) -> Optio
 }
 
 fn ids(terms: &[String]) -> Vec<String> {
-    onyx_core::search_local(terms, 8)
+    nix_software_core::search_local(terms, 8)
         .into_iter()
         .map(|h| h.app_id)
         .collect()
 }
 
 fn name_of(app_id: &str) -> String {
-    onyx_core::local_app(app_id)
+    nix_software_core::local_app(app_id)
         .map(|h| h.name)
         .unwrap_or_default()
 }
 
 fn meta(app_id: &str) -> HashMap<String, glib::Variant> {
-    let (name, summary) = onyx_core::local_app(app_id)
+    let (name, summary) = nix_software_core::local_app(app_id)
         .map(|h| (h.name, h.summary))
         .unwrap_or_default();
     // The app's own icon when installed, else a generic one.

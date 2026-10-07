@@ -3,7 +3,7 @@
 //! It only orchestrates components and never draws a list or grid itself.
 
 use adw::prelude::*;
-use onyx_core::Package;
+use nix_software_core::Package;
 use relm4::prelude::*;
 
 use crate::components::{AppList, AppListInput};
@@ -44,9 +44,9 @@ pub struct AppModel {
 #[derive(Debug)]
 pub enum AppMsg {
     Search(String),
-    SearchDone(Vec<onyx_core::SearchResult>),
+    SearchDone(Vec<nix_software_core::SearchResult>),
     LocateDone(String, Vec<Package>),
-    OptionsDone(Vec<onyx_core::NixOption>),
+    OptionsDone(Vec<nix_software_core::NixOption>),
     FileTypesDone(String, Vec<Package>),
     Home(HomeOutput),
     OpenCategory(&'static [&'static str], &'static str),
@@ -79,7 +79,7 @@ impl SimpleComponent for AppModel {
     ) -> ComponentParts<Self> {
         // Load the AppStream database in the background. Once ready, searches
         // and details pages need no Flathub request.
-        onyx_core::init_appstream_db();
+        nix_software_core::init_appstream_db();
 
         // ── CSS ───────────────────────────────────────────────────────────────
         let css = gtk::CssProvider::new();
@@ -97,8 +97,8 @@ impl SimpleComponent for AppModel {
                 .add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
         }
         // Window / taskbar icon, resolved by app id from the path added above
-        // (data/icons/hicolor/scalable/apps/dev.onyx.Onyx.svg).
-        gtk::Window::set_default_icon_name("dev.onyx.Onyx");
+        // (data/icons/hicolor/scalable/apps/io.github.sptapyo.NixSoftware.svg).
+        gtk::Window::set_default_icon_name("io.github.sptapyo.NixSoftware");
 
         // ── Child components ──────────────────────────────────────────────────
         let home = HomeModel::builder()
@@ -307,8 +307,8 @@ impl SimpleComponent for AppModel {
         });
 
         // Daily background check, a little after start.
-        let settings = onyx_core::load_settings();
-        let now = onyx_core::now_unix();
+        let settings = nix_software_core::load_settings();
+        let now = nix_software_core::now_unix();
         if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
             let su = updates.sender().clone();
             gtk::glib::timeout_add_seconds_local_once(30, move || {
@@ -358,28 +358,30 @@ impl SimpleComponent for AppModel {
                 let q = query.clone();
                 let q2 = query.clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(AppMsg::SearchDone(onyx_core::search_apps(&q)));
+                    let _ = s.send(AppMsg::SearchDone(nix_software_core::search_apps(&q)));
                 });
                 std::thread::spawn(move || {
                     let _ = s2.send(AppMsg::LocateDone(
                         q2.clone(),
-                        onyx_core::locate_binary(&q2),
+                        nix_software_core::locate_binary(&q2),
                     ));
                 });
                 let s4 = sender.input_sender().clone();
                 let q4 = query.clone();
                 std::thread::spawn(move || {
-                    let apps = onyx_core::apps_for_file_type(&q4, 6)
+                    let apps = nix_software_core::apps_for_file_type(&q4, 6)
                         .into_iter()
                         .map(|(p, _)| p)
                         .collect();
                     let _ = s4.send(AppMsg::FileTypesDone(q4, apps));
                 });
                 // NixOS options only make sense on NixOS.
-                if onyx_core::detect_layout().system.is_some() {
+                if nix_software_core::detect_layout().system.is_some() {
                     let s3 = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ = s3.send(AppMsg::OptionsDone(onyx_core::search_options(&query, 6)));
+                        let _ = s3.send(AppMsg::OptionsDone(nix_software_core::search_options(
+                            &query, 6,
+                        )));
                     });
                 }
             }
@@ -429,9 +431,9 @@ impl SimpleComponent for AppModel {
                 self.updates_page.set_badge_number(count as u32);
                 self.updates_page.set_needs_attention(count > 0);
                 if notify {
-                    let mut s = onyx_core::load_settings();
-                    s.last_update_check = onyx_core::now_unix();
-                    let _ = onyx_core::save_settings(&s);
+                    let mut s = nix_software_core::load_settings();
+                    s.last_update_check = nix_software_core::now_unix();
+                    let _ = nix_software_core::save_settings(&s);
                 }
                 if notify && count > 0 {
                     let n = gtk::gio::Notification::new(&t("Updates Available"));
@@ -465,11 +467,11 @@ impl SimpleComponent for AppModel {
 fn about_dialog() -> adw::AboutDialog {
     let d = adw::AboutDialog::builder()
         .application_name("Nix Software")
-        .application_icon("dev.onyx.Onyx")
+        .application_icon("io.github.sptapyo.NixSoftware")
         .developer_name("SPTApyo")
         .version(env!("CARGO_PKG_VERSION"))
-        .website("https://github.com/SPTApyo/Projet-Onyx")
-        .issue_url("https://github.com/SPTApyo/Projet-Onyx/issues")
+        .website("https://github.com/SPTApyo/nix-software")
+        .issue_url("https://github.com/SPTApyo/nix-software/issues")
         .license_type(gtk::License::Gpl30)
         .copyright("© 2026 SPTApyo")
         .build();

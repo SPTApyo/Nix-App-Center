@@ -1,7 +1,7 @@
 //! "Updates" tab. Every package follows the nixpkgs revision the config pins,
 //! so an update is that pin moving to the head of its branch. The tab shows
 //! the current pin, the branch head, the installed apps that change, and runs
-//! the update (move the pin, then apply) when Onyx knows how.
+//! the update (move the pin, then apply) when Nix Software knows how.
 //!
 //! The check downloads nixpkgs once per hour at most: it only runs when the
 //! tab is entered and the last check is older than ten minutes.
@@ -9,7 +9,7 @@
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use onyx_core::{AppUpdate, Latest, Source, UpdateMethod};
+use nix_software_core::{AppUpdate, Latest, Source, UpdateMethod};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -62,7 +62,7 @@ pub enum UpdatesMsg {
     Background,
     Checked(Check),
     Update,
-    Updated(Result<onyx_core::ApplyOutcome, String>),
+    Updated(Result<nix_software_core::ApplyOutcome, String>),
 }
 
 #[relm4::component(pub)]
@@ -184,16 +184,19 @@ impl SimpleComponent for UpdatesModel {
 
 /// Blocking: reads the pin, asks for the branch head, compares the apps.
 fn check() -> Check {
-    let source = onyx_core::current_source();
-    let latest = source.branch.as_deref().and_then(onyx_core::latest);
+    let source = nix_software_core::current_source();
+    let latest = source.branch.as_deref().and_then(nix_software_core::latest);
     let apps = match &latest {
         Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => {
-            onyx_core::app_updates(&l.rev, &onyx_core::profile_apps())
+            nix_software_core::app_updates(&l.rev, &nix_software_core::profile_apps())
         }
         _ => Vec::new(),
     };
-    let command = onyx_core::update_command(&source, &onyx_core::detect_layout());
-    let new_release = source.branch.as_deref().and_then(onyx_core::newer_release);
+    let command = nix_software_core::update_command(&source, &nix_software_core::detect_layout());
+    let new_release = source
+        .branch
+        .as_deref()
+        .and_then(nix_software_core::newer_release);
     Check {
         source,
         latest,
@@ -337,7 +340,7 @@ impl UpdatesModel {
     }
 }
 
-/// Why Onyx cannot run the update itself.
+/// Why Nix Software cannot run the update itself.
 fn method_note(method: &UpdateMethod) -> Option<String> {
     match method {
         UpdateMethod::Pinned { by } => Some(

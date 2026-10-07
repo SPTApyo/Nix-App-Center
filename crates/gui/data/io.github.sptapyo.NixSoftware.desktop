@@ -2,12 +2,12 @@
 Type=Application
 Name=Nix Software
 GenericName=Software Store
-Keywords=onyx;nix;nixpkgs;package;install;store;software;
+Keywords=nix;nixpkgs;package;install;store;software;
 GenericName[fr]=Logithèque
 Comment=Declarative app store for Nix
 Comment[fr]=App store déclaratif pour Nix
-Exec=onyx
-Icon=dev.onyx.Onyx
+Exec=nix-software
+Icon=io.github.sptapyo.NixSoftware
 Terminal=false
 Categories=System;PackageManager;GTK;
 Keywords[fr]=nix;nixpkgs;paquet;installer;logithèque;

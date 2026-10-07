@@ -3,7 +3,7 @@
 //! the command runs; `done` receives the outcome once it ends.
 
 use adw::prelude::*;
-use onyx_core::ApplyOutcome;
+use nix_software_core::ApplyOutcome;
 
 use crate::i18n::t;
 
@@ -75,7 +75,7 @@ pub fn present(
     let (tx, rx) = async_channel::unbounded::<Event>();
     std::thread::spawn(move || {
         let lines = tx.clone();
-        let res = onyx_core::run_streaming(&argv, move |l| {
+        let res = nix_software_core::run_streaming(&argv, move |l| {
             let _ = lines.send_blocking(Event::Line(l));
         })
         .map_err(|e| e.to_string());

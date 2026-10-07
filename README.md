@@ -1,4 +1,4 @@
-# Onyx
+# Nix Software
 
 Shown as **Nix Software** on the desktop.
 
@@ -6,10 +6,10 @@ A declarative app store for Nix, built around "try first".
 
 Launch any package from nixpkgs right away (nix run, or a nix shell for
 command line tools). Nothing is installed. When you want to keep an app,
-Onyx adds it to a small Nix module that it generates and that your own
+Nix Software adds it to a small Nix module that it generates and that your own
 configuration imports, then you apply it the usual way.
 
-Onyx detects your setup (NixOS with or without flakes, Home Manager as a
+Nix Software detects your setup (NixOS with or without flakes, Home Manager as a
 module, flake or standalone) and only touches your files after you accept a
 diff. A backup is written before any change.
 
@@ -18,15 +18,15 @@ diff. A backup is written before any change.
 - Search nixpkgs, with Flathub metadata (names, screenshots, ratings, age
   ratings, permissions) when the app exists there too.
 - Try an app without installing it, unfree packages included.
-- Keep an app: it lands in onyx-home.nix or onyx-system.nix, imported by
+- Keep an app: it lands in nix-software-home.nix or nix-software-system.nix, imported by
   your configuration.
-- Installed shows what Onyx keeps, what you tried (removable one by one
+- Installed shows what Nix Software keeps, what you tried (removable one by one
   from the store) and the apps your system and user profiles already hold.
 - Updates shows the nixpkgs revision your config is pinned to, what the
   branch head changes for your apps, and updates in one click.
 - Search packages, apps and NixOS options. Optional search by command.
 - Apply and update inside the app, with a live build log.
-- Write reviews, find Onyx apps from the GNOME Shell overview.
+- Write reviews, find Nix Software apps from the GNOME Shell overview.
 - Without a managed configuration, install for your user with nix profile.
 - English and French interface.
 
@@ -36,15 +36,15 @@ You need Nix with flakes enabled.
 
 ```bash
 nix run .                          # open the window
-nix run .#onyx-cli -- search gimp  # text interface
-nix build .                        # result/bin/onyx and result/bin/onyx-cli
+nix run .#nix-software-cli -- search gimp  # text interface
+nix build .                        # result/bin/nix-software and result/bin/nix-software-cli
 ```
 
 ## Development
 
 ```bash
 nix develop                         # Rust toolchain, GTK 4, libadwaita, gettext
-cargo run -p onyx-gui               # run the app
+cargo run -p nix-software-gui               # run the app
 cargo test --workspace              # unit tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
@@ -60,9 +60,9 @@ Design notes live in [docs/design.md](docs/design.md).
 
 Useful environment variables:
 
-- ONYX_CONFIG_DIR: NixOS configuration directory (defaults to /etc/nixos).
+- NIX_SOFTWARE_CONFIG_DIR: NixOS configuration directory (defaults to /etc/nixos).
   Point it to a copy to experiment safely.
-- ONYX_LOCALEDIR: where the compiled translations are (set by the Nix
+- NIX_SOFTWARE_LOCALEDIR: where the compiled translations are (set by the Nix
   package; cargo run compiles po/ on its own).
 
 ## End-to-end tests
@@ -89,4 +89,4 @@ Strings are in English in the sources and translated with gettext. See
 
 Copyright © 2026 SPTApyo.
 
-Onyx is free software under the GNU GPL-3.0-or-later. See [LICENSE](LICENSE).
+Nix Software is free software under the GNU GPL-3.0-or-later. See [LICENSE](LICENSE).

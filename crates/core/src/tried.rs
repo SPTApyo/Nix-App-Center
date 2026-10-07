@@ -1,6 +1,6 @@
 //! "Tried" history (try-first). Nix keeps NO record of past `nix run`s (the
 //! store holds thousands of paths, unrelated to "what the user tried"). So
-//! Onyx logs every launch, which materializes the try → keep funnel. The log
+//! Nix Software logs every launch, which materializes the try → keep funnel. The log
 //! lists packages from most to least recent (deduplicated by `attr`).
 
 use crate::package::Package;
@@ -293,7 +293,7 @@ fn delete_paths(paths: &[String]) -> std::io::Result<()> {
 
 /// Runs the Nix garbage collector (`nix-collect-garbage`): removes every
 /// unreferenced path from the store (so apps that were only "tried"). This is
-/// a SYSTEM operation (not limited to Onyx). Returns the last output line
+/// a SYSTEM operation (not limited to Nix Software). Returns the last output line
 /// (typically "… freed").
 pub fn garbage_collect() -> std::io::Result<String> {
     let out = Command::new("nix-collect-garbage").output()?;

@@ -1,6 +1,6 @@
-//! Where the Nix store space goes, seen from what Onyx knows: the system, the
+//! Where the Nix store space goes, seen from what Nix Software knows: the system, the
 //! user, running programs, old generations, development leftovers, apps tried
-//! with Onyx, and garbage. One `nix path-info --all` gives every path with its
+//! with Nix Software, and garbage. One `nix path-info --all` gives every path with its
 //! size and references; the GC roots say who keeps what alive. Each path is
 //! counted once, in the first category that reaches it.
 
@@ -501,7 +501,7 @@ fn disk() -> (u64, u64) {
     )
 }
 
-/// Sizes the apps Onyx shows: profile apps, kept and tried packages.
+/// Sizes the apps Nix Software shows: profile apps, kept and tried packages.
 fn apps(g: &Graph) -> Vec<AppSize> {
     let none = HashSet::new();
     let sized = |paths: &[String]| -> (u64, u64) {

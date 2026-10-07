@@ -1,5 +1,5 @@
-//! "Keep" manifest: Onyx's source of truth (never the user's curated
-//! config). `keep`/`unkeep` regenerate the Onyx files along the way
+//! "Keep" manifest: Nix Software's source of truth (never the user's curated
+//! config). `keep`/`unkeep` regenerate the Nix Software files along the way
 //! (`config_gen::sync_config`).
 //!
 //! An entry holds the package and, optionally, the **Nix block** the user wrote
@@ -49,7 +49,7 @@ pub struct Manifest {
 
 impl Manifest {
     /// Kept packages, for consumers that do not care about blocks
-    /// (updates, "installed" view, `onyx-cli list`).
+    /// (updates, "installed" view, `nix-software-cli list`).
     pub fn packages(&self) -> Vec<Package> {
         self.kept.iter().map(|e| e.package.clone()).collect()
     }
@@ -77,7 +77,7 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
     crate::paths::write_atomic(&manifest_path(), &json)
 }
 
-/// Writes the Onyx files, then the manifest: when the configuration cannot be
+/// Writes the Nix Software files, then the manifest: when the configuration cannot be
 /// written (no rights, cancelled password), the manifest stays as it was.
 fn commit(m: &Manifest) -> std::io::Result<()> {
     config_gen::sync_config(&m.kept)?;
@@ -108,7 +108,7 @@ pub fn unkeep(attr: &str) -> std::io::Result<()> {
 /// Replaces an app's Nix blocks (the "advanced path"). The app is kept if it
 /// was not: editing an app's Nix means wanting it.
 ///
-/// Blocks are written **as the user provided them**. Onyx neither rewrites
+/// Blocks are written **as the user provided them**. Nix Software neither rewrites
 /// nor reformats their Nix: they decide.
 pub fn set_blocks(
     pkg: &Package,
@@ -134,23 +134,26 @@ pub fn set_blocks(
 mod tests {
     use super::*;
 
-    /// Isolates `XDG_DATA_HOME` (manifest) and `ONYX_CONFIG_DIR` (generated files)
+    /// Isolates `XDG_DATA_HOME` (manifest) and `NIX_SOFTWARE_CONFIG_DIR` (generated files)
     /// in a throwaway directory. No test touches the real `~` or `/etc/nixos`.
     fn sandbox(name: &str) -> PathBuf {
-        let base =
-            std::env::temp_dir().join(format!("onyx-manifest-{}-{}", std::process::id(), name));
+        let base = std::env::temp_dir().join(format!(
+            "nix-software-manifest-{}-{}",
+            std::process::id(),
+            name
+        ));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
         // Minimal classic NixOS layout, so sync_config has somewhere to write.
         std::fs::write(base.join("configuration.nix"), "{ imports = [ ]; }").unwrap();
         std::env::set_var("XDG_DATA_HOME", &base);
-        std::env::set_var("ONYX_CONFIG_DIR", &base);
+        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &base);
         base
     }
 
     fn cleanup() {
         std::env::remove_var("XDG_DATA_HOME");
-        std::env::remove_var("ONYX_CONFIG_DIR");
+        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
     }
 
     #[test]
@@ -159,11 +162,11 @@ mod tests {
         let base = sandbox("keep");
 
         keep(&Package::from_attr("ripgrep")).unwrap();
-        let after_keep = std::fs::read_to_string(base.join("onyx-home.nix")).unwrap();
+        let after_keep = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
         assert!(after_keep.contains("ripgrep"));
 
         unkeep("ripgrep").unwrap();
-        let after_unkeep = std::fs::read_to_string(base.join("onyx-home.nix")).unwrap();
+        let after_unkeep = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
         assert!(!after_unkeep.contains("ripgrep"));
 
         cleanup();
@@ -183,9 +186,9 @@ mod tests {
         )
         .unwrap();
 
-        let home = std::fs::read_to_string(base.join("onyx-home.nix")).unwrap();
-        let system = std::fs::read_to_string(base.join("onyx-system.nix")).unwrap();
-        assert!(home.contains("# onyx:begin quickshare"));
+        let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        assert!(home.contains("# nix-software:begin quickshare"));
         assert!(home.contains("services.quickshare.enable = true;"));
         assert!(system.contains("networking.firewall.allowedTCPPorts = [ 8080 ];"));
 
@@ -198,10 +201,10 @@ mod tests {
         // Old format: a list of bare Packages, without block fields.
         let _g = crate::env_lock();
         let base = sandbox("migration");
-        let onyx = base.join("onyx");
-        std::fs::create_dir_all(&onyx).unwrap();
+        let data = base.join("nix-software");
+        std::fs::create_dir_all(&data).unwrap();
         std::fs::write(
-            onyx.join("kept.json"),
+            data.join("kept.json"),
             r#"{"kept":[{"attr":"firefox","name":"Firefox","version":"1","description":"d"}]}"#,
         )
         .unwrap();

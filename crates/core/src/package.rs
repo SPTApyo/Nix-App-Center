@@ -14,7 +14,7 @@ pub struct Package {
 
 impl Package {
     /// Builds a minimal package from its nixpkgs attribute alone.
-    /// Useful for front ends that only have an attr (e.g. `onyx-cli run <attr>`).
+    /// Useful for front ends that only have an attr (e.g. `nix-software-cli run <attr>`).
     pub fn from_attr(attr: impl Into<String>) -> Self {
         let attr = attr.into();
         Self {
@@ -348,7 +348,7 @@ pub enum Action {
     /// The *try-first* path for CLI tools, which `Run` (launching the main
     /// program and returning) does not serve.
     Shell,
-    /// Add to the Onyx manifest (and so to the generated Nix files).
+    /// Add to the Nix Software manifest (and so to the generated Nix files).
     Keep,
     /// Copy the `nix run` command (the front end owns the clipboard).
     CopyRunCommand,

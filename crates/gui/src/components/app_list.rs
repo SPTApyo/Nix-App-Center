@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use adw::prelude::*;
-use onyx_core::Package;
+use nix_software_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
@@ -46,7 +46,7 @@ pub enum AppListInput {
     /// Apps that open files of the queried type.
     SetFileTypes(String, Vec<Package>),
     /// NixOS options matching the query (last section).
-    SetOptions(Vec<onyx_core::NixOption>),
+    SetOptions(Vec<nix_software_core::NixOption>),
     Filter,
     Open(Package),
 }
@@ -252,7 +252,7 @@ impl SimpleComponent for AppList {
 }
 
 impl AppList {
-    fn set_options(&self, options: &[onyx_core::NixOption]) {
+    fn set_options(&self, options: &[nix_software_core::NixOption]) {
         while let Some(child) = self.options_list.first_child() {
             self.options_list.remove(&child);
         }

@@ -1,4 +1,4 @@
-//! Running a package without installing it (*try-first*, Onyx's headline
+//! Running a package without installing it (*try-first*, Nix Software's headline
 //! action): `nix run` for an app, `nix shell` (in a terminal) for a CLI tool.
 
 use crate::package::Package;

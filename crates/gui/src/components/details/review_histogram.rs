@@ -25,7 +25,7 @@
 //! `GtkProgressBar` (`.review-histogram-bar`), which looks the same.
 
 use gtk::prelude::*;
-use onyx_core::Rating;
+use nix_software_core::Rating;
 
 use crate::i18n::t;
 use crate::util::{plural, stars_widget};

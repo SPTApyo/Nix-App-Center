@@ -1,24 +1,24 @@
-//! Onyx CLI: text front end of `core`, a test bench for the
-//! search → try → keep loop. No logic here: everything comes from `onyx_core`.
+//! Nix Software CLI: text front end of `core`, a test bench for the
+//! search → try → keep loop. No logic here: everything comes from `nix_software_core`.
 //!
 //! Usage:
-//!   onyx-cli search <query…>   list matching packages
-//!   onyx-cli info <attr>       rich metadata (nix eval meta)
-//!   onyx-cli run <attr>        `nix run nixpkgs#<attr>` (try-first)
-//!   onyx-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
-//!   onyx-cli keep <attr>       add to the Onyx manifest
-//!   onyx-cli unkeep <attr>     remove from the manifest
-//!   onyx-cli updates           nixpkgs pin vs its branch head, app changes
-//!   onyx-cli locate <bin>      packages providing a binary (nix-locate)
-//!   onyx-cli layout [--verify] what Onyx detects of your config (read only)
-//!   onyx-cli attach [--commit] consented attach (diff; --commit to write)
-//!   onyx-cli detach            remove the Onyx import line
-//!   onyx-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
-//!   onyx-cli apply             apply the config (command derived from the layout)
-//!   onyx-cli gc                store garbage collection (nix-collect-garbage)
-//!   onyx-cli list              print the manifest
+//!   nix-software-cli search <query…>   list matching packages
+//!   nix-software-cli info <attr>       rich metadata (nix eval meta)
+//!   nix-software-cli run <attr>        `nix run nixpkgs#<attr>` (try-first)
+//!   nix-software-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
+//!   nix-software-cli keep <attr>       add to the Nix Software manifest
+//!   nix-software-cli unkeep <attr>     remove from the manifest
+//!   nix-software-cli updates           nixpkgs pin vs its branch head, app changes
+//!   nix-software-cli locate <bin>      packages providing a binary (nix-locate)
+//!   nix-software-cli layout [--verify] what Nix Software detects of your config (read only)
+//!   nix-software-cli attach [--commit] consented attach (diff; --commit to write)
+//!   nix-software-cli detach            remove the Nix Software import line
+//!   nix-software-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
+//!   nix-software-cli apply             apply the config (command derived from the layout)
+//!   nix-software-cli gc                store garbage collection (nix-collect-garbage)
+//!   nix-software-cli list              print the manifest
 
-use onyx_core::Package;
+use nix_software_core::Package;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -27,13 +27,13 @@ fn main() -> ExitCode {
     match args.get(1).map(String::as_str) {
         Some("search") => {
             let query = args[2..].join(" ");
-            let pkgs = onyx_core::search(&query);
+            let pkgs = nix_software_core::search(&query);
             if pkgs.is_empty() {
                 eprintln!("No results for “{query}”");
                 return ExitCode::FAILURE;
             }
             for p in pkgs {
-                let action = onyx_core::actions_for(&p).primary.label();
+                let action = nix_software_core::actions_for(&p).primary.label();
                 println!(
                     "{:<36} {:<12} [{action}]  {}",
                     p.attr, p.version, p.description
@@ -43,7 +43,7 @@ fn main() -> ExitCode {
         }
 
         Some("info") => match args.get(2) {
-            Some(attr) => match onyx_core::detail(attr) {
+            Some(attr) => match nix_software_core::detail(attr) {
                 Some(d) => {
                     let kind = if d.is_runnable() {
                         "App (runnable)"
@@ -80,8 +80,8 @@ fn main() -> ExitCode {
         Some("run") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                eprintln!("→ {}", onyx_core::run_command(&pkg, false));
-                match onyx_core::run(&pkg).map(onyx_core::run_failure) {
+                eprintln!("→ {}", nix_software_core::run_command(&pkg, false));
+                match nix_software_core::run(&pkg).map(nix_software_core::run_failure) {
                     Ok(None) => ExitCode::SUCCESS,
                     Ok(Some(err)) => {
                         eprintln!("{attr} failed: {err}");
@@ -99,10 +99,10 @@ fn main() -> ExitCode {
         Some("shell") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                eprintln!("→ {}", onyx_core::shell_command(&pkg, false));
-                match onyx_core::shell(&pkg) {
-                    Ok(onyx_core::ShellOutcome::Spawned) => ExitCode::SUCCESS,
-                    Ok(onyx_core::ShellOutcome::NoTerminal) => {
+                eprintln!("→ {}", nix_software_core::shell_command(&pkg, false));
+                match nix_software_core::shell(&pkg) {
+                    Ok(nix_software_core::ShellOutcome::Spawned) => ExitCode::SUCCESS,
+                    Ok(nix_software_core::ShellOutcome::NoTerminal) => {
                         eprintln!("no terminal found; run the command above yourself");
                         ExitCode::FAILURE
                     }
@@ -118,7 +118,7 @@ fn main() -> ExitCode {
         Some("keep") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                match onyx_core::keep(&pkg) {
+                match nix_software_core::keep(&pkg) {
                     Ok(()) => {
                         println!("kept: {attr}");
                         ExitCode::SUCCESS
@@ -133,7 +133,7 @@ fn main() -> ExitCode {
         },
 
         Some("unkeep") => match args.get(2) {
-            Some(attr) => match onyx_core::unkeep(attr) {
+            Some(attr) => match nix_software_core::unkeep(attr) {
                 Ok(()) => {
                     println!("removed: {attr}");
                     ExitCode::SUCCESS
@@ -147,14 +147,14 @@ fn main() -> ExitCode {
         },
 
         Some("updates") => {
-            let source = onyx_core::current_source();
+            let source = nix_software_core::current_source();
             println!(
                 "nixpkgs: {} at {} ({:?})",
                 source.branch.as_deref().unwrap_or("unknown branch"),
                 source.rev.as_deref().unwrap_or("unknown revision"),
                 source.method
             );
-            let Some(latest) = source.branch.as_deref().and_then(onyx_core::latest) else {
+            let Some(latest) = source.branch.as_deref().and_then(nix_software_core::latest) else {
                 eprintln!("cannot reach the branch head");
                 return ExitCode::FAILURE;
             };
@@ -163,10 +163,11 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             println!("latest: {}", latest.rev);
-            for u in onyx_core::app_updates(&latest.rev, &onyx_core::profile_apps()) {
+            for u in nix_software_core::app_updates(&latest.rev, &nix_software_core::profile_apps())
+            {
                 println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);
             }
-            match onyx_core::update_command(&source, &onyx_core::detect_layout()) {
+            match nix_software_core::update_command(&source, &nix_software_core::detect_layout()) {
                 Some(argv) => println!("update with: {}", argv.join(" ")),
                 None => println!("update the flake that pins nixpkgs, then apply"),
             }
@@ -175,7 +176,7 @@ fn main() -> ExitCode {
 
         Some("locate") => match args.get(2) {
             Some(cmd) => {
-                let pkgs = onyx_core::locate_binary(cmd);
+                let pkgs = nix_software_core::locate_binary(cmd);
                 if pkgs.is_empty() {
                     eprintln!("no package provides “{cmd}” (or nix-locate is missing)");
                     return ExitCode::FAILURE;
@@ -188,12 +189,12 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Diagnostic: what Onyx believes about your config. Read only.
+        // Diagnostic: what Nix Software believes about your config. Read only.
         Some("layout") => {
-            let l = onyx_core::detect_layout();
+            let l = nix_software_core::detect_layout();
             println!("layout: {:?}", l.kind);
             if args.get(2).map(String::as_str) == Some("--verify") {
-                match onyx_core::verify_layout(&l) {
+                match nix_software_core::verify_layout(&l) {
                     Ok(v) => println!(
                         "nix: hosts {:?}, home-manager users {:?}",
                         v.hosts, v.hm_users
@@ -209,7 +210,7 @@ fn main() -> ExitCode {
                 match scope {
                     Some(s) => println!(
                         "{name} scope: {} (imported from {})",
-                        s.onyx_file.display(),
+                        s.nix_software_file.display(),
                         s.import_site.display()
                     ),
                     None => println!("{name} scope: unavailable"),
@@ -225,11 +226,11 @@ fn main() -> ExitCode {
 
         // Consented attach: shows the diff, writes ONLY with `--commit`.
         Some("attach") => {
-            let layout = onyx_core::detect_layout();
-            let plan = onyx_core::attach_plan(&layout);
+            let layout = nix_software_core::detect_layout();
+            let plan = nix_software_core::attach_plan(&layout);
             let commit = args.iter().any(|a| a == "--commit");
             match &plan {
-                onyx_core::AttachPlan::Patch {
+                nix_software_core::AttachPlan::Patch {
                     site, backup, diff, ..
                 } => {
                     println!(
@@ -239,24 +240,24 @@ fn main() -> ExitCode {
                     );
                     print!("{diff}");
                 }
-                onyx_core::AttachPlan::Manual { site, snippet } => {
+                nix_software_core::AttachPlan::Manual { site, snippet } => {
                     println!(
                         "no top-level `imports` list in {}; add it yourself:\n{snippet}",
                         site.display()
                     );
                     return ExitCode::SUCCESS;
                 }
-                onyx_core::AttachPlan::AlreadyAttached => {
+                nix_software_core::AttachPlan::AlreadyAttached => {
                     println!("already attached, nothing to do.");
                     return ExitCode::SUCCESS;
                 }
-                onyx_core::AttachPlan::NoLayout => {
+                nix_software_core::AttachPlan::NoLayout => {
                     eprintln!("Nix configuration not found, nothing to attach to.");
                     return ExitCode::FAILURE;
                 }
             }
             if commit {
-                match onyx_core::attach_commit(&plan) {
+                match nix_software_core::attach_commit(&plan) {
                     Ok(()) => {
                         println!("→ attached.");
                         ExitCode::SUCCESS
@@ -273,10 +274,10 @@ fn main() -> ExitCode {
         }
 
         Some("detach") => {
-            let layout = onyx_core::detect_layout();
-            match onyx_core::detach(&layout) {
+            let layout = nix_software_core::detect_layout();
+            match nix_software_core::detach(&layout) {
                 Ok(()) => {
-                    println!("detached: the Onyx import line was removed.");
+                    println!("detached: the Nix Software import line was removed.");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
@@ -296,13 +297,13 @@ fn main() -> ExitCode {
                 let block = block.trim().to_string();
                 let home = (!block.is_empty()).then(|| block.clone());
                 if let Some(b) = &home {
-                    if let Err(e) = onyx_core::parse_block(b) {
+                    if let Err(e) = nix_software_core::parse_block(b) {
                         eprintln!("invalid Nix syntax:\n{e}");
                         return ExitCode::FAILURE;
                     }
                 }
                 let pkg = Package::from_attr(attr);
-                match onyx_core::set_blocks(&pkg, home, None) {
+                match nix_software_core::set_blocks(&pkg, home, None) {
                     Ok(()) => {
                         println!("blocks saved for {attr}");
                         ExitCode::SUCCESS
@@ -317,7 +318,7 @@ fn main() -> ExitCode {
         },
 
         // Store garbage collection (frees unreferenced packages).
-        Some("gc") => match onyx_core::garbage_collect() {
+        Some("gc") => match nix_software_core::garbage_collect() {
             Ok(summary) => {
                 println!(
                     "{}",
@@ -336,8 +337,8 @@ fn main() -> ExitCode {
         },
 
         Some("apply") => {
-            use onyx_core::ApplyOutcome::*;
-            match onyx_core::apply_config() {
+            use nix_software_core::ApplyOutcome::*;
+            match nix_software_core::apply_config() {
                 Ok(Done(line)) => {
                     println!("configuration applied: {line}");
                     ExitCode::SUCCESS
@@ -362,7 +363,7 @@ fn main() -> ExitCode {
         }
 
         Some("list") => {
-            let manifest = onyx_core::load_manifest();
+            let manifest = nix_software_core::load_manifest();
             if manifest.kept.is_empty() {
                 println!("(empty manifest)");
             } else {
@@ -379,7 +380,7 @@ fn main() -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: onyx-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: nix-software-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
     );
     ExitCode::FAILURE
 }

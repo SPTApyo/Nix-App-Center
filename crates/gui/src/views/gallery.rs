@@ -5,7 +5,7 @@
 //! careless mistakes. Never compiled in release.
 
 use adw::prelude::*;
-use onyx_core::Package;
+use nix_software_core::Package;
 use relm4::prelude::*;
 
 use crate::views::home::{HomeModel, HomeOutput};

@@ -1,15 +1,15 @@
-//! The attach screen: the only place where Onyx offers to edit a file the user
+//! The attach screen: the only place where Nix Software offers to edit a file the user
 //! wrote.
 //!
 //! Hard rule: **the exact diff is shown, and nothing is written without an
 //! explicit click.** No silent magic: this is someone else's configuration.
 //!
 //! There is always a way out: "Do It Myself" closes the dialog and copies the
-//! lines to paste. Onyx never makes itself indispensable.
+//! lines to paste. Nix Software never makes itself indispensable.
 
 use crate::i18n::t;
 use adw::prelude::*;
-use onyx_core::AttachPlan;
+use nix_software_core::AttachPlan;
 
 fn code_block(text: &str) -> gtk::ScrolledWindow {
     let view = gtk::TextView::new();
@@ -123,7 +123,7 @@ pub fn present(
 
         let dialog2 = dialog.clone();
         accept.connect_clicked(move |_| {
-            let res = onyx_core::attach_commit(&plan).map_err(|e| e.to_string());
+            let res = nix_software_core::attach_commit(&plan).map_err(|e| e.to_string());
             on_attached(res);
             dialog2.close();
         });

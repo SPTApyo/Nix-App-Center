@@ -2,7 +2,7 @@
 
 use crate::i18n::t;
 use gettextrs::ngettext;
-use onyx_core::Package;
+use nix_software_core::Package;
 
 /// Shows a simple toast on an `AdwToastOverlay`.
 pub fn toast(overlay: &adw::ToastOverlay, text: &str) {
@@ -23,10 +23,10 @@ pub fn copy_to_clipboard(text: &str) {
 }
 
 /// Turns a config apply result into a displayable message, and performs the side
-/// effect owned by the front end (copying the command when Onyx could not run it
+/// effect owned by the front end (copying the command when Nix Software could not run it
 /// itself). Shared by the details page and the updates view.
-pub fn describe_apply(res: Result<onyx_core::ApplyOutcome, String>) -> String {
-    use onyx_core::ApplyOutcome::*;
+pub fn describe_apply(res: Result<nix_software_core::ApplyOutcome, String>) -> String {
+    use nix_software_core::ApplyOutcome::*;
     match res {
         Ok(Done(line)) if line.is_empty() => t("Configuration applied."),
         Ok(Done(line)) => t("Configuration applied: {}").replace("{}", &line),
@@ -362,8 +362,8 @@ mod tests {
     fn app_item_from_search_preserves_recognized_without_icon() {
         // An app recognized by AppStream but without icon must stay an
         // "Application" (the search split reads `recognized`).
-        let r = onyx_core::SearchResult {
-            package: onyx_core::Package::from_attr("gedit"),
+        let r = nix_software_core::SearchResult {
+            package: nix_software_core::Package::from_attr("gedit"),
             icon_url: None,
             rating: None,
             recognized: true,
@@ -378,7 +378,7 @@ mod tests {
 /// of package, so lists of unknown packages stay tellable apart at a glance.
 /// Colors live in `style.css` (`.kind-*`).
 pub fn fallback_icon(pkg: &Package) -> (&'static str, &'static str) {
-    use onyx_core::IconKind::*;
+    use nix_software_core::IconKind::*;
     match pkg.icon_kind() {
         Game => ("applications-games-symbolic", "kind-game"),
         Audio => ("audio-x-generic-symbolic", "kind-audio"),
@@ -493,7 +493,7 @@ pub fn fallback_badge(pkg: &Package, px: i32) -> gtk::Widget {
 pub struct AppItem {
     pub package: Package,
     pub icon_url: Option<String>,
-    pub rating: Option<onyx_core::Rating>,
+    pub rating: Option<nix_software_core::Rating>,
     /// Matched to an AppStream entry: the criterion of the search "Applications"
     /// section (a recognized app without icon is still an application).
     pub recognized: bool,
@@ -512,7 +512,7 @@ impl AppItem {
         }
     }
 
-    pub fn from_search(r: onyx_core::SearchResult) -> Self {
+    pub fn from_search(r: nix_software_core::SearchResult) -> Self {
         Self {
             package: r.package,
             icon_url: r.icon_url,

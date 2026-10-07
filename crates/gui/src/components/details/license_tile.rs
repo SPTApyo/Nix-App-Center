@@ -6,7 +6,7 @@
 //!  2. `AdwButtonRow` "How to Contribute", `end-icon-name external-link-symbolic`.
 //!
 //! GNOME only shows this "Community Built" card for free licenses, and a
-//! "proprietary" variant otherwise. Onyx follows the same rule through
+//! "proprietary" variant otherwise. Nix Software follows the same rule through
 //! `AppMeta::is_free_license`.
 
 use crate::i18n::t;

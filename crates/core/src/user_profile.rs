@@ -1,4 +1,4 @@
-//! `nix profile` for users without a managed configuration: Onyx then
+//! `nix profile` for users without a managed configuration: Nix Software then
 //! installs for the user only, imperatively, like nix-software-center does.
 
 use std::process::Command;

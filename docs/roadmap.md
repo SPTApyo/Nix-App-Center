@@ -1,11 +1,11 @@
 # Roadmap
 
-Where Onyx stands against GNOME Software and nix-software-center, what is
-broken today, and how Onyx should read and change a Nix setup.
+Where Nix Software stands against GNOME Software and nix-software-center, what is
+broken today, and how Nix Software should read and change a Nix setup.
 
 ## How a Nix machine keeps its software
 
-Onyx has to deal with every common setup. What matters for an app store is
+Nix Software has to deal with every common setup. What matters for an app store is
 where packages are declared, where they end up once applied, and where the
 nixpkgs revision is pinned.
 
@@ -18,9 +18,9 @@ nixpkgs revision is pinned.
 | Home Manager standalone, flake | home.packages | ~/.nix-profile (home-path) | ~/.config/home-manager/flake.lock | home-manager switch --flake dir | nix flake update nixpkgs --flake dir, then apply |
 | Home Manager standalone, channels | home.packages | ~/.nix-profile (home-path) | user channels | home-manager switch | nix-channel --update, then apply |
 | nix profile / nix-env | imperative | ~/.nix-profile | per package | none | nix profile upgrade |
-| nix run / nix shell (Onyx "try") | nothing | store only, no GC root | the registry nixpkgs | none | none |
+| nix run / nix shell (Nix Software "try") | nothing | store only, no GC root | the registry nixpkgs | none | none |
 
-Facts Onyx can rely on without evaluating anything:
+Facts Nix Software can rely on without evaluating anything:
 
 - The running system lists its apps in /run/current-system/sw/share/applications,
   user apps in /etc/profiles/per-user/NAME/share/applications and
@@ -42,7 +42,7 @@ Facts Onyx can rely on without evaluating anything:
 Done:
 
 - Installed list with one row per app, its size, and a remove button for what
-  Onyx owns (kept, tried, nix profile).
+  Nix Software owns (kept, tried, nix profile).
 - Updates: what changes per app, one button to update, a daily background
   check with a notification and a badge, a preference to turn it off.
 - Banner when a newer NixOS release is out.
@@ -65,7 +65,7 @@ Done:
 Missing:
 - Metered connection awareness for the background check.
 - Reporting or voting on a review.
-- Firmware updates (fwupd) and web apps: out of scope for Onyx.
+- Firmware updates (fwupd) and web apps: out of scope for Nix Software.
 
 ## Compared to nix-software-center
 
@@ -80,7 +80,7 @@ Done:
 
 ## Problems fixed
 
-- Installed only showed what Onyx itself recorded, not what is on the machine.
+- Installed only showed what Nix Software itself recorded, not what is on the machine.
 - A tried app could not be removed alone.
 - AppStream icons: the sharpest variant was picked even when Flathub does not
   host it (VLC), now smaller ones are tried in turn. The daily AppStream
@@ -89,7 +89,7 @@ Done:
 - Run, search and details used the registry nixpkgs while Keep used the
   config nixpkgs. They now all use the revision the config is pinned to.
 - Copy Command lacked NIXPKGS_ALLOW_UNFREE for unfree packages.
-- Generated files were invisible to a flake in a git repository. Onyx now runs
+- Generated files were invisible to a flake in a git repository. Nix Software now runs
   git add --intent-to-add on them.
 - The safety tile showed the Flatpak sandbox permissions, which do not apply
   to a Nix package. It now says the app is not sandboxed.
@@ -110,10 +110,10 @@ Done:
 
 - Layout detection scans text. Preferences let the user correct it and check
   it with Nix, but layouts built from another flake are still guessed.
-- When nixpkgs comes through another flake input, Onyx explains it but cannot
+- When nixpkgs comes through another flake input, Nix Software explains it but cannot
   update that flake.
 - The first search downloads nixpkgs when the config revision is not in the
   local cache.
-- GNOME Shell only finds the search provider when Onyx is installed in a
+- GNOME Shell only finds the search provider when Nix Software is installed in a
   profile that links share/gnome-shell/search-providers (the NixOS GNOME
   module does).

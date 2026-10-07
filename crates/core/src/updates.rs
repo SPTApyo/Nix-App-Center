@@ -24,7 +24,7 @@ pub enum UpdateMethod {
     HmChannel,
     /// nixpkgs comes through another flake input, updated there.
     Pinned { by: String },
-    /// Onyx cannot tell.
+    /// Nix Software cannot tell.
     Unknown,
 }
 
@@ -59,7 +59,7 @@ pub(crate) fn pinned_rev() -> Option<&'static str> {
     REV.get_or_init(|| current_source().rev).as_deref()
 }
 
-/// Flake reference of the nixpkgs the config is pinned to, so what Onyx
+/// Flake reference of the nixpkgs the config is pinned to, so what Nix Software
 /// shows and runs matches what Keep installs. The registry `nixpkgs` when
 /// NixOS pins it to the system (local, no download), else the pinned GitHub
 /// revision, else the registry as is. Computed once per process.
@@ -336,7 +336,7 @@ fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) ->
     out
 }
 
-/// The command that moves the pin and applies the config, when Onyx can run it.
+/// The command that moves the pin and applies the config, when Nix Software can run it.
 pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<String>> {
     let shell = |script: String, sudo: bool| -> Vec<String> {
         let mut argv: Vec<String> = Vec::new();

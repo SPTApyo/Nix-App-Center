@@ -10,7 +10,7 @@ pub(crate) fn cache_dir() -> PathBuf {
             let home = crate::util::home();
             home.join(".cache")
         })
-        .join("onyx")
+        .join("nix-software")
 }
 
 /// 64-bit FNV-1a hash, stable across Rust versions (unlike `DefaultHasher`):
@@ -87,7 +87,7 @@ mod tests {
         let guard = crate::env_lock();
         std::env::set_var(
             "XDG_CACHE_HOME",
-            std::env::temp_dir().join(format!("onyx-cache-{}", std::process::id())),
+            std::env::temp_dir().join(format!("nix-software-cache-{}", std::process::id())),
         );
         let _ = std::fs::remove_dir_all(cache_dir());
         guard
