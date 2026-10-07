@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "mkhl.direnv",
+    "jnoortheen.nix-ide",
+    "tamasfe.even-better-toml",
+    "nefrob.vscode-just-syntax"
+  ]
+}

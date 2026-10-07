@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Generated, collapsed in pull request diffs
+Cargo.lock linguist-generated
+flake.lock linguist-generated
+po/nix-software.pot linguist-generated
