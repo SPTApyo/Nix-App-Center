@@ -1,0 +1,23 @@
+name: Wrong app match
+description: A package shows the page, icon or screenshots of another app
+labels: [app-mapping]
+body:
+  - type: input
+    id: attr
+    attributes:
+      label: nixpkgs attribute
+      placeholder: vlc
+    validations:
+      required: true
+  - type: input
+    id: shown
+    attributes:
+      label: App shown instead
+      description: Name or Flathub id of the app wrongly shown.
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Expected Flathub id
+      description: If you know it, for example org.videolan.VLC.

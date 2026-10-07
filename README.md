@@ -91,18 +91,18 @@ nix-software-cli updates           # nixpkgs pin against its branch head
 ## Development
 
 ```bash
-nix develop                          # Rust toolchain, GTK 4, libadwaita, gettext
-cargo run -p nix-software-gui        # run the app
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
-tests/e2e/run.sh                     # end-to-end tests, screenshots in target/e2e
+nix develop   # Rust toolchain, GTK 4, libadwaita, gettext, just
+just setup    # commit message hook
+just check    # format, clippy, tests, translations, dependencies
+just run
+just e2e      # end-to-end tests, screenshots in target/e2e
 ```
 
 - crates/core: all the logic, no UI dependency.
 - crates/gui: GTK 4 and libadwaita front end, written with relm4.
 - crates/cli: text front end.
 
-End-to-end tests drive the app through the GTK Broadway backend with Playwright. Each run uses a throwaway home and config, so your real configuration is never touched. Design notes live in [docs/design.md](docs/design.md), translations in [CONTRIBUTING.md](CONTRIBUTING.md).
+End-to-end tests drive the app through the GTK Broadway backend with Playwright. Each run uses a throwaway home and config, so your real configuration is never touched. Design notes live in [docs/design.md](docs/design.md). Workflow, commit rules, tests and translations are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 # Community
 
