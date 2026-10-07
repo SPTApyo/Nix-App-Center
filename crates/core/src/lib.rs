@@ -116,6 +116,7 @@ pub use updates::{
     Latest, Source, UpdateMethod,
 };
 pub use user_profile::{profile_add, profile_elements, profile_remove, ProfileElement};
+pub use util::now_unix;
 
 // ── Test utility: global lock for tests that mutate the environment
 // (`set_var`/`remove_var` are process global and Rust tests run in

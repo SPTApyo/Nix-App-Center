@@ -359,10 +359,7 @@ fn release_banner(release: &str) -> adw::Banner {
     banner.set_button_label(Some(&t("Release _Notes")));
     banner.set_revealed(true);
     banner.connect_button_clicked(|_| {
-        let _ = gtk::gio::AppInfo::launch_default_for_uri(
-            "https://nixos.org/manual/nixos/unstable/release-notes",
-            None::<&gtk::gio::AppLaunchContext>,
-        );
+        crate::util::open_uri("https://nixos.org/manual/nixos/unstable/release-notes");
     });
     banner
 }

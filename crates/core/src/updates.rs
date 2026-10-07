@@ -66,13 +66,8 @@ pub(crate) fn pinned_rev() -> Option<&'static str> {
 pub fn nixpkgs_ref() -> &'static str {
     static REF: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     REF.get_or_init(|| {
-        let pinned = Command::new("nix")
-            .args([
-                "registry",
-                "list",
-                "--extra-experimental-features",
-                "nix-command flakes",
-            ])
+        let pinned = crate::util::nix()
+            .args(["registry", "list"])
             .output()
             .is_ok_and(|o| {
                 String::from_utf8_lossy(&o.stdout)
@@ -257,14 +252,12 @@ fn reaches(nodes: &serde_json::Map<String, Value>, from: &str, target: &str) -> 
 /// Head of `branch` on GitHub. Downloads nixpkgs when it moved (cached by Nix
 /// for an hour), which the update needs anyway.
 pub fn latest(branch: &str) -> Option<Latest> {
-    let out = Command::new("nix")
+    let out = crate::util::nix()
         .args([
             "flake",
             "metadata",
             "--json",
             &format!("github:NixOS/nixpkgs/{branch}"),
-            "--extra-experimental-features",
-            "nix-command flakes",
         ])
         .output()
         .ok()?;
@@ -317,15 +310,8 @@ pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
          v = n: let r = builtins.tryEval (p.${{n}}.version or null); in if r.success then r.value else null; \
          in builtins.listToAttrs (map (n: {{ name = n; value = v n; }}) [ {list} ])"
     );
-    let out = Command::new("nix")
-        .args([
-            "eval",
-            "--json",
-            "--expr",
-            &expr,
-            "--extra-experimental-features",
-            "nix-command flakes",
-        ])
+    let out = crate::util::nix()
+        .args(["eval", "--json", "--expr", &expr])
         .output();
     let Ok(out) = out else { return Vec::new() };
     let versions: serde_json::Map<String, Value> =

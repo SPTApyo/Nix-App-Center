@@ -55,9 +55,8 @@ pub fn locate_binary(cmd: &str) -> Vec<Package> {
     let output = if crate::launch::in_path("nix-locate") {
         Command::new("nix-locate").args(args).output()
     } else if db_dir().join("files").is_file() {
-        Command::new("nix")
+        crate::util::nix()
             .args(["shell", &format!("{}#nix-index", crate::nixpkgs_ref())])
-            .args(["--extra-experimental-features", "nix-command flakes"])
             .args(["-c", "nix-locate", "--db"])
             .arg(db_dir())
             .args(args)

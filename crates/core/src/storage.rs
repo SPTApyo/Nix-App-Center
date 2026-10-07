@@ -110,9 +110,7 @@ pub struct HomeDir {
 }
 
 fn home_bases() -> Vec<(HomeKind, PathBuf)> {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
+    let home = crate::util::home();
     vec![
         (HomeKind::Cache, home.join(".cache")),
         (HomeKind::Data, home.join(".local/share")),
@@ -436,9 +434,7 @@ fn machine() -> Machine {
         .output()
         .map(|o| parse_roots(&String::from_utf8_lossy(&o.stdout)))
         .unwrap_or_default();
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
+    let home = crate::util::home();
     let user = crate::config_layout::current_user();
     let user_envs = [
         PathBuf::from("/etc/profiles/per-user").join(&user),
@@ -562,14 +558,8 @@ fn apps(g: &Graph) -> Vec<AppSize> {
 /// Builds the whole report. Reads the full store database (a few seconds):
 /// call it from a thread.
 pub fn storage_report() -> std::io::Result<StorageReport> {
-    let out = Command::new("nix")
-        .args([
-            "path-info",
-            "--all",
-            "--json",
-            "--extra-experimental-features",
-            "nix-command",
-        ])
+    let out = crate::util::nix()
+        .args(["path-info", "--all", "--json"])
         .output()?;
     let v: serde_json::Value =
         serde_json::from_slice(&out.stdout).map_err(std::io::Error::other)?;

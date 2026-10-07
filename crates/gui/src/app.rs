@@ -308,10 +308,7 @@ impl SimpleComponent for AppModel {
 
         // Daily background check, a little after start.
         let settings = onyx_core::load_settings();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+        let now = onyx_core::now_unix();
         if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
             let su = updates.sender().clone();
             gtk::glib::timeout_add_seconds_local_once(30, move || {
@@ -433,10 +430,7 @@ impl SimpleComponent for AppModel {
                 self.updates_page.set_needs_attention(count > 0);
                 if notify {
                     let mut s = onyx_core::load_settings();
-                    s.last_update_check = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
+                    s.last_update_check = onyx_core::now_unix();
                     let _ = onyx_core::save_settings(&s);
                 }
                 if notify && count > 0 {

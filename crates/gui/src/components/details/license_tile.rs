@@ -110,10 +110,7 @@ fn get_involved_row(url: Option<String>) -> adw::ButtonRow {
     match url {
         Some(u) => {
             row.connect_activated(move |_| {
-                let _ = gtk::gio::AppInfo::launch_default_for_uri(
-                    &u,
-                    None::<&gtk::gio::AppLaunchContext>,
-                );
+                crate::util::open_uri(&u);
             });
         }
         None => row.set_sensitive(false),

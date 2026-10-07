@@ -28,9 +28,7 @@ pub struct ProfileApp {
 /// The `share/applications` directories of the session, system first.
 fn profile_dirs() -> Vec<(Scope, PathBuf)> {
     let user = crate::config_layout::current_user();
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
+    let home = crate::util::home();
     vec![
         (Scope::System, PathBuf::from("/run/current-system/sw")),
         (
@@ -76,13 +74,8 @@ pub fn store_sizes(paths: &[PathBuf]) -> std::collections::HashMap<PathBuf, u64>
     if paths.is_empty() {
         return Default::default();
     }
-    let out = std::process::Command::new("nix")
-        .args([
-            "path-info",
-            "--json",
-            "--extra-experimental-features",
-            "nix-command",
-        ])
+    let out = crate::util::nix()
+        .args(["path-info", "--json"])
         .args(paths)
         .output();
     let Ok(out) = out else {

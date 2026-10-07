@@ -30,13 +30,6 @@ fn tried_path() -> PathBuf {
     data_dir().join("tried.json")
 }
 
-fn now_unix() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
-}
-
 /// Loads the history; empty when missing or unreadable.
 pub fn load_tried() -> TriedLog {
     match std::fs::read(tried_path()) {
@@ -58,7 +51,7 @@ pub fn record_tried(pkg: &Package) -> std::io::Result<()> {
         0,
         TriedEntry {
             package: pkg.clone(),
-            last_tried: now_unix(),
+            last_tried: crate::util::now_unix(),
             out_paths: Vec::new(),
         },
     );
@@ -150,14 +143,8 @@ fn dead_paths() -> std::io::Result<HashMap<String, PathInfo>> {
     if !out.status.success() {
         return Err(std::io::Error::other("nix-store --gc --print-dead failed"));
     }
-    let mut child = Command::new("nix")
-        .args([
-            "path-info",
-            "--json",
-            "--stdin",
-            "--extra-experimental-features",
-            "nix-command",
-        ])
+    let mut child = crate::util::nix()
+        .args(["path-info", "--json", "--stdin"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -285,13 +272,8 @@ pub(crate) fn plan_removal(
 }
 
 fn delete_paths(paths: &[String]) -> std::io::Result<()> {
-    let out = Command::new("nix")
-        .args([
-            "store",
-            "delete",
-            "--extra-experimental-features",
-            "nix-command",
-        ])
+    let out = crate::util::nix()
+        .args(["store", "delete"])
         .args(paths)
         .stdout(Stdio::null())
         .output()?;

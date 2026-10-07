@@ -9,6 +9,11 @@ pub fn toast(overlay: &adw::ToastOverlay, text: &str) {
     overlay.add_toast(adw::Toast::new(text));
 }
 
+/// Opens `uri` in the default app (browser for web links).
+pub fn open_uri(uri: &str) {
+    let _ = gtk::gio::AppInfo::launch_default_for_uri(uri, None::<&gtk::gio::AppLaunchContext>);
+}
+
 /// Puts `text` on the clipboard. The core never touches it (it knows nothing of
 /// GTK): the front end decides what to do when an action cannot complete alone.
 pub fn copy_to_clipboard(text: &str) {

@@ -34,12 +34,7 @@ impl Default for Settings {
 fn settings_path() -> PathBuf {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_default()
-                .join(".config")
-        });
+        .unwrap_or_else(|| crate::util::home().join(".config"));
     base.join("onyx/settings.json")
 }
 

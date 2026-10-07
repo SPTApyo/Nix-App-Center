@@ -76,9 +76,7 @@ fn nixos_dir() -> PathBuf {
 }
 
 fn hm_dir() -> PathBuf {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
+    let home = crate::util::home();
     home.join(".config/home-manager")
 }
 
@@ -144,25 +142,12 @@ pub struct Verified {
 /// call it from a thread. `Err` carries the last line Nix printed.
 pub fn verify(layout: &Layout) -> Result<Verified, String> {
     let names = |expr: String| -> Result<Vec<String>, String> {
-        let out = std::process::Command::new("nix")
+        let out = crate::util::nix()
             .args(["eval", "--json", &expr, "--apply", "builtins.attrNames"])
-            .args(["--extra-experimental-features", "nix-command flakes"])
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
-            let err = String::from_utf8_lossy(&out.stderr);
-            let line = err
-                .lines()
-                .rev()
-                .find_map(|l| {
-                    l.trim()
-                        .strip_prefix("error:")
-                        .map(str::trim)
-                        .filter(|l| !l.is_empty())
-                })
-                .or_else(|| err.lines().rev().map(str::trim).find(|l| !l.is_empty()))
-                .unwrap_or("");
-            return Err(line.to_string());
+            return Err(crate::util::last_error_line(&out.stderr));
         }
         serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
     };

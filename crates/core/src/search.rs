@@ -7,7 +7,6 @@ use crate::ratings::{odrs_ratings, rating_for, Rating};
 use crate::util::{regex_escape, sanitize};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::process::Command;
 
 #[derive(Deserialize)]
 pub(crate) struct NixPkgEntry {
@@ -30,13 +29,9 @@ pub(crate) const SEARCH_CACHE_TTL_SECS: u64 = 3600;
 pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
     let mut args: Vec<String> = vec!["search".into(), crate::nixpkgs_ref().into()];
     args.extend(patterns.iter().cloned());
-    args.extend([
-        "--json".into(),
-        "--extra-experimental-features".into(),
-        "nix-command flakes".into(),
-    ]);
+    args.push("--json".into());
 
-    let output = match Command::new("nix").args(&args).output() {
+    let output = match crate::util::nix().args(&args).output() {
         Ok(o) if o.status.success() => o,
         _ => return vec![],
     };

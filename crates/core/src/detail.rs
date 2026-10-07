@@ -6,7 +6,6 @@
 
 use crate::package::Kind;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PackageDetail {
@@ -59,15 +58,13 @@ impl PackageDetail {
 /// Fetches a package's rich metadata through `nix eval <attr>.meta --json`,
 /// plus its version. Returns `None` when not found or evaluation fails.
 pub fn detail(attr: &str) -> Option<PackageDetail> {
-    let output = Command::new("nix")
+    let output = crate::util::nix()
         .args([
             "eval",
             &format!("{}#{attr}", crate::nixpkgs_ref()),
             "--apply",
             "p: p.meta // { version = p.version or null; }",
             "--json",
-            "--extra-experimental-features",
-            "nix-command flakes",
         ])
         .output()
         .ok()?;
@@ -158,7 +155,7 @@ pub fn closure_size(attr: &str) -> Option<u64> {
     // check-meta.nix (they block `.outPath` but not `.meta`, see `detail()`),
     // otherwise the Storage tile stays "Unknown" for Steam, Discord, VS Code
     // and every non-free package.
-    let out = Command::new("nix")
+    let out = crate::util::nix()
         .env("NIXPKGS_ALLOW_UNFREE", "1")
         .env("NIXPKGS_ALLOW_BROKEN", "1")
         .env("NIXPKGS_ALLOW_INSECURE", "1")
@@ -167,8 +164,6 @@ pub fn closure_size(attr: &str) -> Option<u64> {
             "--impure",
             "--raw",
             &format!("{}#{attr}.outPath", crate::nixpkgs_ref()),
-            "--extra-experimental-features",
-            "nix-command flakes",
         ])
         .output()
         .ok()?;
@@ -181,7 +176,7 @@ pub fn closure_size(attr: &str) -> Option<u64> {
         return None;
     }
 
-    let out2 = Command::new("nix")
+    let out2 = crate::util::nix()
         .args([
             "path-info",
             "--store",
@@ -189,8 +184,6 @@ pub fn closure_size(attr: &str) -> Option<u64> {
             "--json",
             "-S",
             store_path,
-            "--extra-experimental-features",
-            "nix-command flakes",
         ])
         .output()
         .ok()?;

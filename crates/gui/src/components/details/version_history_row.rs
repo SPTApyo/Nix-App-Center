@@ -60,10 +60,7 @@ fn body(
         link.set_tooltip_text(Some(&t("Release Notes")));
         let url = url.to_string();
         link.connect_clicked(move |_| {
-            let _ = gtk::gio::AppInfo::launch_default_for_uri(
-                &url,
-                None::<&gtk::gio::AppLaunchContext>,
-            );
+            crate::util::open_uri(&url);
         });
         head.append(&link);
     }

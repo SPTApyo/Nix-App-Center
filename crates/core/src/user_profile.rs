@@ -27,14 +27,8 @@ impl ProfileElement {
 
 /// Elements of the user profile, empty when `nix profile` is unusable.
 pub fn profile_elements() -> Vec<ProfileElement> {
-    let out = Command::new("nix")
-        .args([
-            "profile",
-            "list",
-            "--json",
-            "--extra-experimental-features",
-            "nix-command flakes",
-        ])
+    let out = crate::util::nix()
+        .args(["profile", "list", "--json"])
         .output();
     match out {
         Ok(o) if o.status.success() => {
@@ -82,29 +76,18 @@ pub fn profile_add(attr: &str) -> std::io::Result<()> {
 
 /// Removes the element `name` from the user profile.
 pub fn profile_remove(name: &str) -> std::io::Result<()> {
-    run(Command::new("nix").args([
-        "profile",
-        "remove",
-        name,
-        "--extra-experimental-features",
-        "nix-command flakes",
-    ]))
+    run(crate::util::nix().args(["profile", "remove", name]))
 }
 
 fn run(cmd: &mut Command) -> std::io::Result<()> {
     let out = cmd.output()?;
     if out.status.success() {
-        return Ok(());
+        Ok(())
+    } else {
+        Err(std::io::Error::other(crate::util::last_error_line(
+            &out.stderr,
+        )))
     }
-    let err = String::from_utf8_lossy(&out.stderr);
-    Err(std::io::Error::other(
-        err.lines()
-            .rev()
-            .find(|l| l.trim_start().starts_with("error"))
-            .unwrap_or("nix profile failed")
-            .trim()
-            .to_string(),
-    ))
 }
 
 #[cfg(test)]

@@ -2,15 +2,12 @@
 
 use crate::Package;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(crate) fn cache_dir() -> PathBuf {
     std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            let home = std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_default();
+            let home = crate::util::home();
             home.join(".cache")
         })
         .join("onyx")
@@ -42,10 +39,7 @@ fn key_path(key: &str) -> PathBuf {
 }
 
 fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+    crate::util::now_unix()
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
