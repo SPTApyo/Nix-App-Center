@@ -157,7 +157,7 @@ fn send(review: Review, action: ReviewAction, bar: gtk::Box, question: gtk::Labe
         question.set_label(&match res {
             Ok(()) if action == ReviewAction::Report => t("Thanks, the review was reported."),
             Ok(()) => t("Thanks for your feedback."),
-            Err(e) => t("Failed: {}").replace("{}", &t(&e)),
+            Err(e) => crate::util::failed(&e),
         });
     });
 }

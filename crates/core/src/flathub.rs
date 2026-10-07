@@ -154,12 +154,12 @@ fn flathub_relevant(hit_name: &str, query: &str) -> bool {
 pub(crate) fn meta_from_db(e: &appstream_db::Entry) -> FlathubMeta {
     FlathubMeta {
         app_id: e.app_id.clone(),
-        name: e.name.clone(),
-        summary: e.summary.clone(),
+        name: e.shown_name(),
+        summary: e.shown_summary(),
         developer: e.developer.clone(),
         icon_url: e.icon_url.clone(),
         screenshot_urls: e.screenshot_urls.clone(),
-        description: e.description.clone(),
+        description: e.shown_description(),
         license: e.license.clone(),
         homepage: e.homepage.clone(),
         bugtracker: e.bugtracker.clone(),

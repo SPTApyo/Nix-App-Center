@@ -142,7 +142,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
                             btn.set_visible(false);
                         }
                         Ok(Err(e)) => {
-                            row.set_subtitle(&esc(&t("Failed: {}").replace("{}", &e.to_string())));
+                            row.set_subtitle(&esc(&crate::util::failed(&e)));
                             btn.set_sensitive(true);
                         }
                         Err(_) => btn.set_sensitive(true),

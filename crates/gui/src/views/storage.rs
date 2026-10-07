@@ -127,7 +127,7 @@ impl SimpleComponent for StorageModel {
             StorageMsg::CacheCleared(res) => {
                 self.status = Some(match res {
                     Ok(()) => t("Cache cleared."),
-                    Err(e) => t("Failed: {}").replace("{}", &e),
+                    Err(e) => crate::util::failed(&e),
                 });
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
@@ -268,8 +268,7 @@ impl StorageModel {
                 return;
             }
             (Some(Err(e)), _) => {
-                self.content
-                    .append(&util::dim_label(&t("Failed: {}").replace("{}", e)));
+                self.content.append(&util::dim_label(&util::failed(e)));
                 return;
             }
             (Some(Ok(r)), _) => r,

@@ -38,10 +38,24 @@ pub fn describe_apply(res: Result<nix_software_core::ApplyOutcome, String>) -> S
         Ok(UnknownLayout) => {
             t("Nix Software cannot find your Nix configuration. Nothing was applied.")
         }
-        // gettext("") returns the catalog header.
-        Err(e) if e.is_empty() => t("Failed: {}").replace("{}", ""),
-        Err(e) => t("Failed: {}").replace("{}", &t(&e)),
+        Err(e) => failed(e),
     }
+}
+
+/// An error for display, translated when the core marked it with n_().
+pub fn tr_err(e: impl std::fmt::Display) -> String {
+    let s = e.to_string();
+    // gettext("") returns the catalog header.
+    if s.is_empty() {
+        s
+    } else {
+        t(&s)
+    }
+}
+
+/// "Failed: <error>", translated.
+pub fn failed(e: impl std::fmt::Display) -> String {
+    t("Failed: {}").replace("{}", &tr_err(e))
 }
 
 /// Decodes image bytes (PNG/JPEG…) into a GTK texture. Call on the main thread

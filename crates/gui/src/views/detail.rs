@@ -181,9 +181,10 @@ impl DetailModel {
                         &sender,
                         &t("Connected to your configuration. Apply it to install."),
                     ),
-                    Err(e) => {
-                        crate::util::toast(&overlay, &t("Could not connect: {}").replace("{}", &e))
-                    }
+                    Err(e) => crate::util::toast(
+                        &overlay,
+                        &t("Could not connect: {}").replace("{}", &crate::util::tr_err(&e)),
+                    ),
                 },
             );
         }
@@ -1183,7 +1184,7 @@ impl SimpleComponent for DetailModel {
                         nix_software_core::forget_app_meta(&self.package.attr);
                         t("Saved. Open the page again to see the package alone.")
                     }
-                    Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
+                    Err(e) => crate::util::failed(&e),
                 };
                 crate::util::toast(&self.toast_overlay, &text);
             }
@@ -1242,7 +1243,7 @@ impl SimpleComponent for DetailModel {
                     Err(e) => {
                         crate::util::toast(
                             &self.toast_overlay,
-                            &t("Could not start: {}").replace("{}", &e.to_string()),
+                            &t("Could not start: {}").replace("{}", &crate::util::tr_err(&e)),
                         );
                     }
                 }
@@ -1297,7 +1298,7 @@ impl SimpleComponent for DetailModel {
                         self.profile_name = None;
                         t("Uninstalled.")
                     }
-                    Err(e) => t("Failed: {}").replace("{}", &e),
+                    Err(e) => crate::util::failed(&e),
                 };
                 self.installed = nix_software_core::installed_app(
                     &self.package.attr,
@@ -1335,7 +1336,7 @@ impl SimpleComponent for DetailModel {
                 }
                 Err(e) => crate::util::toast(
                     &self.toast_overlay,
-                    &t("Could not open a shell: {}").replace("{}", &e.to_string()),
+                    &t("Could not open a shell: {}").replace("{}", &crate::util::tr_err(&e)),
                 ),
             },
             DetailMsg::Keep => match nix_software_core::keep(&self.package) {
@@ -1343,10 +1344,7 @@ impl SimpleComponent for DetailModel {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
-                Err(e) => crate::util::toast(
-                    &self.toast_overlay,
-                    &t("Failed: {}").replace("{}", &e.to_string()),
-                ),
+                Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
             },
             DetailMsg::Unkeep => match nix_software_core::unkeep(&self.package.attr) {
                 Ok(()) => {
@@ -1357,10 +1355,7 @@ impl SimpleComponent for DetailModel {
                         &t("Removed from your configuration. Apply it to uninstall."),
                     );
                 }
-                Err(e) => crate::util::toast(
-                    &self.toast_overlay,
-                    &t("Failed: {}").replace("{}", &e.to_string()),
-                ),
+                Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
             },
             DetailMsg::AdvancedEdit if self.installed_elsewhere() => {}
             DetailMsg::AdvancedEdit => {
@@ -1402,9 +1397,7 @@ impl SimpleComponent for DetailModel {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
-                Err(e) => {
-                    crate::util::toast(&self.toast_overlay, &t("Failed: {}").replace("{}", &e))
-                }
+                Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
             },
             DetailMsg::ApplyConfig => match nix_software_core::apply_argv() {
                 Some(argv) => {
@@ -1604,7 +1597,7 @@ fn build_reviews(
                     move |res| {
                         let text = match res {
                             Ok(()) => t("Thanks, your review was sent."),
-                            Err(e) => t("Failed: {}").replace("{}", &t(&e)),
+                            Err(e) => crate::util::failed(&e),
                         };
                         crate::util::toast(&overlay, &text);
                     },

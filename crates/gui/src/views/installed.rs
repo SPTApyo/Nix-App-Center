@@ -179,7 +179,7 @@ impl SimpleComponent for InstalledModel {
                         self.status = None;
                         self.banner.set_revealed(true);
                     }
-                    Err(e) => self.status = Some(t("Failed: {}").replace("{}", &e.to_string())),
+                    Err(e) => self.status = Some(crate::util::failed(&e)),
                 }
                 self.rebuild(&sender);
             }
@@ -197,7 +197,7 @@ impl SimpleComponent for InstalledModel {
             InstalledMsg::ProfileRemove(name) => {
                 self.status = Some(match nix_software_core::profile_remove(&name) {
                     Ok(()) => t("{} uninstalled.").replace("{}", &name),
-                    Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
+                    Err(e) => crate::util::failed(&e),
                 });
                 sender.input(InstalledMsg::Reload);
             }
@@ -220,7 +220,7 @@ impl SimpleComponent for InstalledModel {
                     Ok(bytes) => t("{name} removed, {size} freed.")
                         .replace("{name}", &name)
                         .replace("{size}", &gtk::glib::format_size(bytes)),
-                    Err(e) => t("Failed: {}").replace("{}", &e),
+                    Err(e) => crate::util::failed(&e),
                 });
                 self.rebuild(&sender);
             }
@@ -264,7 +264,7 @@ impl SimpleComponent for InstalledModel {
                     let msg = match nix_software_core::garbage_collect() {
                         Ok(s) if !s.is_empty() => s,
                         Ok(_) => t("Done."),
-                        Err(e) => t("Failed: {}").replace("{}", &e.to_string()),
+                        Err(e) => crate::util::failed(&e),
                     };
                     let _ = s.send(InstalledMsg::GcDone(msg));
                 });

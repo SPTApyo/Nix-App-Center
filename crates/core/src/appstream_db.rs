@@ -62,6 +62,55 @@ pub struct Entry {
     /// Brand color for a light and a dark background (`<branding>`).
     pub brand_light: Option<String>,
     pub brand_dark: Option<String>,
+    /// Name, summary and description in the user's language, when the
+    /// AppStream data has them. The English fields stay for matching.
+    pub local_name: Option<String>,
+    pub local_summary: Option<String>,
+    pub local_description: Option<String>,
+}
+
+impl Entry {
+    /// Name to show: translated when available.
+    pub fn shown_name(&self) -> String {
+        self.local_name.clone().unwrap_or_else(|| self.name.clone())
+    }
+
+    pub fn shown_summary(&self) -> Option<String> {
+        self.local_summary.clone().or_else(|| self.summary.clone())
+    }
+
+    pub fn shown_description(&self) -> Option<String> {
+        self.local_description
+            .clone()
+            .or_else(|| self.description.clone())
+    }
+}
+
+/// The user's languages as AppStream tags, best first: "fr_FR.UTF-8"
+/// gives "fr_FR" then "fr". English is the untranslated text, so it stops.
+fn user_langs() -> Vec<String> {
+    let raw = ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .filter_map(|v| std::env::var(v).ok())
+        .find(|v| !v.is_empty())
+        .unwrap_or_default();
+    langs_from(&raw)
+}
+
+fn langs_from(raw: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for tag in raw.split(':') {
+        let tag = tag.split(['.', '@']).next().unwrap_or_default();
+        if tag.is_empty() || tag == "C" || tag == "POSIX" || tag.starts_with("en") {
+            break;
+        }
+        for t in [tag, tag.split('_').next().unwrap_or(tag)] {
+            if !out.iter().any(|o| o == t) {
+                out.push(t.to_string());
+            }
+        }
+    }
+    out
 }
 
 #[derive(Debug, Clone, Default)]
@@ -126,8 +175,8 @@ impl Db {
                     .filter_map(|&i| self.addons.get(i))
                     .filter(|e| seen.insert(e.name.to_lowercase()))
                     .map(|e| Addon {
-                        name: e.name.clone(),
-                        summary: e.summary.clone(),
+                        name: e.shown_name(),
+                        summary: e.shown_summary(),
                         icon_url: e.icon_url.clone(),
                     })
                     .collect()
@@ -264,7 +313,9 @@ fn rank_local(entries: &[Entry], terms: &[String], limit: usize) -> Vec<LocalHit
         .filter_map(|e| {
             let name = e.name.to_lowercase();
             let rest = format!(
-                "{} {} {} {} {}",
+                "{} {} {} {} {} {} {}",
+                e.local_name.as_deref().unwrap_or(""),
+                e.local_summary.as_deref().unwrap_or(""),
                 e.summary.as_deref().unwrap_or(""),
                 e.app_id,
                 e.keywords.join(" "),
@@ -288,7 +339,7 @@ fn rank_local(entries: &[Entry], terms: &[String], limit: usize) -> Vec<LocalHit
         .map(|(_, e)| LocalHit {
             app_id: e.app_id.clone(),
             name: e.name.clone(),
-            summary: e.summary.clone().unwrap_or_default(),
+            summary: e.shown_summary().unwrap_or_default(),
         })
         .collect()
 }
@@ -349,7 +400,7 @@ pub fn local_app(app_id: &str) -> Option<LocalHit> {
     Some(LocalHit {
         app_id: e.app_id.clone(),
         name: e.name.clone(),
-        summary: e.summary.clone().unwrap_or_default(),
+        summary: e.shown_summary().unwrap_or_default(),
     })
 }
 
@@ -502,7 +553,7 @@ fn load() -> Option<Db> {
     let path = flatpak_xml_path().or_else(downloaded_xml_path)?;
     let file = std::fs::File::open(&path).ok()?;
     let gz = GzDecoder::new(BufReader::new(file));
-    let entries = parse(BufReader::new(gz));
+    let entries = parse_for(BufReader::new(gz), &user_langs());
 
     if entries.is_empty() {
         return None;
@@ -617,6 +668,8 @@ enum Collect {
     MediaType,
     Launchable,
     Color,
+    LocalName(usize),
+    LocalSummary(usize),
 }
 
 /// Appends markup text the way HTML flows it: whitespace runs (XML
@@ -680,7 +733,22 @@ impl<R: BufRead> Events<R> {
     }
 }
 
+#[cfg(test)]
 fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
+    parse_for(reader, &[])
+}
+
+/// Position of an element's xml:lang in `langs`, best language first.
+fn lang_rank(e: &quick_xml::events::BytesStart, langs: &[String]) -> Option<usize> {
+    let attr = e
+        .attributes()
+        .flatten()
+        .find(|a| a.key.as_ref() == b"xml:lang")?;
+    let lang = String::from_utf8_lossy(&attr.value);
+    langs.iter().position(|l| *l == lang)
+}
+
+fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
     let mut xml = Reader::from_reader(reader);
     // Without this, quick-xml emits a single `Event::Empty` (not handled by
     // the loop below, which only processes Start/End/Text/Eof) for
@@ -716,6 +784,11 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     let mut in_desc = false;
     let mut desc_depth: usize = 0;
     let mut desc_buf = String::new();
+    // Translated paragraphs: (rank, depth) of the open one, text per rank.
+    let mut desc_lang: Option<(usize, usize)> = None;
+    let mut desc_local: Vec<String> = vec![String::new(); langs.len()];
+    let mut name_rank = usize::MAX;
+    let mut summary_rank = usize::MAX;
 
     // ── Release description ───────────────────────────────────────────────────
     let mut in_rel_desc = false;
@@ -768,9 +841,16 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 // Inside a description: collect the raw text
                 if in_desc && tag != "description" {
                     if has_lang {
-                        skip = 1; // skip the translated paragraph
-                    } else if tag == "li" {
-                        desc_buf.push_str("• ");
+                        match lang_rank(e, langs) {
+                            Some(r) if desc_lang.is_none() => desc_lang = Some((r, depth)),
+                            _ => skip = 1, // another language
+                        }
+                    }
+                    if skip == 0 && tag == "li" {
+                        match desc_lang {
+                            Some((r, _)) => desc_local[r].push_str("• "),
+                            None => desc_buf.push_str("• "),
+                        }
                     }
                     // Otherwise let the text through via Event::Text
                     continue;
@@ -804,6 +884,8 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                             "desktop-application" | "desktop" | "addon" => {
                                 cur = Some(Entry::default());
                                 entry_icon_px = 0;
+                                name_rank = usize::MAX;
+                                summary_rank = usize::MAX;
                                 comp_depth = depth;
                             }
                             _ => {
@@ -824,6 +906,12 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     "name" if in_developer && !has_lang => {
                         collect = Collect::DevName;
                     }
+                    "name" if !in_developer && has_lang => {
+                        match lang_rank(e, langs).filter(|&r| r < name_rank) {
+                            Some(r) => collect = Collect::LocalName(r),
+                            None => skip = 1,
+                        }
+                    }
                     "name" if has_lang => {
                         skip = 1;
                     }
@@ -831,7 +919,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                         collect = Collect::Summary;
                     }
                     "summary" if has_lang => {
-                        skip = 1;
+                        match lang_rank(e, langs).filter(|&r| r < summary_rank) {
+                            Some(r) => collect = Collect::LocalSummary(r),
+                            None => skip = 1,
+                        }
                     }
                     "developer_name" if !has_lang => {
                         collect = Collect::DevName;
@@ -847,6 +938,17 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                         in_desc = true;
                         desc_depth = depth;
                         desc_buf.clear();
+                    }
+                    "description" if !in_desc && !in_releases => {
+                        // A whole description in one language.
+                        match lang_rank(e, langs) {
+                            Some(r) => {
+                                in_desc = true;
+                                desc_depth = depth;
+                                desc_lang = Some((r, depth));
+                            }
+                            None => skip = 1,
+                        }
                     }
                     "description" if !in_rel_desc && in_releases && in_release && !has_lang => {
                         in_rel_desc = true;
@@ -1049,7 +1151,13 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                 // End of a child inside a description
                 if in_desc && depth > desc_depth {
                     if matches!(tag, "p" | "li") {
-                        end_line(&mut desc_buf);
+                        match desc_lang {
+                            Some((r, _)) => end_line(&mut desc_local[r]),
+                            None => end_line(&mut desc_buf),
+                        }
+                    }
+                    if desc_lang.is_some_and(|(_, d)| d == depth) {
+                        desc_lang = None;
                     }
                     depth -= 1;
                     continue;
@@ -1088,13 +1196,19 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     }
                     "description" if in_desc && depth == desc_depth => {
                         in_desc = false;
+                        desc_lang = None;
                         if let Some(e) = cur.as_mut() {
                             let t = desc_buf.trim().to_string();
                             if !t.is_empty() {
                                 e.description = Some(t);
                             }
+                            let local = desc_local.iter().map(|d| d.trim()).find(|d| !d.is_empty());
+                            if let Some(t) = local {
+                                e.local_description = Some(t.to_string());
+                            }
                         }
                         desc_buf.clear();
+                        desc_local.iter_mut().for_each(String::clear);
                         collect = Collect::None;
                     }
                     "description" if in_rel_desc && depth == rel_desc_depth => {
@@ -1143,7 +1257,10 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     Err(_) => continue,
                 };
                 if in_desc {
-                    push_flowed(&mut desc_buf, &cow);
+                    match desc_lang {
+                        Some((r, _)) => push_flowed(&mut desc_local[r], &cow),
+                        None => push_flowed(&mut desc_buf, &cow),
+                    }
                     continue;
                 }
                 if in_rel_desc {
@@ -1192,6 +1309,14 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     }
                     Collect::Summary if entry.summary.is_none() => {
                         entry.summary = Some(text.to_string());
+                    }
+                    Collect::LocalName(r) => {
+                        entry.local_name = Some(text.to_string());
+                        name_rank = r;
+                    }
+                    Collect::LocalSummary(r) => {
+                        entry.local_summary = Some(text.to_string());
+                        summary_rank = r;
                     }
                     Collect::License if entry.license.is_none() => {
                         entry.license = Some(text.to_string());
@@ -1487,6 +1612,52 @@ mod tests {
             .find(|e| e.app_id == "org.gnome.Gedit")
             .unwrap();
         assert_eq!(e.summary.as_deref(), Some("A text editor"));
+    }
+
+    #[test]
+    fn user_languages_best_first_and_stop_at_english() {
+        assert_eq!(langs_from("fr_FR.UTF-8"), ["fr_FR", "fr"]);
+        assert_eq!(langs_from("pt_BR:fr:en_US"), ["pt_BR", "pt", "fr"]);
+        assert!(langs_from("en_US.UTF-8").is_empty());
+        assert!(langs_from("C").is_empty());
+    }
+
+    #[test]
+    fn parser_keeps_english_and_adds_the_user_language() {
+        let xml = r#"<components><component type="desktop-application"><id>org.videolan.VLC</id>
+<name>VLC media player</name><name xml:lang="de">VLC Media-Player</name>
+<name xml:lang="fr">Lecteur multimédia VLC</name>
+<summary>Plays everything</summary><summary xml:lang="fr">Lit tout</summary>
+<description><p>A player.</p><p xml:lang="fr">Un lecteur.</p><ul><li>Fast</li><li xml:lang="fr">Rapide</li></ul></description>
+</component></components>"#;
+        let langs = ["fr_FR".to_string(), "fr".to_string()];
+        let e = parse_for(std::io::Cursor::new(xml), &langs).remove(0);
+        assert_eq!(
+            e.name, "VLC media player",
+            "matching needs the English name"
+        );
+        assert_eq!(e.shown_name(), "Lecteur multimédia VLC");
+        assert_eq!(e.shown_summary().as_deref(), Some("Lit tout"));
+        assert_eq!(e.description.as_deref(), Some("A player.\n• Fast"));
+        assert_eq!(
+            e.shown_description().as_deref(),
+            Some("Un lecteur.\n• Rapide")
+        );
+
+        let en = parse(std::io::Cursor::new(xml)).remove(0);
+        assert_eq!(en.shown_name(), "VLC media player");
+        assert_eq!(en.shown_description(), en.description);
+    }
+
+    #[test]
+    fn parser_reads_a_whole_translated_description() {
+        let xml = r#"<components><component type="desktop-application"><id>a.b</id><name>A</name>
+<description><p>English.</p></description>
+<description xml:lang="fr"><p>Français.</p></description>
+</component></components>"#;
+        let e = parse_for(std::io::Cursor::new(xml), &["fr".to_string()]).remove(0);
+        assert_eq!(e.description.as_deref(), Some("English."));
+        assert_eq!(e.local_description.as_deref(), Some("Français."));
     }
 
     #[test]

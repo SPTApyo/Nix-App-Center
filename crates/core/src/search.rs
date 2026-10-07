@@ -189,6 +189,9 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
                 if !e.name.is_empty() {
                     p.name = e.name.clone();
                 }
+                if let Some(summary) = &e.local_summary {
+                    p.description = summary.clone();
+                }
                 return SearchResult {
                     icon_url: e.icon_url.clone(),
                     rating: rating_for(&e.app_id),
