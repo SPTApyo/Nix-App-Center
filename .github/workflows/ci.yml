@@ -5,34 +5,51 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # One run per branch: a new push cancels the previous one.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  commits:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/check-commit-msg.sh --range "origin/${{ github.base_ref }}..HEAD^2"
+
   check:
-    name: test, clippy, translations
+    name: format, clippy, tests, translations
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop -c just fmt-check lint test translations
 
-      - name: Tests
-        run: nix develop -c cargo test --workspace
+  coverage:
+    name: core coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop -c just cov
 
-      - name: Clippy
-        run: nix develop -c cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Translations up to date
-        run: |
-          nix develop -c ./po/update-pot.sh
-          git diff --ignore-matching-lines='POT-Creation-Date' --exit-code po/
-          for po in po/*.po; do nix develop -c msgfmt --check -o /dev/null "$po"; done
-
-      - name: Format
-        run: nix develop -c cargo fmt --all -- --check
+  deny:
+    name: advisories and licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop -c just deny
 
   package:
     name: nix build
