@@ -383,31 +383,27 @@ list.boxed-list > row:nth-child(n+13), flowbox > flowboxchild:nth-child(n+13) { 
 .skeleton { border-radius: 7px; }
 .skeleton.large { border-radius: 12px; }
 
-/* Fallback icon (package without AppStream): one glyph and one color per
-   family of package, drawn like an app icon (light top, darker bottom, soft
-   inner edge). Most nixpkgs packages have no icon. */
-.fallback-tile {
-	border-radius: 14px;
-	box-shadow: inset 0 -2px alpha(black, .18), inset 0 1px alpha(white, .25);
-}
+/* Fallback icon (package without AppStream): one flat color and one white
+   glyph per family of package. Most nixpkgs packages have no icon. */
+.fallback-tile { border-radius: 14px; }
 .fallback-tile.small { border-radius: 8px; }
-.fallback-glyph { color: #ffffff; -gtk-icon-shadow: 0 1px 2px alpha(black, .25); }
-.kind-game        { background: linear-gradient(180deg, #c061cb, #813d9c); }
-.kind-audio       { background: linear-gradient(180deg, #ffa348, #e66100); }
-.kind-video       { background: linear-gradient(180deg, #f66151, #c01c28); }
-.kind-graphics    { background: linear-gradient(180deg, #dc8add, #a347ba); }
-.kind-office      { background: linear-gradient(180deg, #62a0ea, #1c71d8); }
-.kind-development { background: linear-gradient(180deg, #5e5c64, #3d3846); }
-.kind-terminal    { background: linear-gradient(180deg, #3d3846, #241f31); }
-.kind-internet    { background: linear-gradient(180deg, #33c7de, #128197); }
-.kind-security    { background: linear-gradient(180deg, #57e389, #26a269); }
-.kind-science     { background: linear-gradient(180deg, #2ec27e, #0e8074); }
-.kind-education   { background: linear-gradient(180deg, #f8e45c, #c88a00); }
-.kind-system      { background: linear-gradient(180deg, #9a9996, #5e5c64); }
-.kind-font        { background: linear-gradient(180deg, #cdab8f, #865e3c); }
-.kind-theme       { background: linear-gradient(180deg, #ffbe6f, #ed333b); }
-.kind-library     { background: linear-gradient(180deg, #8f88f0, #4f46c4); }
-.kind-generic     { background: linear-gradient(180deg, #99c1f1, #3584e4); }
+.fallback-glyph { color: #ffffff; }
+.kind-game        { background: #9141ac; }
+.kind-audio       { background: #e66100; }
+.kind-video       { background: #e01b24; }
+.kind-graphics    { background: #c061cb; }
+.kind-office      { background: #3584e4; }
+.kind-development { background: #5e5c64; }
+.kind-terminal    { background: #3d3846; }
+.kind-internet    { background: #2190a4; }
+.kind-security    { background: #26a269; }
+.kind-science     { background: #0e8074; }
+.kind-education   { background: #c88a00; }
+.kind-system      { background: #77767b; }
+.kind-font        { background: #865e3c; }
+.kind-theme       { background: #e5a50a; }
+.kind-library     { background: #613583; }
+.kind-generic     { background: #62a0ea; }
 
 
 /* ══ Featured carousel (home) ═════════════════════════════════════════════ */

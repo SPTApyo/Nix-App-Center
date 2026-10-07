@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-06 20:14+0200\n"
+"POT-Creation-Date: 2026-10-07 13:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: crates/core/src/config_gen.rs:324
+#: crates/core/src/config_gen.rs:329 crates/core/src/paths.rs:69
 msgid "Authentication was cancelled."
 msgstr ""
 
@@ -318,6 +318,14 @@ msgstr ""
 msgid "Sharing physical location with other users"
 msgstr ""
 
+#: crates/core/src/paths.rs:55
+msgid "Writing there needs administrator rights, and pkexec is missing."
+msgstr ""
+
+#: crates/core/src/paths.rs:72
+msgid "Writing the configuration failed."
+msgstr ""
+
 #: crates/core/src/reviews.rs:165
 msgid "No random source to create your reviewer id."
 msgstr ""
@@ -367,18 +375,18 @@ msgstr ""
 msgid "Storage"
 msgstr ""
 
-#: crates/gui/src/app.rs:443
+#: crates/gui/src/app.rs:437
 msgid "Updates Available"
 msgstr ""
 
-#: crates/gui/src/app.rs:445
+#: crates/gui/src/app.rs:439
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/app.rs:482
+#: crates/gui/src/app.rs:476
 msgid "translator-credits"
 msgstr ""
 
@@ -733,7 +741,7 @@ msgid "Thanks for your feedback."
 msgstr ""
 
 #: crates/gui/src/components/details/review_row.rs:159
-#: crates/gui/src/util.rs:35 crates/gui/src/util.rs:36
+#: crates/gui/src/util.rs:40 crates/gui/src/util.rs:41
 #: crates/gui/src/views/detail.rs:1180 crates/gui/src/views/detail.rs:1294
 #: crates/gui/src/views/detail.rs:1339 crates/gui/src/views/detail.rs:1353
 #: crates/gui/src/views/detail.rs:1393 crates/gui/src/views/detail.rs:1591
@@ -770,7 +778,7 @@ msgstr ""
 msgid "Release Notes"
 msgstr ""
 
-#: crates/gui/src/components/details/version_history_row.rs:81
+#: crates/gui/src/components/details/version_history_row.rs:78
 msgid "No details for this version."
 msgstr ""
 
@@ -798,57 +806,57 @@ msgstr ""
 msgid "NixOS Option"
 msgstr ""
 
-#: crates/gui/src/util.rs:26
+#: crates/gui/src/util.rs:31
 msgid "Configuration applied."
 msgstr ""
 
-#: crates/gui/src/util.rs:27
+#: crates/gui/src/util.rs:32
 #, rust-format
 msgid "Configuration applied: {}"
 msgstr ""
 
-#: crates/gui/src/util.rs:28
+#: crates/gui/src/util.rs:33
 msgid "Applying in a terminal. Follow the build there."
 msgstr ""
 
-#: crates/gui/src/util.rs:31
+#: crates/gui/src/util.rs:36
 msgid "No terminal found. The apply command was copied."
 msgstr ""
 
-#: crates/gui/src/util.rs:33
+#: crates/gui/src/util.rs:38
 msgid "Onyx cannot find your Nix configuration. Nothing was applied."
 msgstr ""
 
-#: crates/gui/src/util.rs:303
+#: crates/gui/src/util.rs:308
 msgid "Today"
 msgstr ""
 
-#: crates/gui/src/util.rs:304
+#: crates/gui/src/util.rs:309
 msgid "Yesterday"
 msgstr ""
 
-#: crates/gui/src/util.rs:305
+#: crates/gui/src/util.rs:310
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/util.rs:306
+#: crates/gui/src/util.rs:311
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/util.rs:307
+#: crates/gui/src/util.rs:312
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/util.rs:308
+#: crates/gui/src/util.rs:313
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
@@ -909,7 +917,7 @@ msgid "Try in a _Shell"
 msgstr ""
 
 #: crates/gui/src/views/detail.rs:428
-msgid "_Run"
+msgid "_Try"
 msgstr ""
 
 #: crates/gui/src/views/detail.rs:433
@@ -917,19 +925,21 @@ msgid "Open the installed app"
 msgstr ""
 
 #: crates/gui/src/views/detail.rs:435
-msgid "Open a terminal with this package available (nix shell)"
+msgid ""
+"Open a terminal where this package can be used. Nothing is added to your "
+"system."
 msgstr ""
 
 #: crates/gui/src/views/detail.rs:437
-msgid "Run without installing (nix run)"
-msgstr ""
-
-#: crates/gui/src/views/detail.rs:462
-msgid "Run"
+msgid "Start the app without installing it. Nothing is added to your system."
 msgstr ""
 
 #: crates/gui/src/views/detail.rs:462
 msgid "Try in a Shell"
+msgstr ""
+
+#: crates/gui/src/views/detail.rs:462
+msgid "Try the App"
 msgstr ""
 
 #: crates/gui/src/views/detail.rs:467
@@ -1279,7 +1289,7 @@ msgstr ""
 msgid "Nobody maintains this package in nixpkgs."
 msgstr ""
 
-#: crates/gui/src/views/detail.rs:2225
+#: crates/gui/src/views/detail.rs:2224
 msgid "No description."
 msgstr ""
 
@@ -1856,6 +1866,6 @@ msgstr ""
 msgid "Release _Notes"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:379
+#: crates/gui/src/views/updates.rs:376
 msgid "Everything is up to date"
 msgstr ""

@@ -425,16 +425,16 @@ impl SimpleComponent for DetailModel {
                                                         } else if model.cli_first() {
                                                             t("Try in a _Shell")
                                                         } else {
-                                                            t("_Run")
+                                                            t("_Try")
                                                         },
                                                         set_use_underline: true,
                                                         #[watch]
                                                         set_tooltip_text: Some(&if model.installed.is_some() {
                                                             t("Open the installed app")
                                                         } else if model.cli_first() {
-                                                            t("Open a terminal with this package available (nix shell)")
+                                                            t("Open a terminal where this package can be used. Nothing is added to your system.")
                                                         } else {
-                                                            t("Run without installing (nix run)")
+                                                            t("Start the app without installing it. Nothing is added to your system.")
                                                         }),
                                                         set_valign: gtk::Align::Center,
                                                         add_css_class: "suggested-action",
@@ -459,7 +459,7 @@ impl SimpleComponent for DetailModel {
                                                                 },
                                                                 gtk::Button {
                                                                     #[watch]
-                                                                    set_label: &if model.cli_first() { t("Run") } else { t("Try in a Shell") },
+                                                                    set_label: &if model.cli_first() { t("Try the App") } else { t("Try in a Shell") },
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AltLaunch,
                                                                 },
@@ -2084,8 +2084,7 @@ fn link_row(label: &str, icon: &str, url: &str) -> adw::ActionRow {
     row.add_suffix(&gtk::Image::from_icon_name("external-link-symbolic"));
     let url = url.to_string();
     row.connect_activated(move |_| {
-        let _ =
-            gtk::gio::AppInfo::launch_default_for_uri(&url, None::<&gtk::gio::AppLaunchContext>);
+        crate::util::open_uri(&url);
     });
     row
 }

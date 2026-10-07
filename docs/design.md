@@ -77,9 +77,18 @@ by parsing Nix:
 
 Onyx writes `onyx-home.nix` and `onyx-system.nix`, generated from its
 manifest (`kept.json`). On NixOS both files are imported from the top-level
-`imports` list of `configuration.nix`, the safest place to splice a line.
-When home-manager is a NixOS module, `onyx-home.nix` is a NixOS module
-wrapping its content in `home-manager.users.<user>`.
+`imports` list of `configuration.nix`, the safest place to splice a line. A
+flake without `configuration.nix` (one that extends another flake, say) gets
+them in the `modules` list of `flake.nix` instead. When home-manager is a
+NixOS module, `onyx-home.nix` wraps its content in
+`home-manager.users.<user>`; without home-manager it fills
+`users.users.<user>.packages`.
+
+`/etc/nixos` belongs to root. Files the user cannot write are written in one
+pkexec call, so the password is asked once per change: the content travels
+inside the script, each file goes through `mktemp` in its own folder, and root
+runs with the system PATH only. The Onyx files are written before the
+manifest, so a refused password leaves everything as it was.
 
 A plain kept app is one entry of an aggregated `home.packages` list. When the
 user edits its Nix in the advanced editor, the app is promoted to its own
@@ -89,8 +98,7 @@ are merged by the module system instead of clashing.
 
 The advanced editor checks syntax on every keystroke (`nix-instantiate
 --parse`, about 50 ms) and offers an optional, user triggered `dry-build` for
-semantic errors. Applying runs in a real terminal: the build is long, asks
-for a password, and must stay visible and interruptible.
+semantic errors.
 
 ## Actions
 

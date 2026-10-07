@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-06 20:14+0200\n"
+"POT-Creation-Date: 2026-10-06 20:35+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -15,7 +15,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: crates/core/src/config_gen.rs:324
+#: crates/core/src/config_gen.rs:329 crates/core/src/paths.rs:69
 msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
 
@@ -319,6 +319,14 @@ msgstr "Aucun partage de la position physique"
 msgid "Sharing physical location with other users"
 msgstr "Partage de la position physique avec d'autres utilisateurs"
 
+#: crates/core/src/paths.rs:55
+msgid "Writing there needs administrator rights, and pkexec is missing."
+msgstr "Écrire là demande les droits administrateur, et pkexec est absent."
+
+#: crates/core/src/paths.rs:72
+msgid "Writing the configuration failed."
+msgstr "L'écriture de la configuration a échoué."
+
 #: crates/core/src/reviews.rs:165
 msgid "No random source to create your reviewer id."
 msgstr "Aucune source aléatoire pour créer votre identifiant de relecteur."
@@ -368,18 +376,18 @@ msgstr "Mises à jour"
 msgid "Storage"
 msgstr "Stockage"
 
-#: crates/gui/src/app.rs:443
+#: crates/gui/src/app.rs:437
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:445
+#: crates/gui/src/app.rs:439
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:482
+#: crates/gui/src/app.rs:476
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -777,7 +785,7 @@ msgid "Thanks for your feedback."
 msgstr "Merci pour votre retour."
 
 #: crates/gui/src/components/details/review_row.rs:159
-#: crates/gui/src/util.rs:35 crates/gui/src/util.rs:36
+#: crates/gui/src/util.rs:40 crates/gui/src/util.rs:41
 #: crates/gui/src/views/detail.rs:1180 crates/gui/src/views/detail.rs:1294
 #: crates/gui/src/views/detail.rs:1339 crates/gui/src/views/detail.rs:1353
 #: crates/gui/src/views/detail.rs:1393 crates/gui/src/views/detail.rs:1591
@@ -814,7 +822,7 @@ msgstr "Dans nixpkgs"
 msgid "Release Notes"
 msgstr "Notes de version"
 
-#: crates/gui/src/components/details/version_history_row.rs:81
+#: crates/gui/src/components/details/version_history_row.rs:78
 msgid "No details for this version."
 msgstr "Aucun détail pour cette version."
 
@@ -842,57 +850,57 @@ msgstr "_Copier"
 msgid "NixOS Option"
 msgstr "Option NixOS"
 
-#: crates/gui/src/util.rs:26
+#: crates/gui/src/util.rs:31
 msgid "Configuration applied."
 msgstr "Configuration appliquée."
 
-#: crates/gui/src/util.rs:27
+#: crates/gui/src/util.rs:32
 #, rust-format
 msgid "Configuration applied: {}"
 msgstr "Configuration appliquée : {}"
 
-#: crates/gui/src/util.rs:28
+#: crates/gui/src/util.rs:33
 msgid "Applying in a terminal. Follow the build there."
 msgstr "Application en cours dans un terminal. Suivez la compilation là-bas."
 
-#: crates/gui/src/util.rs:31
+#: crates/gui/src/util.rs:36
 msgid "No terminal found. The apply command was copied."
 msgstr "Aucun terminal trouvé. La commande d'application a été copiée."
 
-#: crates/gui/src/util.rs:33
+#: crates/gui/src/util.rs:38
 msgid "Onyx cannot find your Nix configuration. Nothing was applied."
 msgstr "Onyx ne trouve pas votre configuration Nix. Rien n'a été appliqué."
 
-#: crates/gui/src/util.rs:303
+#: crates/gui/src/util.rs:308
 msgid "Today"
 msgstr "Aujourd'hui"
 
-#: crates/gui/src/util.rs:304
+#: crates/gui/src/util.rs:309
 msgid "Yesterday"
 msgstr "Hier"
 
-#: crates/gui/src/util.rs:305
+#: crates/gui/src/util.rs:310
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "Il y a {} jour"
 msgstr[1] "Il y a {} jours"
 
-#: crates/gui/src/util.rs:306
+#: crates/gui/src/util.rs:311
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] "Il y a {} semaine"
 msgstr[1] "Il y a {} semaines"
 
-#: crates/gui/src/util.rs:307
+#: crates/gui/src/util.rs:312
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] "Il y a {} mois"
 msgstr[1] "Il y a {} mois"
 
-#: crates/gui/src/util.rs:308
+#: crates/gui/src/util.rs:313
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
@@ -953,28 +961,33 @@ msgid "Try in a _Shell"
 msgstr "Essayer dans un _shell"
 
 #: crates/gui/src/views/detail.rs:428
-msgid "_Run"
-msgstr "_Lancer"
+msgid "_Try"
+msgstr "_Essayer"
 
 #: crates/gui/src/views/detail.rs:433
 msgid "Open the installed app"
 msgstr "Ouvrir l'application installée"
 
 #: crates/gui/src/views/detail.rs:435
-msgid "Open a terminal with this package available (nix shell)"
-msgstr "Ouvrir un terminal où ce paquet est disponible (nix shell)"
+msgid ""
+"Open a terminal where this package can be used. Nothing is added to your "
+"system."
+msgstr ""
+"Ouvre un terminal où ce paquet est utilisable. Rien n'est ajouté à votre "
+"système."
 
 #: crates/gui/src/views/detail.rs:437
-msgid "Run without installing (nix run)"
-msgstr "Lancer sans installer (nix run)"
-
-#: crates/gui/src/views/detail.rs:462
-msgid "Run"
-msgstr "Lancer"
+msgid "Start the app without installing it. Nothing is added to your system."
+msgstr ""
+"Démarre l'application sans l'installer. Rien n'est ajouté à votre système."
 
 #: crates/gui/src/views/detail.rs:462
 msgid "Try in a Shell"
 msgstr "Essayer dans un shell"
+
+#: crates/gui/src/views/detail.rs:462
+msgid "Try the App"
+msgstr "Essayer l'application"
 
 #: crates/gui/src/views/detail.rs:467
 msgid "Copy Command"
@@ -1328,7 +1341,7 @@ msgstr "Mainteneurs nixpkgs"
 msgid "Nobody maintains this package in nixpkgs."
 msgstr "Personne ne maintient ce paquet dans nixpkgs."
 
-#: crates/gui/src/views/detail.rs:2225
+#: crates/gui/src/views/detail.rs:2224
 msgid "No description."
 msgstr "Pas de description."
 
@@ -1939,6 +1952,6 @@ msgstr ""
 msgid "Release _Notes"
 msgstr "_Notes de version"
 
-#: crates/gui/src/views/updates.rs:379
+#: crates/gui/src/views/updates.rs:376
 msgid "Everything is up to date"
 msgstr "Tout est à jour"

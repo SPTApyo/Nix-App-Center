@@ -100,6 +100,21 @@ class Environment:
         (self.config / "configuration.nix").write_text(
             "{ pkgs, ... }:\n{\n  imports = [\n    ./hardware-configuration.nix\n  ];\n}\n"
         )
+        # Fake programs: they record how Onyx calls them, so the actions can
+        # be checked without a real terminal, root rights or a rebuild.
+        self.bin = self.tmp / "bin"
+        self.bin.mkdir()
+        # pkexec gets "<env> PATH=<system dirs> cmd…": the fake drops the first
+        # two so the other fakes, not the real tools, answer.
+        fakes = {
+            "xdg-terminal-exec": 'echo "$@" >> "{log}/terminal.log"',
+            "pkexec": 'echo "$@" >> "{log}/pkexec.log"; shift 2; exec "$@"',
+            "nixos-rebuild": 'echo "$@" >> "{log}/rebuild.log"; echo "building the system configuration..." >&2',
+        }
+        for name, body in fakes.items():
+            fake = self.bin / name
+            fake.write_text("#!/bin/sh\n" + body.format(log=self.tmp) + "\n")
+            fake.chmod(0o755)
         cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
         self.env = dict(
             os.environ,
@@ -112,6 +127,7 @@ class Environment:
             # Reuse the real cache: AppStream download and nix search results.
             XDG_CACHE_HOME=str(cache),
             ONYX_CONFIG_DIR=str(self.config),
+            PATH=f"{self.bin}:{os.environ['PATH']}",
         )
         # Child processes (terminals, apps started by Run) must never reach the
         # real desktop session.
@@ -133,6 +149,10 @@ class Environment:
     def kept(self):
         path = self.data / "onyx" / "kept.json"
         return [e["attr"] for e in json.loads(path.read_text())["kept"]] if path.exists() else []
+
+    def logged(self, name):
+        path = self.tmp / f"{name}.log"
+        return path.read_text() if path.exists() else ""
 
     def tried(self):
         path = self.data / "onyx" / "tried.json"
@@ -160,6 +180,14 @@ TAB_STORAGE = "click:690,48"
 MENU = "click:895,145"
 MENU_KEEP_TOGGLE = "click:894,221"
 MENU_RUN = "click:834,259"
+MENU_COPY = "click:834,297"
+MENU_ADVANCED = "click:834,335"
+MENU_APPLY = "click:834,377"
+PRIMARY = "click:820,145"
+# Advanced options editor.
+EDITOR_SYSTEM_TAB = "click:566,147"
+EDITOR_TEXT = "click:500,300"
+EDITOR_SAVE = "click:783,147"
 ATTACH_ACCEPT = "click:764,148"
 
 
@@ -200,6 +228,8 @@ def scenario(env, s):
     assert (env.config / "configuration.nix.onyx-bak").exists(), "a backup must be written first"
     s.shot("attached")
 
+    actions(env, s)
+
     s.do(BACK)
     s.do(TAB_INSTALLED)
     s.do("wait:5000")
@@ -223,6 +253,47 @@ def scenario(env, s):
     s.do(TAB_STORAGE)
     s.do("wait:30000")
     s.shot("storage")
+
+
+def actions(env, s):
+    """Every button of a details page, checked through what it really runs."""
+    # Primary of a command line tool: a terminal with the package.
+    s.do(PRIMARY)
+    wait_for(lambda: "hello" in env.logged("terminal"), 20, "terminal opened")
+    call = env.logged("terminal")
+    assert "shell" in call and "#hello" in call, f"nix shell expected, got {call}"
+    assert "NIXPKGS_ALLOW_UNFREE=1" in call, "unfree packages must work in a shell"
+    assert "INSECURE" not in call, "insecure packages stay refused"
+    s.shot("action-shell")
+
+    s.do(MENU)
+    s.do(MENU_COPY)
+    s.do("wait:500")
+    s.shot("action-copy")
+
+    # Advanced options: a system block lands in onyx-system.nix.
+    s.do(MENU)
+    s.do(MENU_ADVANCED)
+    s.do("wait:1000")
+    s.do(EDITOR_SYSTEM_TAB)
+    s.shot("action-editor-empty-system")
+    s.do(EDITOR_TEXT)
+    s.do("type:networking.firewall.allowedTCPPorts = [ 8080 ];")
+    s.do("wait:2000")
+    s.shot("action-editor-typed")
+    s.do(EDITOR_SAVE)
+    system = env.config / "onyx-system.nix"
+    wait_for(lambda: system.exists() and "8080" in system.read_text(), 10, "system block written")
+
+    # Apply: elevated through pkexec, never through a password prompt in a tty.
+    s.do(MENU)
+    s.do(MENU_APPLY)
+    wait_for(lambda: "nixos-rebuild" in env.logged("pkexec"), 20, "apply through pkexec")
+    assert "switch" in env.logged("rebuild"), "apply must switch"
+    s.do("wait:1000")
+    s.shot("action-apply")
+    s.do("key:Escape")
+    s.do("wait:500")
 
 
 def main():
