@@ -1,7 +1,5 @@
 # Nix Software
 
-Shown as **Nix Software** on the desktop.
-
 A declarative app store for Nix, built around "try first".
 
 Launch any package from nixpkgs right away (nix run, or a nix shell for
