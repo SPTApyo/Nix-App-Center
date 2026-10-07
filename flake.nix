@@ -94,7 +94,13 @@
           rust-analyzer
           clippy
           rustfmt
+          just
+          cargo-llvm-cov
+          cargo-deny
         ];
+        # cargo-llvm-cov needs the LLVM tools rustc was built with.
+        LLVM_COV = "${pkgs.rustc.llvmPackages.llvm}/bin/llvm-cov";
+        LLVM_PROFDATA = "${pkgs.rustc.llvmPackages.llvm}/bin/llvm-profdata";
       };
     };
 }

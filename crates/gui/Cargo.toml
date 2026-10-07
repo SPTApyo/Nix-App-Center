@@ -3,26 +3,26 @@ name = "nix-software-gui"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
+publish = false
 
 [[bin]]
 name = "nix-software"
 path = "src/main.rs"
 
 [features]
-# Galerie de dev : onglet supplémentaire montrant chaque type d'app. Désactivée
-# par défaut → absente du binaire release. Cf. docs/superpowers/specs/2026-07-12-galerie-dev-design.md
+# Dev gallery: an extra tab showing every kind of app. Off by default, so
+# absent from release builds.
 dev-gallery = []
 
 [dependencies]
 nix-software-core = { path = "../core" }
 relm4 = { version = "0.9", features = ["libadwaita"] }
-# gtk + adw déclarés explicitement, aux mêmes versions que celles tirées par
-# relm4 0.9 (gtk4 0.9.x, libadwaita 0.7.x), pour que les chemins `gtk::` /
-# `adw::` générés par la macro relm4 résolvent.
+# Same gtk4 and libadwaita versions as relm4 0.9 pulls, so the gtk:: and
+# adw:: paths its macros generate resolve.
 gtk = { version = "0.9", package = "gtk4" }
 adw = { version = "0.7", package = "libadwaita", features = ["v1_6"] }
-# Canal main-thread ↔ worker pour livrer le résultat du dry-build (nix_editor) sans
-# geler l'UI. C'est le remplaçant sanctionné de feu `glib::MainContext::channel`.
+# Worker to main thread channel (dry builds in nix_editor), the replacement
+# for the removed glib::MainContext::channel.
 async-channel = "2"
-# i18n : même mécanisme que GNOME Software (gettext piloté par la locale système).
-gettext-rs = "0.7"
+# i18n: gettext driven by the system locale, like GNOME Software.
+gettext-rs = "0.8"

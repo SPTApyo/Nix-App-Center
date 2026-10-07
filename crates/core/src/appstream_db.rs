@@ -17,7 +17,10 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
-use quick_xml::{events::Event, Reader};
+use quick_xml::{
+    events::{BytesText, Event},
+    Reader,
+};
 
 use crate::package::Package;
 
@@ -637,6 +640,46 @@ fn end_line(buf: &mut String) {
     buf.push('\n');
 }
 
+/// Owned XML events, each text run merged into one Text event: quick-xml
+/// reports `&amp;` and character references as separate GeneralRef events.
+struct Events<R> {
+    xml: Reader<R>,
+    buf: Vec<u8>,
+    peeked: Option<Event<'static>>,
+}
+
+impl<R: BufRead> Events<R> {
+    fn read(&mut self) -> Event<'static> {
+        self.buf.clear();
+        match self.xml.read_event_into(&mut self.buf) {
+            Ok(ev) => ev.into_owned(),
+            Err(_) => Event::Eof,
+        }
+    }
+
+    fn next(&mut self) -> Event<'static> {
+        let mut text: Option<String> = None;
+        loop {
+            let ev = self.peeked.take().unwrap_or_else(|| self.read());
+            let piece = match &ev {
+                Event::Text(t) => t.decode().map(|s| s.into_owned()).ok(),
+                Event::GeneralRef(r) => r.decode().ok().and_then(|name| {
+                    quick_xml::escape::unescape(&format!("&{name};"))
+                        .ok()
+                        .map(|s| s.into_owned())
+                }),
+                _ => {
+                    let Some(t) = text else { return ev };
+                    self.peeked = Some(ev);
+                    return Event::Text(BytesText::from_escaped(t));
+                }
+            };
+            text.get_or_insert_default()
+                .push_str(piece.as_deref().unwrap_or_default());
+        }
+    }
+}
+
 fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     let mut xml = Reader::from_reader(reader);
     // Without this, quick-xml emits a single `Event::Empty` (not handled by
@@ -646,7 +689,11 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     // Asking for their expansion makes them arrive as a normal Start+End and
     // go through exactly the same logic, with zero code duplication.
     xml.config_mut().expand_empty_elements = true;
-    let mut buf = Vec::new();
+    let mut events = Events {
+        xml,
+        buf: Vec::new(),
+        peeked: None,
+    };
     let mut entries: Vec<Entry> = Vec::new();
 
     // ── Media base URL (prefix for relative URLs) ────────────────────────────
@@ -695,11 +742,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
     let mut cur_caption: Option<String> = None;
 
     loop {
-        buf.clear();
-        let ev = match xml.read_event_into(&mut buf) {
-            Ok(ev) => ev,
-            Err(_) => break,
-        };
+        let ev = events.next();
 
         match ev {
             // ── Opening ───────────────────────────────────────────────────────
@@ -1095,7 +1138,7 @@ fn parse<R: BufRead>(reader: R) -> Vec<Entry> {
                     continue;
                 }
 
-                let cow = match e.unescape() {
+                let cow = match e.decode() {
                     Ok(c) => c,
                     Err(_) => continue,
                 };
@@ -1444,6 +1487,15 @@ mod tests {
             .find(|e| e.app_id == "org.gnome.Gedit")
             .unwrap();
         assert_eq!(e.summary.as_deref(), Some("A text editor"));
+    }
+
+    #[test]
+    fn parser_resolves_entities_inside_text() {
+        let xml = r#"<components><component type="desktop-application"><id>a.b</id>
+<name>Tom &amp; Jerry</name><summary>Caf&#233; &lt;3</summary></component></components>"#;
+        let e = parse(std::io::Cursor::new(xml)).remove(0);
+        assert_eq!(e.name, "Tom & Jerry");
+        assert_eq!(e.summary.as_deref(), Some("Café <3"));
     }
 
     #[test]
