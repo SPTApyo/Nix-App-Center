@@ -17,7 +17,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     let config = adw::PreferencesGroup::builder()
         .title(t("Configuration"))
         .description(t(
-            "Onyx finds your configuration by reading its files. Correct it here when it guesses wrong.",
+            "Nix Software finds your configuration by reading its files. Correct it here when it guesses wrong.",
         ))
         .build();
     let detected = adw::ActionRow::builder()

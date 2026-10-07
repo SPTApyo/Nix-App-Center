@@ -239,9 +239,9 @@ impl UpdatesModel {
 
         let Some(latest) = &c.latest else {
             let text = if c.source.branch.is_none() {
-                t("Onyx cannot tell which nixpkgs branch your configuration follows.")
+                t("Nix Software cannot tell which nixpkgs branch your configuration follows.")
             } else {
-                t("Onyx could not reach nixpkgs to check for updates.")
+                t("Nix Software could not reach nixpkgs to check for updates.")
             };
             self.content.append(&util::dim_label(&text));
             return;
@@ -344,7 +344,7 @@ fn method_note(method: &UpdateMethod) -> Option<String> {
             t("nixpkgs comes from the “{}” input of your configuration. Update that flake, then apply.")
                 .replace("{}", by),
         ),
-        UpdateMethod::Unknown => Some(t("Onyx cannot update this configuration by itself.")),
+        UpdateMethod::Unknown => Some(t("Nix Software cannot update this configuration by itself.")),
         _ => None,
     }
 }

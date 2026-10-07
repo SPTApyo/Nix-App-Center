@@ -40,11 +40,11 @@ pub fn present(
             site, backup, diff, ..
         } => (
             t(
-                "Onyx wrote its own files, but nothing imports them yet, so your kept \
+                "Nix Software wrote its own files, but nothing imports them yet, so your kept \
                apps have no real effect.\n\n\
-               To fix this, Onyx needs to add the lines below to\n{site}\n\
+               To fix this, Nix Software needs to add the lines below to\n{site}\n\
                A backup will be written to\n{backup}\n\n\
-               This is the only change Onyx will ever make to your files.",
+               This is the only change Nix Software will ever make to your files.",
             )
             .replace("{site}", &site.display().to_string())
             .replace("{backup}", &backup.display().to_string()),
@@ -52,21 +52,23 @@ pub fn present(
             true,
         ),
         AttachPlan::Manual { site, snippet } => (
-            t("Onyx cannot find a top-level “imports” list in\n{site}\n\n\
+            t(
+                "Nix Software cannot find a top-level “imports” list in\n{site}\n\n\
                It will not guess where to write in your file. Add these lines \
-               yourself, wherever you see fit.")
+               yourself, wherever you see fit.",
+            )
             .replace("{site}", &site.display().to_string()),
             snippet.clone(),
             false,
         ),
         AttachPlan::AlreadyAttached => (
-            t("Onyx is already connected to your configuration. Nothing to do."),
+            t("Nix Software is already connected to your configuration. Nothing to do."),
             String::new(),
             false,
         ),
         AttachPlan::NoLayout => (
             t(
-                "Onyx cannot find your Nix configuration (neither /etc/nixos nor \
+                "Nix Software cannot find your Nix configuration (neither /etc/nixos nor \
                ~/.config/home-manager). It will not guess: your apps stay in the \
                manifest, but no file is generated.",
             ),
@@ -92,7 +94,7 @@ pub fn present(
 
     let header = adw::HeaderBar::new();
     let dialog = adw::Dialog::new();
-    dialog.set_title(&t("Connect Onyx to Your Configuration"));
+    dialog.set_title(&t("Connect Nix Software to Your Configuration"));
     dialog.set_content_width(760);
     dialog.set_content_height(560);
 

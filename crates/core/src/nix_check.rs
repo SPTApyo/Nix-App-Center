@@ -108,7 +108,7 @@ pub fn dry_build() -> DryRun {
     let layout = crate::config_layout::detect();
     let Some(argv) = dry_argv(&layout) else {
         return DryRun::Unavailable(
-            crate::util::n_("Onyx cannot find your Nix configuration.").into(),
+            crate::util::n_("Nix Software cannot find your Nix configuration.").into(),
         );
     };
 

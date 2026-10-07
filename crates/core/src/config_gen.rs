@@ -352,7 +352,7 @@ pub(crate) fn run_apply(argv: &[String]) -> std::io::Result<ApplyOutcome> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                format!("“{bin}” not found: Onyx cannot apply your configuration."),
+                format!("“{bin}” not found: Nix Software cannot apply your configuration."),
             ));
         }
         Err(e) => return Err(e),

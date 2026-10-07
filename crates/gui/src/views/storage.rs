@@ -187,7 +187,11 @@ fn category_info(c: Category) -> (&'static str, String, String) {
             t("Development"),
             t("Dev shells, build results and other roots"),
         ),
-        Category::TriedApps => ("#33c7de", t("Tried Apps"), t("Apps you ran with Onyx")),
+        Category::TriedApps => (
+            "#33c7de",
+            t("Tried Apps"),
+            t("Apps you ran with Nix Software"),
+        ),
         Category::Garbage => ("#9a9996", t("Garbage"), t("Nothing uses it anymore")),
     }
 }
@@ -542,7 +546,10 @@ fn apps(r: &StorageReport) -> gtk::Box {
     for (origins, title) in [
         (vec![AppOrigin::System], t("System Apps")),
         (vec![AppOrigin::User], t("User Apps")),
-        (vec![AppOrigin::Kept, AppOrigin::Tried], t("Onyx Apps")),
+        (
+            vec![AppOrigin::Kept, AppOrigin::Tried],
+            t("Nix Software Apps"),
+        ),
     ] {
         let apps: Vec<_> = r
             .apps
@@ -565,7 +572,7 @@ fn apps(r: &StorageReport) -> gtk::Box {
             let detail = t("{} with its dependencies").replace("{}", &size(a.closure))
                 + &own
                 + &match a.origin {
-                    AppOrigin::Kept => format!(" · {}", t("kept by Onyx")),
+                    AppOrigin::Kept => format!(" · {}", t("kept by Nix Software")),
                     AppOrigin::Tried => format!(" · {}", t("tried")),
                     _ => String::new(),
                 };
@@ -628,7 +635,7 @@ fn home_files(
     }
     util::section(
         &t("Your Files"),
-        Some(&t("Folders apps keep in your home: {} in all. A cache is rebuilt when needed; data and settings are yours, Onyx never deletes them.").replace("{}", &size(total))),
+        Some(&t("Folders apps keep in your home: {} in all. A cache is rebuilt when needed; data and settings are yours, Nix Software never deletes them.").replace("{}", &size(total))),
         &list,
     )
 }

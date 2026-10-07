@@ -1,7 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Onyx
+Name=Nix Software
 GenericName=Software Store
+Keywords=onyx;nix;nixpkgs;package;install;store;software;
 GenericName[fr]=Logithèque
 Comment=Declarative app store for Nix
 Comment[fr]=App store déclaratif pour Nix
@@ -9,6 +10,5 @@ Exec=onyx
 Icon=dev.onyx.Onyx
 Terminal=false
 Categories=System;PackageManager;GTK;
-Keywords=nix;nixpkgs;package;install;store;software;
 Keywords[fr]=nix;nixpkgs;paquet;installer;logithèque;
 StartupNotify=true

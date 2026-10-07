@@ -66,7 +66,7 @@ impl SimpleComponent for AppModel {
 
     view! {
         adw::ApplicationWindow {
-            set_title: Some("Onyx"),
+            set_title: Some("Nix Software"),
             set_default_width: 960,
             set_default_height: 680,
         }
@@ -137,7 +137,7 @@ impl SimpleComponent for AppModel {
         // Main menu, like every GNOME app.
         let menu = gtk::gio::Menu::new();
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
-        menu.append(Some(&t("_About Onyx")), Some("win.about"));
+        menu.append(Some(&t("_About Nix Software")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
             .menu_model(&menu)
@@ -293,7 +293,7 @@ impl SimpleComponent for AppModel {
 
         let nav = adw::NavigationView::new();
         let root_page = adw::NavigationPage::builder()
-            .title("Onyx")
+            .title("Nix Software")
             .tag("main")
             .child(&toolbar_view)
             .build();
@@ -464,7 +464,7 @@ impl SimpleComponent for AppModel {
 
 fn about_dialog() -> adw::AboutDialog {
     let d = adw::AboutDialog::builder()
-        .application_name("Onyx")
+        .application_name("Nix Software")
         .application_icon("dev.onyx.Onyx")
         .developer_name("SPTApyo")
         .version(env!("CARGO_PKG_VERSION"))
@@ -473,6 +473,15 @@ fn about_dialog() -> adw::AboutDialog {
         .license_type(gtk::License::Gpl30)
         .copyright("© 2026 SPTApyo")
         .build();
+    // The icon reuses two artworks: credit both, as their licenses ask.
+    d.add_legal_section(
+        &t("Icon"),
+        Some(
+            "Bag: GNOME Software authors (GPL-2.0-or-later). Snowflake: NixOS artwork (CC-BY-4.0).",
+        ),
+        gtk::License::Custom,
+        None,
+    );
     let credits = t("translator-credits");
     if credits != "translator-credits" {
         d.set_translator_credits(&credits);

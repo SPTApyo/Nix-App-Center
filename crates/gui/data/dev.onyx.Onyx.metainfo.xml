@@ -4,7 +4,7 @@
   <id>dev.onyx.Onyx</id>
   <launchable type="desktop-id">dev.onyx.Onyx.desktop</launchable>
 
-  <name>Onyx</name>
+  <name>Nix Software</name>
   <summary>Declarative app store for Nix</summary>
   <summary xml:lang="fr">App store déclaratif pour Nix</summary>
 
@@ -17,15 +17,15 @@
 
   <description>
     <p>
-      Onyx is a declarative app store for Nix. Try first: run a package instantly
-      with Run (nix run), then deliberately keep it in your configuration. Onyx
+      Nix Software is a declarative app store for Nix. Try first: run a package instantly
+      with Try (nix run), then deliberately keep it in your configuration. Nix Software
       owns its own files and only edits yours with your explicit consent, showing
       the diff first.
     </p>
     <p xml:lang="fr">
-      Onyx est une logithèque déclarative pour Nix. Le principe « try-first » :
+      Nix Software est une logithèque déclarative pour Nix. Le principe « try-first » :
       lancez un paquet instantanément avec « Lancer » (nix run), puis gardez-le
-      délibérément dans votre configuration. Onyx écrit ses propres fichiers et
+      délibérément dans votre configuration. Nix Software écrit ses propres fichiers et
       ne modifie la vôtre qu'avec votre accord explicite, diff à l'appui.
     </p>
   </description>

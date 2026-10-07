@@ -1,11 +1,11 @@
-# French translation for Onyx.
+# French translation for Nix Software.
 # Copyright (C) 2026 SPTApyo
 # This file is distributed under the same license as the onyx package.
 msgid ""
 msgstr ""
 "Project-Id-Version: onyx 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/Projet-Onyx/issues\n"
-"POT-Creation-Date: 2026-10-06 20:35+0200\n"
+"POT-Creation-Date: 2026-10-07 14:15+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -20,8 +20,8 @@ msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
 
 #: crates/core/src/nix_check.rs:111
-msgid "Onyx cannot find your Nix configuration."
-msgstr "Onyx ne trouve pas votre configuration Nix."
+msgid "Nix Software cannot find your Nix configuration."
+msgstr "Nix Software ne trouve pas votre configuration Nix."
 
 #: crates/core/src/oars.rs:46
 msgid "No cartoon violence"
@@ -349,8 +349,8 @@ msgid "_Preferences"
 msgstr "_Préférences"
 
 #: crates/gui/src/app.rs:140
-msgid "_About Onyx"
-msgstr "À _propos d'Onyx"
+msgid "_About Nix Software"
+msgstr "À _propos de Nix Software"
 
 #: crates/gui/src/app.rs:145
 msgid "Main Menu"
@@ -387,7 +387,11 @@ msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:476
+#: crates/gui/src/app.rs:478
+msgid "Icon"
+msgstr "Icône"
+
+#: crates/gui/src/app.rs:483
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -442,68 +446,68 @@ msgstr "En cours…"
 #: crates/gui/src/components/details/attach_dialog.rs:43
 #, rust-format
 msgid ""
-"Onyx wrote its own files, but nothing imports them yet, so your kept apps "
-"have no real effect.\n"
+"Nix Software wrote its own files, but nothing imports them yet, so your kept "
+"apps have no real effect.\n"
 "\n"
-"To fix this, Onyx needs to add the lines below to\n"
+"To fix this, Nix Software needs to add the lines below to\n"
 "{site}\n"
 "A backup will be written to\n"
 "{backup}\n"
 "\n"
-"This is the only change Onyx will ever make to your files."
+"This is the only change Nix Software will ever make to your files."
 msgstr ""
-"Onyx a écrit ses propres fichiers, mais rien ne les importe encore : vos "
-"applications gardées n'ont donc aucun effet réel.\n"
+"Nix Software a écrit ses propres fichiers, mais rien ne les importe encore : "
+"vos applications gardées n'ont donc aucun effet réel.\n"
 "\n"
-"Pour y remédier, Onyx doit ajouter les lignes ci-dessous à\n"
+"Pour y remédier, Nix Software doit ajouter les lignes ci-dessous à\n"
 "{site}\n"
 "Une sauvegarde sera écrite dans\n"
 "{backup}\n"
 "\n"
-"C'est la seule modification qu'Onyx fera jamais à vos fichiers."
+"C'est la seule modification qu'Nix Software fera jamais à vos fichiers."
 
-#: crates/gui/src/components/details/attach_dialog.rs:55
+#: crates/gui/src/components/details/attach_dialog.rs:56
 #, rust-format
 msgid ""
-"Onyx cannot find a top-level “imports” list in\n"
+"Nix Software cannot find a top-level “imports” list in\n"
 "{site}\n"
 "\n"
 "It will not guess where to write in your file. Add these lines yourself, "
 "wherever you see fit."
 msgstr ""
-"Onyx ne trouve pas de liste « imports » au plus haut niveau de\n"
+"Nix Software ne trouve pas de liste « imports » au plus haut niveau de\n"
 "{site}\n"
 "\n"
 "Il ne devinera pas où écrire dans votre fichier. Ajoutez ces lignes vous-"
 "même, là où vous le jugez bon."
 
-#: crates/gui/src/components/details/attach_dialog.rs:63
-msgid "Onyx is already connected to your configuration. Nothing to do."
-msgstr "Onyx est déjà relié à votre configuration. Rien à faire."
+#: crates/gui/src/components/details/attach_dialog.rs:65
+msgid "Nix Software is already connected to your configuration. Nothing to do."
+msgstr "Nix Software est déjà relié à votre configuration. Rien à faire."
 
-#: crates/gui/src/components/details/attach_dialog.rs:69
+#: crates/gui/src/components/details/attach_dialog.rs:71
 msgid ""
-"Onyx cannot find your Nix configuration (neither /etc/nixos nor ~/.config/"
-"home-manager). It will not guess: your apps stay in the manifest, but no "
-"file is generated."
+"Nix Software cannot find your Nix configuration (neither /etc/nixos nor "
+"~/.config/home-manager). It will not guess: your apps stay in the manifest, "
+"but no file is generated."
 msgstr ""
-"Onyx ne trouve pas votre configuration Nix (ni /etc/nixos, ni ~/.config/home-"
-"manager). Il ne devinera pas : vos applications restent dans le manifeste, "
-"mais aucun fichier n'est généré."
+"Nix Software ne trouve pas votre configuration Nix (ni /etc/nixos, ni "
+"~/.config/home-manager). Il ne devinera pas : vos applications restent dans "
+"le manifeste, mais aucun fichier n'est généré."
 
-#: crates/gui/src/components/details/attach_dialog.rs:95
-msgid "Connect Onyx to Your Configuration"
-msgstr "Relier Onyx à votre configuration"
+#: crates/gui/src/components/details/attach_dialog.rs:97
+msgid "Connect Nix Software to Your Configuration"
+msgstr "Relier Nix Software à votre configuration"
 
-#: crates/gui/src/components/details/attach_dialog.rs:100
+#: crates/gui/src/components/details/attach_dialog.rs:102
 msgid "Do It Myself"
 msgstr "Le faire moi-même"
 
-#: crates/gui/src/components/details/attach_dialog.rs:102
+#: crates/gui/src/components/details/attach_dialog.rs:104
 msgid "Close"
 msgstr "Fermer"
 
-#: crates/gui/src/components/details/attach_dialog.rs:118
+#: crates/gui/src/components/details/attach_dialog.rs:120
 msgid "Add Import Line"
 msgstr "Ajouter la ligne d'import"
 
@@ -620,7 +624,7 @@ msgstr ""
 #: crates/gui/src/components/details/nix_editor.rs:113
 #: crates/gui/src/components/details/nix_editor.rs:125
 #: crates/gui/src/views/installed.rs:383 crates/gui/src/views/storage.rs:167
-#: crates/gui/src/views/storage.rs:477
+#: crates/gui/src/views/storage.rs:481
 msgid "System"
 msgstr "Système"
 
@@ -630,11 +634,11 @@ msgstr "Portée système indisponible"
 
 #: crates/gui/src/components/details/nix_editor.rs:122
 msgid ""
-"Your configuration uses standalone home-manager: Onyx cannot write NixOS "
-"options there (firewall, system services)."
+"Your configuration uses standalone home-manager: Nix Software cannot write "
+"NixOS options there (firewall, system services)."
 msgstr ""
-"Votre configuration utilise home-manager seul : Onyx ne peut pas y écrire "
-"d'options NixOS (pare-feu, services système)."
+"Votre configuration utilise home-manager seul : Nix Software ne peut pas y "
+"écrire d'options NixOS (pare-feu, services système)."
 
 #: crates/gui/src/components/details/nix_editor.rs:135
 msgid "Save"
@@ -767,8 +771,8 @@ msgstr ""
 "le vérifieront."
 
 #: crates/gui/src/components/details/review_row.rs:124
-#: crates/gui/src/views/detail.rs:1163 crates/gui/src/views/storage.rs:644
-#: crates/gui/src/views/storage.rs:660
+#: crates/gui/src/views/detail.rs:1163 crates/gui/src/views/storage.rs:651
+#: crates/gui/src/views/storage.rs:667
 msgid "_Cancel"
 msgstr "_Annuler"
 
@@ -785,14 +789,14 @@ msgid "Thanks for your feedback."
 msgstr "Merci pour votre retour."
 
 #: crates/gui/src/components/details/review_row.rs:159
-#: crates/gui/src/util.rs:40 crates/gui/src/util.rs:41
+#: crates/gui/src/util.rs:42 crates/gui/src/util.rs:43
 #: crates/gui/src/views/detail.rs:1180 crates/gui/src/views/detail.rs:1294
 #: crates/gui/src/views/detail.rs:1339 crates/gui/src/views/detail.rs:1353
 #: crates/gui/src/views/detail.rs:1393 crates/gui/src/views/detail.rs:1591
 #: crates/gui/src/views/installed.rs:182 crates/gui/src/views/installed.rs:200
 #: crates/gui/src/views/installed.rs:223 crates/gui/src/views/installed.rs:267
 #: crates/gui/src/views/preferences.rs:144 crates/gui/src/views/storage.rs:130
-#: crates/gui/src/views/storage.rs:268
+#: crates/gui/src/views/storage.rs:272
 #, rust-format
 msgid "Failed: {}"
 msgstr "Échec : {}"
@@ -867,40 +871,41 @@ msgstr "Application en cours dans un terminal. Suivez la compilation là-bas."
 msgid "No terminal found. The apply command was copied."
 msgstr "Aucun terminal trouvé. La commande d'application a été copiée."
 
-#: crates/gui/src/util.rs:38
-msgid "Onyx cannot find your Nix configuration. Nothing was applied."
-msgstr "Onyx ne trouve pas votre configuration Nix. Rien n'a été appliqué."
+#: crates/gui/src/util.rs:39
+msgid "Nix Software cannot find your Nix configuration. Nothing was applied."
+msgstr ""
+"Nix Software ne trouve pas votre configuration Nix. Rien n'a été appliqué."
 
-#: crates/gui/src/util.rs:308
+#: crates/gui/src/util.rs:310
 msgid "Today"
 msgstr "Aujourd'hui"
 
-#: crates/gui/src/util.rs:309
+#: crates/gui/src/util.rs:311
 msgid "Yesterday"
 msgstr "Hier"
 
-#: crates/gui/src/util.rs:310
+#: crates/gui/src/util.rs:312
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "Il y a {} jour"
 msgstr[1] "Il y a {} jours"
 
-#: crates/gui/src/util.rs:311
+#: crates/gui/src/util.rs:313
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] "Il y a {} semaine"
 msgstr[1] "Il y a {} semaines"
 
-#: crates/gui/src/util.rs:312
+#: crates/gui/src/util.rs:314
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] "Il y a {} mois"
 msgstr[1] "Il y a {} mois"
 
-#: crates/gui/src/util.rs:313
+#: crates/gui/src/util.rs:315
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
@@ -1044,13 +1049,13 @@ msgstr "Pas la même application ?"
 #: crates/gui/src/views/detail.rs:1159
 #, rust-format
 msgid ""
-"Onyx matched the nixpkgs package “{attr}” with the Flathub app “{name}”. If "
-"they are different apps, Onyx stops showing Flathub data (icon, screenshots, "
-"reviews) for this package."
+"Nix Software matched the nixpkgs package “{attr}” with the Flathub app "
+"“{name}”. If they are different apps, Nix Software stops showing Flathub "
+"data (icon, screenshots, reviews) for this package."
 msgstr ""
-"Onyx a associé le paquet nixpkgs « {attr} » à l'application Flathub "
-"« {name} ». Si ce sont deux applications différentes, Onyx n'affichera plus "
-"les données Flathub (icône, captures, avis) pour ce paquet."
+"Nix Software a associé le paquet nixpkgs « {attr} » à l'application Flathub "
+"« {name} ». Si ce sont deux applications différentes, Nix Software "
+"n'affichera plus les données Flathub (icône, captures, avis) pour ce paquet."
 
 #: crates/gui/src/views/detail.rs:1164
 msgid "_Not the Same App"
@@ -1419,7 +1424,7 @@ msgstr ""
 "Aucun paquet gardé pour l'instant. Ouvrez une application et choisissez "
 "« Ajouter à la configuration »."
 
-#: crates/gui/src/views/installed.rs:354 crates/gui/src/views/storage.rs:338
+#: crates/gui/src/views/installed.rs:354 crates/gui/src/views/storage.rs:342
 msgid "Free Up Space"
 msgstr "Libérer de l'espace"
 
@@ -1461,11 +1466,11 @@ msgstr "Configuration"
 
 #: crates/gui/src/views/preferences.rs:20
 msgid ""
-"Onyx finds your configuration by reading its files. Correct it here when it "
-"guesses wrong."
+"Nix Software finds your configuration by reading its files. Correct it here "
+"when it guesses wrong."
 msgstr ""
-"Onyx trouve votre configuration en lisant ses fichiers. Corrigez-la ici s'il "
-"se trompe."
+"Nix Software trouve votre configuration en lisant ses fichiers. Corrigez-la "
+"ici s'il se trompe."
 
 #: crates/gui/src/views/preferences.rs:24
 msgid "Detected"
@@ -1624,40 +1629,40 @@ msgstr "Développement"
 msgid "Dev shells, build results and other roots"
 msgstr "Shells de dev, résultats de build et autres racines"
 
-#: crates/gui/src/views/storage.rs:190
-msgid "Apps you ran with Onyx"
-msgstr "Applications lancées avec Onyx"
-
-#: crates/gui/src/views/storage.rs:190
+#: crates/gui/src/views/storage.rs:192
 msgid "Tried Apps"
 msgstr "Applications essayées"
 
-#: crates/gui/src/views/storage.rs:191
+#: crates/gui/src/views/storage.rs:193
+msgid "Apps you ran with Nix Software"
+msgstr "Applications lancées avec Nix Software"
+
+#: crates/gui/src/views/storage.rs:195
 msgid "Garbage"
 msgstr "Déchets"
 
-#: crates/gui/src/views/storage.rs:191
+#: crates/gui/src/views/storage.rs:195
 msgid "Nothing uses it anymore"
 msgstr "Plus rien ne s'en sert"
 
-#: crates/gui/src/views/storage.rs:313
+#: crates/gui/src/views/storage.rs:317
 msgid "Empty Garbage"
 msgstr "Vider les déchets"
 
-#: crates/gui/src/views/storage.rs:314
+#: crates/gui/src/views/storage.rs:318
 #, rust-format
 msgid "{} that nothing uses anymore. Safe to delete."
 msgstr "{} dont plus rien ne se sert. Suppression sans risque."
 
-#: crates/gui/src/views/storage.rs:320
+#: crates/gui/src/views/storage.rs:324
 msgid "Clean"
 msgstr "Nettoyer"
 
-#: crates/gui/src/views/storage.rs:329
+#: crates/gui/src/views/storage.rs:333
 msgid "Delete Old Generations"
 msgstr "Supprimer les anciennes générations"
 
-#: crates/gui/src/views/storage.rs:330
+#: crates/gui/src/views/storage.rs:334
 #, rust-format
 msgid ""
 "About {}, and you can no longer roll back to them. The boot menu follows at "
@@ -1666,11 +1671,11 @@ msgstr ""
 "Environ {}, et vous ne pourrez plus y revenir. Le menu de démarrage suivra "
 "au prochain rebuild."
 
-#: crates/gui/src/views/storage.rs:332
+#: crates/gui/src/views/storage.rs:336
 msgid "Delete…"
 msgstr "Supprimer…"
 
-#: crates/gui/src/views/storage.rs:453
+#: crates/gui/src/views/storage.rs:457
 #, rust-format
 msgid ""
 "{store} in {paths} store paths, before hard link sharing. The disk has "
@@ -1679,63 +1684,63 @@ msgstr ""
 "{store} dans {paths} chemins du store, avant partage par liens physiques. Le "
 "disque a {free} libres sur {disk}."
 
-#: crates/gui/src/views/storage.rs:460
+#: crates/gui/src/views/storage.rs:464
 msgid "Measure Again"
 msgstr "Mesurer à nouveau"
 
-#: crates/gui/src/views/storage.rs:467
+#: crates/gui/src/views/storage.rs:471
 msgid "Nix Store"
 msgstr "Store Nix"
 
-#: crates/gui/src/views/storage.rs:478
+#: crates/gui/src/views/storage.rs:482
 msgid "Home Manager"
 msgstr "Home Manager"
 
-#: crates/gui/src/views/storage.rs:479
+#: crates/gui/src/views/storage.rs:483
 msgid "User Profile"
 msgstr "Profil utilisateur"
 
-#: crates/gui/src/views/storage.rs:494
+#: crates/gui/src/views/storage.rs:498
 #, rust-format
 msgid "{} generation"
 msgid_plural "{} generations"
 msgstr[0] "{} génération"
 msgstr[1] "{} générations"
 
-#: crates/gui/src/views/storage.rs:495
+#: crates/gui/src/views/storage.rs:499
 #, rust-format
 msgid "{} old"
 msgid_plural "{} old"
 msgstr[0] "{} ancienne"
 msgstr[1] "{} anciennes"
 
-#: crates/gui/src/views/storage.rs:501
+#: crates/gui/src/views/storage.rs:505
 msgid "current"
 msgstr "actuelle"
 
-#: crates/gui/src/views/storage.rs:504
+#: crates/gui/src/views/storage.rs:508
 msgid "same as current"
 msgstr "identique à l'actuelle"
 
-#: crates/gui/src/views/storage.rs:507
+#: crates/gui/src/views/storage.rs:511
 msgid "booted"
 msgstr "démarrée"
 
-#: crates/gui/src/views/storage.rs:510 crates/gui/src/views/storage.rs:514
+#: crates/gui/src/views/storage.rs:514 crates/gui/src/views/storage.rs:518
 #, rust-format
 msgid "Generation {}"
 msgstr "Génération {}"
 
-#: crates/gui/src/views/storage.rs:523
+#: crates/gui/src/views/storage.rs:527
 #, rust-format
 msgid "frees {}"
 msgstr "libère {}"
 
-#: crates/gui/src/views/storage.rs:534
+#: crates/gui/src/views/storage.rs:538
 msgid "Generations"
 msgstr "Générations"
 
-#: crates/gui/src/views/storage.rs:535
+#: crates/gui/src/views/storage.rs:539
 msgid ""
 "Each rebuild keeps the previous state so you can roll back. Old ones share "
 "most of their files: deleting one frees only what it alone keeps."
@@ -1744,48 +1749,48 @@ msgstr ""
 "anciennes partagent la plupart de leurs fichiers : en supprimer une ne "
 "libère que ce qu'elle seule garde."
 
-#: crates/gui/src/views/storage.rs:543
+#: crates/gui/src/views/storage.rs:547
 msgid "System Apps"
 msgstr "Applications système"
 
-#: crates/gui/src/views/storage.rs:544
+#: crates/gui/src/views/storage.rs:548
 msgid "User Apps"
 msgstr "Applications utilisateur"
 
-#: crates/gui/src/views/storage.rs:545
-msgid "Onyx Apps"
-msgstr "Applications Onyx"
+#: crates/gui/src/views/storage.rs:551
+msgid "Nix Software Apps"
+msgstr "Applications Nix Software"
 
-#: crates/gui/src/views/storage.rs:557
+#: crates/gui/src/views/storage.rs:564
 #, rust-format
 msgid "{} app"
 msgid_plural "{} apps"
 msgstr[0] "{} application"
 msgstr[1] "{} applications"
 
-#: crates/gui/src/views/storage.rs:561
+#: crates/gui/src/views/storage.rs:568
 #, rust-format
 msgid "{} itself"
 msgstr "{} seule"
 
-#: crates/gui/src/views/storage.rs:565
+#: crates/gui/src/views/storage.rs:572
 #, rust-format
 msgid "{} with its dependencies"
 msgstr "{} avec ses dépendances"
 
-#: crates/gui/src/views/storage.rs:568
-msgid "kept by Onyx"
-msgstr "gardée par Onyx"
+#: crates/gui/src/views/storage.rs:575
+msgid "kept by Nix Software"
+msgstr "gardée par Nix Software"
 
-#: crates/gui/src/views/storage.rs:569
+#: crates/gui/src/views/storage.rs:576
 msgid "tried"
 msgstr "essayée"
 
-#: crates/gui/src/views/storage.rs:587
+#: crates/gui/src/views/storage.rs:594
 msgid "Apps"
 msgstr "Applications"
 
-#: crates/gui/src/views/storage.rs:588
+#: crates/gui/src/views/storage.rs:595
 msgid ""
 "Sizes include every dependency, so apps sharing libraries add up to more "
 "than the store."
@@ -1793,47 +1798,47 @@ msgstr ""
 "Les tailles incluent toutes les dépendances : des applications qui partagent "
 "des bibliothèques dépassent ensemble la taille du store."
 
-#: crates/gui/src/views/storage.rs:603
+#: crates/gui/src/views/storage.rs:610
 msgid "Cache"
 msgstr "Cache"
 
-#: crates/gui/src/views/storage.rs:604
+#: crates/gui/src/views/storage.rs:611
 msgid "Data"
 msgstr "Données"
 
-#: crates/gui/src/views/storage.rs:605
+#: crates/gui/src/views/storage.rs:612
 msgid "Settings"
 msgstr "Paramètres"
 
-#: crates/gui/src/views/storage.rs:612
+#: crates/gui/src/views/storage.rs:619
 #, rust-format
 msgid "used by {}"
 msgstr "utilisé par {}"
 
-#: crates/gui/src/views/storage.rs:623
+#: crates/gui/src/views/storage.rs:630
 msgid "Clear…"
 msgstr "Vider…"
 
-#: crates/gui/src/views/storage.rs:630
+#: crates/gui/src/views/storage.rs:637
 msgid "Your Files"
 msgstr "Vos fichiers"
 
-#: crates/gui/src/views/storage.rs:631
+#: crates/gui/src/views/storage.rs:638
 #, rust-format
 msgid ""
 "Folders apps keep in your home: {} in all. A cache is rebuilt when needed; "
-"data and settings are yours, Onyx never deletes them."
+"data and settings are yours, Nix Software never deletes them."
 msgstr ""
 "Dossiers que les applications gardent dans votre dossier personnel : {} au "
 "total. Un cache se reconstruit au besoin ; les données et paramètres sont à "
-"vous, Onyx ne les supprime jamais."
+"vous, Nix Software ne les supprime jamais."
 
-#: crates/gui/src/views/storage.rs:638
+#: crates/gui/src/views/storage.rs:645
 #, rust-format
 msgid "Clear the “{}” Cache?"
 msgstr "Vider le cache « {} » ?"
 
-#: crates/gui/src/views/storage.rs:640
+#: crates/gui/src/views/storage.rs:647
 #, rust-format
 msgid ""
 "This frees {}. The app rebuilds what it needs; close it first if it is "
@@ -1842,15 +1847,15 @@ msgstr ""
 "Cela libère {}. L'application reconstruit ce dont elle a besoin ; fermez-la "
 "d'abord si elle tourne."
 
-#: crates/gui/src/views/storage.rs:645
+#: crates/gui/src/views/storage.rs:652
 msgid "C_lear"
 msgstr "_Vider"
 
-#: crates/gui/src/views/storage.rs:657
+#: crates/gui/src/views/storage.rs:664
 msgid "Delete Old Generations?"
 msgstr "Supprimer les anciennes générations ?"
 
-#: crates/gui/src/views/storage.rs:658
+#: crates/gui/src/views/storage.rs:665
 msgid ""
 "You will not be able to roll back to them. The current system and your "
 "current user setup stay."
@@ -1858,7 +1863,7 @@ msgstr ""
 "Vous ne pourrez plus y revenir. Le système actuel et votre configuration "
 "utilisateur actuelle restent."
 
-#: crates/gui/src/views/storage.rs:661
+#: crates/gui/src/views/storage.rs:668
 msgid "_Delete"
 msgstr "_Supprimer"
 
@@ -1885,12 +1890,15 @@ msgid "Checking for updates…"
 msgstr "Recherche de mises à jour…"
 
 #: crates/gui/src/views/updates.rs:242
-msgid "Onyx cannot tell which nixpkgs branch your configuration follows."
-msgstr "Onyx ne sait pas quelle branche de nixpkgs suit votre configuration."
+msgid ""
+"Nix Software cannot tell which nixpkgs branch your configuration follows."
+msgstr ""
+"Nix Software ne sait pas quelle branche de nixpkgs suit votre configuration."
 
 #: crates/gui/src/views/updates.rs:244
-msgid "Onyx could not reach nixpkgs to check for updates."
-msgstr "Onyx n'a pas pu joindre nixpkgs pour chercher des mises à jour."
+msgid "Nix Software could not reach nixpkgs to check for updates."
+msgstr ""
+"Nix Software n'a pas pu joindre nixpkgs pour chercher des mises à jour."
 
 #: crates/gui/src/views/updates.rs:277
 #, rust-format
@@ -1936,8 +1944,8 @@ msgstr ""
 "jour, puis appliquez."
 
 #: crates/gui/src/views/updates.rs:347
-msgid "Onyx cannot update this configuration by itself."
-msgstr "Onyx ne peut pas mettre à jour cette configuration lui-même."
+msgid "Nix Software cannot update this configuration by itself."
+msgstr "Nix Software ne peut pas mettre à jour cette configuration lui-même."
 
 #: crates/gui/src/views/updates.rs:356
 #, rust-format

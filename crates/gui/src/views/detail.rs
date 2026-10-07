@@ -1156,7 +1156,7 @@ impl SimpleComponent for DetailModel {
                     .unwrap_or_default();
                 let dialog = adw::AlertDialog::new(
                     Some(&t("Not the Same App?")),
-                    Some(&t("Onyx matched the nixpkgs package “{attr}” with the Flathub app “{name}”. If they are different apps, Onyx stops showing Flathub data (icon, screenshots, reviews) for this package.")
+                    Some(&t("Nix Software matched the nixpkgs package “{attr}” with the Flathub app “{name}”. If they are different apps, Nix Software stops showing Flathub data (icon, screenshots, reviews) for this package.")
                         .replace("{attr}", &self.package.attr)
                         .replace("{name}", &name)),
                 );

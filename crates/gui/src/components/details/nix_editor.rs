@@ -119,7 +119,7 @@ pub fn present(
         msg.set_icon_name(Some("dialog-information-symbolic"));
         msg.set_title(&t("System Scope Unavailable"));
         msg.set_description(Some(&t(
-            "Your configuration uses standalone home-manager: Onyx cannot write NixOS \
+            "Your configuration uses standalone home-manager: Nix Software cannot write NixOS \
              options there (firewall, system services).",
         )));
         let page = stack.add_titled(&msg, Some("system"), &t("System"));
