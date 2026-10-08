@@ -163,7 +163,12 @@ tests, bypasses the saved overrides.
 as one region per app in the system file, instead of the user's packages.
 Apps kept before keep their scope.
 
-Without a managed configuration, Keep installs with nix profile instead.
+Without a managed configuration, Keep installs with nix profile instead. That
+is also the case on other Linux distributions with Nix: there is no
+nixos-version, so Updates reads the branch the flake registry points
+nixpkgs to, compares only the apps of ~/.nix-profile, and updates with
+nix profile upgrade --all. A profile has no single revision, so it is up to
+date when no app changes.
 Packages without an AppStream icon get a glyph and a color from a rough
 guess of their family (package set, then description words).
 

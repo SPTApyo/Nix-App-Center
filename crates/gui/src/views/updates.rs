@@ -27,10 +27,19 @@ pub struct Check {
 }
 
 impl Check {
+    /// A user profile has no single revision: it is up to date when no
+    /// installed app changes.
+    fn up_to_date(&self, latest: &Latest) -> bool {
+        match self.source.method {
+            UpdateMethod::Profile => self.apps.is_empty(),
+            _ => self.source.rev.as_deref() == Some(latest.rev.as_str()),
+        }
+    }
+
     /// Number shown on the tab badge: 0 when up to date.
     fn pending(&self) -> usize {
         match &self.latest {
-            Some(l) if self.source.rev.as_deref() != Some(l.rev.as_str()) => self.apps.len().max(1),
+            Some(l) if !self.up_to_date(l) => self.apps.len().max(1),
             _ => 0,
         }
     }
@@ -188,7 +197,7 @@ fn check() -> Check {
     let latest = source.branch.as_deref().and_then(nix_software_core::latest);
     let apps = match &latest {
         Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => {
-            nix_software_core::app_updates(&l.rev, &nix_software_core::profile_apps())
+            nix_software_core::app_updates(&l.rev, &nix_software_core::updatable_apps(&source))
         }
         _ => Vec::new(),
     };
@@ -249,7 +258,7 @@ impl UpdatesModel {
             self.content.append(&util::dim_label(&text));
             return;
         };
-        if c.source.rev.as_deref() == Some(latest.rev.as_str()) {
+        if c.up_to_date(latest) {
             self.content.append(&up_to_date_view());
             return;
         }
@@ -280,10 +289,14 @@ impl UpdatesModel {
                 Some(b) => t("nixpkgs {}").replace("{}", b),
                 None => "nixpkgs".to_string(),
             }))
-            .subtitle(esc(&t("Installed: {}").replace(
-                "{}",
-                &revision_line(c.source.rev.as_deref(), c.source.last_modified),
-            )))
+            .subtitle(esc(&if c.source.method == UpdateMethod::Profile {
+                t("Apps in your user profile, updated with nix profile")
+            } else {
+                t("Installed: {}").replace(
+                    "{}",
+                    &revision_line(c.source.rev.as_deref(), c.source.last_modified),
+                )
+            }))
             .build();
         row.add_prefix(&gtk::Image::from_icon_name("nix-snowflake-symbolic"));
         let again = gtk::Button::from_icon_name("view-refresh-symbolic");

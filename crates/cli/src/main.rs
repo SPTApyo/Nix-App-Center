@@ -163,8 +163,10 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             println!("latest: {}", latest.rev);
-            for u in nix_software_core::app_updates(&latest.rev, &nix_software_core::profile_apps())
-            {
+            for u in nix_software_core::app_updates(
+                &latest.rev,
+                &nix_software_core::updatable_apps(&source),
+            ) {
                 println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);
             }
             match nix_software_core::update_command(&source, &nix_software_core::detect_layout()) {

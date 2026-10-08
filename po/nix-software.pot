@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-08 21:40+0200\n"
+"POT-Creation-Date: 2026-10-08 21:43+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1807,93 +1807,97 @@ msgstr ""
 msgid "_Delete"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:164
+#: crates/gui/src/views/updates.rs:173
 msgid "Updating"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:215
+#: crates/gui/src/views/updates.rs:224
 #, rust-format
 msgid "Revision {rev}, {age}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:218
+#: crates/gui/src/views/updates.rs:227
 #, rust-format
 msgid "Revision {rev}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:219
+#: crates/gui/src/views/updates.rs:228
 msgid "Revision unknown"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:233
+#: crates/gui/src/views/updates.rs:242
 msgid "Checking for updates…"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:245
+#: crates/gui/src/views/updates.rs:254
 msgid ""
 "Nix Software cannot tell which nixpkgs branch your configuration follows."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:247
+#: crates/gui/src/views/updates.rs:256
 msgid "Nix Software could not reach nixpkgs to check for updates."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:280
+#: crates/gui/src/views/updates.rs:289
 #, rust-format
 msgid "nixpkgs {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:283
+#: crates/gui/src/views/updates.rs:293
+msgid "Apps in your user profile, updated with nix profile"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:295
 #, rust-format
 msgid "Installed: {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:290
+#: crates/gui/src/views/updates.rs:303
 msgid "Check Again"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:308
+#: crates/gui/src/views/updates.rs:321
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/views/updates.rs:310
+#: crates/gui/src/views/updates.rs:323
 msgid "New nixpkgs revision"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:314
+#: crates/gui/src/views/updates.rs:327
 #, rust-format
 msgid "Available: {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:326
+#: crates/gui/src/views/updates.rs:339
 msgid "_Update"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:347
+#: crates/gui/src/views/updates.rs:360
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:350
+#: crates/gui/src/views/updates.rs:363
 msgid "Nix Software cannot update this configuration by itself."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:359
+#: crates/gui/src/views/updates.rs:372
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
 "ready."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:362
+#: crates/gui/src/views/updates.rs:375
 msgid "Release _Notes"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:379
+#: crates/gui/src/views/updates.rs:392
 msgid "Everything is up to date"
 msgstr ""

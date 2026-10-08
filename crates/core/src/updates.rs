@@ -24,6 +24,8 @@ pub enum UpdateMethod {
     HmChannel,
     /// nixpkgs comes through another flake input, updated there.
     Pinned { by: String },
+    /// No managed configuration, apps in the user profile: `nix profile upgrade`.
+    Profile,
     /// Nix Software cannot tell.
     Unknown,
 }
@@ -126,8 +128,40 @@ pub fn current_source() -> Source {
             last_modified: None,
             method: UpdateMethod::HmChannel,
         },
+        // Another distribution: Nix Software installs with nix profile there.
+        LayoutKind::Unknown if system.is_none() => Source {
+            branch: Some(
+                registry_branch(&registry_list()).unwrap_or_else(|| "nixpkgs-unstable".into()),
+            ),
+            rev: None,
+            last_modified: None,
+            method: UpdateMethod::Profile,
+        },
         LayoutKind::Unknown => from_version(UpdateMethod::Unknown),
     }
+}
+
+fn registry_list() -> String {
+    crate::util::nix()
+        .args(["registry", "list"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default()
+}
+
+/// The nixpkgs branch the flake registry points `nixpkgs` to, the user
+/// entry before the global one. Pure.
+fn registry_branch(list: &str) -> Option<String> {
+    let url = ["user", "system", "global"].iter().find_map(|kind| {
+        list.lines()
+            .find_map(|l| l.strip_prefix(&format!("{kind} flake:nixpkgs ")))
+    })?;
+    let url = url.split('?').next().unwrap_or(url);
+    let branch = url.strip_prefix("github:NixOS/nixpkgs/").or_else(|| {
+        url.strip_prefix("https://channels.nixos.org/")
+            .and_then(|r| r.split('/').next())
+    })?;
+    (!branch.is_empty() && !branch.contains('/')).then(|| branch.to_string())
 }
 
 /// `(nixpkgsRevision, nixosVersion)` of the running NixOS system.
@@ -290,6 +324,17 @@ fn next_release(branch: &str) -> Option<String> {
     }
 }
 
+/// The installed apps an update of `source` moves: only the user profile
+/// for `nix profile upgrade`, every profile otherwise.
+pub fn updatable_apps(source: &Source) -> Vec<ProfileApp> {
+    let mut apps = crate::profiles::profile_apps();
+    if source.method == UpdateMethod::Profile {
+        let profile = crate::util::home().join(".nix-profile");
+        apps.retain(|a| a.desktop_file.starts_with(&profile));
+    }
+    apps
+}
+
 /// Installed apps that `rev` ships in a newer version. One evaluation for all
 /// apps; the pname stands for the attribute, apps without a match are skipped.
 pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
@@ -364,6 +409,21 @@ pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<String>> {
                 .map(String::from)
                 .to_vec(),
         ),
+        UpdateMethod::Profile => Some(
+            [
+                "env",
+                "NIXPKGS_ALLOW_UNFREE=1",
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "profile",
+                "upgrade",
+                "--all",
+                "--impure",
+            ]
+            .map(String::from)
+            .to_vec(),
+        ),
         UpdateMethod::HmChannel if !apply.is_empty() => {
             Some(shell(format!("nix-channel --update && {apply}"), sudo))
         }
@@ -405,6 +465,43 @@ fn version_newer(candidate: &str, current: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registry_branch_reads_github_and_channel_urls() {
+        let list = "system flake:nixpkgs path:/nix/store/abc-source\n\
+global flake:nixpkgs/nixos-26.05 https://channels.nixos.org/nixos-26.05/nixexprs.tar.zst\n\
+global flake:nixpkgs https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst\n";
+        assert_eq!(registry_branch(list), None, "a store path has no branch");
+        let global =
+            "global flake:nixpkgs https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst\n";
+        assert_eq!(registry_branch(global).as_deref(), Some("nixpkgs-unstable"));
+        let user = "user flake:nixpkgs github:NixOS/nixpkgs/nixos-26.05\n\
+global flake:nixpkgs github:NixOS/nixpkgs/nixpkgs-unstable\n";
+        assert_eq!(registry_branch(user).as_deref(), Some("nixos-26.05"));
+    }
+
+    #[test]
+    fn profile_update_upgrades_the_user_profile() {
+        let source = Source {
+            branch: Some("nixpkgs-unstable".into()),
+            rev: None,
+            last_modified: None,
+            method: UpdateMethod::Profile,
+        };
+        let layout = Layout {
+            kind: LayoutKind::Unknown,
+            home: None,
+            system: None,
+            apply: Vec::new(),
+            hm_user: None,
+        };
+        let argv = update_command(&source, &layout).unwrap();
+        assert!(
+            argv.windows(2).any(|w| w == ["upgrade", "--all"]),
+            "{argv:?}"
+        );
+        assert!(!argv.contains(&"sudo".to_string()));
+    }
     use crate::profiles::Scope;
 
     #[test]
