@@ -73,6 +73,19 @@ of a pull request.
   make CI pass. Use just cov-html to see which lines no test reaches.
 - UI changes: run just e2e and look at the screenshots in target/e2e.
 
+## Comments
+
+We follow the rustdoc conventions, kept short:
+
+- //! at the top of a module: what the module is for, one to three lines.
+- /// on a function or a type: the first line says what it does and what it
+  returns. Add a sentence for a parameter only when its name and type do not
+  say enough, and an # Errors or # Panics section when the caller must know.
+  At most as many lines as parameters, plus three.
+- // inside a function: only the non-obvious why, eight words at most.
+- No history: no "this used to", no bug stories, no "copy of" notes. The
+  code says what is; docs/design.md says why.
+
 ## AI-assisted contributions
 
 Use whatever tools you like. The rule is the same either way: you are the
