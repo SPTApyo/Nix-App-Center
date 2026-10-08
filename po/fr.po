@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-08 21:38+0200\n"
+"POT-Creation-Date: 2026-10-08 21:40+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -340,7 +340,7 @@ msgstr "ODRS est injoignable."
 msgid "ODRS did not accept this app."
 msgstr "ODRS n'accepte pas cette application."
 
-#: crates/gui/src/app.rs:133 crates/gui/src/views/preferences.rs:119
+#: crates/gui/src/app.rs:133 crates/gui/src/views/preferences.rs:138
 msgid "Search"
 msgstr "Rechercher"
 
@@ -368,7 +368,7 @@ msgstr "Explorer"
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:247 crates/gui/src/views/preferences.rs:103
+#: crates/gui/src/app.rs:247 crates/gui/src/views/preferences.rs:122
 msgid "Updates"
 msgstr "Mises à jour"
 
@@ -1519,27 +1519,41 @@ msgstr "Évaluation de votre configuration…"
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix n'a pas pu l'évaluer : {}"
 
-#: crates/gui/src/views/preferences.rs:105
+#: crates/gui/src/views/preferences.rs:104
+msgid "Installing"
+msgstr "Installation"
+
+#: crates/gui/src/views/preferences.rs:107
+msgid "Install for Everyone"
+msgstr "Installer pour tout le monde"
+
+#: crates/gui/src/views/preferences.rs:109
+msgid "Apps you add go to the system packages, for every user of this computer"
+msgstr ""
+"Les applications ajoutées vont dans les paquets système, pour tous les "
+"utilisateurs de cet ordinateur"
+
+#: crates/gui/src/views/preferences.rs:124
 msgid "Check for Updates Automatically"
 msgstr "Rechercher les mises à jour automatiquement"
 
-#: crates/gui/src/views/preferences.rs:107
+#: crates/gui/src/views/preferences.rs:126
 msgid "Once a day, with a notification when apps can be updated"
 msgstr ""
 "Une fois par jour, avec une notification quand des applications peuvent être "
 "mises à jour"
 
-#: crates/gui/src/views/preferences.rs:121
+#: crates/gui/src/views/preferences.rs:140
 msgid "Search by Command"
 msgstr "Recherche par commande"
 
-#: crates/gui/src/views/preferences.rs:123
-#: crates/gui/src/views/preferences.rs:141
+#: crates/gui/src/views/preferences.rs:142
+#: crates/gui/src/views/preferences.rs:160
 msgid "Ready: searching a command also lists the packages that provide it."
 msgstr ""
 "Prête : chercher une commande liste aussi les paquets qui la fournissent."
 
-#: crates/gui/src/views/preferences.rs:125
+#: crates/gui/src/views/preferences.rs:144
 msgid ""
 "Lists the packages that provide a command. Needs the nix-index database, "
 "about 100 MB."
@@ -1547,58 +1561,58 @@ msgstr ""
 "Liste les paquets qui fournissent une commande. Nécessite la base nix-index, "
 "environ 100 Mo."
 
-#: crates/gui/src/views/preferences.rs:129
+#: crates/gui/src/views/preferences.rs:148
 msgid "Download"
 msgstr "Télécharger"
 
-#: crates/gui/src/views/preferences.rs:135
+#: crates/gui/src/views/preferences.rs:154
 msgid "Downloading the nix-index database…"
 msgstr "Téléchargement de la base nix-index…"
 
-#: crates/gui/src/views/preferences.rs:166
+#: crates/gui/src/views/preferences.rs:186
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "Flake NixOS dans {dir}, hôte {host}"
 
-#: crates/gui/src/views/preferences.rs:170
+#: crates/gui/src/views/preferences.rs:190
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "NixOS avec canaux dans {}"
 
-#: crates/gui/src/views/preferences.rs:173
+#: crates/gui/src/views/preferences.rs:193
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "Flake Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:176
+#: crates/gui/src/views/preferences.rs:196
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:178
+#: crates/gui/src/views/preferences.rs:198
 msgid "No configuration found."
 msgstr "Aucune configuration trouvée."
 
-#: crates/gui/src/views/preferences.rs:183
+#: crates/gui/src/views/preferences.rs:203
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "Module Home Manager pour {}"
 
-#: crates/gui/src/views/preferences.rs:192
+#: crates/gui/src/views/preferences.rs:212
 #, rust-format
 msgid "Configurations: {}"
 msgstr "Configurations : {}"
 
-#: crates/gui/src/views/preferences.rs:196
+#: crates/gui/src/views/preferences.rs:216
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Utilisateurs Home Manager : {}"
 
-#: crates/gui/src/views/preferences.rs:198
+#: crates/gui/src/views/preferences.rs:218
 msgid "No Home Manager module."
 msgstr "Pas de module Home Manager."
 
-#: crates/gui/src/views/preferences.rs:199
+#: crates/gui/src/views/preferences.rs:219
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "Cet hôte ne s'évalue pas : {}"

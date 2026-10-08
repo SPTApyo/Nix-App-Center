@@ -99,6 +99,25 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         config.add(w);
     }
 
+    // ── Installing ────────────────────────────────────────────────────────────
+    let installing = adw::PreferencesGroup::builder()
+        .title(t("Installing"))
+        .build();
+    let everyone = adw::SwitchRow::builder()
+        .title(t("Install for Everyone"))
+        .subtitle(t(
+            "Apps you add go to the system packages, for every user of this computer",
+        ))
+        .active(settings.install_for_everyone)
+        .build();
+    everyone.connect_active_notify(move |row| {
+        let mut s = nix_software_core::load_settings();
+        s.install_for_everyone = row.is_active();
+        let _ = nix_software_core::save_settings(&s);
+    });
+    installing.add(&everyone);
+    installing.set_visible(nix_software_core::detect_layout().system.is_some());
+
     // ── Updates ───────────────────────────────────────────────────────────────
     let updates = adw::PreferencesGroup::builder().title(t("Updates")).build();
     let auto = adw::SwitchRow::builder()
@@ -155,6 +174,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     search.add(&by_command);
 
     page.add(&config);
+    page.add(&installing);
     page.add(&updates);
     page.add(&search);
     dialog.add(&page);

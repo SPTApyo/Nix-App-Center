@@ -159,6 +159,10 @@ and host overrides, the daily update check, and the random id used only when
 posting a review (reading reviews is anonymous). NIX_SOFTWARE_CONFIG_DIR, used by the
 tests, bypasses the saved overrides.
 
+"Install for Everyone" sends newly kept apps to environment.systemPackages,
+as one region per app in the system file, instead of the user's packages.
+Apps kept before keep their scope.
+
 Without a managed configuration, Keep installs with nix profile instead.
 Packages without an AppStream icon get a glyph and a color from a rough
 guess of their family (package set, then description words).

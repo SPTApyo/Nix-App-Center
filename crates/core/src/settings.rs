@@ -17,6 +17,8 @@ pub struct Settings {
     pub last_update_check: u64,
     /// Random id sent to ODRS to tie the user's reviews together.
     pub odrs_user_hash: Option<String>,
+    /// Kept apps go to environment.systemPackages instead of the user's.
+    pub install_for_everyone: bool,
 }
 
 impl Default for Settings {
@@ -27,6 +29,7 @@ impl Default for Settings {
             auto_check_updates: true,
             last_update_check: 0,
             odrs_user_hash: None,
+            install_for_everyone: false,
         }
     }
 }

@@ -36,6 +36,16 @@ impl KeptEntry {
         }
     }
 
+    /// An app for every user: in the system packages, not the user's.
+    pub fn system_wide(package: Package) -> Self {
+        let system = format!("environment.systemPackages = [ pkgs.{} ];", package.attr);
+        Self {
+            package,
+            home_nix: Some(String::new()),
+            system_nix: Some(system),
+        }
+    }
+
     /// True when the user took over this app's Nix.
     pub fn is_promoted(&self) -> bool {
         self.home_nix.is_some() || self.system_nix.is_some()
@@ -88,7 +98,13 @@ fn commit(m: &Manifest) -> std::io::Result<()> {
 pub fn keep(pkg: &Package) -> std::io::Result<()> {
     let mut m = load_manifest();
     if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
-        m.kept.push(KeptEntry::simple(pkg.clone()));
+        let everyone = crate::settings::load_settings().install_for_everyone
+            && crate::detect_layout().system.is_some();
+        m.kept.push(if everyone {
+            KeptEntry::system_wide(pkg.clone())
+        } else {
+            KeptEntry::simple(pkg.clone())
+        });
         commit(&m)?;
     }
     Ok(())
@@ -147,8 +163,26 @@ mod tests {
         // Minimal classic NixOS layout, so sync_config has somewhere to write.
         std::fs::write(base.join("configuration.nix"), "{ imports = [ ]; }").unwrap();
         std::env::set_var("XDG_DATA_HOME", &base);
+        std::env::set_var("XDG_CONFIG_HOME", &base);
         std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &base);
         base
+    }
+
+    #[test]
+    fn keep_for_everyone_lands_in_the_system_packages() {
+        let _g = crate::env_lock();
+        let base = sandbox("everyone");
+        let settings = crate::settings::Settings {
+            install_for_everyone: true,
+            ..Default::default()
+        };
+        crate::settings::save_settings(&settings).unwrap();
+
+        keep(&Package::from_attr("ripgrep")).unwrap();
+        let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        assert!(!home.contains("ripgrep"), "{home}");
+        assert!(system.contains("environment.systemPackages = [ pkgs.ripgrep ];"));
     }
 
     fn cleanup() {
