@@ -5,3 +5,7 @@ members = [
   "crates/cli",
   "crates/gui",
 ]
+
+[profile.release]
+lto = true
+codegen-units = 1
