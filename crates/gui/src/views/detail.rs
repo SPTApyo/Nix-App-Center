@@ -2370,12 +2370,11 @@ mod tests {
         let ctrl = <DetailModel as relm4::Component>::builder().launch(pkg);
         let widgets = ctrl.widgets();
 
-        // `box_details_header` has no spacing.
-        assert_eq!(widgets.header_box.spacing(), 0, "box_details_header");
+        // GNOME's wide header spacing.
+        assert_eq!(widgets.header_box.spacing(), 24, "box_details_header");
         // `application_details`: summary ↔ description.
         assert_eq!(widgets.application_details.spacing(), 12);
-        // `box_install_remove`: spacing 9, centered.
-        assert_eq!(widgets.box_install_remove.spacing(), 9);
+        // The split button, centered.
         assert_eq!(widgets.box_install_remove.halign(), gtk::Align::Center);
 
         // Starts on the spinner page.
@@ -2423,7 +2422,7 @@ mod tests {
             }
             child = w.next_sibling();
         }
-        assert_eq!(clamps, 9, "9 clamped sections expected");
+        assert_eq!(clamps, 10, "10 clamped sections expected");
 
         // One GTK test only: GLib keeps the first thread.
         assert_addons_render_as_tile_grid();
