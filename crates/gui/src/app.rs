@@ -190,6 +190,22 @@ impl SimpleComponent for AppModel {
         // the input there (GNOME uses the window as key-capture-widget).
         search_bar.set_key_capture_widget(Some(&root));
 
+        // GNOME shortcuts: Ctrl+F toggles the search, Ctrl+Q quits.
+        let search = gtk::gio::SimpleAction::new("search", None);
+        search.connect_activate({
+            let btn = search_btn.clone();
+            move |_, _| btn.set_active(!btn.is_active())
+        });
+        root.add_action(&search);
+        app.set_accels_for_action("win.search", &["<Control>f"]);
+        let quit = gtk::gio::SimpleAction::new("quit", None);
+        quit.connect_activate({
+            let win = root.clone();
+            move |_, _| win.close()
+        });
+        root.add_action(&quit);
+        app.set_accels_for_action("win.quit", &["<Control>q"]);
+
         search_btn.connect_toggled({
             let sb = search_bar.clone();
             let se = search_entry.clone();
