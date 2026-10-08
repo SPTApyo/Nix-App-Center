@@ -1,5 +1,4 @@
-//! "Write a Review" dialog, after `gs-review-dialog.ui`: a star rating, a
-//! summary, the review text and the name shown with it. Posted to ODRS.
+//! The "Write a Review" dialog, posted to ODRS.
 
 use adw::prelude::*;
 use std::cell::Cell;
@@ -87,7 +86,6 @@ pub fn present(
         .child(&toolbar)
         .build();
 
-    // Post needs a rating, a summary and some text.
     let refresh: Rc<dyn Fn()> = Rc::new({
         let (stars, summary, text, post) =
             (stars.clone(), summary.clone(), text.clone(), post.clone());

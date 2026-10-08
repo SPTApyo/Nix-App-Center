@@ -1,10 +1,5 @@
-//! "Keep" manifest: Nix Software's source of truth (never the user's curated
-//! config). `keep`/`unkeep` regenerate the Nix Software files along the way
-//! (`config_gen::sync_config`).
-//!
-//! An entry holds the package and, optionally, the **Nix block** the user wrote
-//! for it (user and/or system scope). Without a block the app is a plain
-//! `home.packages` line; with one it is promoted to a delimited region.
+//! The kept apps, Nix Software's source of truth. Each change rewrites the
+//! generated files. An app may carry its own Nix blocks, user and system.
 
 use crate::config_gen;
 use crate::package::Package;
@@ -12,17 +7,15 @@ use crate::paths::data_dir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// A kept app. The package `flatten` keeps the JSON **flat**, hence backward
-/// compatible: an old `kept.json` (a list of bare `Package`s) reads as is, the
-/// blocks simply missing. No migration to write, no loss.
+/// A kept app. Flat JSON, so old manifests of bare packages still read.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeptEntry {
     #[serde(flatten)]
     pub package: Package,
-    /// User scope Nix block. `None` = plain app (a `home.packages` entry).
+    /// User Nix block; `None` for a plain package entry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub home_nix: Option<String>,
-    /// System scope Nix block. `None` = the app touches nothing system wide.
+    /// System Nix block, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system_nix: Option<String>,
 }
@@ -46,7 +39,7 @@ impl KeptEntry {
         }
     }
 
-    /// True when the user took over this app's Nix.
+    /// True when the app has its own Nix blocks.
     pub fn is_promoted(&self) -> bool {
         self.home_nix.is_some() || self.system_nix.is_some()
     }
@@ -58,8 +51,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// Kept packages, for consumers that do not care about blocks
-    /// (updates, "installed" view, `nix-software-cli list`).
+    /// The kept packages.
     pub fn packages(&self) -> Vec<Package> {
         self.kept.iter().map(|e| e.package.clone()).collect()
     }
@@ -73,7 +65,7 @@ fn manifest_path() -> PathBuf {
     data_dir().join("kept.json")
 }
 
-/// Loads the manifest; returns an empty manifest when missing or unreadable.
+/// The manifest; empty when missing or unreadable.
 pub fn load_manifest() -> Manifest {
     match std::fs::read(manifest_path()) {
         Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
@@ -83,18 +75,16 @@ pub fn load_manifest() -> Manifest {
 
 fn save_manifest(m: &Manifest) -> std::io::Result<()> {
     let json = serde_json::to_vec_pretty(m).map_err(std::io::Error::other)?;
-    // Atomic: a crash mid-write used to leave an empty manifest.
     crate::paths::write_atomic(&manifest_path(), &json)
 }
 
-/// Writes the Nix Software files, then the manifest: when the configuration cannot be
-/// written (no rights, cancelled password), the manifest stays as it was.
+/// Writes the Nix files, then the manifest: a failed write keeps it unchanged.
 fn commit(m: &Manifest) -> std::io::Result<()> {
     config_gen::sync_config(&m.kept)?;
     save_manifest(m)
 }
 
-/// Adds a package to the manifest (idempotent on `attr`).
+/// Keeps `pkg`; nothing when already kept.
 pub fn keep(pkg: &Package) -> std::io::Result<()> {
     let mut m = load_manifest();
     if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
@@ -110,7 +100,7 @@ pub fn keep(pkg: &Package) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Removes a package from the manifest by its `attr`.
+/// Stops keeping `attr`.
 pub fn unkeep(attr: &str) -> std::io::Result<()> {
     let mut m = load_manifest();
     let before = m.kept.len();
@@ -121,11 +111,7 @@ pub fn unkeep(attr: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Replaces an app's Nix blocks (the "advanced path"). The app is kept if it
-/// was not: editing an app's Nix means wanting it.
-///
-/// Blocks are written **as the user provided them**. Nix Software neither rewrites
-/// nor reformats their Nix: they decide.
+/// Sets the Nix blocks of `pkg`, kept as written, and keeps it.
 pub fn set_blocks(
     pkg: &Package,
     home_nix: Option<String>,
@@ -160,7 +146,7 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
-        // Minimal classic NixOS layout, so sync_config has somewhere to write.
+        // A minimal NixOS layout to write to.
         std::fs::write(base.join("configuration.nix"), "{ imports = [ ]; }").unwrap();
         std::env::set_var("XDG_DATA_HOME", &base);
         std::env::set_var("XDG_CONFIG_HOME", &base);
@@ -232,7 +218,7 @@ mod tests {
 
     #[test]
     fn old_flat_manifest_is_read_without_loss() {
-        // Old format: a list of bare Packages, without block fields.
+        // Old format: bare packages.
         let _g = crate::env_lock();
         let base = sandbox("migration");
         let data = base.join("nix-software");

@@ -1,21 +1,16 @@
-//! Running a package without installing it (*try-first*, Nix Software's headline
-//! action): `nix run` for an app, `nix shell` (in a terminal) for a CLI tool.
+//! Trying packages without installing: `nix run` for apps, `nix shell` in a
+//! terminal for command line tools.
 
 use crate::package::Package;
 use crate::tried::record_tried;
 use std::io::BufRead;
 use std::process::{Child, Command, Stdio};
 
-/// Experimental features to enable on every modern `nix` call.
 const NIX_FEATURES: [&str; 2] = ["--extra-experimental-features", "nix-command flakes"];
 
-/// Full argv to try `attr` with `nix <sub>` (`run` or `shell`).
-///
-/// The user asked to try this package from a page that already says whether it
-/// is proprietary or broken, so those nixpkgs gates are lifted (`--impure` lets
-/// nix read the variables). Insecure packages stay refused: that one needs an
-/// explicit opt-in. `env` keeps the variables when a terminal server spawns the
-/// command (ptyxis, gnome-terminal), which would drop the caller's environment.
+/// argv of `nix <sub>` (`run` or `shell`) for `attr`. Unfree and broken
+/// packages are allowed, insecure ones are not; `env` keeps the variables
+/// when a terminal server spawns the command.
 fn try_argv(sub: &str, attr: &str) -> Vec<String> {
     [
         "env",
@@ -32,8 +27,7 @@ fn try_argv(sub: &str, attr: &str) -> Vec<String> {
     .collect()
 }
 
-/// The matching `nix run` command (for display / copy). An unfree package
-/// needs the opt-in, or the copied command fails.
+/// The `nix run` command to copy; `unfree` adds the needed opt-in.
 pub fn run_command(pkg: &Package, unfree: bool) -> String {
     copy_command("run", &target(&pkg.attr), unfree)
 }
@@ -50,10 +44,8 @@ fn copy_command(sub: &str, target: &str, unfree: bool) -> String {
     }
 }
 
-/// Spawns `nix run nixpkgs#<attr>` without waiting for the application. The
-/// first run may download (slow). Records the package in the "tried" history
-/// (try-first) along the way. Pass the child to [`run_failure`] from a
-/// background thread to learn whether it failed.
+/// Starts `nix run` for `pkg` without waiting and records the try. Give
+/// the child to [`run_failure`] to learn whether it failed.
 pub fn run(pkg: &Package) -> std::io::Result<Child> {
     let argv = try_argv("run", &pkg.attr);
     let child = Command::new(&argv[0])
@@ -62,18 +54,14 @@ pub fn run(pkg: &Package) -> std::io::Result<Child> {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()?;
-    // The log must never make the launch fail.
     let _ = record_tried(pkg);
     let attr = pkg.attr.clone();
     std::thread::spawn(move || crate::tried::record_out_paths(&attr));
     Ok(child)
 }
 
-/// Waits for a [`run`] child and returns the last line nix printed on stderr
-/// when it exits with an error (unknown attr, evaluation refused, build
-/// failure…). Blocks until the application exits: call it from a thread.
+/// The last nix error line when the `run` child fails. Blocks until exit.
 pub fn run_failure(mut child: Child) -> Option<String> {
-    // Drain stderr while waiting, keeping only the last meaningful line.
     let last = child.stderr.take().and_then(|err| {
         std::io::BufReader::new(err)
             .lines()
@@ -87,33 +75,29 @@ pub fn run_failure(mut child: Child) -> Option<String> {
     }
 }
 
-// ── nix shell ─────────────────────────────────────────────────────────────────
-
-/// The matching `nix shell` command (for display / copy).
+/// The `nix shell` command to copy.
 pub fn shell_command(pkg: &Package, unfree: bool) -> String {
     copy_command("shell", &target(&pkg.attr), unfree)
 }
 
-/// What happened to a shell request.
+/// Result of a shell request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShellOutcome {
     /// A terminal was spawned with the package in `PATH`.
     Spawned,
-    /// No emulator found: nothing ran. The front end copies
-    /// [`shell_command`] to the clipboard and tells the user.
+    /// No terminal emulator: nothing ran.
     NoTerminal,
 }
 
-/// A terminal emulator and its syntax for "run this command".
+/// A terminal emulator and how it takes a command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Terminal {
     pub bin: &'static str,
-    /// Separator before the command (`--`, `-e`…). `None` = command passed directly.
+    /// Argument before the command (`--`, `-e`), if any.
     pub exec_arg: Option<&'static str>,
 }
 
-/// By preference. `xdg-terminal-exec` is the specified (freedesktop) way; the
-/// rest is a fallback on common emulators.
+/// Terminals by preference, `xdg-terminal-exec` first.
 const TERMINALS: [Terminal; 7] = [
     Terminal {
         bin: "xdg-terminal-exec",
@@ -145,13 +129,12 @@ const TERMINALS: [Terminal; 7] = [
     },
 ];
 
-/// First terminal available according to `exists`. Pure: `exists` is injected
-/// so the test does not depend on binaries installed on the machine.
+/// The first terminal `exists` accepts.
 pub(crate) fn pick_terminal(exists: impl Fn(&str) -> bool) -> Option<Terminal> {
     TERMINALS.into_iter().find(|t| exists(t.bin))
 }
 
-/// True when `bin` is a file present in `PATH`.
+/// True when `bin` is in `PATH`.
 pub(crate) fn in_path(bin: &str) -> bool {
     find_in_path(bin).is_some()
 }
@@ -163,7 +146,7 @@ pub(crate) fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
         .find(|p| p.is_file())
 }
 
-/// Builds the full argv: terminal + separator + command.
+/// argv running `command` in `term`.
 fn terminal_argv(term: Terminal, command: &[String]) -> Vec<String> {
     let mut argv = vec![term.bin.to_string()];
     argv.extend(term.exec_arg.map(str::to_string));
@@ -171,11 +154,7 @@ fn terminal_argv(term: Terminal, command: &[String]) -> Vec<String> {
     argv
 }
 
-/// Runs `command` in a terminal emulator, if one exists.
-///
-/// Used for two things: `nix shell` (here) and the config engine's
-/// `nixos-rebuild switch`, a long build that must stay visible and
-/// interruptible rather than hidden behind an opaque `pkexec`.
+/// Runs `command` in a terminal emulator, if there is one.
 pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutcome> {
     let Some(term) = pick_terminal(in_path) else {
         return Ok(ShellOutcome::NoTerminal);
@@ -183,8 +162,7 @@ pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutc
     let argv = terminal_argv(term, command);
     Command::new(&argv[0])
         .args(&argv[1..])
-        // The terminal has its own tty: inheriting our pipes keeps them open
-        // while it lives and makes the caller think it has not finished.
+        // Our pipes would keep the caller waiting.
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -192,12 +170,7 @@ pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutc
     Ok(ShellOutcome::Spawned)
 }
 
-/// Opens a terminal with the package in `PATH` (`nix shell nixpkgs#<attr>`).
-///
-/// `nix run` launches the *main program* and returns: without arguments that
-/// is useless for a CLI tool, which wants a shell where the binary is
-/// available. `shell` fills that gap, the *try-first* gesture for anything
-/// that is not a graphical app.
+/// Opens a terminal where `pkg` is in `PATH`.
 pub fn shell(pkg: &Package) -> std::io::Result<ShellOutcome> {
     let outcome = spawn_in_terminal(&try_argv("shell", &pkg.attr))?;
     if outcome == ShellOutcome::Spawned {
@@ -249,7 +222,7 @@ mod tests {
 
     #[test]
     fn pick_terminal_honours_preference_order() {
-        // xterm AND ptyxis present: ptyxis wins (higher in the list).
+        // The higher terminal in the list wins.
         let picked = pick_terminal(|b| b == "xterm" || b == "ptyxis").unwrap();
         assert_eq!(picked.bin, "ptyxis");
         assert_eq!(picked.exec_arg, Some("--"));

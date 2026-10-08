@@ -1,15 +1,12 @@
-//! Where the Nix store space goes, seen from what Nix Software knows: the system, the
-//! user, running programs, old generations, development leftovers, apps tried
-//! with Nix Software, and garbage. One `nix path-info --all` gives every path with its
-//! size and references; the GC roots say who keeps what alive. Each path is
-//! counted once, in the first category that reaches it.
+//! Where the Nix store space goes: system, user, running programs, old
+//! generations, development, tried apps and garbage. Each path counts once,
+//! in the first category that keeps it alive.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Share of the store, in priority order (a path shared by the system and an
-/// old generation counts as system).
+/// Share of the store, by priority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Category {
     System,
@@ -49,10 +46,10 @@ pub struct Generation {
     /// NixOS version of a system generation.
     pub version: Option<String>,
     pub current: bool,
-    /// Same store path as the current one (a rebuild that changed nothing).
+    /// Same store path as the current generation.
     pub same_as_current: bool,
     pub booted: bool,
-    /// Bytes only this generation keeps alive: what deleting it frees.
+    /// Bytes only this generation keeps alive.
     pub exclusive: u64,
 }
 
@@ -79,7 +76,7 @@ pub struct AppSize {
 pub struct StorageReport {
     pub disk_size: u64,
     pub disk_free: u64,
-    /// Sum of every store path (before hard link sharing).
+    /// Sum of every store path, before hard link sharing.
     pub store_size: u64,
     pub store_paths: usize,
     pub categories: Vec<(Category, u64)>,
@@ -87,16 +84,14 @@ pub struct StorageReport {
     pub apps: Vec<AppSize>,
 }
 
-// ── Home folder ───────────────────────────────────────────────────────────────
-
 /// What a folder of the home holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HomeKind {
-    /// `~/.cache`: rebuilt by the app when needed.
+    /// `~/.cache`.
     Cache,
-    /// `~/.local/share`, `~/.var/app`: the app's data.
+    /// `~/.local/share`, `~/.var/app`.
     Data,
-    /// `~/.config`: settings.
+    /// `~/.config`.
     Config,
 }
 
@@ -119,8 +114,7 @@ fn home_bases() -> Vec<(HomeKind, PathBuf)> {
     ]
 }
 
-/// Sizes of the folders apps keep in the home, biggest first. Walks them
-/// (seconds): call it from a thread.
+/// Sizes of the app folders in the home, biggest first. Blocking.
 pub fn home_usage() -> Vec<HomeDir> {
     let mut out: Vec<HomeDir> = home_bases()
         .into_iter()
@@ -139,7 +133,7 @@ pub fn home_usage() -> Vec<HomeDir> {
     out
 }
 
-/// Reads `du -d1` lines (`size<TAB>path`), keeping the children of `base`.
+/// Children of `base` in `du -d1` output.
 fn parse_du(text: &str, base: &Path, kind: HomeKind) -> Vec<HomeDir> {
     text.lines()
         .filter_map(|l| {
@@ -158,8 +152,7 @@ fn parse_du(text: &str, base: &Path, kind: HomeKind) -> Vec<HomeDir> {
         .collect()
 }
 
-/// Deletes a cache folder. Only a direct, real folder of `~/.cache`: never
-/// data, settings, or anything reached through a link.
+/// Deletes a real folder directly under `~/.cache`, nothing else.
 pub fn clear_cache(dir: &HomeDir) -> std::io::Result<()> {
     let cache = home_bases()
         .into_iter()
@@ -171,8 +164,6 @@ pub fn clear_cache(dir: &HomeDir) -> std::io::Result<()> {
     }
     std::fs::remove_dir_all(&dir.path)
 }
-
-// ── Store graph ───────────────────────────────────────────────────────────────
 
 /// Every store path as an index, with its size and references.
 #[derive(Default)]
@@ -227,8 +218,6 @@ impl Graph {
     }
 }
 
-// ── Roots ─────────────────────────────────────────────────────────────────────
-
 /// A GC root: the link that holds it and the store path it holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Root {
@@ -236,7 +225,7 @@ pub(crate) struct Root {
     pub target: String,
 }
 
-/// Reads `nix-store --gc --print-roots` (`"<link>" -> /nix/store/…`).
+/// GC roots from `nix-store --gc --print-roots`.
 pub(crate) fn parse_roots(text: &str) -> Vec<Root> {
     text.lines()
         .filter_map(|l| {
@@ -257,23 +246,22 @@ fn generation_of(link: &str) -> Option<(String, u32)> {
     Some((profile.to_string(), n.parse().ok()?))
 }
 
-/// Facts about the machine the report needs, gathered apart for testing.
+/// Machine facts the report needs.
 #[derive(Debug, Default)]
 pub(crate) struct Machine {
     pub roots: Vec<Root>,
     pub system_current: Option<String>,
     pub system_booted: Option<String>,
-    /// Store paths of the user's environments (per-user profile, Home
-    /// Manager generation, `~/.nix-profile`).
+    /// Store paths of the user's environments.
     pub user_envs: Vec<String>,
-    /// Profile directories of the user (`~/.local/state/nix/profiles`).
+    /// The user's profile folders.
     pub user_profile_dirs: Vec<String>,
     pub tried: Vec<String>,
-    /// Generation links the profiles point to now (`…/system-34-link`).
+    /// Generation links the profiles point to now.
     pub current_links: Vec<String>,
 }
 
-/// Splits the store in categories and sizes every generation. Pure.
+/// Store size per category, and every generation.
 pub(crate) fn analyse(g: &Graph, m: &Machine) -> (Vec<(Category, u64)>, Vec<Generation>) {
     let ids = |paths: &[&String]| -> Vec<u32> { paths.iter().filter_map(|p| g.id(p)).collect() };
     let user_env_ids: HashSet<u32> = m.user_envs.iter().filter_map(|p| g.id(p)).collect();
@@ -290,7 +278,6 @@ pub(crate) fn analyse(g: &Graph, m: &Machine) -> (Vec<(Category, u64)>, Vec<Gene
         .chain(m.system_booted.iter())
         .collect();
 
-    // Who stays alive, by category.
     let system = g.closure(&ids(&current), &user_env_ids);
     let user = g.closure(
         &user_env_ids.iter().copied().collect::<Vec<_>>(),
@@ -355,7 +342,7 @@ fn generations(
     is_system_gen: &dyn Fn(&Root) -> bool,
     is_user_gen: &dyn Fn(&Root) -> bool,
 ) -> Vec<Generation> {
-    // How many distinct live roots reach each path.
+    // Live roots reaching each path.
     let mut targets: Vec<&String> = m.roots.iter().map(|r| &r.target).collect();
     targets.extend(m.system_current.iter().chain(m.system_booted.iter()));
     targets.extend(m.user_envs.iter());
@@ -419,8 +406,6 @@ fn generations(
     out
 }
 
-// ── Gathering ─────────────────────────────────────────────────────────────────
-
 fn canonical(path: impl AsRef<Path>) -> Option<String> {
     std::fs::canonicalize(path)
         .ok()
@@ -466,7 +451,7 @@ fn machine() -> Machine {
     }
 }
 
-/// The generation each profile of `dirs` points to (`system` → `system-34-link`).
+/// The current generation link of each profile in `dirs`.
 fn current_links(dirs: &[PathBuf]) -> Vec<String> {
     dirs.iter()
         .filter_map(|d| std::fs::read_dir(d).ok().map(|e| (d, e)))
@@ -480,7 +465,7 @@ fn current_links(dirs: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
-/// `(size, free)` of the file system holding the store.
+/// (size, free) of the store's file system.
 fn disk() -> (u64, u64) {
     let out = Command::new("df")
         .args(["-B1", "--output=size,avail", "/nix/store"])
@@ -501,7 +486,7 @@ fn disk() -> (u64, u64) {
     )
 }
 
-/// Sizes the apps Nix Software shows: profile apps, kept and tried packages.
+/// Sizes of the apps Nix Software shows.
 fn apps(g: &Graph) -> Vec<AppSize> {
     let none = HashSet::new();
     let sized = |paths: &[String]| -> (u64, u64) {
@@ -514,7 +499,7 @@ fn apps(g: &Graph) -> Vec<AppSize> {
         .into_iter()
         .map(|p| p.attr.to_lowercase())
         .collect();
-    // One row per package, not per desktop file (LibreOffice has five).
+    // One row per package, not per desktop file.
     let mut seen = HashSet::new();
     let mut out: Vec<AppSize> = crate::profile_apps()
         .into_iter()
@@ -555,8 +540,7 @@ fn apps(g: &Graph) -> Vec<AppSize> {
     out
 }
 
-/// Builds the whole report. Reads the full store database (a few seconds):
-/// call it from a thread.
+/// The storage report. Reads the whole store database: blocking.
 pub fn storage_report() -> std::io::Result<StorageReport> {
     let out = crate::util::nix()
         .args(["path-info", "--all", "--json"])

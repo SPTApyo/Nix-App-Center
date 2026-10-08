@@ -1,19 +1,11 @@
-//! Version history row, a copy of `gs-app-version-history-row.ui`.
-//!
-//! Non selectable `GtkListBoxRow` holding a vertical `GtkBox` (margins 15,
-//! valign start, hexpand):
-//!  - `GtkBox .history-row-header` header (margins 3 top/bottom): "Version X"
-//!    in `.heading`, an optional `.installed-badge`, the date on the right
-//!    (`hexpand`, `xalign 1`, `.dim-label`);
-//!  - the release notes (`margin-top 6`), or "No details" in `.dim-label`.
+//! A release row: version, date, notes, and an "In nixpkgs" badge.
 
 use gtk::prelude::*;
 
 use crate::i18n::t;
 use crate::util::format_relative;
 
-/// Row body. `installed` adds the "In nixpkgs" badge (Nix signal: the release
-/// matches the version currently in nixpkgs).
+/// Row body; `installed` adds the "In nixpkgs" badge.
 fn body(
     version: &str,
     timestamp: i64,
@@ -85,7 +77,7 @@ fn body(
     vb
 }
 
-/// The full row, non activatable (like `row_latest_version` in the `.ui`).
+/// The release row.
 pub fn row(
     version: &str,
     timestamp: i64,

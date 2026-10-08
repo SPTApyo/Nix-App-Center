@@ -1,5 +1,4 @@
-//! `nix profile` for users without a managed configuration: Nix Software then
-//! installs for the user only, imperatively, like nix-software-center does.
+//! `nix profile` installs, for users without a managed configuration.
 
 use std::process::Command;
 
@@ -13,7 +12,7 @@ pub struct ProfileElement {
 }
 
 impl ProfileElement {
-    /// Home Manager's own element: removing it would wipe the whole setup.
+    /// Home Manager's element: removing it wipes the setup.
     pub fn is_home_manager(&self) -> bool {
         self.name == "home-manager-path"
     }
@@ -25,7 +24,7 @@ impl ProfileElement {
     }
 }
 
-/// Elements of the user profile, empty when `nix profile` is unusable.
+/// Elements of the user profile; empty when unusable.
 pub fn profile_elements() -> Vec<ProfileElement> {
     let out = crate::util::nix()
         .args(["profile", "list", "--json"])
@@ -60,7 +59,7 @@ fn parse_elements(v: &serde_json::Value) -> Vec<ProfileElement> {
         .unwrap_or_default()
 }
 
-/// Installs `attr` into the user profile. Downloads: call it from a thread.
+/// Installs `attr` in the user profile. Blocking.
 pub fn profile_add(attr: &str) -> std::io::Result<()> {
     run(Command::new("env").args([
         "NIXPKGS_ALLOW_UNFREE=1",
@@ -74,7 +73,7 @@ pub fn profile_add(attr: &str) -> std::io::Result<()> {
     ]))
 }
 
-/// Removes the element `name` from the user profile.
+/// Removes element `name` from the user profile.
 pub fn profile_remove(name: &str) -> std::io::Result<()> {
     run(crate::util::nix().args(["profile", "remove", name]))
 }

@@ -1,13 +1,5 @@
-//! Local AppStream database.
-//!
-//! Flatpak keeps `~/.local/share/flatpak/appstream/flathub/<arch>/active/appstream.xml.gz`,
-//! which holds ALL the Flathub metadata (icons, descriptions, screenshots…) for
-//! every package. GNOME Software reads this same file, which is why it is so
-//! fast: zero network requests while browsing. Without Flatpak, Nix Software downloads
-//! the same file from Flathub into its cache directory.
-//!
-//! Nix Software loads it at startup through [`init_background`] (separate, non
-//! blocking thread). Once loaded, [`lookup`] is an O(1) HashMap.
+//! Local AppStream database: the Flathub catalog GNOME Software reads, from
+//! Flatpak's cache or downloaded. Loaded once in the background.
 
 use std::{
     collections::HashMap,
@@ -24,8 +16,6 @@ use quick_xml::{
 
 use crate::package::Package;
 
-// ── Public types ──────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Default)]
 pub struct Entry {
     pub app_id: String,
@@ -35,7 +25,7 @@ pub struct Entry {
     pub developer: Option<String>,
     pub icon_url: Option<String>,
     pub screenshot_urls: Vec<String>,
-    /// Caption of each screenshot (parallel to `screenshot_urls`, `None` when missing).
+    /// Caption of each screenshot, aligned with `screenshot_urls`.
     pub screenshot_captions: Vec<Option<String>>,
     pub homepage: Option<String>,
     pub bugtracker: Option<String>,
@@ -45,9 +35,9 @@ pub struct Entry {
     pub license: Option<String>,
     pub verified: bool,
     pub releases: Vec<EntryRelease>,
-    /// OARS `content_rating` attributes: (id, value) e.g. ("social-chat","intense").
+    /// OARS attributes, as (id, value).
     pub oars: Vec<(String, String)>,
-    /// Set for an `addon` component: the app_id of the parent it extends.
+    /// For an add-on: the app id it extends.
     pub extends: Option<String>,
     /// Search keywords (untranslated).
     pub keywords: Vec<String>,
@@ -62,8 +52,8 @@ pub struct Entry {
     /// Brand color for a light and a dark background (`<branding>`).
     pub brand_light: Option<String>,
     pub brand_dark: Option<String>,
-    /// Name, summary and description in the user's language, when the
-    /// AppStream data has them. The English fields stay for matching.
+    /// Name, summary and description in the user's language; the English
+    /// fields stay for matching.
     pub local_name: Option<String>,
     pub local_summary: Option<String>,
     pub local_description: Option<String>,
@@ -86,8 +76,7 @@ impl Entry {
     }
 }
 
-/// The user's languages as AppStream tags, best first: "fr_FR.UTF-8"
-/// gives "fr_FR" then "fr". English is the untranslated text, so it stops.
+/// The user's languages as AppStream tags, best first; stops at English.
 fn user_langs() -> Vec<String> {
     let raw = ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"]
         .iter()
@@ -121,7 +110,7 @@ pub struct EntryRelease {
     pub url: Option<String>,
 }
 
-/// An add-on/extension of an app (AppStream `type="addon"` component).
+/// An add-on of an app.
 #[derive(Debug, Clone)]
 pub struct Addon {
     pub name: String,
@@ -129,7 +118,7 @@ pub struct Addon {
     pub icon_url: Option<String>,
 }
 
-/// A related app (same developer), for the "Other Apps" section.
+/// Another app of the same developer.
 #[derive(Debug, Clone)]
 pub struct DevApp {
     pub app_id: String,
@@ -137,21 +126,19 @@ pub struct DevApp {
     pub icon_url: Option<String>,
 }
 
-// ── Internal DB ───────────────────────────────────────────────────────────────
-
 struct Db {
     entries: Vec<Entry>,
-    /// Last app_id segment, lowercase alphanumeric → index
+    /// Last app id segment, normalized, to entry index.
     by_suffix: HashMap<String, usize>,
-    /// App name, lowercase alphanumeric → index
+    /// Normalized name to entry index.
     by_name: HashMap<String, usize>,
-    /// Full lowercase app_id → index
+    /// Lowercase app id to entry index.
     by_id: HashMap<String, usize>,
-    /// Separate `addon` entries (never in the lookup indexes above).
+    /// Add-ons, kept out of the lookup indexes.
     addons: Vec<Entry>,
-    /// Lowercase parent app_id → indexes of add-ons in `addons`.
+    /// Parent app id to add-on indexes.
     by_extends: HashMap<String, Vec<usize>>,
-    /// Lowercase developer → indexes of apps in `entries`.
+    /// Developer to app indexes.
     by_developer: HashMap<String, Vec<usize>>,
 }
 
@@ -169,7 +156,7 @@ impl Db {
         self.by_extends
             .get(&app_id.to_lowercase())
             .map(|idxs| {
-                // GIMP 2 and 3 ship the same plug-ins under distinct ids.
+                // GIMP 2 and 3 share plug-ins.
                 let mut seen = std::collections::HashSet::new();
                 idxs.iter()
                     .filter_map(|&i| self.addons.get(i))
@@ -202,7 +189,7 @@ impl Db {
     }
 }
 
-/// Keeps only alphanumeric characters, lowercased.
+/// Lowercase alphanumeric characters only.
 fn alnum(s: &str) -> String {
     s.chars()
         .filter(|c| c.is_ascii_alphanumeric())
@@ -210,25 +197,18 @@ fn alnum(s: &str) -> String {
         .collect()
 }
 
-// ── Singleton ─────────────────────────────────────────────────────────────────
-
 static DB: OnceLock<Db> = OnceLock::new();
-/// Startup guard: `OnceLock::set` is atomic, unlike a bare
-/// `if DB.get().is_some()` (two concurrent `init_background` calls before the
-/// first load ends would both pass that test and each start their own XML
-/// decompression/parse).
+/// Set by the first `init_background` call, so only one load starts.
 static INIT_STARTED: OnceLock<()> = OnceLock::new();
 
-/// Load state. Telling "in progress" from "impossible" matters: a load in
-/// progress can be *waited for* (a few seconds), a load that will never
-/// finish cannot (machine without any AppStream file).
+/// Load state: a load in progress can be waited for, a missing file cannot.
 #[derive(Clone, Copy, PartialEq)]
 enum LoadState {
-    /// `init_background` never called (CLI case): nothing to wait for.
+    /// Never started (the CLI).
     NotStarted,
     Loading,
     Ready,
-    /// No AppStream XML available (or empty parse): nothing to wait for.
+    /// No AppStream file, or an empty one.
     Unavailable,
 }
 
@@ -241,10 +221,7 @@ fn set_state(s: LoadState) {
     cv.notify_all();
 }
 
-/// `true` once no load is in progress (ready, unavailable or never started):
-/// an `AppMeta` computed now will not get richer, so it can be memoized
-/// without poisoning the session with a poorer listing.
-/// Waits up to `timeout` for the AppStream load, if one is running.
+/// Waits up to `timeout` for a running AppStream load.
 pub fn wait_appstream(timeout: std::time::Duration) {
     wait_until_settled(timeout);
 }
@@ -254,11 +231,7 @@ pub fn is_settled() -> bool {
     *m.lock().unwrap_or_else(|e| e.into_inner()) != LoadState::Loading
 }
 
-/// Waits (bounded) for the load IN PROGRESS to end. Returns at once when the
-/// load has not started, succeeded, or is impossible; never starts a load.
-/// Real bug: with an instant home page (fixed disk cache), opening a details
-/// page during the XML parse (~4 s) fell back on REST without add-ons or
-/// developer apps, memoized for the whole session.
+/// Waits up to `timeout` for a load in progress; returns at once otherwise.
 pub(crate) fn wait_until_settled(timeout: std::time::Duration) {
     let (m, cv) = &*STATE;
     let deadline = std::time::Instant::now() + timeout;
@@ -275,9 +248,7 @@ pub(crate) fn wait_until_settled(timeout: std::time::Duration) {
     }
 }
 
-/// Starts loading the AppStream file in the background. Non blocking.
-/// Safe to call several times (idempotent): only the first call really
-/// starts a loading thread.
+/// Starts loading the AppStream file in a thread, once.
 pub fn init_background() {
     if INIT_STARTED.set(()).is_err() {
         return; // already started (or running) by an earlier call
@@ -292,14 +263,12 @@ pub fn init_background() {
     });
 }
 
-/// Instant lookup. Returns `None` while the DB is not ready (loading) or when
-/// the package is unknown.
+/// The entry named `name`; `None` while loading or when unknown.
 pub fn lookup(name: &str) -> Option<&'static Entry> {
     DB.get()?.lookup(name)
 }
 
-/// Apps whose name, summary or id holds every term, best first. Local and
-/// instant; empty while the database loads.
+/// Apps whose name, summary or id holds every term, best first.
 pub fn search_local(terms: &[String], limit: usize) -> Vec<LocalHit> {
     DB.get()
         .map(|db| rank_local(&db.entries, terms, limit))
@@ -344,16 +313,14 @@ fn rank_local(entries: &[Entry], terms: &[String], limit: usize) -> Vec<LocalHit
         .collect()
 }
 
-/// True when `mediatype` is the file type named by `query` (`pdf` for
-/// `application/pdf`, `mp4` for `video/mp4`, `x-` prefixes ignored).
+/// True when `mediatype` is the file type `query` (`pdf`, `mp4`).
 fn opens(mediatype: &str, query: &str) -> bool {
     let sub = mediatype.rsplit('/').next().unwrap_or(mediatype);
     let sub = sub.strip_prefix("x-").unwrap_or(sub);
     mediatype.eq_ignore_ascii_case(query) || sub.eq_ignore_ascii_case(query)
 }
 
-/// Apps that open files of type `query`, resolved to nixpkgs. Runs a
-/// (cached) `nix search`: call it from a thread.
+/// nixpkgs apps that open files of type `query`. Blocking.
 pub fn apps_for_file_type(query: &str, limit: usize) -> Vec<(Package, Option<String>)> {
     let q = query.trim();
     if q.len() < 2 || q.contains(char::is_whitespace) {
@@ -378,8 +345,7 @@ pub fn apps_for_file_type(query: &str, limit: usize) -> Vec<(Package, Option<Str
     out
 }
 
-/// Brand colors `(light, dark)` of a package's AppStream app, if declared.
-/// Only well formed `#rrggbb` colors: the value ends up in CSS.
+/// Brand colors (light, dark) of the package's app, valid `#rrggbb` only.
 pub fn brand_colors(p: &Package) -> Option<(Option<String>, Option<String>)> {
     let e = lookup_package(p)?;
     let (light, dark) = (valid_color(&e.brand_light), valid_color(&e.brand_dark));
@@ -394,7 +360,7 @@ fn valid_color(c: &Option<String>) -> Option<String> {
         .cloned()
 }
 
-/// One app of the local database, by its id.
+/// The local app with id `app_id`.
 pub fn local_app(app_id: &str) -> Option<LocalHit> {
     let e = lookup(app_id).filter(|e| e.app_id.eq_ignore_ascii_case(app_id))?;
     Some(LocalHit {
@@ -412,8 +378,7 @@ pub struct LocalHit {
     pub summary: String,
 }
 
-/// The nixpkgs package of an AppStream app, when nixpkgs has it. Runs a
-/// (cached) `nix search`: call it from a thread.
+/// The nixpkgs package of an AppStream app. Blocking.
 pub fn package_for_app(app_id: &str, name: &str) -> Option<Package> {
     let app = DevApp {
         app_id: app_id.to_string(),
@@ -426,19 +391,13 @@ pub fn package_for_app(app_id: &str, name: &str) -> Option<Package> {
         .map(|(p, _)| p)
 }
 
-/// `true` once the DB is loaded and ready (lookups will not hit the network).
+/// True once the database is loaded.
 pub fn is_ready() -> bool {
     DB.get().is_some()
 }
 
-/// Finds the local AppStream entry of a nixpkgs package: by name (`pname`)
-/// first, then by attr (some packages only match one of them). `Db::lookup`
-/// already tries suffix/name/id for EACH key, so trying both keys raises
-/// recall without any extra false positive risk.
-///
-/// The curated overlay wins both ways: an attr it maps goes to that app, and
-/// an app it pins to another attr is never matched by name (`zoom`, the
-/// Z-code player, is not `us.zoom.Zoom`, which is `zoom-us`).
+/// The AppStream entry of `p`, by name then attr. Curated mappings win
+/// both ways: `zoom` is not `us.zoom.Zoom`.
 pub(crate) fn lookup_package(p: &Package) -> Option<&'static Entry> {
     if crate::resolve::is_unmatched(&p.attr) {
         return None;
@@ -454,19 +413,17 @@ pub(crate) fn lookup_package(p: &Package) -> Option<&'static Entry> {
         .or_else(|| lookup(&p.attr).filter(free))
 }
 
-/// Add-ons/extensions extending the app with the given `app_id`.
+/// Add-ons of `app_id`.
 pub(crate) fn addons_for(app_id: &str) -> Vec<Addon> {
     DB.get().map(|db| db.addons_for(app_id)).unwrap_or_default()
 }
 
-/// Other apps by the same developer (excluding `exclude_id`).
+/// Other apps of `developer`, without `exclude_id`.
 pub(crate) fn apps_by_developer(developer: &str, exclude_id: &str) -> Vec<DevApp> {
     DB.get()
         .map(|db| db.apps_by_developer(developer, exclude_id))
         .unwrap_or_default()
 }
-
-// ── Loading ───────────────────────────────────────────────────────────────────
 
 fn flatpak_xml_path() -> Option<PathBuf> {
     let arch = arch()?;
@@ -506,9 +463,8 @@ fn arch() -> Option<&'static str> {
     }
 }
 
-/// Fallback for machines without Flatpak (most NixOS installs): keep our own
-/// copy of the Flathub AppStream file in the cache directory. A stale copy is
-/// used at once and refreshed in the background for the next start.
+/// Our copy of the Flathub AppStream file, for machines without Flatpak.
+/// A stale copy is used now and refreshed in the background.
 fn downloaded_xml_path() -> Option<PathBuf> {
     let path = crate::cache::cache_dir().join("appstream.xml.gz");
     let url = FLATHUB_APPSTREAM_URL.replace("{arch}", arch()?);
@@ -562,11 +518,8 @@ fn load() -> Option<Db> {
     Some(build_db(entries))
 }
 
-/// Builds the lookup indexes from parsed entries. Shared by `load()` and the
-/// tests (`make_db`) so the indexing policy never diverges between the real
-/// code and what the tests check.
+/// Lookup indexes over parsed entries.
 fn build_db(all: Vec<Entry>) -> Db {
-    // Split apps (lookup) and add-ons (indexed by their `extends` parent).
     let mut entries: Vec<Entry> = Vec::new();
     let mut addons: Vec<Entry> = Vec::new();
     for e in all {
@@ -581,12 +534,7 @@ fn build_db(all: Vec<Entry>) -> Db {
     let mut by_name: HashMap<String, usize> = HashMap::with_capacity(entries.len());
     let mut by_id: HashMap<String, usize> = HashMap::with_capacity(entries.len());
     let mut by_developer: HashMap<String, Vec<usize>> = HashMap::new();
-    // One suffix (last app id segment, e.g. "player"/"editor") may be shared
-    // by several distinct apps in the full Flathub catalog. Matching the first
-    // one seen would be a false positive (wrong icon/description), worse than
-    // no match. So any suffix seen more than once is removed from the
-    // HashMap. Same policy for NAMES: two apps with the same name, neither
-    // matches by name.
+    // Shared suffixes or names match nothing.
     let mut ambiguous_suffixes: std::collections::HashSet<String> =
         std::collections::HashSet::new();
     let mut ambiguous_names: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -644,8 +592,6 @@ fn build_db(all: Vec<Entry>) -> Db {
     }
 }
 
-// ── XML parser ────────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Collect {
     None,
@@ -672,8 +618,7 @@ enum Collect {
     LocalSummary(usize),
 }
 
-/// Appends markup text the way HTML flows it: whitespace runs (XML
-/// indentation included) become one space, none at a line start.
+/// Appends text the way HTML flows it: whitespace runs become one space.
 fn push_flowed(buf: &mut String, text: &str) {
     for (i, word) in text.split_whitespace().enumerate() {
         let at_line_start = buf.is_empty() || buf.ends_with('\n') || buf.ends_with("• ");
@@ -694,7 +639,7 @@ fn end_line(buf: &mut String) {
 }
 
 /// Owned XML events, each text run merged into one Text event: quick-xml
-/// reports `&amp;` and character references as separate GeneralRef events.
+/// splits `&amp;` and character references out.
 struct Events<R> {
     xml: Reader<R>,
     buf: Vec<u8>,
@@ -750,12 +695,7 @@ fn lang_rank(e: &quick_xml::events::BytesStart, langs: &[String]) -> Option<usiz
 
 fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
     let mut xml = Reader::from_reader(reader);
-    // Without this, quick-xml emits a single `Event::Empty` (not handled by
-    // the loop below, which only processes Start/End/Text/Eof) for
-    // self-closing tags (`<release version="…" timestamp="…" />`, very common
-    // in the real Flathub appstream.xml.gz for releases without notes).
-    // Asking for their expansion makes them arrive as a normal Start+End and
-    // go through exactly the same logic, with zero code duplication.
+    // Self-closing tags arrive as Start then End.
     xml.config_mut().expand_empty_elements = true;
     let mut events = Events {
         xml,
@@ -764,45 +704,36 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
     };
     let mut entries: Vec<Entry> = Vec::new();
 
-    // ── Media base URL (prefix for relative URLs) ────────────────────────────
     let mut media_base = String::new();
 
-    // ── Depth & skip ──────────────────────────────────────────────────────────
     let mut depth: usize = 0;
-    // When > 0: inside a subtree to ignore.
-    // Every Start increments it, every End decrements it down to 0.
+    // Depth inside a skipped subtree.
     let mut skip: usize = 0;
 
-    // ── Current entry ─────────────────────────────────────────────────────────
     let mut cur: Option<Entry> = None;
     let mut comp_depth: usize = 0;
 
-    // ── Text collection ───────────────────────────────────────────────────────
     let mut collect = Collect::None;
 
-    // ── Main description ──────────────────────────────────────────────────────
     let mut in_desc = false;
     let mut desc_depth: usize = 0;
     let mut desc_buf = String::new();
-    // Translated paragraphs: (rank, depth) of the open one, text per rank.
+    // Open translated paragraph (rank, depth), text per rank.
     let mut desc_lang: Option<(usize, usize)> = None;
     let mut desc_local: Vec<String> = vec![String::new(); langs.len()];
     let mut name_rank = usize::MAX;
     let mut summary_rank = usize::MAX;
 
-    // ── Release description ───────────────────────────────────────────────────
     let mut in_rel_desc = false;
     let mut rel_desc_depth: usize = 0;
     let mut rel_desc_buf = String::new();
 
-    // ── Structural flags ──────────────────────────────────────────────────────
     let mut in_screenshots = false;
     let mut in_screenshot = false;
     let mut in_releases = false;
     let mut in_release = false;
     let mut in_developer = false; // <developer> tag (AppStream 1.0+ format)
 
-    // ── Field context ─────────────────────────────────────────────────────────
     let mut icon_remote = false;
     let mut icon_w: u32 = 0;
     let mut icon_scale: u32 = 1;
@@ -818,7 +749,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
         let ev = events.next();
 
         match ev {
-            // ── Opening ───────────────────────────────────────────────────────
             Event::Start(ref e) => {
                 depth += 1;
 
@@ -838,7 +768,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                     .flatten()
                     .any(|a| a.key.as_ref() == b"xml:lang");
 
-                // Inside a description: collect the raw text
                 if in_desc && tag != "description" {
                     if has_lang {
                         match lang_rank(e, langs) {
@@ -852,7 +781,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                             None => desc_buf.push_str("• "),
                         }
                     }
-                    // Otherwise let the text through via Event::Text
                     continue;
                 }
                 if in_rel_desc && tag != "description" {
@@ -864,7 +792,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                     continue;
                 }
 
-                // ── Root / structural elements ────────────────────────────────
                 match tag {
                     "components" => {
                         for attr in e.attributes().flatten() {
@@ -894,7 +821,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         }
                     }
 
-                    // ── Simple fields (only inside a component) ───────────────
                     _ if cur.is_none() => {}
 
                     "id" if !has_lang => {
@@ -988,11 +914,7 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         }
                     }
 
-                    // These tags may hold an <id> referencing ANOTHER component
-                    // (e.g. <recommends><id>com.valvesoftware.Steam</id>
-                    // </recommends> in the Protontricks listing): without this
-                    // skip, the nested <id> overwrites the current component's
-                    // and corrupts its entry (right name, another package's app_id).
+                    // Their nested <id> belongs to another component.
                     "requires" | "recommends" | "suggests" | "supports" => {
                         skip = 1;
                     }
@@ -1131,7 +1053,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                 }
             }
 
-            // ── Closing ───────────────────────────────────────────────────────
             Event::End(ref e) => {
                 if skip > 0 {
                     skip -= 1;
@@ -1148,7 +1069,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                     }
                 };
 
-                // End of a child inside a description
                 if in_desc && depth > desc_depth {
                     if matches!(tag, "p" | "li") {
                         match desc_lang {
@@ -1180,7 +1100,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                                 entries.push(entry);
                             }
                         }
-                        // Reset all per-component state
                         in_desc = false;
                         in_screenshots = false;
                         in_screenshot = false;
@@ -1246,7 +1165,6 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                 depth -= 1;
             }
 
-            // ── Text ──────────────────────────────────────────────────────────
             Event::Text(ref e) => {
                 if skip > 0 {
                     continue;
@@ -1281,11 +1199,7 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                     if s.starts_with("http") {
                         s.to_string()
                     } else {
-                        // `trim_end_matches` alone does NOT guarantee a single '/'
-                        // separator: concatenating "…/media" (trimmed) directly to
-                        // "org/…" gave "…/mediaorg/…" (bug covered by the tests
-                        // parser_icon_prepends_media_baseurl_for_relative_url and
-                        // parser_screenshots_prepend_media_baseurl).
+                        // Exactly one slash between base and path.
                         format!(
                             "{}/{}",
                             media_base.trim_end_matches('/'),
@@ -1295,9 +1209,7 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                 };
 
                 match collect {
-                    // Only the FIRST <id> (the component's): an <id> nested in
-                    // <provides> reads "…Steam.desktop" and would overwrite the
-                    // real app_id otherwise.
+                    // Only the component's own first <id>.
                     Collect::Id if entry.app_id.is_empty() => {
                         entry.app_id = text.to_string();
                     }
@@ -1323,7 +1235,7 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                     }
                     Collect::Icon if icon_remote => {
                         let url = abs(text);
-                        // Keep the sharpest; fetching falls back to smaller ones.
+                        // Keep the sharpest; fetching falls back.
                         let px = icon_w * icon_scale;
                         if px > entry_icon_px || entry.icon_url.is_none() {
                             entry_icon_px = px;
@@ -1385,22 +1297,11 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
     entries
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-//
-// Three independent layers are tested:
-//   1. `alnum()`: name normalization
-//   2. `parse()`: XML extraction (structure, ignored translations, media, …)
-//   3. `Db::lookup()`: matching strategy from nix name to AppStream entry
-//
-// The test XML covers every real case seen in the Flathub appstream.xml.gz.
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // A minimal but representative AppStream file.
-    // Covers: media_baseurl, xml:lang, old/new developer formats,
-    // 64 vs 128 icon, source vs thumbnail screenshots, releases, custom/verified,
-    // URL types (homepage, bugtracker), ignored addon and font.
+    // A small AppStream file covering every case seen.
     const SAMPLE_XML: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <components version="0.14" origin="flathub" media_baseurl="https://dl.flathub.org/media/">
 
@@ -1514,7 +1415,7 @@ mod tests {
 
     #[test]
     fn parser_excludes_fonts_but_keeps_apps_and_addons() {
-        // 3 desktop apps + 1 addon = 4; the font is excluded.
+        // Three apps and one add-on; no font.
         let entries = parse_sample();
         assert_eq!(entries.len(), 4);
         assert!(!entries.iter().any(|e| e.app_id.contains("Font")));
@@ -1724,10 +1625,7 @@ mod tests {
 
     #[test]
     fn parser_nested_id_in_recommends_does_not_corrupt_app_id() {
-        // Real regression: the Protontricks listing contains
-        // <recommends><id>com.valvesoftware.Steam</id></recommends>. Without the
-        // skip on these tags, the nested <id> overwrote the component's, and
-        // lookup("steam") returned "Protontricks" under Steam's app_id.
+        // A nested <id> must not replace the component's.
         let xml = r#"<?xml version="1.0"?>
 <components>
   <component type="desktop-application">
@@ -2022,9 +1920,7 @@ mod tests {
 
     #[test]
     fn lookup_by_name_slug_extremetuxracer() {
-        // Historical regression: suffix("io.github.extremetuxracer.ETR") = "etr"
-        // does not match "extremetuxracer", but by_name finds it through
-        // alnum("Extreme Tux Racer") = "extremetuxracer".
+        // Found by name when the suffix differs.
         let db = make_db(parse_sample());
         let found = db.lookup("extremetuxracer");
         assert!(found.is_some(), "extremetuxracer must be found by name");
@@ -2047,7 +1943,6 @@ mod tests {
 
     #[test]
     fn lookup_suffix_case_insensitive() {
-        // "GEDIT" → alnum = "gedit" → found by suffix
         let db = make_db(parse_sample());
         assert!(db.lookup("GEDIT").is_some());
     }
@@ -2089,9 +1984,7 @@ mod tests {
 
     #[test]
     fn lookup_ambiguous_suffix_matches_neither() {
-        // "Foo Player" and "Bar Player" share the app id suffix "player": a
-        // search by that suffix alone is ambiguous and must return NOTHING
-        // (generic icon) rather than the wrong app at random.
+        // An ambiguous suffix matches nothing.
         let db = build_db(two_apps_sharing_suffix());
         assert!(
             db.lookup("player").is_none(),
@@ -2101,8 +1994,7 @@ mod tests {
 
     #[test]
     fn lookup_ambiguous_suffix_falls_back_to_full_name() {
-        // Each app's full name stays unique and thus findable through by_name,
-        // even when their common app id suffix was neutralized.
+        // Full names still match.
         let db = build_db(two_apps_sharing_suffix());
         assert_eq!(
             db.lookup("fooplayer").unwrap().app_id,
@@ -2114,14 +2006,12 @@ mod tests {
         );
     }
 
-    // ── Load state: wait_until_settled / is_settled ──────────────────────────
-    // Only one test touches STATE (process global static) to avoid any race
-    // between parallel tests on that shared state.
+    // One test only touches the global state.
     #[test]
     fn wait_until_settled_blocks_only_while_loading() {
         use std::time::{Duration, Instant};
 
-        // NotStarted (default, CLI case that never calls init): immediate.
+        // Never started: returns at once.
         let t0 = Instant::now();
         wait_until_settled(Duration::from_secs(5));
         assert!(
@@ -2129,8 +2019,7 @@ mod tests {
             "NotStarted must not wait"
         );
 
-        // Loading: waits for the end of the load (notified here after ~100 ms),
-        // NOT the full timeout.
+        // Loading: returns when done, before the timeout.
         set_state(LoadState::Loading);
         assert!(!is_settled());
         let h = std::thread::spawn(|| {
@@ -2164,8 +2053,7 @@ mod tests {
 
     #[test]
     fn lookup_ambiguous_name_matches_neither() {
-        // Two distinct apps with the SAME name: matching the first one seen
-        // would be a false positive (same policy as ambiguous suffixes).
+        // Two apps with one name match neither.
         let xml = r#"<?xml version="1.0"?>
 <components>
   <component type="desktop-application">

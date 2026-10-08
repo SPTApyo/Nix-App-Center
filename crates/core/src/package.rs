@@ -2,8 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 
-// ── Package model ─────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
     pub attr: String,
@@ -13,8 +11,7 @@ pub struct Package {
 }
 
 impl Package {
-    /// Builds a minimal package from its nixpkgs attribute alone.
-    /// Useful for front ends that only have an attr (e.g. `nix-software-cli run <attr>`).
+    /// A minimal package from its nixpkgs attribute.
     pub fn from_attr(attr: impl Into<String>) -> Self {
         let attr = attr.into();
         Self {
@@ -25,14 +22,11 @@ impl Package {
         }
     }
 
-    /// Package set (attr prefix): `haskellPackages.aeson` gives `haskellPackages`.
-    /// `None` for a top-level package (`firefox`). Free (no `nix eval`).
+    /// Package set of the attr (`haskellPackages`), `None` at top level.
     pub fn package_set(&self) -> Option<&str> {
         self.attr.split_once('.').map(|(prefix, _)| prefix)
     }
 }
-
-// ── Icon kind ─────────────────────────────────────────────────────────────────
 
 /// Broad family of a package, for a fallback icon when AppStream has none.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,8 +49,7 @@ pub enum IconKind {
     Generic,
 }
 
-/// Keywords per kind, checked in this order: the first family that matches
-/// wins, so specific words come before broad ones.
+/// Keywords per kind; the first match wins, specific words first.
 const KIND_WORDS: &[(IconKind, &[&str])] = &[
     (
         IconKind::Game,
@@ -279,8 +272,7 @@ const LIBRARY_SETS: &[&str] = &[
 ];
 
 impl Package {
-    /// Guesses the family of the package from its attr and description.
-    /// A rough guess: it only picks a fallback icon.
+    /// Rough family of the package, to pick a fallback icon.
     pub fn icon_kind(&self) -> IconKind {
         if self
             .package_set()
@@ -310,8 +302,6 @@ fn normalize(text: &str) -> String {
         .join(" ")
 }
 
-// ── Taxonomy ──────────────────────────────────────────────────────────────────
-
 /// Kind of package, which decides its primary action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -322,11 +312,7 @@ pub enum Kind {
 }
 
 impl Package {
-    /// Taxonomy inference seam.
-    ///
-    /// `nix search` JSON has no `meta.mainProgram`; until AppStream / `nix eval`
-    /// are cross-checked, every package is treated as `App`. This is where it
-    /// will be refined, without touching the front ends.
+    /// Kind of the package. Every package is an `App` for now.
     pub fn kind(&self) -> Kind {
         Kind::App
     }
@@ -336,19 +322,14 @@ impl Package {
     }
 }
 
-// ── Action model (the "pill split button" as data) ────────────────────────────
-
-/// An action offered for a package. Front ends decide how to render it (main
-/// button, menu entry, shortcut…).
+/// An action offered for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     /// Run without installing: `nix run nixpkgs#<attr>`. The headline action.
     Run,
-    /// Open a terminal with the package in `PATH`: `nix shell nixpkgs#<attr>`.
-    /// The *try-first* path for CLI tools, which `Run` (launching the main
-    /// program and returning) does not serve.
+    /// Open a terminal with the package in `PATH`: the try path for CLI tools.
     Shell,
-    /// Add to the Nix Software manifest (and so to the generated Nix files).
+    /// Add to the manifest, so to the generated Nix files.
     Keep,
     /// Copy the `nix run` command (the front end owns the clipboard).
     CopyRunCommand,
@@ -371,7 +352,7 @@ pub struct Actions {
     pub secondary: Vec<Action>,
 }
 
-/// Models, per package, the primary + secondary actions from the taxonomy.
+/// The primary and secondary actions of a package.
 pub fn actions_for(pkg: &Package) -> Actions {
     if pkg.is_runnable() {
         Actions {

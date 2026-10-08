@@ -1,5 +1,4 @@
-//! Views are the app pages: home, in-app search, category, installed
-//! (including tried apps), updates, details.
+//! The app pages.
 
 pub mod category;
 pub mod detail;

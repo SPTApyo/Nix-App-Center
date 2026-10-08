@@ -1,41 +1,26 @@
-//! Validation of the Nix written by the user, at two levels: one instant, the
-//! other costly but complete.
-//!
-//! - [`parse_block`]: ~50 ms. Only sees **syntax**. Fast enough to run on every
-//!   keystroke.
-//! - [`dry_build`]: 30 s to 2 min. Evaluates the whole configuration and catches
-//!   *semantic* errors (unknown option, wrong type) that parsing cannot see.
-//!   **Optional and user triggered**: forcing it on every edit would make the
-//!   editor painful.
-//!
-//! A failing `nixos-rebuild switch` does not break the system (NixOS keeps the
-//! previous generation): what is protected here is not the boot, it is the
-//! user's time, finding a typo after the password prompt and three minutes of
-//! build.
+//! Checks the Nix the user writes: [`parse_block`] for syntax on each
+//! keystroke, [`dry_build`] for options and types on demand.
 
 use crate::config_layout::{Layout, LayoutKind};
 use std::process::Command;
 
-/// Wraps a block as a standalone module, as it will be generated, so the parse
-/// error matches what will really end up in the file.
+/// `block` wrapped as the module it will be generated into.
 fn wrap(block: &str) -> String {
     format!("{{ pkgs, lib, config, ... }}:\n{{\n{block}\n}}\n")
 }
 
-/// Checks the **syntax** of a Nix block. Instant.
+/// Checks the syntax of `block`.
 ///
-/// `Ok(())` when the block is syntactically valid, `Err(message)` otherwise; the
-/// message is Nix's, stripped of the temp file path that would mean nothing.
+/// # Errors
+/// Nix's message, without the temporary file path.
 pub fn parse_block(block: &str) -> Result<(), String> {
-    // Unique name per call: parsing runs on every keystroke, and two
-    // concurrent checks sharing a temp file delete it under each other.
+    // Unique file: checks may run concurrently.
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let path =
         std::env::temp_dir().join(format!("nix-software-parse-{}-{n}.nix", std::process::id()));
     std::fs::write(&path, wrap(block)).map_err(|e| e.to_string())?;
 
-    // Parsing needs no store: dummy:// avoids opening its database.
     let out = Command::new("nix-instantiate")
         .args(["--store", "dummy://", "--parse"])
         .arg(&path)
@@ -44,8 +29,7 @@ pub fn parse_block(block: &str) -> Result<(), String> {
 
     let out = match out {
         Ok(o) => o,
-        // Without `nix-instantiate` nothing can be asserted: do not block the
-        // user on a check that cannot be done.
+        // Without nix-instantiate, do not block the user.
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(e) => return Err(e.to_string()),
     };
@@ -57,8 +41,7 @@ pub fn parse_block(block: &str) -> Result<(), String> {
     Err(clean_error(&msg, &path.display().to_string()))
 }
 
-/// Strips the temp file path from Nix messages: it adds nothing and blurs the
-/// useful error.
+/// `stderr` without the temporary file path.
 fn clean_error(stderr: &str, tmp_path: &str) -> String {
     let cleaned = stderr.replace(tmp_path, "<bloc>");
     cleaned
@@ -69,18 +52,18 @@ fn clean_error(stderr: &str, tmp_path: &str) -> String {
         .join("\n")
 }
 
-/// The result of a `dry-build`.
+/// Result of a `dry-build`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DryRun {
-    /// The whole configuration evaluates: the block is fine, options and types included.
+    /// The configuration evaluates.
     Ok,
-    /// Nix refused. The message is its own.
+    /// Nix refused, with its message.
     Failed(String),
-    /// No tool to check with (unknown layout, or missing binary).
+    /// Nothing to check with.
     Unavailable(String),
 }
 
-/// The dry check command matching the layout.
+/// The dry check command of the layout.
 fn dry_argv(layout: &Layout) -> Option<Vec<String>> {
     match &layout.kind {
         LayoutKind::NixosFlake { dir, host } => Some(vec![
@@ -104,8 +87,7 @@ fn dry_argv(layout: &Layout) -> Option<Vec<String>> {
     }
 }
 
-/// Evaluates the whole configuration **without applying anything** or asking
-/// for a password (`dry-build` neither builds nor switches). Slow: run in a thread.
+/// Evaluates the whole configuration without applying it. Blocking.
 pub fn dry_build() -> DryRun {
     let layout = crate::config_layout::detect();
     let Some(argv) = dry_argv(&layout) else {
@@ -174,7 +156,7 @@ mod tests {
 
     #[test]
     fn rejects_a_duplicate_attribute() {
-        // Exactly the bug generation had: the same attribute twice.
+        // The same attribute twice.
         let err = parse_block("home.packages = [ ];\nhome.packages = [ ];").unwrap_err();
         assert!(err.contains("already defined"), "got: {err}");
     }
@@ -195,7 +177,7 @@ mod tests {
             dry_argv(&flake).unwrap(),
             ["nixos-rebuild", "dry-build", "--flake", "/etc/nixos#laptop"]
         );
-        // A dry-build has no sudo and no switch: it writes nothing, asks nothing.
+        // A dry build needs no rights.
         assert!(!dry_argv(&flake).unwrap().contains(&"sudo".to_string()));
         assert!(!dry_argv(&flake).unwrap().contains(&"switch".to_string()));
     }

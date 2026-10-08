@@ -1,6 +1,4 @@
-//! NixOS option search, from the `options.json` the NixOS channel publishes
-//! for the branch the config follows (the same data as search.nixos.org).
-//! Downloaded once a week (about 1 MB, brotli), searched in memory.
+//! NixOS option search over the branch's options.json, downloaded weekly.
 
 use std::io::Read;
 use std::path::PathBuf;
@@ -22,7 +20,7 @@ pub struct NixOption {
 }
 
 impl NixOption {
-    /// A line to paste in a configuration, from the example or the default.
+    /// A line to paste, from the example or the default.
     pub fn snippet(&self) -> String {
         let value = self
             .example
@@ -36,7 +34,7 @@ impl NixOption {
 
 static OPTIONS: OnceLock<Vec<NixOption>> = OnceLock::new();
 
-/// The options of the config's NixOS branch, loaded once. Blocking.
+/// Options of the config's branch, loaded once. Blocking.
 fn options() -> &'static [NixOption] {
     OPTIONS.get_or_init(|| {
         let branch = crate::current_source()
@@ -80,7 +78,7 @@ fn download(branch: &str) -> Option<Vec<u8>> {
     Some(json)
 }
 
-/// Reads `options.json`: `{ "<name>": { description, type, default, … } }`.
+/// Options of an `options.json` value.
 fn parse(v: &serde_json::Value) -> Vec<NixOption> {
     let text = |x: &serde_json::Value| -> Option<String> {
         x["text"]
@@ -114,21 +112,18 @@ fn parse(v: &serde_json::Value) -> Vec<NixOption> {
     out
 }
 
-/// Options matching every word of `query`, best first. Blocking on the first
-/// call (download and parse).
+/// Options matching every word of `query`, best first. Blocking at first.
 pub fn search_options(query: &str, limit: usize) -> Vec<NixOption> {
     rank(options(), query, limit)
 }
 
-/// The `enable` option of the NixOS module that sets up a package, such as
-/// programs.steam.enable for steam. Blocking on the first call.
+/// The `enable` option of the module setting up `attr`. Blocking at first.
 pub fn module_for(attr: &str) -> Option<NixOption> {
     module_in(options(), attr)
 }
 
-/// A module counts when its `package` option defaults to the package, or
-/// when it is named after it. The shallowest one wins: programs.steam
-/// over services.wivrn.steam.
+/// The shallowest module whose `package` defaults to the package or whose
+/// name is the package's.
 fn module_in(all: &[NixOption], attr: &str) -> Option<NixOption> {
     let pname = attr.rsplit('.').next().unwrap_or(attr);
     let default = format!("pkgs.{pname}");
@@ -177,7 +172,7 @@ fn rank(all: &[NixOption], query: &str, limit: usize) -> Vec<NixOption> {
             {
                 score += 50;
             }
-            // The switch of a module is what people look for first.
+            // Module switches first.
             if name.ends_with(".enable") {
                 score += 20;
             }

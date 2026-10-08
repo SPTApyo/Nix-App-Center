@@ -1,7 +1,5 @@
-//! `PackageRow`: the app row of **search** (the only list in the app).
-//! Purely navigational: clicking anywhere opens the details page. Actions
-//! (run / keep / shell / copy) all live on the details page, in a single
-//! split button: one row, one gesture, one target.
+//! A search result row; a click opens the details page, where the actions
+//! are.
 
 use adw::prelude::*;
 use nix_software_core::{Package, Rating};
@@ -31,8 +29,7 @@ impl FactoryComponent for PackageRow {
     type ParentWidget = gtk::ListBox;
 
     view! {
-        // `GsAppRow` (gs-app-row.ui) without its button: [icon | vbox(name,
-        // summary, stars)]. The row is activated (click to details) by a gesture.
+        // GNOME Software's GsAppRow without its button.
         #[root]
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
@@ -48,7 +45,6 @@ impl FactoryComponent for PackageRow {
                 }
             },
 
-            // 64 px icon: shimmer (loading), generic thumbnail, real icon.
             gtk::Box {
                 set_width_request: 64,
                 set_height_request: 64,
@@ -68,8 +64,7 @@ impl FactoryComponent for PackageRow {
                     set_height_request: 64,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
-                    // Stops the inner image hexpand from propagating, else the
-                    // icon column stretches and misaligns the whole row.
+                    // Keep the image from stretching the row.
                     set_hexpand: false,
                     set_vexpand: false,
                     add_css_class: "fallback-tile",
@@ -78,8 +73,7 @@ impl FactoryComponent for PackageRow {
                     gtk::Image {
                         set_icon_name: Some(fallback_icon(&self.package).0),
                         set_pixel_size: 48,
-                        // hexpand/vexpand: without them halign Center is ignored
-                        // on the Box main axis and the glyph sticks to the left.
+                        // Needed to center the glyph.
                         set_hexpand: true,
                         set_vexpand: true,
                         set_halign: gtk::Align::Center,
@@ -87,8 +81,7 @@ impl FactoryComponent for PackageRow {
                         add_css_class: "fallback-glyph",
                     },
                 },
-                // gtk::Image: `pixel_size` bounds the layout to 64 while the
-                // 128 texture renders at full resolution, sharp on HiDPI.
+                // Image: 64 px layout, full resolution texture.
                 gtk::Image {
                     #[watch]
                     set_visible: self.icon_state == IconState::Real,
@@ -98,7 +91,6 @@ impl FactoryComponent for PackageRow {
                 },
             },
 
-            // Name · summary · stars (stacked, like GsAppRow).
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_valign: gtk::Align::Center,
@@ -118,7 +110,6 @@ impl FactoryComponent for PackageRow {
                     add_css_class: "dim-label",
                 },
 
-                // ODRS rating (GsStarWidget): 5 stars + review count, BELOW the summary.
                 gtk::Box {
                     set_visible: self.rating.is_some(),
                     set_margin_top: 3,
@@ -157,8 +148,7 @@ impl FactoryComponent for PackageRow {
         };
         if let Some(url) = icon_url {
             nix_software_core::remember_icon_url(&package.attr, &url);
-            // input_sender().send() (unlike input()) does not panic if the row
-            // was destroyed meanwhile (cleared by a new search or filter).
+            // Safe after the row is destroyed.
             let s = sender.input_sender().clone();
             std::thread::spawn(move || {
                 let _ = s.send(RowMsg::IconLoaded(nix_software_core::cached_fetch_bytes(
@@ -193,8 +183,7 @@ impl FactoryComponent for PackageRow {
     }
 }
 
-/// Icon of the `pos`-th star (1..5) for a rating, like `GsStarWidget`:
-/// full if `rating ≥ pos`, half if `rating ≥ pos-0.5`, empty otherwise.
+/// Icon of star `pos` (1 to 5): full, half or empty.
 fn star_icon(rating: Option<Rating>, pos: i32) -> &'static str {
     match rating {
         Some(r) if r.stars >= pos as f32 => "starred-symbolic",
@@ -203,8 +192,7 @@ fn star_icon(rating: Option<Rating>, pos: i32) -> &'static str {
     }
 }
 
-/// CSS class of the `pos`-th star: golden (`star-on`) when full or half,
-/// dimmed (`star-off`) otherwise. Colors are defined in `APP_CSS`.
+/// CSS class of star `pos`: lit or dimmed.
 fn star_class(rating: Option<Rating>, pos: i32) -> &'static str {
     match rating {
         Some(r) if r.stars >= pos as f32 - 0.5 => "star-on",
@@ -212,7 +200,7 @@ fn star_class(rating: Option<Rating>, pos: i32) -> &'static str {
     }
 }
 
-/// Review count in parentheses (empty without a rating).
+/// "(count)", empty without a rating.
 fn review_count(rating: Option<Rating>) -> String {
     rating.map(|r| format!("({})", r.total)).unwrap_or_default()
 }
@@ -227,7 +215,7 @@ fn row_subtitle(pkg: &Package) -> String {
     }
 }
 
-/// Truncates to `max` characters with "…" when longer (see tiles).
+/// `s` cut to `max` characters with "…".
 fn truncate(s: &str, max: usize) -> String {
     let s = s.trim();
     if s.chars().count() <= max {

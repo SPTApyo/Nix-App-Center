@@ -1,5 +1,4 @@
-//! User settings (`$XDG_CONFIG_HOME/nix-software/settings.json`): overrides of the
-//! layout detection and the update check preferences.
+//! User settings, in `$XDG_CONFIG_HOME/nix-software/settings.json`.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -9,15 +8,15 @@ use std::path::PathBuf;
 pub struct Settings {
     /// NixOS configuration folder, instead of `/etc/nixos`.
     pub config_dir: Option<PathBuf>,
-    /// `nixosConfigurations` entry to use, instead of the hostname match.
+    /// `nixosConfigurations` entry, instead of the hostname.
     pub host: Option<String>,
     /// Check for updates once a day and notify.
     pub auto_check_updates: bool,
     /// Last background update check (Unix seconds).
     pub last_update_check: u64,
-    /// Random id sent to ODRS to tie the user's reviews together.
+    /// The user's random ODRS id.
     pub odrs_user_hash: Option<String>,
-    /// Kept apps go to environment.systemPackages instead of the user's.
+    /// Keep apps in the system packages instead of the user's.
     pub install_for_everyone: bool,
 }
 

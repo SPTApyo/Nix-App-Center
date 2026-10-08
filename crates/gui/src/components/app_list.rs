@@ -1,6 +1,4 @@
-//! `AppList`: search results in **two sections** ("Applications" = matched to
-//! AppStream, with icon; "Other Packages" = nix only) + a **package set
-//! filter** (Nix covers what AppStream lacks: haskellPackages, pythonPackages…).
+//! Search results: AppStream apps, other packages, and a package set filter.
 
 use std::collections::HashMap;
 
@@ -41,11 +39,11 @@ pub struct AppList {
 pub enum AppListInput {
     SetLoading,
     Set(Vec<AppItem>),
-    /// Results of `nix-locate bin/<query>` (section 3).
+    /// Packages providing the queried command.
     SetLocate(String, Vec<Package>),
     /// Apps that open files of the queried type.
     SetFileTypes(String, Vec<Package>),
-    /// NixOS options matching the query (last section).
+    /// NixOS options matching the query.
     SetOptions(Vec<nix_software_core::NixOption>),
     Filter,
     Open(Package),
@@ -77,7 +75,6 @@ impl SimpleComponent for AppList {
             .launch(gtk::ListBox::new())
             .forward(sender.input_sender(), AppListInput::Open);
 
-        // Same look as crate::util::boxed_list (factories own these two).
         let lists: [&gtk::ListBox; 2] = [apps.widget(), others.widget()];
         for lb in lists {
             lb.add_css_class("boxed-list");
@@ -85,7 +82,6 @@ impl SimpleComponent for AppList {
             lb.set_valign(gtk::Align::Start);
         }
 
-        // Package set filter
         let filter_dropdown = gtk::DropDown::from_strings(&[&t("All")]);
         filter_dropdown.set_halign(gtk::Align::Start);
         filter_dropdown.set_visible(false);
@@ -140,8 +136,7 @@ impl SimpleComponent for AppList {
         scroll.set_child(Some(&clamp));
         crate::util::smooth_scroll(&scroll);
 
-        // Loading: title bar + skeleton list mirroring the real content
-        // ("Applications" section title + boxed list) so nothing shifts.
+        // Placeholder shaped like the real results.
         let loading_heading = gtk::Box::builder()
             .width_request(120)
             .height_request(18)
@@ -281,7 +276,7 @@ impl AppList {
         clear(&self.heading_locate, &self.locate_list);
     }
 
-    /// Fills a side section (command, file type) with package rows.
+    /// Fills a side section with package rows.
     fn fill(
         &self,
         heading: &gtk::Label,
@@ -314,14 +309,12 @@ impl AppList {
             });
             list.append(&row);
         }
-        // Make sure "filled" is visible even when the text is empty.
         if self.stack.visible_child_name().as_deref() == Some("empty") {
             self.stack.set_visible_child_name("filled");
         }
     }
 
-    /// Recomputes the package sets present (with counts) and fills the
-    /// DropDown.
+    /// Refills the package set filter, with counts.
     fn rebuild_filter(&mut self) {
         let mut counts: HashMap<&str, usize> = HashMap::new();
         let mut no_set = 0usize;
@@ -332,7 +325,6 @@ impl AppList {
             }
         }
 
-        // Sets sorted by decreasing count.
         let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
         sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
 
@@ -353,11 +345,10 @@ impl AppList {
         self.filter_dropdown
             .set_model(Some(&gtk::StringList::new(&refs)));
         self.filter_dropdown.set_selected(0);
-        // Visible only when at least one package set exists.
         self.filter_dropdown.set_visible(!sets.is_empty());
     }
 
-    /// Filters items by the DropDown, splits them in two sections, fills them.
+    /// Filters the items and fills both sections.
     fn apply(&mut self) {
         let idx = self.filter_dropdown.selected() as usize;
         let filter = self.filters.get(idx).cloned().unwrap_or(Filter::All);
@@ -372,8 +363,7 @@ impl AppList {
         apps.clear();
         others.clear();
         for it in self.items.iter().filter(|i| keep(i)) {
-            // "Applications" = matched to AppStream (not "has an icon"): a
-            // recognized app without icon keeps its official name and rating.
+            // Recognized apps, even without an icon.
             if it.recognized {
                 apps.push_back(it.clone());
             } else {
@@ -388,7 +378,6 @@ impl AppList {
         self.heading_apps.set_visible(has_apps);
         self.apps.widget().set_visible(has_apps);
         self.others.widget().set_visible(has_others);
-        // "Other Packages" title only when Applications sit above it.
         self.heading_others.set_visible(has_others && has_apps);
 
         self.stack

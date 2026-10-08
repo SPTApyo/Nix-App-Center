@@ -1,12 +1,4 @@
-//! ODRS reviews (odrs.gnome.org): the review texts, where `ratings` only
-//! fetches aggregated ratings. Same endpoint as GNOME Software
-//! (`lib/gs-odrs-provider.c:889-915`): `POST /1.0/reviews/api/fetch` with a
-//! `{user_hash, app_id, locale, distro, version, limit}` body.
-//!
-//! Reading is cosmetic: on network failure an empty list is returned and the
-//! "Ratings & Reviews" section stays hidden. Writing goes to
-//! `POST /1.0/reviews/api/submit`, signed with the `user_skey` ODRS returns
-//! with every fetch for the user's hash.
+//! ODRS reviews: reading them anonymously, writing, voting and reporting.
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
@@ -15,12 +7,10 @@ const ENDPOINT: &str = "https://odrs.gnome.org/1.0/reviews/api/fetch";
 const SUBMIT: &str = "https://odrs.gnome.org/1.0/reviews/api/submit";
 const LIMIT: u32 = 10;
 
-/// Hash sent when only reading: shared by every Nix Software user, so reading tells
-/// ODRS nothing about who looks at which app.
+/// Hash sent when reading, shared by every user: reading stays anonymous.
 const ANONYMOUS_HASH: &str = "0000000000000000000000000000000000000000";
 
-/// The user's ODRS id for posting: 40 random hex digits made once and kept in
-/// the settings. `None` when no randomness is available: never a guessable id.
+/// The user's random ODRS id, created once; `None` without randomness.
 fn author_hash() -> Option<String> {
     let mut settings = crate::settings::load_settings();
     if let Some(h) = &settings.odrs_user_hash {
@@ -34,7 +24,7 @@ fn author_hash() -> Option<String> {
     Some(hash)
 }
 
-/// An ODRS review. `stars` is already converted from the API's 0–100 `rating`.
+/// An ODRS review, with `stars` from 0 to 5.
 #[derive(Debug, Clone)]
 pub struct Review {
     pub summary: String,
@@ -42,7 +32,7 @@ pub struct Review {
     pub author: Option<String>,
     pub stars: f32,
     pub timestamp: i64,
-    /// Relevance computed by ODRS (karma, age…), used to pick the featured review.
+    /// Relevance computed by ODRS.
     pub score: i64,
     pub review_id: i64,
     pub app_id: String,
@@ -65,8 +55,7 @@ pub enum ReviewAction {
 static CACHE: LazyLock<Mutex<HashMap<String, Vec<Review>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// An app's reviews, cached for the session (like metadata). ODRS ranks
-/// reviews of the same version first.
+/// The reviews of `app_id`, cached for the session, `version` first.
 pub fn reviews_for(app_id: &str, version: &str) -> Vec<Review> {
     if app_id.is_empty() {
         return Vec::new();
@@ -81,8 +70,7 @@ pub fn reviews_for(app_id: &str, version: &str) -> Vec<Review> {
     fetched
 }
 
-/// The featured review = the best ranked by ODRS, like `get_featured_review`
-/// (gs-details-page.c). Pure function, tested.
+/// The review ODRS ranks best.
 pub fn featured_review(reviews: &[Review]) -> Option<&Review> {
     reviews.iter().max_by_key(|r| r.score)
 }
@@ -99,7 +87,7 @@ fn fetch_reviews(app_id: &str, version: &str) -> Option<Vec<Review>> {
     crate::http::post_json(ENDPOINT, &body).map(|v| parse_reviews(&v))
 }
 
-/// ODRS rejects an empty version ("missing data, expected version").
+/// `version`, or a placeholder: ODRS rejects an empty one.
 fn odrs_version(version: &str) -> &str {
     if version.is_empty() {
         "unknown"
@@ -108,7 +96,7 @@ fn odrs_version(version: &str) -> &str {
     }
 }
 
-/// Locale in ODRS format (`fr_FR`), from the environment. `C` by default.
+/// The locale in ODRS format (`fr_FR`), `C` by default.
 fn locale() -> String {
     std::env::var("LC_MESSAGES")
         .or_else(|_| std::env::var("LANG"))
@@ -118,8 +106,7 @@ fn locale() -> String {
         .unwrap_or_else(|| "C".to_string())
 }
 
-/// Parses the ODRS response (an error `{…}` instead of a list gives empty).
-/// Kept apart from the network call to be testable.
+/// Reviews of an ODRS response; empty for an error object.
 fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
     let Some(items) = v.as_array() else {
         return Vec::new();
@@ -144,7 +131,6 @@ fn parse_reviews(v: &serde_json::Value) -> Vec<Review> {
                 summary: str_of("summary"),
                 description,
                 author,
-                // ODRS rates out of 100 (20/40/60/80/100), like AppStream: /20.
                 stars: int_of("rating") as f32 / 20.0,
                 timestamp: int_of("date_created"),
                 score: int_of("score"),
@@ -280,7 +266,7 @@ mod tests {
     #[test]
     fn featured_is_highest_score() {
         let r = parse(FIXTURE);
-        // Carol has the best score (40) but no description, dropped at parse time.
+        // Reviews without text are dropped.
         assert_eq!(featured_review(&r).unwrap().summary, "Excellent");
     }
 

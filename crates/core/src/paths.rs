@@ -1,5 +1,4 @@
-//! Nix Software data directory (`$XDG_DATA_HOME/nix-software`), shared by `manifest`
-//! (`kept.json`) and `tried` (`tried.json`).
+//! Nix Software data folder and file writing, including as root.
 
 use std::path::PathBuf;
 
@@ -13,10 +12,7 @@ pub(crate) fn data_dir() -> PathBuf {
     base.join("nix-software")
 }
 
-/// Atomic write: sibling temp file then `rename` (atomic on the same file
-/// system). Otherwise a crash mid-write left truncated JSON, which
-/// `unwrap_or_default()` silently replaced with an empty state on the next
-/// load, losing the manifest/log.
+/// Writes `path` through a temporary file and a rename: never half written.
 pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
     std::fs::create_dir_all(dir)?;
@@ -31,13 +27,12 @@ pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Res
     std::fs::rename(&tmp, path)
 }
 
-/// Writes several files, in order. Files the user may write are written
-/// directly; the others (a root-owned `/etc/nixos`) are written by ONE pkexec
-/// call, so the user types the password once.
+/// Writes `files` in order: directly when allowed, the rest in one pkexec
+/// call, so one password prompt.
 pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
     let mut denied: Vec<&(PathBuf, Vec<u8>)> = Vec::new();
     for f in files {
-        // Keep the order: once one needs rights, the next ones follow it.
+        // Keep the order once rights are needed.
         if !denied.is_empty() {
             denied.push(f);
             continue;
@@ -76,10 +71,8 @@ pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
     }
 }
 
-/// The `sh` script root runs to write `files`. The content travels inside
-/// the script: no file a user process could swap before root reads it. Each
-/// file goes to a fresh temporary file in its own folder (head drops the
-/// newline a here-document always adds), then is renamed over the target.
+/// The script root runs to write `files`. The content is inline, so no
+/// user file can be swapped; each file goes through `mktemp` and `mv`.
 fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
     let mut parts = Vec::new();
     for (dest, bytes) in files {
@@ -94,23 +87,20 @@ fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
                 .unwrap_or(std::path::Path::new("/"))
                 .to_string_lossy(),
         );
-        // mktemp creates a fresh file exclusively: no name to guess, no link
-        // to follow.
+        // mktemp: unguessable name, no link followed.
         parts.push(format!(
             "tmp=$(mktemp {dir}/.nix-software-XXXXXX)\ncat <<'{mark}' | head -c -1 > \"$tmp\"\n{text}\n{mark}\nchmod 644 \"$tmp\" && mv \"$tmp\" {}",
             sh_quote(&dest.to_string_lossy())
         ));
     }
-    // Stop at the first failure: never rename over a target after an error.
+    // Stop at the first failure.
     format!("set -e\n{}\n", parts.join("\n"))
 }
 
-/// PATH given to commands run as root: system folders only, never the
-/// user's PATH, whose folders the user (or a program running as the user)
-/// can write.
+/// PATH for commands run as root: system folders only, never the user's.
 pub(crate) const ROOT_PATH: &str = "/run/wrappers/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 
-/// A system program as root should run it: looked up in [`ROOT_PATH`] only.
+/// `name` looked up in [`ROOT_PATH`] only.
 pub(crate) fn root_tool(name: &str) -> Option<PathBuf> {
     ROOT_PATH
         .split(':')
@@ -123,8 +113,7 @@ pub(crate) fn sh_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
 }
 
-/// A flake in a git repository only sees tracked files: mark a file Nix Software
-/// created as intended for addition. No-op outside a git work tree.
+/// Marks `path` for git, since a flake only sees tracked files.
 pub(crate) fn track_in_git(path: &std::path::Path) {
     let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
         return;

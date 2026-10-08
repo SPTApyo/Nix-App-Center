@@ -1,5 +1,4 @@
-//! Nix Software CLI: text front end of `core`, a test bench for the
-//! search → try → keep loop. No logic here: everything comes from `nix_software_core`.
+//! Nix Software CLI, a text front end over the core.
 //!
 //! Usage:
 //!   nix-software-cli search <query…>   list matching packages
@@ -191,7 +190,6 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Diagnostic: what Nix Software believes about your config. Read only.
         Some("layout") => {
             let l = nix_software_core::detect_layout();
             println!("layout: {:?}", l.kind);
@@ -226,7 +224,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
 
-        // Consented attach: shows the diff, writes ONLY with `--commit`.
+        // Writes only with `--commit`.
         Some("attach") => {
             let layout = nix_software_core::detect_layout();
             let plan = nix_software_core::attach_plan(&layout);
@@ -289,8 +287,7 @@ fn main() -> ExitCode {
             }
         }
 
-        // Reads a home scope Nix block on stdin, parses it, saves it.
-        // Empty stdin turns the app back into a plain list entry.
+        // Empty stdin makes the app plain again.
         Some("edit") => match args.get(2) {
             Some(attr) => {
                 use std::io::Read;
@@ -319,7 +316,6 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Store garbage collection (frees unreferenced packages).
         Some("gc") => match nix_software_core::garbage_collect() {
             Ok(summary) => {
                 println!(

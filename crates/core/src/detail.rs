@@ -1,8 +1,4 @@
-//! Rich metadata through `nix eval <attr>.meta --json` (fast, local, rich,
-//! but no icons/screenshots: see `flathub` for those).
-//!
-//! NB: `nix search` (list) does NOT carry `mainProgram`, so enrichment happens
-//! on demand (when the details page opens), not for the 100 results.
+//! Package metadata from `nix eval <attr>.meta`.
 
 use crate::package::Kind;
 use serde::{Deserialize, Serialize};
@@ -12,24 +8,18 @@ pub struct PackageDetail {
     pub long_description: Option<String>,
     pub homepage: Option<String>,
     pub license: Option<String>,
-    /// `meta.license.free`, already computed by nixpkgs and reliable (unlike
-    /// Flathub, which only provides it through its REST API, never locally).
+    /// `meta.license.free`.
     pub is_free_license: Option<bool>,
     pub changelog: Option<String>,
-    /// Main binary (`meta.mainProgram`): its presence means a runnable package.
+    /// `meta.mainProgram`: set for a runnable package.
     pub main_program: Option<String>,
-    /// Names of nixpkgs maintainers (`meta.maintainers[].name`, or `.github`
-    /// as fallback). A Nix native trust signal, no AppStream equivalent.
+    /// nixpkgs maintainers, by name or GitHub handle.
     pub maintainers: Vec<String>,
-    /// `meta.insecure`: the package is marked with a known unfixed
-    /// vulnerability (needs `NIXPKGS_ALLOW_INSECURE=1` to build).
+    /// `meta.insecure`: a known unfixed vulnerability.
     pub insecure: bool,
     /// `meta.knownVulnerabilities`: CVE ids, if any.
     pub known_vulnerabilities: Vec<String>,
-    /// `meta.broken`: nix refuses to evaluate `outPath`/`drvPath` for this
-    /// package (so `nix run` AND `closure_size()` will fail). Unlike
-    /// `insecure`, `.meta` stays readable even for a broken package: it is the
-    /// only reliable, free signal explaining why running will probably fail.
+    /// `meta.broken`: building, so running, will fail.
     pub broken: bool,
     /// Package version, read next to the meta.
     pub version: Option<String>,
@@ -41,7 +31,7 @@ pub struct PackageDetail {
 }
 
 impl PackageDetail {
-    /// Precise taxonomy (unlike `Package::kind`, which cannot see the meta).
+    /// Kind of the package, from `mainProgram`.
     pub fn kind(&self) -> Kind {
         if self.main_program.is_some() {
             Kind::App
@@ -55,8 +45,7 @@ impl PackageDetail {
     }
 }
 
-/// Fetches a package's rich metadata through `nix eval <attr>.meta --json`,
-/// plus its version. Returns `None` when not found or evaluation fails.
+/// The meta and version of `attr`; `None` when evaluation fails.
 pub fn detail(attr: &str) -> Option<PackageDetail> {
     let output = crate::util::nix()
         .args([
@@ -143,18 +132,10 @@ fn maintainer_name(v: &serde_json::Value) -> Option<String> {
         })
 }
 
-/// Download size of the full closure (the package + all its dependencies),
-/// queried directly against the `cache.nixos.org` binary cache **without
-/// downloading or building anything**: 1) resolve the attr to a pure store
-/// path (`nix eval .outPath`, local, fast), 2) query that store path against
-/// the cache for its NAR metadata (`closureDownloadSize`). `None` when the
-/// package is not in the binary cache (a source build is then needed, size
-/// not predictable without doing it).
+/// Download size of the package and its dependencies, asked to the binary
+/// cache without building. `None` when the cache does not have it.
 pub fn closure_size(attr: &str) -> Option<u64> {
-    // Read-only size query: bypass the unfree/broken/insecure gates of
-    // check-meta.nix (they block `.outPath` but not `.meta`, see `detail()`),
-    // otherwise the Storage tile stays "Unknown" for Steam, Discord, VS Code
-    // and every non-free package.
+    // Read-only: unfree and broken packages need sizes too.
     let out = crate::util::nix()
         .env("NIXPKGS_ALLOW_UNFREE", "1")
         .env("NIXPKGS_ALLOW_BROKEN", "1")
@@ -194,7 +175,7 @@ pub fn closure_size(attr: &str) -> Option<u64> {
     v.get(store_path)?.get("closureDownloadSize")?.as_u64()
 }
 
-/// `homepage` may be a string or a list of strings; take the first.
+/// The first string of a string or a list.
 fn first_string(v: &serde_json::Value) -> Option<String> {
     match v {
         serde_json::Value::String(s) => Some(s.clone()),
@@ -203,8 +184,7 @@ fn first_string(v: &serde_json::Value) -> Option<String> {
     }
 }
 
-/// `meta.license.free`, direct for an object; for a list, free only when every
-/// license is. `None` when the info is not exposed (old plain string format).
+/// True when every license is free; `None` when unknown.
 fn license_is_free(v: &serde_json::Value) -> Option<bool> {
     match v {
         serde_json::Value::Object(o) => o.get("free").and_then(|x| x.as_bool()),
@@ -217,7 +197,7 @@ fn license_is_free(v: &serde_json::Value) -> Option<bool> {
     }
 }
 
-/// `license` may be a string, a `{fullName,…}` object, or a list of both.
+/// License name from a string, an object or a list.
 fn license_str(v: &serde_json::Value) -> String {
     fn one(v: &serde_json::Value) -> Option<String> {
         match v {

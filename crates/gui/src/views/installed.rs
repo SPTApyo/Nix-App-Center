@@ -1,11 +1,5 @@
-//! "Installed" tab, a list per origin like GNOME Software:
-//!
-//! • "In Your Configuration": packages Nix Software keeps (`kept.json`), removable.
-//! • "Recently Tried": `nix run` history, each one removable from the store.
-//! • "System" / "User": apps the Nix profiles already hold, read only and
-//!   dimmed, drawn from their desktop files with the local icons.
-//!
-//! Reloaded when the tab is activated, through `InstalledMsg::Reload`.
+//! Installed tab: kept apps, tried apps (removable from the store), and the
+//! apps the system and user profiles hold, read only.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -17,15 +11,15 @@ use relm4::prelude::*;
 use crate::i18n::t;
 use crate::util::{self, esc};
 
-/// A kept or tried package, with what its row needs.
+/// A kept or tried package and what its row needs.
 #[derive(Debug, Clone)]
 pub struct Item {
     package: Package,
     icon: Option<Vec<u8>>,
-    /// Desktop file shipped by the package itself (tried apps).
+    /// The package's own desktop file.
     desktop_file: Option<PathBuf>,
     tried_at: Option<u64>,
-    /// Store paths the package fetched (tried apps).
+    /// Store paths the package fetched.
     paths: Vec<PathBuf>,
 }
 
@@ -39,7 +33,7 @@ pub struct Data {
 }
 
 impl Data {
-    /// The `nix profile` element holding `store_path`, Home Manager's excluded.
+    /// The `nix profile` element holding `store_path`, never Home Manager's.
     fn removable(&self, store_path: &Path) -> Option<&str> {
         let path = store_path.to_string_lossy();
         self.elements
@@ -48,7 +42,7 @@ impl Data {
             .map(|e| e.name.as_str())
     }
 
-    /// " · 120 MB" for the given paths, empty when unknown.
+    /// " · 120 MB" for `paths`, empty when unknown.
     fn size_suffix<'a>(&self, paths: impl IntoIterator<Item = &'a PathBuf>) -> String {
         let total: u64 = paths.into_iter().filter_map(|p| self.sizes.get(p)).sum();
         if total == 0 {
@@ -156,7 +150,7 @@ impl SimpleComponent for InstalledModel {
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let _ = s.send(InstalledMsg::DataReady(load_data()));
-                    // Icons come from AppStream: list again once it is loaded.
+                    // List again once icons are known.
                     if !nix_software_core::appstream_settled() {
                         nix_software_core::wait_appstream(std::time::Duration::from_secs(180));
                         let _ = s.send(InstalledMsg::DataReady(load_data()));
@@ -279,7 +273,7 @@ impl SimpleComponent for InstalledModel {
 }
 
 impl InstalledModel {
-    /// Clears `content` and fills it again from the current state.
+    /// Fills `content` from the current state.
     fn rebuild(&self, sender: &ComponentSender<Self>) {
         while let Some(child) = self.content.first_child() {
             self.content.remove(&child);
@@ -296,7 +290,6 @@ impl InstalledModel {
             return;
         };
 
-        // In your configuration.
         let kept_attrs: HashSet<String> = data
             .kept
             .iter()
@@ -324,7 +317,6 @@ impl InstalledModel {
             None,
         ));
 
-        // Recently tried.
         let rows: Vec<gtk::Widget> = data
             .tried
             .iter()
@@ -371,7 +363,6 @@ impl InstalledModel {
             gc,
         ));
 
-        // Read-only: what the profiles already hold.
         for (scope, title, subtitle) in [
             (
                 Scope::User,
@@ -392,7 +383,6 @@ impl InstalledModel {
                     let sub = a.version.clone() + &data.size_suffix([&a.store_path]);
                     let row = util::desktop_row(&a.desktop_file, &sub)?;
                     match data.removable(&a.store_path) {
-                        // Installed with nix profile: Nix Software may remove it.
                         Some(name) => row.add_suffix(&self.action_button(
                             &t("Remove"),
                             false,
@@ -460,7 +450,7 @@ fn display_name(p: &Package) -> String {
     }
 }
 
-/// Flathub icon, else the icon the package ships, else a family badge.
+/// Flathub icon, else the package's own, else a family badge.
 fn item_icon(item: &Item) -> gtk::Widget {
     if let Some(tex) = item
         .icon
@@ -473,7 +463,6 @@ fn item_icon(item: &Item) -> gtk::Widget {
     }
     let local = item.desktop_file.as_deref().and_then(|f| {
         use gtk::gio::prelude::AppInfoExt;
-        // The package dir is not in the theme path.
         if let Some(display) = gtk::gdk::Display::default() {
             if let Some(share) = f.parent().and_then(Path::parent) {
                 gtk::IconTheme::for_display(&display).add_search_path(share.join("icons"));
@@ -487,7 +476,7 @@ fn item_icon(item: &Item) -> gtk::Widget {
     }
 }
 
-/// A titled boxed list, or the `empty` text when there are no rows.
+/// A titled list, or `empty` without rows.
 fn section(
     title: &str,
     subtitle: Option<&str>,
@@ -511,8 +500,7 @@ fn section(
     sec
 }
 
-/// Reads the manifest, the history and the profiles, with icons. Blocking:
-/// call it from a thread.
+/// The manifest, history and profiles, with icons. Blocking.
 fn load_data() -> Data {
     let tried = nix_software_core::load_tried().tried;
     let kept: Vec<(Package, Option<u64>, Vec<String>)> = nix_software_core::load_manifest()
@@ -541,7 +529,7 @@ fn load_data() -> Data {
     }
 }
 
-/// Resolves icons with bounded parallelism (waves of `MAX_PAR` threads).
+/// Resolves icons, `MAX_PAR` threads at a time.
 fn with_icons(entries: Vec<(Package, Option<u64>, Vec<String>)>) -> Vec<Item> {
     const MAX_PAR: usize = 16;
     let mut out = Vec::with_capacity(entries.len());

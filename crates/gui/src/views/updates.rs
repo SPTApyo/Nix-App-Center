@@ -1,10 +1,5 @@
-//! "Updates" tab. Every package follows the nixpkgs revision the config pins,
-//! so an update is that pin moving to the head of its branch. The tab shows
-//! the current pin, the branch head, the installed apps that change, and runs
-//! the update (move the pin, then apply) when Nix Software knows how.
-//!
-//! The check downloads nixpkgs once per hour at most: it only runs when the
-//! tab is entered and the last check is older than ten minutes.
+//! Updates tab: the pinned nixpkgs, its branch head, the apps that change,
+//! and the update. Checks at most every ten minutes.
 
 use std::time::{Duration, Instant};
 
@@ -27,8 +22,7 @@ pub struct Check {
 }
 
 impl Check {
-    /// A user profile has no single revision: it is up to date when no
-    /// installed app changes.
+    /// True when nothing would change; for a profile, when no app changes.
     fn up_to_date(&self, latest: &Latest) -> bool {
         match self.source.method {
             UpdateMethod::Profile => self.apps.is_empty(),
@@ -36,7 +30,7 @@ impl Check {
         }
     }
 
-    /// Number shown on the tab badge: 0 when up to date.
+    /// Tab badge count; 0 when up to date.
     fn pending(&self) -> usize {
         match &self.latest {
             Some(l) if !self.up_to_date(l) => self.apps.len().max(1),
@@ -67,7 +61,7 @@ pub enum UpdatesMsg {
     Reload,
     /// "Check Again".
     Refresh,
-    /// Daily check started by the app, notifies when updates are pending.
+    /// Daily check; notifies when updates are pending.
     Background,
     Checked(Check),
     Update,
@@ -191,7 +185,7 @@ impl SimpleComponent for UpdatesModel {
     }
 }
 
-/// Blocking: reads the pin, asks for the branch head, compares the apps.
+/// Reads the pin, the branch head and the app changes. Blocking.
 fn check() -> Check {
     let source = nix_software_core::current_source();
     let latest = source.branch.as_deref().and_then(nix_software_core::latest);
@@ -356,7 +350,7 @@ impl UpdatesModel {
     }
 }
 
-/// Why Nix Software cannot run the update itself.
+/// Why Nix Software cannot update by itself.
 fn method_note(method: &UpdateMethod) -> Option<String> {
     match method {
         UpdateMethod::Pinned { by } => Some(
@@ -368,8 +362,7 @@ fn method_note(method: &UpdateMethod) -> Option<String> {
     }
 }
 
-/// A newer NixOS release: moving to it means editing the branch in the
-/// config (flake input or channel), which the user does on purpose.
+/// Banner for a newer NixOS release, which the user moves to on purpose.
 fn release_banner(release: &str) -> adw::Banner {
     let banner = adw::Banner::new(
         &t("NixOS {0} is available. Switch your configuration to nixos-{0} when you are ready.")
@@ -382,9 +375,8 @@ fn release_banner(release: &str) -> adw::Banner {
     });
     banner
 }
-/// "Everything is up to date" illustration (borrowed from GNOME Software), centered.
+/// "Everything is up to date" view.
 fn up_to_date_view() -> gtk::Box {
-    // Embedded: the source tree does not exist once installed.
     const SVG: &[u8] = include_bytes!("../../data/assets/up-to-date.svg");
     let pic = gtk::Picture::new();
     if let Ok(tex) = gtk::gdk::Texture::from_bytes(&gtk::glib::Bytes::from_static(SVG)) {

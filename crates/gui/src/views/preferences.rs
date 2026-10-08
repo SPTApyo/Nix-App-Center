@@ -1,6 +1,5 @@
-//! Preferences dialog: what Nix Software detected of the Nix configuration, overrides
-//! when the text scan guesses wrong, a check by Nix itself, and the update
-//! check preference. Settings are saved as soon as they change.
+//! Preferences: the detected configuration and its overrides, installing,
+//! updates and search. Saved on change.
 
 use adw::prelude::*;
 use nix_software_core::{Layout, LayoutKind};
@@ -13,7 +12,6 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     let dialog = adw::PreferencesDialog::new();
     let page = adw::PreferencesPage::new();
 
-    // ── Configuration ─────────────────────────────────────────────────────────
     let config = adw::PreferencesGroup::builder()
         .title(t("Configuration"))
         .description(t(
@@ -99,7 +97,6 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         config.add(w);
     }
 
-    // ── Installing ────────────────────────────────────────────────────────────
     let installing = adw::PreferencesGroup::builder()
         .title(t("Installing"))
         .build();
@@ -118,7 +115,6 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     installing.add(&everyone);
     installing.set_visible(nix_software_core::detect_layout().system.is_some());
 
-    // ── Updates ───────────────────────────────────────────────────────────────
     let updates = adw::PreferencesGroup::builder().title(t("Updates")).build();
     let auto = adw::SwitchRow::builder()
         .title(t("Check for Updates Automatically"))
@@ -134,7 +130,6 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     });
     updates.add(&auto);
 
-    // ── Search ────────────────────────────────────────────────────────────────
     let search = adw::PreferencesGroup::builder().title(t("Search")).build();
     let by_command = adw::ActionRow::builder()
         .title(t("Search by Command"))

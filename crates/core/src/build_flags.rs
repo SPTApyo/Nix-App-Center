@@ -1,7 +1,5 @@
-//! Build options of a package: the boolean arguments of its recipe, such as
-//! `withQt5 ? true` in vlc, switched through `pkgs.<attr>.override`. Read
-//! from the recipe file itself (meta.position): Nix exposes the argument
-//! names but not their defaults.
+//! Boolean arguments of a package recipe (`withQt5 ? true`), read from the
+//! recipe file since Nix does not expose their defaults.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildFlag {
@@ -9,7 +7,7 @@ pub struct BuildFlag {
     pub default: bool,
 }
 
-/// Flags of the recipe at `position` (`/nix/store/…/package.nix:315`).
+/// Flags of the recipe at `position` (`file:line`).
 pub fn build_flags(position: &str) -> Vec<BuildFlag> {
     let file = position.rsplit_once(':').map_or(position, |(f, _)| f);
     std::fs::read_to_string(file)
@@ -17,7 +15,7 @@ pub fn build_flags(position: &str) -> Vec<BuildFlag> {
         .unwrap_or_default()
 }
 
-/// `name ? true|false` pairs of the argument set, before its closing `}:`.
+/// `name ? true|false` pairs before the argument set closes.
 fn parse_flags(src: &str) -> Vec<BuildFlag> {
     let header = src.split("}:").next().unwrap_or_default();
     let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '-';
@@ -49,8 +47,7 @@ fn parse_flags(src: &str) -> Vec<BuildFlag> {
     out
 }
 
-/// The flags a saved block overrides, read back from
-/// `pkgs.<attr>.override { withQt5 = false; }`.
+/// The flags a saved block sets in `pkgs.<attr>.override { … }`.
 pub fn overridden_flags(block: &str, attr: &str) -> Vec<(String, bool)> {
     let Some(rest) = block.split_once(&format!("pkgs.{attr}.override {{")) else {
         return Vec::new();

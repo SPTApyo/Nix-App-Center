@@ -1,12 +1,4 @@
-//! Review row, a copy of `gs-review-row.ui`.
-//!
-//! `GtkListBoxRow .review-row` holding a vertical `GtkBox` (spacing 6):
-//!  1. `GtkBox spacing 10`: stars, `.heading` summary (ellipsize, hexpand),
-//!     `.dim-label` date aligned right;
-//!  2. `.dim-label` author, `ellipsize end`;
-//!  3. review text (`wrap`, `max-width-chars 80`, margins 10/8).
-//!
-//!  4. like GNOME, "Was this review useful?" with Yes / No and a report button.
+//! A review: stars, summary, date, author, text, and votes.
 
 use adw::prelude::*;
 use nix_software_core::{Review, ReviewAction};
@@ -14,11 +6,10 @@ use nix_software_core::{Review, ReviewAction};
 use crate::i18n::t;
 use crate::util::{format_relative, stars_widget};
 
-/// The featured review, non activatable (like the right column `GsReviewRow`).
+/// The row of `review`.
 pub fn row(review: &Review) -> gtk::ListBoxRow {
     let vb = gtk::Box::new(gtk::Orientation::Vertical, 6);
 
-    // Line 1: stars + summary + date.
     let head = gtk::Box::new(gtk::Orientation::Horizontal, 10);
     head.append(&stars_widget(review.stars, 16));
 
@@ -35,7 +26,6 @@ pub fn row(review: &Review) -> gtk::ListBoxRow {
     head.append(&date);
     vb.append(&head);
 
-    // Line 2: author, and what they used.
     let used = match (review.distro.is_empty(), review.version.is_empty()) {
         (false, false) => t("on {distro}, version {version}")
             .replace("{distro}", &review.distro)
@@ -56,7 +46,6 @@ pub fn row(review: &Review) -> gtk::ListBoxRow {
         vb.append(&a);
     }
 
-    // Line 3: the text.
     let text = gtk::Label::new(Some(&review.description));
     text.set_xalign(0.0);
     text.set_wrap(true);
@@ -75,7 +64,7 @@ pub fn row(review: &Review) -> gtk::ListBoxRow {
     row
 }
 
-/// "Was this review useful?" with the votes so far, Yes / No and Report.
+/// "Was this review useful?" with votes, Yes, No and Report.
 fn feedback(review: &Review) -> gtk::Box {
     let bar = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     let question = gtk::Label::new(Some(&if review.karma_up > 0 {
@@ -137,7 +126,7 @@ fn confirm_report(parent: &gtk::Button, review: Review, bar: gtk::Box, question:
     dialog.present(Some(parent));
 }
 
-/// Sends the vote or report, then replaces the buttons with the outcome.
+/// Sends `action`, then shows its outcome instead of the buttons.
 fn send(review: Review, action: ReviewAction, bar: gtk::Box, question: gtk::Label) {
     let mut child = question.next_sibling();
     while let Some(w) = child {

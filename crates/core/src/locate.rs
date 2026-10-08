@@ -1,6 +1,4 @@
-//! Search by binary through `nix-locate bin/<cmd>`. Uses the installed
-//! nix-locate, else the prebuilt nix-index database the user downloaded from
-//! the preferences, read with nix-locate from nixpkgs.
+//! Search by command through nix-locate and the nix-index database.
 
 use crate::Package;
 use std::path::PathBuf;
@@ -9,7 +7,7 @@ use std::process::Command;
 const INDEX_URL: &str =
     "https://github.com/nix-community/nix-index-database/releases/latest/download/index-{arch}-linux";
 
-/// Folder of the downloaded database (nix-locate wants a folder holding `files`).
+/// Folder of the downloaded database.
 fn db_dir() -> PathBuf {
     crate::cache::cache_dir().join("nix-index")
 }
@@ -19,7 +17,7 @@ pub fn locate_ready() -> bool {
     crate::launch::in_path("nix-locate") || db_dir().join("files").is_file()
 }
 
-/// Downloads the prebuilt nix-index database (about 100 MB). Blocking.
+/// Downloads the nix-index database (about 100 MB). Blocking.
 pub fn download_locate_db() -> std::io::Result<()> {
     let url = INDEX_URL.replace("{arch}", std::env::consts::ARCH);
     let resp = ureq::get(&url)
@@ -33,8 +31,7 @@ pub fn download_locate_db() -> std::io::Result<()> {
     std::fs::rename(tmp, dir.join("files"))
 }
 
-/// Parses `nix-locate --minimal` output, one `attr.output` per line,
-/// deduplicated by attr.
+/// Packages of `nix-locate --minimal` output, one per attr.
 fn parse_locate(stdout: &str) -> Vec<Package> {
     let mut seen = std::collections::HashSet::new();
     stdout
@@ -47,8 +44,7 @@ fn parse_locate(stdout: &str) -> Vec<Package> {
         .collect()
 }
 
-/// Searches packages providing the `cmd` binary through `nix-locate /bin/<cmd>`.
-/// Degrades gracefully when nix-locate is missing (empty vec).
+/// Packages providing the command `cmd`; empty without nix-locate.
 pub fn locate_binary(cmd: &str) -> Vec<Package> {
     let arg = format!("/bin/{cmd}");
     let args = ["--minimal", "--at-root", "--whole-name", &arg];

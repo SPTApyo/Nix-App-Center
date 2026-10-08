@@ -1,11 +1,8 @@
-//! OARS age rating (like libappstream `as-content-rating.c`): `content_rating`
-//! attributes to a minimal CSM age, formatted for the regional system (PEGI in
-//! Europe, IARC elsewhere), + human descriptions.
+//! OARS age ratings, computed like libappstream, shown as PEGI or IARC.
 
 use crate::util::n_;
 
-/// (id, [none, mild, moderate, intense]): CSM age per value. Verbatim
-/// libappstream table (OARS 1.0 + 1.1).
+/// Minimal age per attribute value (none, mild, moderate, intense).
 const CSM: &[(&str, [u32; 4])] = &[
     ("violence-cartoon", [0, 3, 4, 6]),
     ("violence-fantasy", [0, 3, 7, 8]),
@@ -37,8 +34,7 @@ const CSM: &[(&str, [u32; 4])] = &[
     ("violence-slavery", [0, 13, 15, 18]),
 ];
 
-/// (id, [none, mild, moderate, intense]): human description (verbatim
-/// libappstream). `None` = undefined value.
+/// Description per attribute value; `None` when undefined.
 const DESC: &[(&str, [Option<&str>; 4])] = &[
     (
         "violence-cartoon",
@@ -253,7 +249,7 @@ const DESC: &[(&str, [Option<&str>; 4])] = &[
     ),
 ];
 
-/// Territories using PEGI (European subset; IARC otherwise).
+/// Territories using PEGI; IARC elsewhere.
 const PEGI: &[&str] = &[
     "AL", "AD", "AT", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU",
     "IS", "IE", "IL", "IT", "LV", "LI", "LT", "LU", "MT", "MD", "MC", "ME", "NL", "MK", "NO", "PL",
@@ -272,7 +268,6 @@ fn value_index(v: &str) -> usize {
 fn territory() -> Option<String> {
     for var in ["LC_ALL", "LANG", "LANGUAGE"] {
         if let Ok(v) = std::env::var(var) {
-            // e.g. "fr_FR.UTF-8" → "FR"
             if let Some((_, rest)) = v.split_once('_') {
                 let terr: String = rest
                     .chars()
@@ -287,8 +282,8 @@ fn territory() -> Option<String> {
     None
 }
 
-/// Displayed age ("12" PEGI, "12+" IARC) + descriptions sorted by decreasing
-/// severity. `None` when no OARS attribute is set.
+/// The age to show and the descriptions at that age, worst first.
+/// `None` without any attribute.
 pub fn rating(oars: &[(String, String)]) -> Option<(String, Vec<String>)> {
     if oars.is_empty() {
         return None;
@@ -301,15 +296,13 @@ pub fn rating(oars: &[(String, String)]) -> Option<(String, Vec<String>)> {
             .unwrap_or(0)
     };
 
-    // Minimal age = max CSM age of the set attributes.
     let min_age = oars
         .iter()
         .map(|(id, v)| csm(id, value_index(v)))
         .max()
         .unwrap_or(0);
 
-    // Like GNOME: only descriptions of attributes AT the maximal age, in
-    // canonical (table) order, not file order.
+    // Descriptions at the maximal age, table order.
     let mut descs: Vec<String> = Vec::new();
     for (id, dvals) in DESC {
         if let Some((_, v)) = oars.iter().find(|(i, _)| i == id) {
@@ -324,7 +317,7 @@ pub fn rating(oars: &[(String, String)]) -> Option<(String, Vec<String>)> {
     Some((format_age(min_age), descs))
 }
 
-/// Formats a CSM age for the regional system: PEGI ("12") or IARC ("12+").
+/// `age` as PEGI ("12") or IARC ("12+").
 fn format_age(age: u32) -> String {
     let pegi = territory()
         .map(|t| PEGI.contains(&t.as_str()))

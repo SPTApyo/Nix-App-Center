@@ -1,11 +1,5 @@
-//! Updates, the Nix way: every package follows one nixpkgs revision pinned
-//! by the config (a flake.lock node or a channel). Updating means moving that
-//! pin to the head of its branch, then applying the config.
-//!
-//! The running revision comes from `nixos-version --json`, the branch from the
-//! flake.lock node holding that revision, the branch head from
-//! `nix flake metadata`, and the app changes from the versions in the new
-//! revision compared with the store paths of the installed apps.
+//! Updates: every package follows one nixpkgs revision the config pins.
+//! Updating moves that pin to the head of its branch, then applies.
 
 use crate::config_layout::{detect, Layout, LayoutKind};
 use crate::profiles::ProfileApp;
@@ -26,7 +20,7 @@ pub enum UpdateMethod {
     Pinned { by: String },
     /// No managed configuration, apps in the user profile: `nix profile upgrade`.
     Profile,
-    /// Nix Software cannot tell.
+    /// Unknown.
     Unknown,
 }
 
@@ -61,10 +55,9 @@ pub(crate) fn pinned_rev() -> Option<&'static str> {
     REV.get_or_init(|| current_source().rev).as_deref()
 }
 
-/// Flake reference of the nixpkgs the config is pinned to, so what Nix Software
-/// shows and runs matches what Keep installs. The registry `nixpkgs` when
-/// NixOS pins it to the system (local, no download), else the pinned GitHub
-/// revision, else the registry as is. Computed once per process.
+/// Flake reference of the pinned nixpkgs, so runs match what Keep
+/// installs: the system registry when it pins nixpkgs, else the pinned
+/// revision on GitHub. Computed once.
 pub fn nixpkgs_ref() -> &'static str {
     static REF: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     REF.get_or_init(|| {
@@ -128,7 +121,7 @@ pub fn current_source() -> Source {
             last_modified: None,
             method: UpdateMethod::HmChannel,
         },
-        // Another distribution: Nix Software installs with nix profile there.
+        // Another distribution: apps live in the user profile.
         LayoutKind::Unknown if system.is_none() => Source {
             branch: Some(
                 registry_branch(&registry_list()).unwrap_or_else(|| "nixpkgs-unstable".into()),
@@ -149,8 +142,7 @@ fn registry_list() -> String {
         .unwrap_or_default()
 }
 
-/// The nixpkgs branch the flake registry points `nixpkgs` to, the user
-/// entry before the global one. Pure.
+/// The branch the registry points `nixpkgs` to, user entry first.
 fn registry_branch(list: &str) -> Option<String> {
     let url = ["user", "system", "global"].iter().find_map(|kind| {
         list.lines()
@@ -213,9 +205,8 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> u64 {
     (era * 146_097 + doe - 719_468) as u64
 }
 
-/// Reads the nixpkgs node of a flake.lock. With `rev`, the node locked to
-/// that revision (the system may reach nixpkgs through other inputs);
-/// without, the root input named `nixpkgs`. Pure.
+/// The nixpkgs node of a flake.lock: the one locked to `rev` when given,
+/// else the root's `nixpkgs` input.
 fn source_from_lock(lock: &Value, rev: Option<&str>, dir: &Path) -> Option<Source> {
     let nodes = lock["nodes"].as_object()?;
     let root_name = lock["root"].as_str().unwrap_or("root");
@@ -226,7 +217,7 @@ fn source_from_lock(lock: &Value, rev: Option<&str>, dir: &Path) -> Option<Sourc
             .find(|(_, n)| n["locked"]["rev"].as_str() == Some(rev))
             .map(|(k, _)| k.clone())
     });
-    // A stale lock may not hold the running revision: take the nixpkgs input.
+    // Stale lock: take the nixpkgs input.
     let name = by_rev.or_else(|| {
         std::iter::once(&nodes[root_name])
             .chain(root_inputs.values().filter_map(|v| nodes.get(v.as_str()?)))
@@ -261,7 +252,7 @@ fn source_from_lock(lock: &Value, rev: Option<&str>, dir: &Path) -> Option<Sourc
     })
 }
 
-/// True when the lock node `from` depends on `target`, directly or not.
+/// True when lock node `from` depends on `target`.
 fn reaches(nodes: &serde_json::Map<String, Value>, from: &str, target: &str) -> bool {
     let mut stack = vec![from.to_string()];
     let mut seen = std::collections::HashSet::new();
@@ -283,8 +274,7 @@ fn reaches(nodes: &serde_json::Map<String, Value>, from: &str, target: &str) -> 
     false
 }
 
-/// Head of `branch` on GitHub. Downloads nixpkgs when it moved (cached by Nix
-/// for an hour), which the update needs anyway.
+/// Head of `branch` on GitHub. Fetches nixpkgs when it moved.
 pub fn latest(branch: &str) -> Option<Latest> {
     let out = crate::util::nix()
         .args([
@@ -302,8 +292,7 @@ pub fn latest(branch: &str) -> Option<Latest> {
     })
 }
 
-/// The NixOS release after a stable `branch` (`nixos-26.05` gives `26.11`),
-/// when its channel exists already.
+/// The NixOS release after a stable `branch`, once its channel exists.
 pub fn newer_release(branch: &str) -> Option<String> {
     let next = next_release(branch)?;
     let url = format!("https://channels.nixos.org/nixos-{next}/git-revision");
@@ -324,8 +313,7 @@ fn next_release(branch: &str) -> Option<String> {
     }
 }
 
-/// The installed apps an update of `source` moves: only the user profile
-/// for `nix profile upgrade`, every profile otherwise.
+/// The installed apps an update of `source` changes.
 pub fn updatable_apps(source: &Source) -> Vec<ProfileApp> {
     let mut apps = crate::profiles::profile_apps();
     if source.method == UpdateMethod::Profile {
@@ -335,8 +323,7 @@ pub fn updatable_apps(source: &Source) -> Vec<ProfileApp> {
     apps
 }
 
-/// Installed apps that `rev` ships in a newer version. One evaluation for all
-/// apps; the pname stands for the attribute, apps without a match are skipped.
+/// Installed apps `rev` ships in a newer version, in one evaluation.
 pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
     let mut names: Vec<&str> = apps.iter().map(|a| a.pname.as_str()).collect();
     names.sort_unstable();
@@ -364,7 +351,7 @@ pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
     newer_apps(apps, &versions)
 }
 
-/// Pure part of [`app_updates`]: one entry per pname with a newer version.
+/// The apps whose pname has a newer version in `versions`.
 fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) -> Vec<AppUpdate> {
     let mut out: Vec<AppUpdate> = Vec::new();
     for app in apps {
@@ -381,7 +368,7 @@ fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) ->
     out
 }
 
-/// The command that moves the pin and applies the config, when Nix Software can run it.
+/// The command moving the pin and applying, when Nix Software can run it.
 pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<String>> {
     let shell = |script: String, sudo: bool| -> Vec<String> {
         let mut argv: Vec<String> = Vec::new();
@@ -439,7 +426,7 @@ fn quote_all(argv: &[String]) -> String {
     argv.iter().map(|a| quote(a)).collect::<Vec<_>>().join(" ")
 }
 
-/// Compares two versions "the Nix way" by numeric segments (dot/dash separated).
+/// True when `candidate` is newer than `current`, by numeric segments.
 fn version_newer(candidate: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u64> {
         v.split(['.', '-'])

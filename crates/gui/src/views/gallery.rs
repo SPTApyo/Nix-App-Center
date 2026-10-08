@@ -1,8 +1,5 @@
-//! Development gallery (`dev-gallery` feature): a tab listing labeled real
-//! scenarios that open the real search/details views, plus the real home
-//! embedded. A visual harness to see each kind of app side by side
-//! (clickable or not, with or without icon, conditional sections) and catch
-//! careless mistakes. Never compiled in release.
+//! Development gallery (`dev-gallery` feature): real searches and details
+//! pages for every kind of app, and the home page.
 
 use adw::prelude::*;
 use nix_software_core::Package;
@@ -10,7 +7,7 @@ use relm4::prelude::*;
 
 use crate::views::home::{HomeModel, HomeOutput};
 
-/// (label, real query, expected behavior to check).
+/// (label, query, what to check).
 const SEARCH_SCENARIOS: &[(&str, &str, &str)] = &[
     (
         "App with icon + rating",
@@ -35,7 +32,7 @@ const SEARCH_SCENARIOS: &[(&str, &str, &str)] = &[
     ("No results", "zzqxnonexistent", "“No Results” page"),
 ];
 
-/// (label, real attr, expected behavior to check).
+/// (label, attr, what to check).
 const DETAIL_SCENARIOS: &[(&str, &str, &str)] = &[
     ("Full listing", "steam",
      "Screenshots; Add-ons = NON clickable grid; Other apps = CLICKABLE grid; age tile; proprietary license"),
@@ -45,22 +42,20 @@ const DETAIL_SCENARIOS: &[(&str, &str, &str)] = &[
      "Little metadata; Run button; no screenshots"),
     ("Keep-only / no metadata", "zlib",
      "No mainProgram; “No metadata” card"),
-    // python27 is checked meta.insecure=true; same rendering (red tile +
-    // problems banner) as broken. Refresh if it stops being insecure.
+    // python27 is marked insecure.
     ("Vulnerable (insecure)", "python27",
      "Red “Vulnerable” tile + problems banner"),
 ];
 
 pub struct GalleryModel {
-    // Kept alive: the real home is embedded in the gallery.
     _home: Controller<HomeModel>,
 }
 
 #[derive(Debug)]
 pub enum GalleryMsg {
-    /// Tile click in the embedded home, re-emitted to the parent.
+    /// A tile of the embedded home, for the parent.
     HomeOpen(Package),
-    /// Category card click in the embedded home, re-emitted to the parent.
+    /// A category card of the embedded home, for the parent.
     HomeCategory(&'static [&'static str], &'static str),
 }
 
@@ -93,7 +88,6 @@ impl SimpleComponent for GalleryModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        // The real home, embedded: its outputs are routed to the parent.
         let home = HomeModel::builder()
             .launch(())
             .forward(sender.input_sender(), |o| match o {
@@ -130,15 +124,13 @@ impl SimpleComponent for GalleryModel {
     }
 }
 
-/// Builds the index: three sections (Search / Details / Home).
-/// `home_widget` is the root of `HomeModel`, a `gtk::ScrolledWindow`.
+/// The gallery: search, details and home sections.
 fn build_index(
     sender: &ComponentSender<GalleryModel>,
     home_widget: &gtk::ScrolledWindow,
 ) -> gtk::Box {
     let content = gtk::Box::new(gtk::Orientation::Vertical, 24);
 
-    // ── Search ────────────────────────────────────────────────────────────
     content.append(&heading("Search"));
     let search_list = crate::util::boxed_list();
     for (label, query, expected) in SEARCH_SCENARIOS {
@@ -152,7 +144,6 @@ fn build_index(
     }
     content.append(&search_list);
 
-    // ── Details ───────────────────────────────────────────────────────────
     content.append(&heading("Details"));
     let detail_list = crate::util::boxed_list();
     for (label, attr, expected) in DETAIL_SCENARIOS {
@@ -166,7 +157,6 @@ fn build_index(
     }
     content.append(&detail_list);
 
-    // ── Home (embedded) ───────────────────────────────────────────────────
     content.append(&heading("Home"));
     let note = gtk::Label::new(Some(
         "Icon states to check: loading (shimmer), colored fallback, real icon.",
@@ -175,9 +165,7 @@ fn build_index(
     note.set_wrap(true);
     note.add_css_class("dim-label");
     content.append(&note);
-    // The home is itself a ScrolledWindow (vexpand): bounded in height and
-    // without vexpand it becomes a fixed height panel in the gallery scroll
-    // (otherwise two nested scrollers fight over the height).
+    // Fixed height: avoids two nested scrollers.
     home_widget.set_vexpand(false);
     home_widget.set_height_request(700);
     content.append(home_widget);
@@ -191,7 +179,7 @@ fn heading(text: &str) -> gtk::Label {
     l.add_css_class("title-2");
     l
 }
-/// A scenario row: title + subtitle = expected behavior.
+/// A scenario: its label and what to check.
 fn scenario_row(label: &str, expected: &str) -> adw::ActionRow {
     let row = adw::ActionRow::builder()
         .title(label)

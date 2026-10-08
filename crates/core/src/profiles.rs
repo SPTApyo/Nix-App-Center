@@ -1,17 +1,14 @@
-//! Apps already on the machine, read from the Nix profiles the session uses.
-//!
-//! No evaluation: every profile exposes `share/applications`, and each desktop
-//! file there is a symlink into the store path of its package, whose name
-//! carries the pname and the version (`/nix/store/<hash>-vlc-3.0.23`).
+//! Apps already on the machine, read from the profiles' desktop files: their
+//! store path names give pname and version, without evaluation.
 
 use std::path::{Path, PathBuf};
 
 /// Which profile an app comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scope {
-    /// The NixOS system profile (`environment.systemPackages`).
+    /// The NixOS system profile.
     System,
-    /// The user profiles (`users.users.<u>.packages`, Home Manager, nix profile).
+    /// The user's profiles.
     User,
 }
 
@@ -69,7 +66,7 @@ pub fn installed_app(attr: &str, app_id: Option<&str>) -> Option<ProfileApp> {
     })
 }
 
-/// Own size (NAR size) of each store path, in one query.
+/// Own size of each store path, in one query.
 pub fn store_sizes(paths: &[PathBuf]) -> std::collections::HashMap<PathBuf, u64> {
     if paths.is_empty() {
         return Default::default();
@@ -132,8 +129,8 @@ fn store_name(path: &Path) -> Option<(String, String)> {
     Some(split_name(name))
 }
 
-/// Splits `name-version` like Nix does: the version starts at the first dash
-/// followed by something other than a letter.
+/// Splits `name-version` like Nix: the version starts at the first dash
+/// before a non-letter.
 pub(crate) fn split_name(name: &str) -> (String, String) {
     let bytes = name.as_bytes();
     for (i, b) in bytes.iter().enumerate() {

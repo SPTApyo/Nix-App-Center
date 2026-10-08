@@ -1,6 +1,4 @@
-//! `FeaturedCarousel`: the rotating featured banner of the home page (copy of
-//! `GsFeaturedCarousel`: AdwCarousel `.card`, height 318, round prev/next
-//! buttons, indicator dots). Slides are Flathub apps on a gradient background.
+//! The rotating featured banner of the home page.
 
 use adw::prelude::*;
 use nix_software_core::Package;
@@ -112,7 +110,7 @@ impl SimpleComponent for FeaturedCarousel {
                 let mut css = String::new();
                 for (idx, item) in items.into_iter().take(6).enumerate() {
                     let (slide, img) = build_slide(&item, idx, &sender);
-                    // The app's own color when it declares one, like GNOME.
+                    // The app's brand color when declared.
                     let brand =
                         nix_software_core::brand_colors(&item.package).and_then(|(light, d)| {
                             if dark {
@@ -121,7 +119,7 @@ impl SimpleComponent for FeaturedCarousel {
                                 light.or(d)
                             }
                         });
-                    // brand_colors only gives validated `#rrggbb` values.
+                    // Colors are validated `#rrggbb`.
                     if let Some(color) = brand {
                         slide.add_css_class(&format!("brand-{idx}"));
                         css.push_str(&format!(
@@ -173,7 +171,7 @@ impl FeaturedCarousel {
     }
 }
 
-/// Black or white, whichever reads better on `hex` (`#rrggbb`).
+/// Black or white, whichever reads better on `hex`.
 fn text_color(hex: &str) -> &'static str {
     let c = |i: usize| f64::from(u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or(0)) / 255.0;
     let luminance = 0.2126 * c(1) + 0.7152 * c(3) + 0.0722 * c(5);

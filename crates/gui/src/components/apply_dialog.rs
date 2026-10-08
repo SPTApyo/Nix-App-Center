@@ -1,6 +1,4 @@
-//! Build log dialog: runs an apply or update command and shows its output
-//! live, so a rebuild stays inside the app. The dialog cannot be closed while
-//! the command runs; `done` receives the outcome once it ends.
+//! Live build log of an apply or update; `done` gets the outcome.
 
 use adw::prelude::*;
 use nix_software_core::ApplyOutcome;

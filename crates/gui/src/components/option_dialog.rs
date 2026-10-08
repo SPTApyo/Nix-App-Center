@@ -1,5 +1,4 @@
-//! Details of a NixOS option: description, type, default, example, where it
-//! is declared, and a line ready to paste in the configuration.
+//! A NixOS option: its facts and a line to paste.
 
 use adw::prelude::*;
 use nix_software_core::NixOption;

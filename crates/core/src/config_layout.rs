@@ -1,18 +1,6 @@
-//! Detection of the user's Nix configuration layout.
-//!
-//! Nix Software used to assume *standalone* home-manager: it wrote
-//! `~/.config/home-manager/nix-software-packages.nix` and applied with `home-manager switch`.
-//! Both assumptions break outside that case, and the most common NixOS setup
-//! (flake + home-manager as a NixOS module) has neither that file imported nor that
-//! binary. The generated file was then an **orphan**: "keep" had no effect.
-//!
-//! This module identifies the real layout and derives three things from it: where to
-//! put the Nix Software files, which `imports` to patch, and **the real apply command**.
-//!
-//! Detection is *text scanning*, not Nix parsing: it looks for markers and never
-//! rebuilds a file from an AST. So it can be wrong, which is why it is never applied
-//! silently: the front end shows what was found and asks for confirmation (see
-//! `config_attach`).
+//! Detects how the user's Nix configuration is laid out: where Nix Software
+//! writes its files, which file imports them and how to apply. Text scanning,
+//! so the front end always shows the result before writing.
 
 use std::path::{Path, PathBuf};
 
@@ -27,32 +15,29 @@ pub enum LayoutKind {
     HmFlake { dir: PathBuf, user: String },
     /// Standalone home-manager (`~/.config/home-manager/home.nix`).
     HmStandalone { dir: PathBuf },
-    /// Nothing recognizable. Nix Software does not guess: it falls back on the manual snippet.
+    /// Nothing recognizable: Nix Software shows a snippet instead of guessing.
     Unknown,
 }
 
-/// A scope Nix Software can write to: its file, and the file whose `imports` list must be
-/// patched so Nix Software's file is taken into account.
+/// A scope Nix Software writes to, and the file importing it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeTarget {
-    /// The file Nix Software owns (generated, never edited by hand).
+    /// The generated file Nix Software owns.
     pub nix_software_file: PathBuf,
-    /// The user's file whose `imports = [ … ]` gets patched, a single line.
+    /// The user's file whose `imports` list gets one line.
     pub import_site: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layout {
     pub kind: LayoutKind,
-    /// User scope (`home.packages`…). `None` when the layout offers none.
+    /// User scope, if any.
     pub home: Option<ScopeTarget>,
-    /// System scope (`networking.firewall`…). `None` outside NixOS: standalone
-    /// home-manager has no way to write system options.
+    /// System scope; `None` outside NixOS.
     pub system: Option<ScopeTarget>,
-    /// The full apply argv. Empty when the layout is unknown.
+    /// The apply argv; empty when unknown.
     pub apply: Vec<String>,
-    /// The home-manager user, when HM is plugged in as a NixOS module. It decides
-    /// the wrapping of the Nix Software file (`home-manager.users.<user> = { … }`).
+    /// The Home Manager user when Home Manager is a NixOS module.
     pub hm_user: Option<String>,
 }
 
@@ -66,8 +51,8 @@ impl Layout {
 const NIX_SOFTWARE_HOME_FILE: &str = "nix-software-home.nix";
 const NIX_SOFTWARE_SYSTEM_FILE: &str = "nix-software-system.nix";
 
-/// Root of the NixOS configuration. `$NIX_SOFTWARE_CONFIG_DIR` is the escape hatch (and
-/// the test injection point: no test may ever touch the real `/etc/nixos`).
+/// The NixOS configuration folder: `NIX_SOFTWARE_CONFIG_DIR`, the settings,
+/// else `/etc/nixos`.
 fn nixos_dir() -> PathBuf {
     std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
         .map(PathBuf::from)
@@ -92,7 +77,7 @@ pub fn detect() -> Layout {
     let flake = nixos.join("flake.nix");
     if flake.is_file() {
         let src = read(&flake);
-        // NIX_SOFTWARE_CONFIG_DIR (tests, e2e) bypasses the saved settings.
+        // The environment variable beats the settings.
         let chosen = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
             .is_none()
             .then(|| crate::settings::load_settings().host)
@@ -126,20 +111,19 @@ pub fn detect() -> Layout {
     }
 }
 
-// ── Verification ──────────────────────────────────────────────────────────────
-
-/// What Nix itself reports about a flake layout.
+/// What Nix reports about a flake layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verified {
     /// Configurations the flake really outputs.
     pub hosts: Vec<String>,
-    /// Home Manager users of the chosen host (empty without Home Manager),
-    /// or why Nix could not evaluate the host.
+    /// Home Manager users of the host, or why the host did not evaluate.
     pub hm_users: Result<Vec<String>, String>,
 }
 
-/// Asks Nix what the text scan guessed. Evaluates the flake (seconds):
-/// call it from a thread. `Err` carries the last line Nix printed.
+/// Checks the scan with Nix by evaluating the flake. Blocking.
+///
+/// # Errors
+/// The last line Nix printed.
 pub fn verify(layout: &Layout) -> Result<Verified, String> {
     let names = |expr: String| -> Result<Vec<String>, String> {
         let out = crate::util::nix()
@@ -178,11 +162,8 @@ pub fn verify(layout: &Layout) -> Result<Verified, String> {
     }
 }
 
-// ── Text scanning ─────────────────────────────────────────────────────────────
-
-/// First `nixosConfigurations.<host>` or `nixosConfigurations = { <host> = …`.
-/// When the machine hostname is among the configurations found, it wins: a
-/// multi-machine flake must not make Nix Software write into another machine's config.
+/// The host to use from a flake: this machine's hostname when declared,
+/// else the first `nixosConfigurations` entry.
 pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
     let hosts = nixos_hosts(flake_src);
     if hosts.is_empty() {
@@ -200,14 +181,14 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     let mut out = Vec::new();
     for (idx, _) in flake_src.match_indices("nixosConfigurations") {
         let rest = &flake_src[idx + "nixosConfigurations".len()..];
-        // Form A: `nixosConfigurations.laptop = …`
+        // `nixosConfigurations.laptop = …`
         if let Some(after_dot) = rest.strip_prefix('.') {
             if let Some(name) = take_ident(after_dot) {
                 out.push(name);
                 continue;
             }
         }
-        // Form B: `nixosConfigurations = { laptop = … }`, first ident of the brace.
+        // `nixosConfigurations = { laptop = … }`
         if let Some(brace) = rest.find('{') {
             let inner = rest[brace + 1..].trim_start();
             if let Some(name) = take_ident(inner) {
@@ -219,7 +200,7 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     out
 }
 
-/// The Nix identifier at the head of `s` (`laptop = …` → `laptop`), quotes allowed.
+/// The Nix identifier at the start of `s`, quotes allowed.
 fn take_ident(s: &str) -> Option<String> {
     let s = s.trim_start().trim_start_matches('"');
     let ident: String = s
@@ -229,8 +210,7 @@ fn take_ident(s: &str) -> Option<String> {
     (!ident.is_empty()).then_some(ident)
 }
 
-/// The user of `home-manager.users.<user>` when it appears in a `.nix` file of
-/// the directory, a sign that home-manager is plugged in as a NixOS module.
+/// The `home-manager.users.<user>` user found in the folder's files.
 fn hm_user_in_dir(dir: &Path) -> Option<String> {
     let entries = std::fs::read_dir(dir).ok()?;
     for entry in entries.filter_map(Result::ok) {
@@ -260,14 +240,10 @@ pub(crate) fn current_user() -> String {
     std::env::var("USER").unwrap_or_else(|_| "root".to_string())
 }
 
-// ── Building layouts ──────────────────────────────────────────────────────────
-
-/// On NixOS both scopes attach at the **same** place: the top-level `imports` list
-/// of `configuration.nix`. It is the safest splice, no nested Nix to parse. The
-/// "home" file is then a NixOS module wrapping its content in
-/// `home-manager.users.<user>`, not a home-manager module.
+/// NixOS scopes: both files attach to the top-level `imports` list; the
+/// home file wraps its content in `home-manager.users.<user>`.
 fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
-    // A flake may have no configuration.nix: its modules list is the place.
+    // Without configuration.nix, the flake modules list.
     let config = dir.join("configuration.nix");
     let site = if config.is_file() || !dir.join("flake.nix").is_file() {
         config
@@ -327,8 +303,7 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
         "--flake".into(),
         format!("{}#{}", dir.display(), user),
     ];
-    // No system scope: standalone home-manager cannot write NixOS options.
-    // A system option is refused with a snippet to paste.
+    // Standalone Home Manager has no system scope.
     Layout {
         kind: LayoutKind::HmFlake { dir, user },
         home,
@@ -456,7 +431,7 @@ mod tests {
 
     #[test]
     fn hm_standalone_has_no_system_scope() {
-        // Standalone home-manager has no way to write NixOS options.
+        // Standalone Home Manager has no system scope.
         let dir = PathBuf::from("/tmp/hm");
         let layout = hm_standalone_layout(dir);
         assert!(layout.system.is_none());
@@ -468,7 +443,7 @@ mod tests {
         let src = "nixosConfigurations.Autre = a; nixosConfigurations.laptop = b;";
         let hosts = nixos_hosts(src);
         assert_eq!(hosts, ["Autre", "laptop"]);
-        // Without a match with the real hostname, the first declared one is used.
+        // Unknown hostname: the first host.
         assert!(first_nixos_host(src).is_some());
     }
 

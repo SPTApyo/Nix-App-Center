@@ -1,5 +1,4 @@
-//! Category bridge: Flathub curated collections (popular, recent,
-//! freedesktop categories) to nixpkgs packages really runnable with `nix run`.
+//! Flathub collections and categories, resolved to nixpkgs packages.
 
 use crate::appstream_db::DevApp;
 use crate::package::Package;
@@ -7,7 +6,7 @@ use crate::resolve::{attr_for_app_id, resolve_app_id};
 use crate::util::{matching_keys, regex_escape};
 use std::collections::HashMap;
 
-/// An app listed by Flathub (for category browsing).
+/// An app listed by Flathub.
 #[derive(Debug, Clone)]
 struct FlathubApp {
     app_id: String,
@@ -17,8 +16,7 @@ struct FlathubApp {
     updated_at: i64, // unix timestamp of the last update
 }
 
-/// Fetches a Flathub collection (`category/<slug>`, `popular`, `trending`…)
-/// and returns its apps. `collection` is the path after `/collection/`.
+/// The apps of a Flathub collection (`popular`, `category/game`).
 fn flathub_collection(collection: &str, limit: usize) -> Vec<FlathubApp> {
     let url = format!("https://flathub.org/api/v2/collection/{collection}?page=1&per_page={limit}");
     let v = match crate::http::get_json(&url) {
@@ -45,15 +43,13 @@ fn flathub_collection(collection: &str, limit: usize) -> Vec<FlathubApp> {
         .collect()
 }
 
-/// Lists the apps of a freedesktop category through Flathub
-/// (`development`, `game`, `graphics`, `network`, `audiovideo`, `utility`…).
+/// The apps of a freedesktop category on Flathub.
 fn flathub_category(category: &str, limit: usize) -> Vec<FlathubApp> {
     flathub_collection(&format!("category/{category}"), limit)
 }
 
-/// Candidate nixpkgs attrs for a Flathub app, most trusted first. A curated
-/// overlay entry wins outright; a fuzzy key is dropped when the overlay pins
-/// that attr to another app (nixpkgs `moonlight` is not Moonlight streaming).
+/// Candidate nixpkgs attrs for a Flathub app, most trusted first. Curated
+/// mappings win and veto fuzzy matches.
 fn candidate_attrs(name: &str, app_id: &str) -> Vec<String> {
     if let Some(attr) = attr_for_app_id(app_id) {
         return vec![attr.to_lowercase()];
@@ -64,14 +60,8 @@ fn candidate_attrs(name: &str, app_id: &str) -> Vec<String> {
         .collect()
 }
 
-/// Resolves a batch of candidates (names) to nixpkgs packages in ONE
-/// `nix search` (anchored regex alternation). Key = exact attr (lowercase).
-///
-/// The raw fetch goes through the same disk cache as `search::search`
-/// (`cache::cached_search`): THIS path (popular/categories/home) paid the
-/// cold nixpkgs evaluation cost most often, since the home page calls it on
-/// every app start.
-/// Shared with `updates` (current versions of kept packages).
+/// nixpkgs packages whose attr is one of `candidates`, in one cached
+/// `nix search`, keyed by lowercase attr.
 pub(crate) fn nix_attr_lookup(candidates: &[String]) -> HashMap<String, Package> {
     let mut uniq: Vec<String> = candidates
         .iter()
@@ -100,7 +90,6 @@ pub(crate) fn nix_attr_lookup(candidates: &[String]) -> HashMap<String, Package>
     let mut map = HashMap::new();
     for p in packages {
         let key = p.attr.to_lowercase();
-        // Keep only attrs exactly equal to a candidate (avoids noise).
         if cand_set.contains(&key) {
             map.entry(key).or_insert(p);
         }
@@ -108,15 +97,12 @@ pub(crate) fn nix_attr_lookup(candidates: &[String]) -> HashMap<String, Package>
     map
 }
 
-/// Resolves a batch of Flathub apps to nixpkgs in ONE `nix search`. Returns,
-/// in input order (Flathub curation), the apps present in nixpkgs, keeping the
-/// `FlathubApp` (icon, updated_at…) paired with the nix package.
+/// The Flathub apps nixpkgs has, in Flathub order, with their package.
 fn resolve_apps(apps: Vec<FlathubApp>) -> Vec<(FlathubApp, Package)> {
     if apps.is_empty() {
         return vec![];
     }
 
-    // Candidates per app, most trusted first (see `candidate_attrs`).
     let mut candidates = Vec::new();
     for a in &apps {
         candidates.extend(candidate_attrs(&a.name, &a.app_id));
@@ -134,7 +120,7 @@ fn resolve_apps(apps: Vec<FlathubApp>) -> Vec<(FlathubApp, Package)> {
             if seen.insert(pkg.attr.clone()) {
                 let mut pkg = pkg.clone();
                 pkg.name = a.name.clone();
-                // The AppStream summary reads better than nix's technical description.
+                // AppStream summaries read better than nix descriptions.
                 if let Some(summary) = a.summary.clone().filter(|s| !s.trim().is_empty()) {
                     pkg.description = summary;
                 }
@@ -145,13 +131,8 @@ fn resolve_apps(apps: Vec<FlathubApp>) -> Vec<(FlathubApp, Package)> {
     out
 }
 
-/// Pairs "same developer" apps with an already resolved nixpkgs lookup.
-/// Pure (testable without `nix`); dedup by attr, keeps the AppStream icon.
-/// `exclude_attr` = the current page attr: fuzzy resolution may map ANOTHER
-/// app of the same developer onto it ("Steam Link", first word "steam", attr
-/// `steam`), which showed the current package in its own section. Excluding
-/// by AppStream app_id upstream is not enough: two distinct app_ids collapse
-/// onto the same nixpkgs attr.
+/// Developer apps found in `found`, deduplicated, without `exclude_attr`:
+/// fuzzy matches can land on the current page's attr.
 fn match_dev_apps(
     apps: &[DevApp],
     attr_map: &HashMap<String, Package>,
@@ -177,11 +158,7 @@ fn match_dev_apps(
     out
 }
 
-/// Resolves "same developer" apps (details page) to nixpkgs, in ONE cached
-/// `nix search`, same policy as collections. Only apps really present in
-/// nixpkgs are returned: a dead tile (not clickable, no page to open) is worse
-/// than a shorter section. `exclude_attr` = the current page attr (never
-/// listed in its own "other apps").
+/// Other apps of the developer that nixpkgs has, without `exclude_attr`.
 pub fn resolve_dev_apps(apps: &[DevApp], exclude_attr: &str) -> Vec<(Package, Option<String>)> {
     if apps.is_empty() {
         return vec![];
@@ -193,7 +170,7 @@ pub fn resolve_dev_apps(apps: &[DevApp], exclude_attr: &str) -> Vec<(Package, Op
     match_dev_apps(apps, &nix_attr_lookup(&candidates), exclude_attr)
 }
 
-/// Popular apps (Flathub) resolved to nixpkgs, for the home page.
+/// Popular Flathub apps nixpkgs has.
 pub fn popular_packages(limit: usize) -> Vec<(Package, Option<String>)> {
     resolve_apps(flathub_collection("popular", limit))
         .into_iter()
@@ -201,8 +178,7 @@ pub fn popular_packages(limit: usize) -> Vec<(Package, Option<String>)> {
         .collect()
 }
 
-/// Recently updated apps (Flathub) resolved to nixpkgs, the home page
-/// "New & Updated" section.
+/// Recently updated Flathub apps nixpkgs has.
 pub fn recently_updated_packages(limit: usize) -> Vec<(Package, Option<String>)> {
     resolve_apps(flathub_collection("recently-updated", limit))
         .into_iter()
@@ -210,9 +186,7 @@ pub fn recently_updated_packages(limit: usize) -> Vec<(Package, Option<String>)>
         .collect()
 }
 
-/// Splits a resolved list in two sections like GNOME Software:
-/// `.0` = "New & Updated" (the ~12 most recently updated),
-/// `.1` = "Other Software" (the rest, alphabetically).
+/// (recently updated, the rest alphabetically), like GNOME Software.
 type Sections = (
     Vec<(Package, Option<String>)>,
     Vec<(Package, Option<String>)>,
@@ -234,9 +208,7 @@ fn split_sections(mut resolved: Vec<(FlathubApp, Package)>) -> Sections {
     (recent, others)
 }
 
-/// **Union** of several freedesktop categories (like GNOME: e.g. "Work" =
-/// office + utility + webbrowsers). Merges the apps (dedup by app id),
-/// resolves them to nixpkgs in ONE `nix search`, then splits in two sections.
+/// The apps of several categories, merged and split in two sections.
 pub fn category_sections_union(slugs: &[&str], per_cat: usize) -> Sections {
     let mut apps: Vec<FlathubApp> = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -264,8 +236,7 @@ mod tests {
 
     #[test]
     fn match_dev_apps_keeps_only_nixpkgs_resolved() {
-        // A dead tile (app missing from nixpkgs, not clickable) is worse than
-        // a shorter section: only resolved apps are returned.
+        // Only apps nixpkgs has.
         let map: HashMap<String, Package> =
             [("steamlink".to_string(), Package::from_attr("steamlink"))].into();
         let apps = [
@@ -284,9 +255,7 @@ mod tests {
 
     #[test]
     fn match_dev_apps_excludes_current_package() {
-        // On Steam's page, "Steam Link" (first word "steam") falls back on
-        // nixpkgs attr `steam` through fuzzy resolution, so the current package
-        // showed up in its own section. It is excluded by attr.
+        // Steam Link must not show Steam on its page.
         let map: HashMap<String, Package> =
             [("steam".to_string(), Package::from_attr("steam"))].into();
         let apps = [dev(
@@ -303,8 +272,7 @@ mod tests {
 
     #[test]
     fn match_dev_apps_resolves_by_app_id_suffix() {
-        // "GNOME Boxes" does not match by sanitized name, but the last app id
-        // segment ("boxes") does.
+        // Matched by the last app id segment.
         let map: HashMap<String, Package> =
             [("boxes".to_string(), Package::from_attr("boxes"))].into();
         let apps = [dev("GNOME Boxes 2000", "org.gnome.Boxes", None)];
@@ -315,7 +283,7 @@ mod tests {
 
     #[test]
     fn match_dev_apps_dedups_by_attr() {
-        // Two Flathub entries resolving to the same nix attr: one tile only.
+        // Two entries, one attr: one tile.
         let map: HashMap<String, Package> =
             [("gimp".to_string(), Package::from_attr("gimp"))].into();
         let apps = [
@@ -346,12 +314,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::env::set_var("XDG_DATA_HOME", &dir);
 
-        // Overlay pins VS Code to `vscode`: the fuzzy `code` key never applies.
+        // The curated vscode mapping vetoes `code`.
         assert_eq!(
             candidate_attrs("Visual Studio Code", "com.visualstudio.code"),
             ["vscode"]
         );
-        // `steam` is pinned to Steam, so Steam Link may not fall back on it.
+        // `steam` is pinned to Steam.
         let keys = candidate_attrs("Steam Link", "com.valvesoftware.SteamLink");
         assert!(keys.contains(&"steamlink".to_string()));
         assert!(!keys.contains(&"steam".to_string()));
