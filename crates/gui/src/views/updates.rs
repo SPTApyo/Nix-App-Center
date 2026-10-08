@@ -280,6 +280,9 @@ impl UpdatesModel {
                 list.append(&row);
             }
             self.content.append(&list);
+            self.content.append(&util::dim_label(&t(
+                "Apps update together: they all come from the same nixpkgs revision. To keep one app as it is, pin its version in your configuration.",
+            )));
         }
     }
 

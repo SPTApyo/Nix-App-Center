@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-08 21:48+0200\n"
+"POT-Creation-Date: 2026-10-08 21:50+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -360,38 +360,38 @@ msgstr "Menu principal"
 msgid "Search Nix packages…"
 msgstr "Rechercher des paquets Nix…"
 
-#: crates/gui/src/app.rs:240
+#: crates/gui/src/app.rs:256
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:244
+#: crates/gui/src/app.rs:260
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:247 crates/gui/src/views/preferences.rs:122
+#: crates/gui/src/app.rs:263 crates/gui/src/views/preferences.rs:122
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: crates/gui/src/app.rs:250
+#: crates/gui/src/app.rs:266
 msgid "Storage"
 msgstr "Stockage"
 
-#: crates/gui/src/app.rs:439
+#: crates/gui/src/app.rs:455
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:441
+#: crates/gui/src/app.rs:457
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:480
+#: crates/gui/src/app.rs:496
 msgid "Icon"
 msgstr "Icône"
 
-#: crates/gui/src/app.rs:487
+#: crates/gui/src/app.rs:503
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -1952,46 +1952,55 @@ msgid "Nix Software could not reach nixpkgs to check for updates."
 msgstr ""
 "Nix Software n'a pas pu joindre nixpkgs pour chercher des mises à jour."
 
-#: crates/gui/src/views/updates.rs:289
+#: crates/gui/src/views/updates.rs:284
+msgid ""
+"Apps update together: they all come from the same nixpkgs revision. To keep "
+"one app as it is, pin its version in your configuration."
+msgstr ""
+"Les applications se mettent à jour ensemble : elles viennent toutes de la "
+"même révision de nixpkgs. Pour garder une application telle quelle, épinglez "
+"sa version dans votre configuration."
+
+#: crates/gui/src/views/updates.rs:292
 #, rust-format
 msgid "nixpkgs {}"
 msgstr "nixpkgs {}"
 
-#: crates/gui/src/views/updates.rs:293
+#: crates/gui/src/views/updates.rs:296
 msgid "Apps in your user profile, updated with nix profile"
 msgstr ""
 "Applications de votre profil utilisateur, mises à jour avec nix profile"
 
-#: crates/gui/src/views/updates.rs:295
+#: crates/gui/src/views/updates.rs:298
 #, rust-format
 msgid "Installed: {}"
 msgstr "Installée : {}"
 
-#: crates/gui/src/views/updates.rs:303
+#: crates/gui/src/views/updates.rs:306
 msgid "Check Again"
 msgstr "Vérifier à nouveau"
 
-#: crates/gui/src/views/updates.rs:321
+#: crates/gui/src/views/updates.rs:324
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] "{} mise à jour d'application"
 msgstr[1] "{} mises à jour d'applications"
 
-#: crates/gui/src/views/updates.rs:323
+#: crates/gui/src/views/updates.rs:326
 msgid "New nixpkgs revision"
 msgstr "Nouvelle révision de nixpkgs"
 
-#: crates/gui/src/views/updates.rs:327
+#: crates/gui/src/views/updates.rs:330
 #, rust-format
 msgid "Available: {}"
 msgstr "Disponible : {}"
 
-#: crates/gui/src/views/updates.rs:339
+#: crates/gui/src/views/updates.rs:342
 msgid "_Update"
 msgstr "_Mettre à jour"
 
-#: crates/gui/src/views/updates.rs:360
+#: crates/gui/src/views/updates.rs:363
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
@@ -2000,11 +2009,11 @@ msgstr ""
 "nixpkgs vient de l'entrée « {} » de votre configuration. Mettez ce flake à "
 "jour, puis appliquez."
 
-#: crates/gui/src/views/updates.rs:363
+#: crates/gui/src/views/updates.rs:366
 msgid "Nix Software cannot update this configuration by itself."
 msgstr "Nix Software ne peut pas mettre à jour cette configuration lui-même."
 
-#: crates/gui/src/views/updates.rs:372
+#: crates/gui/src/views/updates.rs:375
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
@@ -2013,10 +2022,10 @@ msgstr ""
 "NixOS {0} est disponible. Passez votre configuration sur nixos-{0} quand "
 "vous êtes prêt."
 
-#: crates/gui/src/views/updates.rs:375
+#: crates/gui/src/views/updates.rs:378
 msgid "Release _Notes"
 msgstr "_Notes de version"
 
-#: crates/gui/src/views/updates.rs:392
+#: crates/gui/src/views/updates.rs:395
 msgid "Everything is up to date"
 msgstr "Tout est à jour"
