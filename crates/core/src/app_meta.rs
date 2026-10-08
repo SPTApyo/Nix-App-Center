@@ -39,6 +39,8 @@ pub struct AppMeta {
     pub teams: Vec<String>,
     /// The package recipe on GitHub, at the revision the config is pinned to.
     pub source_url: Option<String>,
+    /// Boolean arguments of the recipe (`withQt5 ? true`).
+    pub build_flags: Vec<crate::BuildFlag>,
     pub download_page: Option<String>,
     /// Commands the app installs (AppStream `provides`, else `mainProgram`).
     pub binaries: Vec<String>,
@@ -179,6 +181,10 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
         source_url: nix
             .and_then(|n| n.position.as_deref())
             .and_then(|p| source_url(p, crate::updates::pinned_rev().unwrap_or("master"))),
+        build_flags: nix
+            .and_then(|n| n.position.as_deref())
+            .map(crate::build_flags::build_flags)
+            .unwrap_or_default(),
         download_page: nix.and_then(|n| n.download_page.clone()),
         binaries: fh
             .map(|f| f.binaries.clone())

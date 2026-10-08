@@ -193,6 +193,14 @@ branch: a module counts when its package option defaults to the package
 = true in the system file, and leaves it out of the user package list, since
 the module installs it.
 
+Build options are the boolean arguments of the package recipe
+(withQt5 ? true in vlc), read from the recipe file meta.position points to:
+Nix gives the argument names but not their defaults. Saving keeps the app as
+(pkgs.vlc.override { withQt5 = false; }) in the user block. The page warns
+that a changed option builds the app locally, since the binary cache only
+holds the default build. Apps the user's own configuration installs show no
+options: Nix Software does not edit what it did not write.
+
 ## Internationalization
 
 Same mechanism as GNOME Software: gettext driven by the system locale, no

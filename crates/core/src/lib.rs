@@ -40,6 +40,7 @@
 
 mod app_meta;
 mod appstream_db;
+mod build_flags;
 mod cache;
 mod categories;
 mod config_attach;
@@ -75,14 +76,15 @@ pub use appstream_db::{
     is_settled as appstream_settled, local_app, package_for_app, search_local, wait_appstream,
     LocalHit,
 };
+pub use build_flags::{overridden_flags, BuildFlag};
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };
 pub use config_attach::{
     commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan,
 };
-pub use config_gen::default_home_block;
 pub use config_gen::{apply_argv, apply_config, run_streaming, ApplyOutcome};
+pub use config_gen::{default_home_block, override_home_block};
 pub use config_layout::{
     detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
 };

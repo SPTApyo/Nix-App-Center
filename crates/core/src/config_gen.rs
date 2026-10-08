@@ -54,6 +54,15 @@ pub fn default_home_block(layout: &Layout, attr: &str) -> String {
     default_block(&HomeShape::of(layout), attr)
 }
 
+/// The user block installing `attr` with its build options changed.
+pub fn override_home_block(layout: &Layout, attr: &str, changes: &[(String, bool)]) -> String {
+    format!(
+        "{} = [ {} ];",
+        HomeShape::of(layout).packages_option(),
+        crate::build_flags::overridden_package(attr, changes)
+    )
+}
+
 fn default_block(shape: &HomeShape, attr: &str) -> String {
     format!("{} = [ pkgs.{attr} ];", shape.packages_option())
 }

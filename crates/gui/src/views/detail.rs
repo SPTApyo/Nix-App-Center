@@ -102,6 +102,9 @@ pub struct DetailModel {
     version_box: gtk::Box,
     problems_box: gtk::Box,
     license_box: gtk::Box,
+    build_box: gtk::Box,
+    /// One switch per recipe flag, with the recipe default.
+    flag_rows: Vec<(String, bool, adw::SwitchRow)>,
     reviews_box: gtk::Box,
     dev_apps_box: gtk::Box,
     // "Other Apps by X": navigable AppTiles (AppStream DevApps are resolved
@@ -154,6 +157,8 @@ pub enum DetailMsg {
     RunFailed(String),
     SizeLoaded(Option<u64>),
     ModuleLoaded(Option<nix_software_core::NixOption>),
+    /// Keeps the app with the build options the switches show.
+    SaveBuildOptions,
     /// Keeps the app through its NixOS module instead of the package.
     UseModule,
     ShowModule,
@@ -691,6 +696,20 @@ impl SimpleComponent for DetailModel {
                                     license_box -> gtk::Box {},
                                 },
 
+                                // ── 8b. Build options (recipe flags) ───────────
+                                adw::Clamp {
+                                    set_maximum_size: CLAMP_MAX,
+                                    set_tightening_threshold: CLAMP_TIGHTEN,
+                                    set_margin_start: 12,
+                                    set_margin_end: 12,
+
+                                    #[local_ref]
+                                    build_box -> gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_visible: false,
+                                    },
+                                },
+
                                 // ── 9. Ratings (ODRS) ──────────────────────────
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
@@ -795,6 +814,7 @@ impl SimpleComponent for DetailModel {
         let version_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let problems_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let license_box = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        let build_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let reviews_box = gtk::Box::new(gtk::Orientation::Vertical, 18);
         let dev_apps_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
 
@@ -865,6 +885,8 @@ impl SimpleComponent for DetailModel {
             version_box: version_box.clone(),
             problems_box: problems_box.clone(),
             license_box: license_box.clone(),
+            build_box: build_box.clone(),
+            flag_rows: Vec::new(),
             reviews_box: reviews_box.clone(),
             dev_apps_box: dev_apps_box.clone(),
             dev_apps_heading: dev_apps_heading.clone(),
@@ -987,6 +1009,7 @@ impl SimpleComponent for DetailModel {
                     self.toast_overlay.clone().upcast(),
                 );
                 build_license_box(&self.license_box, &meta);
+                self.rebuild_build_options(&meta, &sender);
 
                 // Same developer apps: AppStream to nixpkgs resolution in the
                 // background (one cached `nix search`); the section only shows
@@ -1111,6 +1134,30 @@ impl SimpleComponent for DetailModel {
                 if let Some(meta) = self.meta.clone() {
                     self.rebuild_problems(&meta, &sender);
                 }
+            }
+            DetailMsg::SaveBuildOptions => {
+                let changes: Vec<(String, bool)> = self
+                    .flag_rows
+                    .iter()
+                    .filter(|(_, default, row)| row.is_active() != *default)
+                    .map(|(name, _, row)| (name.clone(), row.is_active()))
+                    .collect();
+                let system = nix_software_core::load_manifest()
+                    .kept
+                    .into_iter()
+                    .find(|e| e.package.attr == self.package.attr)
+                    .and_then(|e| e.system_nix);
+                // No change left: back to the plain package.
+                let home = (!changes.is_empty()).then(|| {
+                    nix_software_core::override_home_block(
+                        &nix_software_core::detect_layout(),
+                        &self.package.attr,
+                        &changes,
+                    )
+                });
+                let res = nix_software_core::set_blocks(&self.package, home, system)
+                    .map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
             }
             DetailMsg::UseModule => {
                 let Some(option) = &self.module else {
@@ -1566,6 +1613,68 @@ impl DetailModel {
         }
         self.problems_box
             .set_visible(self.problems_box.first_child().is_some());
+    }
+
+    /// "Build Options": a switch per boolean argument of the recipe, saved as
+    /// an override. Only where Nix Software writes the configuration.
+    fn rebuild_build_options(&mut self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        while let Some(c) = self.build_box.first_child() {
+            self.build_box.remove(&c);
+        }
+        self.flag_rows.clear();
+        let editable = self.managed && !self.installed_elsewhere();
+        if meta.build_flags.is_empty() || !editable {
+            self.build_box.set_visible(false);
+            return;
+        }
+        let saved = nix_software_core::load_manifest()
+            .kept
+            .into_iter()
+            .find(|e| e.package.attr == self.package.attr)
+            .and_then(|e| e.home_nix)
+            .map(|b| nix_software_core::overridden_flags(&b, &self.package.attr))
+            .unwrap_or_default();
+
+        let expander = adw::ExpanderRow::builder()
+            .title(esc(&t("Build Options")))
+            .subtitle(esc(&t(
+                "Changing an option builds the app on your computer, which can take a long time.",
+            )))
+            .build();
+        expander.add_prefix(&gtk::Image::from_icon_name("emblem-system-symbolic"));
+        for flag in &meta.build_flags {
+            let active = saved
+                .iter()
+                .find(|(n, _)| *n == flag.name)
+                .map_or(flag.default, |(_, v)| *v);
+            let row = adw::SwitchRow::builder()
+                .title(esc(&flag.name))
+                .subtitle(esc(&if flag.default {
+                    t("On by default")
+                } else {
+                    t("Off by default")
+                }))
+                .active(active)
+                .build();
+            expander.add_row(&row);
+            self.flag_rows.push((flag.name.clone(), flag.default, row));
+        }
+        let save = adw::ButtonRow::builder()
+            .title(t("_Save Build Options"))
+            .use_underline(true)
+            .build();
+        save.connect_activated({
+            let s = sender.input_sender().clone();
+            move |_| {
+                let _ = s.send(DetailMsg::SaveBuildOptions);
+            }
+        });
+        expander.add_row(&save);
+
+        let list = crate::util::boxed_list();
+        list.append(&expander);
+        self.build_box.append(&list);
+        self.build_box.set_visible(true);
     }
 
     /// "Ratings & Reviews" section. Rating and reviews arrive independently: the
