@@ -69,6 +69,8 @@ pub struct DetailModel {
     profile_name: Option<String>,
     profile_busy: bool,
     kept: bool,
+    /// The NixOS module that sets the app up, when there is one.
+    module: Option<nix_software_core::NixOption>,
     icon_tex: Option<gtk::gdk::Texture>,
     // Closure size (Storage tile) is slower
     // than metadata and load separately. The `*_loaded` flags tell "not known
@@ -151,6 +153,10 @@ pub enum DetailMsg {
     /// `nix run` exited with an error (last stderr line).
     RunFailed(String),
     SizeLoaded(Option<u64>),
+    ModuleLoaded(Option<nix_software_core::NixOption>),
+    /// Keeps the app through its NixOS module instead of the package.
+    UseModule,
+    ShowModule,
     ToggleDescription,
     /// Applies the configuration (from the "Apply" toast action).
     ApplyConfig,
@@ -837,6 +843,7 @@ impl SimpleComponent for DetailModel {
             },
             profile_busy: false,
             kept,
+            module: None,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -961,7 +968,17 @@ impl SimpleComponent for DetailModel {
                 // Without an AppStream id there are no permissions to wait for.
 
                 self.rebuild_context_bar(&meta);
-                self.rebuild_problems(&meta);
+                self.rebuild_problems(&meta, &sender);
+                // Modules only exist on NixOS.
+                if std::path::Path::new("/etc/NIXOS").exists() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::ModuleLoaded(nix_software_core::module_for(
+                            &attr,
+                        )));
+                    });
+                }
                 build_addons(&self.addons_box, &meta);
                 build_version_history(
                     &self.version_box,
@@ -1087,6 +1104,29 @@ impl SimpleComponent for DetailModel {
                 self.closure_size = size;
                 if let Some(meta) = self.meta.clone() {
                     self.rebuild_context_bar(&meta);
+                }
+            }
+            DetailMsg::ModuleLoaded(module) => {
+                self.module = module;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_problems(&meta, &sender);
+                }
+            }
+            DetailMsg::UseModule => {
+                let Some(option) = &self.module else {
+                    return;
+                };
+                let res = nix_software_core::set_blocks(
+                    &self.package,
+                    Some(String::new()),
+                    Some(format!("{} = true;", option.name)),
+                )
+                .map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
+            }
+            DetailMsg::ShowModule => {
+                if let Some(option) = &self.module {
+                    crate::components::option_dialog::present(&self.toast_overlay, option);
                 }
             }
             DetailMsg::ToggleDescription => {
@@ -1395,6 +1435,9 @@ impl SimpleComponent for DetailModel {
                 Ok(()) => {
                     // set_blocks keeps the app: editing it means wanting it.
                     self.kept = true;
+                    if let Some(meta) = self.meta.clone() {
+                        self.rebuild_problems(&meta, &sender);
+                    }
                     self.prompt_apply_or_attach(&sender);
                 }
                 Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
@@ -1491,17 +1534,38 @@ impl DetailModel {
         );
     }
 
-    fn rebuild_problems(&self, meta: &AppMeta) {
+    fn rebuild_problems(&self, meta: &AppMeta, sender: &ComponentSender<Self>) {
         while let Some(c) = self.problems_box.first_child() {
             self.problems_box.remove(&c);
         }
-        match infobox::problems(meta.broken, meta.insecure, &meta.known_vulnerabilities) {
-            Some(bar) => {
-                self.problems_box.append(&bar);
-                self.problems_box.set_visible(true);
-            }
-            None => self.problems_box.set_visible(false),
+        if let Some(bar) =
+            infobox::problems(meta.broken, meta.insecure, &meta.known_vulnerabilities)
+        {
+            self.problems_box.append(&bar);
         }
+        if let Some(option) = &self.module {
+            let in_use = nix_software_core::load_manifest().kept.iter().any(|e| {
+                e.system_nix
+                    .as_deref()
+                    .is_some_and(|b| b.contains(&option.name))
+            });
+            let can_use = !in_use
+                && !self.installed_elsewhere()
+                && nix_software_core::detect_layout().system.is_some();
+            let on_use = can_use.then(|| {
+                let s = sender.input_sender().clone();
+                Box::new(move || {
+                    let _ = s.send(DetailMsg::UseModule);
+                }) as Box<dyn Fn()>
+            });
+            let s = sender.input_sender().clone();
+            let bar = infobox::module(&option.name, on_use, move || {
+                let _ = s.send(DetailMsg::ShowModule);
+            });
+            self.problems_box.append(&bar);
+        }
+        self.problems_box
+            .set_visible(self.problems_box.first_child().is_some());
     }
 
     /// "Ratings & Reviews" section. Rating and reviews arrive independently: the

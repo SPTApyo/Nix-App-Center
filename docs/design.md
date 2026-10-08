@@ -175,6 +175,15 @@ while keeping Nix Software semantics: context tiles show Nix signals (closure
 download size, `broken`/`insecure`), the version badge means "this release is
 the one in nixpkgs", and sections without Nix data stay hidden.
 
+Some apps only work well through their NixOS module: steam, docker or
+tailscale need services, groups or firewall rules the package alone does not
+set up. The page looks the package up in the NixOS options of the config's
+branch: a module counts when its package option defaults to the package
+(programs.steam.package = pkgs.steam) or when it is named after it
+(programs.gamemode). "Use the Module" keeps the app as programs.steam.enable
+= true in the system file, and leaves it out of the user package list, since
+the module installs it.
+
 ## Internationalization
 
 Same mechanism as GNOME Software: gettext driven by the system locale, no

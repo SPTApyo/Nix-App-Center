@@ -120,6 +120,38 @@ pub fn search_options(query: &str, limit: usize) -> Vec<NixOption> {
     rank(options(), query, limit)
 }
 
+/// The `enable` option of the NixOS module that sets up a package, such as
+/// programs.steam.enable for steam. Blocking on the first call.
+pub fn module_for(attr: &str) -> Option<NixOption> {
+    module_in(options(), attr)
+}
+
+/// A module counts when its `package` option defaults to the package, or
+/// when it is named after it. The shallowest one wins: programs.steam
+/// over services.wivrn.steam.
+fn module_in(all: &[NixOption], attr: &str) -> Option<NixOption> {
+    let pname = attr.rsplit('.').next().unwrap_or(attr);
+    let default = format!("pkgs.{pname}");
+    let by_package = all
+        .iter()
+        .filter(|o| o.default.as_deref() == Some(default.as_str()))
+        .filter_map(|o| o.name.strip_suffix(".package").map(str::to_string));
+    let by_name = ["programs", "services", "virtualisation", "hardware"]
+        .iter()
+        .map(|root| format!("{root}.{pname}"));
+    by_package
+        .chain(by_name)
+        .filter_map(|prefix| {
+            let enable = format!("{prefix}.enable");
+            let i = all
+                .binary_search_by(|o| o.name.as_str().cmp(&enable))
+                .ok()?;
+            Some(&all[i])
+        })
+        .min_by_key(|o| o.name.matches('.').count())
+        .cloned()
+}
+
 fn rank(all: &[NixOption], query: &str, limit: usize) -> Vec<NixOption> {
     let q = query.trim().to_lowercase();
     let words: Vec<&str> = q.split_whitespace().collect();
@@ -183,6 +215,42 @@ mod tests {
                 "type": "boolean"
             }
         }))
+    }
+
+    fn modules() -> Vec<NixOption> {
+        parse(&serde_json::json!({
+            "programs.steam.enable": { "type": "boolean" },
+            "programs.steam.package": {
+                "default": { "_type": "literalExpression", "text": "pkgs.steam" }
+            },
+            "services.wivrn.steam.enable": { "type": "boolean" },
+            "services.wivrn.steam.package": {
+                "default": { "_type": "literalExpression", "text": "pkgs.steam" }
+            },
+            "virtualisation.virtualbox.host.enable": { "type": "boolean" },
+            "virtualisation.virtualbox.host.package": {
+                "default": { "_type": "literalExpression", "text": "pkgs.virtualbox" }
+            },
+            "programs.gamemode.enable": { "type": "boolean" },
+            "programs.gamemode.settings": { "type": "attribute set" }
+        }))
+    }
+
+    #[test]
+    fn finds_the_module_of_a_package() {
+        let all = modules();
+        let name = |attr| module_in(&all, attr).map(|o| o.name);
+        assert_eq!(name("steam").as_deref(), Some("programs.steam.enable"));
+        assert_eq!(
+            name("virtualbox").as_deref(),
+            Some("virtualisation.virtualbox.host.enable"),
+            "found through its package option"
+        );
+        assert_eq!(
+            name("gamemode").as_deref(),
+            Some("programs.gamemode.enable")
+        );
+        assert_eq!(name("vlc"), None);
     }
 
     #[test]

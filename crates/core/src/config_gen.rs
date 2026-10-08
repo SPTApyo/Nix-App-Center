@@ -118,7 +118,11 @@ fn imports_list(regions: &[String]) -> String {
 
 /// Regions of promoted apps for a given scope, sorted (stable diff).
 fn regions(kept: &[KeptEntry], scope: fn(&KeptEntry) -> Option<&String>) -> Vec<String> {
-    let mut promues: Vec<&KeptEntry> = kept.iter().filter(|e| scope(e).is_some()).collect();
+    // An empty block means "nothing in this scope", not an empty module.
+    let mut promues: Vec<&KeptEntry> = kept
+        .iter()
+        .filter(|e| scope(e).is_some_and(|b| !b.trim().is_empty()))
+        .collect();
     promues.sort_by(|a, b| a.package.attr.cmp(&b.package.attr));
     promues
         .iter()
@@ -479,6 +483,20 @@ mod tests {
             HomeShape::of(&layout(LayoutKind::HmStandalone { dir }, None)),
             HomeShape::HomeManager
         );
+    }
+
+    #[test]
+    fn module_app_lives_only_in_the_system_scope() {
+        let kept = [
+            simple("firefox"),
+            promue("steam", Some(""), Some("programs.steam.enable = true;")),
+        ];
+        let home = render_home(&kept, &HomeShape::HomeManager);
+        assert!(!home.contains("steam"), "the module installs it: {home}");
+        assert!(home.contains("firefox"));
+        let system = render_system(&kept);
+        assert!(system.contains("# nix-software:begin steam"));
+        assert!(system.contains("programs.steam.enable = true;"));
     }
 
     #[test]
