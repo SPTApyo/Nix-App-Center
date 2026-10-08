@@ -41,10 +41,12 @@
   <url type="bugtracker">https://github.com/SPTApyo/nix-software/issues</url>
 
   <releases>
-    <release version="0.1.0" date="2026-07-15">
+    <release version="0.1.0" date="2026-10-08">
       <description>
-        <p>First release: nixpkgs search, details page, keep and apply with a
-           consented attach to the Nix configuration, and an advanced Nix editor.</p>
+        <p>First release. Search nixpkgs with Flathub metadata, try any app
+           without installing it, keep it in your configuration after an
+           approved diff, and apply in the app. Installed, Updates and Storage
+           tabs, reviews, NixOS option search and GNOME Shell search.</p>
       </description>
     </release>
   </releases>

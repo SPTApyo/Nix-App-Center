@@ -16,3 +16,4 @@ Project and coding documentation. To set up the project, start with
 ## Working on the code
 
 - [testing.md](testing.md): unit, coverage and end-to-end tests, and how to keep them off the real system
+- [packaging.md](packaging.md): the shared Nix recipe, releases, and getting into nixpkgs

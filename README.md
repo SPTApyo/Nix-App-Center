@@ -45,7 +45,7 @@ Try it without installing:
 nix run github:SPTApyo/nix-software
 ```
 
-On NixOS, as a flake input:
+On NixOS with flakes, add the input and the package:
 
 ```nix
 # flake.nix
@@ -53,8 +53,23 @@ inputs.nix-software.url = "github:SPTApyo/nix-software";
 
 # in a module
 environment.systemPackages = [
-  inputs.nix-software.packages.${pkgs.system}.default
+  inputs.nix-software.packages.${pkgs.stdenv.hostPlatform.system}.default
 ];
+```
+
+On NixOS without flakes, no channel needed:
+
+```nix
+environment.systemPackages = [
+  (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-software/archive/main.tar.gz") { inherit pkgs; })
+];
+```
+
+With Home Manager, put the same line in home.packages. For your user only,
+without touching any configuration:
+
+```bash
+nix profile add github:SPTApyo/nix-software
 ```
 
 GNOME Shell search only works once the app is installed in a profile.

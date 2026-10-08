@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-07 15:34+0200\n"
+"POT-Creation-Date: 2026-10-08 21:03+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,7 +22,7 @@ msgstr ""
 msgid "Authentication was cancelled."
 msgstr ""
 
-#: crates/core/src/nix_check.rs:112
+#: crates/core/src/nix_check.rs:113
 msgid "Nix Software cannot find your Nix configuration."
 msgstr ""
 

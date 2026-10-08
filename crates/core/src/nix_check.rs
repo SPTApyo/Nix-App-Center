@@ -35,8 +35,9 @@ pub fn parse_block(block: &str) -> Result<(), String> {
         std::env::temp_dir().join(format!("nix-software-parse-{}-{n}.nix", std::process::id()));
     std::fs::write(&path, wrap(block)).map_err(|e| e.to_string())?;
 
+    // Parsing needs no store: dummy:// avoids opening its database.
     let out = Command::new("nix-instantiate")
-        .arg("--parse")
+        .args(["--store", "dummy://", "--parse"])
         .arg(&path)
         .output();
     let _ = std::fs::remove_file(&path);
@@ -175,7 +176,7 @@ mod tests {
     fn rejects_a_duplicate_attribute() {
         // Exactly the bug generation had: the same attribute twice.
         let err = parse_block("home.packages = [ ];\nhome.packages = [ ];").unwrap_err();
-        assert!(err.contains("already defined"), "obtenu : {err}");
+        assert!(err.contains("already defined"), "got: {err}");
     }
 
     #[test]

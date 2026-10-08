@@ -30,6 +30,7 @@ Where everything lives, and which file to open first for a given change.
 | NixOS options | crates/core/src/options.rs, crates/gui/src/components/option_dialog.rs |
 | App shell, tabs, About | crates/gui/src/app.rs |
 | Styles and animations | crates/gui/data/style.css |
+| Nix package, nixpkgs recipe | nix/package.nix, default.nix |
 | GNOME Shell search | crates/gui/src/search_provider.rs |
 
 ## Other directories

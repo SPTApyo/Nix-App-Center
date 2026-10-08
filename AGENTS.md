@@ -57,4 +57,5 @@ Use it to check UI changes instead of guessing, and look at the screenshot.
 - Writing or fixing tests: docs/testing.md
 - What is done and what is missing: docs/roadmap.md
 - Commits, pull requests, translations: CONTRIBUTING.md
+- Packaging, releases, nixpkgs: docs/packaging.md
 - Security boundaries: SECURITY.md
