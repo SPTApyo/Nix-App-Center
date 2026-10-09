@@ -171,10 +171,37 @@ pub(crate) struct Graph {
     index: HashMap<String, u32>,
     size: Vec<u64>,
     refs: Vec<Vec<u32>>,
+    /// Edges only the GC keep settings add (derivers and their outputs).
+    kept: Vec<Vec<u32>>,
+}
+
+/// GC settings that keep more than references: `keep-derivations` keeps a
+/// live output's derivation, `keep-outputs` a live derivation's outputs.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct Keep {
+    pub derivations: bool,
+    pub outputs: bool,
+}
+
+impl Keep {
+    /// The settings of this machine's Nix.
+    fn of_nix() -> Self {
+        let on = |name: &str| {
+            crate::util::nix()
+                .args(["config", "show", name])
+                .output()
+                .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim() == "true")
+        };
+        Keep {
+            derivations: on("keep-derivations"),
+            outputs: on("keep-outputs"),
+        }
+    }
 }
 
 impl Graph {
-    pub(crate) fn from_path_info(v: &serde_json::Value) -> Graph {
+    /// The graph, with the edges the GC follows under `keep`.
+    pub(crate) fn from_path_info(v: &serde_json::Value, keep: Keep) -> Graph {
         let infos = crate::tried::parse_path_info(v);
         let mut g = Graph::default();
         for p in infos.keys() {
@@ -182,6 +209,7 @@ impl Graph {
             g.index.insert(p.clone(), i);
             g.size.push(0);
             g.refs.push(Vec::new());
+            g.kept.push(Vec::new());
         }
         for (p, info) in &infos {
             let i = g.index[p] as usize;
@@ -192,6 +220,18 @@ impl Graph {
                 .filter_map(|r| g.index.get(r).copied())
                 .filter(|r| *r as usize != i)
                 .collect();
+        }
+        for (p, info) in &infos {
+            let Some(drv) = info.deriver.as_ref().and_then(|d| g.index.get(d).copied()) else {
+                continue;
+            };
+            let out = g.index[p];
+            if keep.derivations {
+                g.kept[out as usize].push(drv);
+            }
+            if keep.outputs {
+                g.kept[drv as usize].push(out);
+            }
         }
         g
     }
@@ -209,6 +249,20 @@ impl Graph {
                 continue;
             }
             stack.extend(self.refs[p as usize].iter().copied());
+        }
+        seen
+    }
+
+    /// What the GC keeps from `roots`: references and keep settings edges.
+    fn alive(&self, roots: &[u32]) -> HashSet<u32> {
+        let mut seen = HashSet::new();
+        let mut stack: Vec<u32> = roots.to_vec();
+        while let Some(p) = stack.pop() {
+            if !seen.insert(p) {
+                continue;
+            }
+            stack.extend(self.refs[p as usize].iter().copied());
+            stack.extend(self.kept[p as usize].iter().copied());
         }
         seen
     }
@@ -326,6 +380,16 @@ pub(crate) fn analyse(g: &Graph, m: &Machine) -> (Vec<(Category, u64)>, Vec<Gene
         categories.push((cat, g.sum(&own)));
         taken.extend(own);
     }
+    let roots: Vec<&String> = m.roots.iter().map(|r| &r.target).chain(current).collect();
+    let alive = g.alive(&ids(&roots));
+    let build_inputs: HashSet<u32> = alive.difference(&taken).copied().collect();
+    if let Some(dev) = categories
+        .iter_mut()
+        .find(|(c, _)| *c == Category::Development)
+    {
+        dev.1 += g.sum(&build_inputs);
+    }
+    taken.extend(build_inputs);
     let garbage: u64 = (0..g.size.len() as u32)
         .filter(|p| !taken.contains(p))
         .map(|p| g.size[p as usize])
@@ -547,7 +611,7 @@ pub fn storage_report() -> std::io::Result<StorageReport> {
         .output()?;
     let v: serde_json::Value =
         serde_json::from_slice(&out.stdout).map_err(std::io::Error::other)?;
-    let g = Graph::from_path_info(&v);
+    let g = Graph::from_path_info(&v, Keep::of_nix());
     drop(v);
     let (categories, generations) = analyse(&g, &machine());
     let (disk_size, disk_free) = disk();
@@ -571,17 +635,80 @@ mod tests {
     fn graph() -> Graph {
         let info =
             |refs: &[&str], size: u64| serde_json::json!({ "references": refs, "narSize": size });
-        Graph::from_path_info(&serde_json::json!({
-            "/nix/store/sys": info(&["/nix/store/libc", "/nix/store/env"], 10),
-            "/nix/store/libc": info(&[], 100),
-            "/nix/store/env": info(&["/nix/store/app"], 1),
-            "/nix/store/app": info(&["/nix/store/libc"], 20),
-            "/nix/store/old": info(&["/nix/store/oldlib", "/nix/store/libc"], 5),
-            "/nix/store/oldlib": info(&[], 50),
-            "/nix/store/shell": info(&[], 7),
-            "/nix/store/tried": info(&[], 3),
-            "/nix/store/junk": info(&[], 2),
-        }))
+        Graph::from_path_info(
+            &serde_json::json!({
+                "/nix/store/sys": info(&["/nix/store/libc", "/nix/store/env"], 10),
+                "/nix/store/libc": info(&[], 100),
+                "/nix/store/env": info(&["/nix/store/app"], 1),
+                "/nix/store/app": info(&["/nix/store/libc"], 20),
+                "/nix/store/old": info(&["/nix/store/oldlib", "/nix/store/libc"], 5),
+                "/nix/store/oldlib": info(&[], 50),
+                "/nix/store/shell": info(&[], 7),
+                "/nix/store/tried": info(&[], 3),
+                "/nix/store/junk": info(&[], 2),
+            }),
+            Keep::default(),
+        )
+    }
+
+    #[test]
+    fn keep_settings_keep_derivations_and_outputs_alive() {
+        let v = serde_json::json!({
+            "/nix/store/app": { "references": [], "narSize": 1, "deriver": "/nix/store/app.drv" },
+            "/nix/store/app.drv": { "references": ["/nix/store/src"], "narSize": 1 },
+            "/nix/store/src": { "references": [], "narSize": 1 },
+            "/nix/store/built": { "references": [], "narSize": 1, "deriver": "/nix/store/tool.drv" },
+            "/nix/store/tool.drv": { "references": [], "narSize": 1 },
+        });
+        let ids = |g: &Graph, roots: &[&str]| -> HashSet<u32> {
+            let r: Vec<u32> = roots.iter().filter_map(|p| g.id(p)).collect();
+            g.alive(&r)
+        };
+        let plain = Graph::from_path_info(&v, Keep::default());
+        assert_eq!(ids(&plain, &["/nix/store/app"]).len(), 1);
+        let kept = Graph::from_path_info(
+            &v,
+            Keep {
+                derivations: true,
+                outputs: true,
+            },
+        );
+        assert_eq!(
+            ids(&kept, &["/nix/store/app"]).len(),
+            3,
+            "drv and its source"
+        );
+        assert!(
+            ids(&kept, &["/nix/store/tool.drv"]).contains(&kept.id("/nix/store/built").unwrap())
+        );
+    }
+
+    #[test]
+    fn kept_build_inputs_are_development_not_garbage() {
+        let v = serde_json::json!({
+            "/nix/store/sys": { "references": [], "narSize": 10, "deriver": "/nix/store/sys.drv" },
+            "/nix/store/sys.drv": { "references": ["/nix/store/gcc"], "narSize": 1 },
+            "/nix/store/gcc": { "references": [], "narSize": 100 },
+            "/nix/store/junk": { "references": [], "narSize": 2 },
+        });
+        let g = Graph::from_path_info(
+            &v,
+            Keep {
+                derivations: true,
+                outputs: true,
+            },
+        );
+        let m = Machine {
+            roots: vec![root("/nix/var/nix/profiles/system-1-link", "sys")],
+            system_current: Some("/nix/store/sys".into()),
+            current_links: vec!["/nix/var/nix/profiles/system-1-link".into()],
+            ..Default::default()
+        };
+        let (cats, _) = analyse(&g, &m);
+        let size = |c| cats.iter().find(|(k, _)| *k == c).unwrap().1;
+        assert_eq!(size(Category::System), 10, "runtime closure only");
+        assert_eq!(size(Category::Development), 101);
+        assert_eq!(size(Category::Garbage), 2);
     }
 
     fn root(link: &str, target: &str) -> Root {

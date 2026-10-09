@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 20:34+0200\n"
+"POT-Creation-Date: 2026-10-09 21:30+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -15,9 +15,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: crates/core/src/config_gen.rs:382 crates/core/src/paths.rs:66
+#: crates/core/src/config_gen.rs:384 crates/core/src/paths.rs:68
 msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
+
+#: crates/core/src/config_gen.rs:387 crates/core/src/paths.rs:72
+msgid "Administrator rights were refused."
+msgstr "Les droits administrateur ont été refusés."
 
 #: crates/core/src/manifest.rs:201
 msgid "The nixpkgs revision in use is unknown."
@@ -331,7 +335,7 @@ msgstr "Partage de la position physique avec d'autres utilisateurs"
 msgid "Writing there needs administrator rights, and pkexec is missing."
 msgstr "Écrire là demande les droits administrateur, et pkexec est absent."
 
-#: crates/core/src/paths.rs:69
+#: crates/core/src/paths.rs:75
 msgid "Writing the configuration failed."
 msgstr "L'écriture de la configuration a échoué."
 
@@ -1780,8 +1784,9 @@ msgid "Development"
 msgstr "Développement"
 
 #: crates/gui/src/views/storage.rs:185
-msgid "Dev shells, build results and other roots"
-msgstr "Shells de dev, résultats de build et autres racines"
+msgid "Dev shells, build results, and build inputs Nix keeps"
+msgstr ""
+"Shells de dev, résultats de build et dépendances de build que Nix garde"
 
 #: crates/gui/src/views/storage.rs:189
 msgid "Tried Apps"

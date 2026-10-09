@@ -182,7 +182,7 @@ fn category_info(c: Category) -> (&'static str, String, String) {
         Category::Development => (
             "#f6d32d",
             t("Development"),
-            t("Dev shells, build results and other roots"),
+            t("Dev shells, build results, and build inputs Nix keeps"),
         ),
         Category::TriedApps => (
             "#33c7de",
