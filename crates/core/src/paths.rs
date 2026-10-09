@@ -55,15 +55,20 @@ pub(crate) fn write_files(files: &[(PathBuf, Vec<u8>)]) -> std::io::Result<()> {
     let script = root_write_script(&denied);
     let env = root_tool("env").ok_or_else(|| std::io::Error::other("env not found"))?;
     let status = std::process::Command::new(pkexec)
+        .env("SHELL", "/bin/sh")
         .arg(env)
         .arg(format!("PATH={ROOT_PATH}"))
         .args(["sh", "-c", &script])
         .status();
     match status?.code() {
         Some(0) => Ok(()),
-        Some(126 | 127) => Err(std::io::Error::new(
+        Some(126) => Err(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             crate::util::n_("Authentication was cancelled."),
+        )),
+        Some(127) => Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            crate::util::n_("Administrator rights were refused."),
         )),
         _ => Err(std::io::Error::other(crate::util::n_(
             "Writing the configuration failed.",

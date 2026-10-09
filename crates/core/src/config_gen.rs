@@ -349,6 +349,7 @@ pub fn run_streaming(
     };
     let mut child = Command::new(&argv[0])
         .args(&argv[1..])
+        .env("SHELL", "/bin/sh")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -377,9 +378,12 @@ pub fn run_streaming(
     let last = last.lock().unwrap_or_else(|e| e.into_inner()).clone();
     match status.code() {
         Some(0) => Ok(ApplyOutcome::Done(last)),
-        // pkexec: dialog dismissed (126) or not authorized (127).
-        Some(126 | 127) if elevated => Err(std::io::Error::other(crate::util::n_(
+        // pkexec: 126 dismissed, 127 refused or failed.
+        Some(126) if elevated => Err(std::io::Error::other(crate::util::n_(
             "Authentication was cancelled.",
+        ))),
+        Some(127) if elevated && last.is_empty() => Err(std::io::Error::other(crate::util::n_(
+            "Administrator rights were refused.",
         ))),
         _ => Err(std::io::Error::other(last)),
     }
