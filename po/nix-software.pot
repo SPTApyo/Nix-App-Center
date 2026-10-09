@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 21:30+0200\n"
+"POT-Creation-Date: 2026-10-09 21:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: crates/core/src/config_gen.rs:384 crates/core/src/paths.rs:68
+#: crates/core/src/config_gen.rs:418 crates/core/src/paths.rs:68
 msgid "Authentication was cancelled."
 msgstr ""
 
-#: crates/core/src/config_gen.rs:387 crates/core/src/paths.rs:72
+#: crates/core/src/config_gen.rs:421 crates/core/src/paths.rs:72
 msgid "Administrator rights were refused."
 msgstr ""
 
@@ -450,8 +450,65 @@ msgstr ""
 msgid "No package set ({})"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:20
-msgid "Running…"
+#: crates/gui/src/components/apply_dialog.rs:22
+#: crates/gui/src/components/apply_dialog.rs:63
+msgid "Preparing…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:25
+#, rust-format
+msgid "Downloading {done} of {} package"
+msgid_plural "Downloading {done} of {} packages"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/components/apply_dialog.rs:30
+#, rust-format
+msgid "Building {done} of {total}"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:33
+msgid "Activating the new configuration…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:46
+msgid "less than a minute left"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:49
+#, rust-format
+msgid "about {} min left"
+msgid_plural "about {} min left"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/components/apply_dialog.rs:69
+msgid "Starting…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:107
+#: crates/gui/src/components/apply_dialog.rs:118
+msgid "Show _Details"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:116
+msgid "Hide _Details"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:203
+msgid "Working…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:212
+msgid "Done"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:213
+msgid "finished"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:217
+msgid "Failed"
 msgstr ""
 
 #: crates/gui/src/components/details/attach_dialog.rs:36

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 21:30+0200\n"
+"POT-Creation-Date: 2026-10-09 21:53+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -15,11 +15,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: crates/core/src/config_gen.rs:384 crates/core/src/paths.rs:68
+#: crates/core/src/config_gen.rs:418 crates/core/src/paths.rs:68
 msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
 
-#: crates/core/src/config_gen.rs:387 crates/core/src/paths.rs:72
+#: crates/core/src/config_gen.rs:421 crates/core/src/paths.rs:72
 msgid "Administrator rights were refused."
 msgstr "Les droits administrateur ont été refusés."
 
@@ -451,9 +451,66 @@ msgstr "Tous ({})"
 msgid "No package set ({})"
 msgstr "Sans jeu de paquets ({})"
 
-#: crates/gui/src/components/apply_dialog.rs:20
-msgid "Running…"
+#: crates/gui/src/components/apply_dialog.rs:22
+#: crates/gui/src/components/apply_dialog.rs:63
+msgid "Preparing…"
+msgstr "Préparation…"
+
+#: crates/gui/src/components/apply_dialog.rs:25
+#, rust-format
+msgid "Downloading {done} of {} package"
+msgid_plural "Downloading {done} of {} packages"
+msgstr[0] "Téléchargement de {done} paquet sur {}"
+msgstr[1] "Téléchargement de {done} paquets sur {}"
+
+#: crates/gui/src/components/apply_dialog.rs:30
+#, rust-format
+msgid "Building {done} of {total}"
+msgstr "Compilation {done} sur {total}"
+
+#: crates/gui/src/components/apply_dialog.rs:33
+msgid "Activating the new configuration…"
+msgstr "Activation de la nouvelle configuration…"
+
+#: crates/gui/src/components/apply_dialog.rs:46
+msgid "less than a minute left"
+msgstr "moins d'une minute restante"
+
+#: crates/gui/src/components/apply_dialog.rs:49
+#, rust-format
+msgid "about {} min left"
+msgid_plural "about {} min left"
+msgstr[0] "environ {} min restante"
+msgstr[1] "environ {} min restantes"
+
+#: crates/gui/src/components/apply_dialog.rs:69
+msgid "Starting…"
+msgstr "Démarrage…"
+
+#: crates/gui/src/components/apply_dialog.rs:107
+#: crates/gui/src/components/apply_dialog.rs:118
+msgid "Show _Details"
+msgstr "Afficher les _détails"
+
+#: crates/gui/src/components/apply_dialog.rs:116
+msgid "Hide _Details"
+msgstr "Masquer les _détails"
+
+#: crates/gui/src/components/apply_dialog.rs:203
+msgid "Working…"
 msgstr "En cours…"
+
+#: crates/gui/src/components/apply_dialog.rs:212
+msgid "Done"
+msgstr "Terminé"
+
+#: crates/gui/src/components/apply_dialog.rs:213
+msgid "finished"
+msgstr "terminé"
+
+#: crates/gui/src/components/apply_dialog.rs:217
+msgid "Failed"
+msgstr "Échec"
 
 #: crates/gui/src/components/details/attach_dialog.rs:36
 #, rust-format

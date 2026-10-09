@@ -321,9 +321,27 @@ pub fn apply_argv() -> Option<Vec<String>> {
 
 /// Runs `argv` and passes each output line to `on_line`. `sudo` becomes
 /// pkexec; without pkexec, a terminal. Blocking.
+/// `argv` asking nixos-rebuild for progress events, also inside a script.
+fn with_progress_log(argv: Vec<String>) -> Vec<String> {
+    let flags = ["--log-format", "internal-json"];
+    let mut out = Vec::with_capacity(argv.len() + 2);
+    for arg in argv {
+        if arg == "nixos-rebuild" || arg.ends_with("/nixos-rebuild") {
+            out.push(arg);
+            out.extend(flags.map(String::from));
+        } else {
+            out.push(arg.replace(
+                "'nixos-rebuild'",
+                "'nixos-rebuild' '--log-format' 'internal-json'",
+            ));
+        }
+    }
+    out
+}
+
 pub fn run_streaming(
     argv: &[String],
-    on_line: impl Fn(String) + Send + Sync + 'static,
+    on_event: impl Fn(crate::progress::StreamEvent) + Send + Sync + 'static,
 ) -> std::io::Result<ApplyOutcome> {
     use std::io::BufRead;
     let elevated = argv.first().is_some_and(|b| b == "sudo");
@@ -347,6 +365,7 @@ pub fn run_streaming(
         Some(_) => argv.to_vec(),
         None => return Ok(ApplyOutcome::UnknownLayout),
     };
+    let argv = with_progress_log(argv);
     let mut child = Command::new(&argv[0])
         .args(&argv[1..])
         .env("SHELL", "/bin/sh")
@@ -354,20 +373,30 @@ pub fn run_streaming(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
-    // Last non-empty line of both streams.
+    // Last readable line of both streams, and progress.
     let last = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
-    let on_line = std::sync::Arc::new(on_line);
+    let tracker = std::sync::Arc::new(std::sync::Mutex::new(crate::progress::Tracker::default()));
+    let on_event = std::sync::Arc::new(on_event);
     let pump = |reader: Box<dyn std::io::Read + Send>| {
-        let (on_line, last) = (on_line.clone(), last.clone());
+        let (on_event, last, tracker) = (on_event.clone(), last.clone(), tracker.clone());
         std::thread::spawn(move || {
             for line in std::io::BufReader::new(reader)
                 .lines()
                 .map_while(Result::ok)
             {
-                if !line.trim().is_empty() {
-                    *last.lock().unwrap_or_else(|e| e.into_inner()) = line.trim().to_string();
+                let mut t = tracker.lock().unwrap_or_else(|e| e.into_inner());
+                let text = t.feed(&line);
+                let progress = crate::progress::StreamEvent::Progress(t.fraction(), t.phase());
+                drop(t);
+                if let Some(text) = text {
+                    if !text.trim().is_empty() {
+                        *last.lock().unwrap_or_else(|e| e.into_inner()) = text.trim().to_string();
+                    }
+                    on_event(crate::progress::StreamEvent::Line(text));
                 }
-                on_line(line);
+                if line.starts_with("@nix ") {
+                    on_event(progress);
+                }
             }
         })
     };
@@ -376,6 +405,11 @@ pub fn run_streaming(
     let status = child.wait()?;
     let _ = (out.join(), err.join());
     let last = last.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let error = tracker
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .error()
+        .map(str::to_string);
     match status.code() {
         Some(0) => Ok(ApplyOutcome::Done(last)),
         // pkexec: 126 dismissed, 127 refused or failed.
@@ -385,7 +419,7 @@ pub fn run_streaming(
         Some(127) if elevated && last.is_empty() => Err(std::io::Error::other(crate::util::n_(
             "Administrator rights were refused.",
         ))),
-        _ => Err(std::io::Error::other(last)),
+        _ => Err(std::io::Error::other(error.unwrap_or(last))),
     }
 }
 
@@ -441,13 +475,32 @@ mod tests {
     fn run_streaming_forwards_lines_and_reports_the_last() {
         let lines = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let sink = lines.clone();
-        let res = run_streaming(&argv("echo building >&2; sleep 0.1; echo done"), move |l| {
-            sink.lock().unwrap().push(l)
+        let res = run_streaming(&argv("echo building >&2; sleep 0.1; echo done"), move |e| {
+            if let crate::progress::StreamEvent::Line(l) = e {
+                sink.lock().unwrap().push(l)
+            }
         });
         assert_eq!(res.unwrap(), ApplyOutcome::Done("done".into()));
         let mut got = lines.lock().unwrap().clone();
         got.sort();
         assert_eq!(got, ["building", "done"]);
+    }
+
+    #[test]
+    fn nixos_rebuild_is_asked_for_progress_events() {
+        let direct = with_progress_log(vec!["nixos-rebuild".into(), "switch".into()]);
+        assert_eq!(
+            direct,
+            ["nixos-rebuild", "--log-format", "internal-json", "switch"]
+        );
+        let script = with_progress_log(vec![
+            "sh".into(),
+            "-c".into(),
+            "nix flake update && 'nixos-rebuild' 'switch'".into(),
+        ]);
+        assert!(script[2].ends_with("'nixos-rebuild' '--log-format' 'internal-json' 'switch'"));
+        let other = with_progress_log(vec!["home-manager".into(), "switch".into()]);
+        assert_eq!(other, ["home-manager", "switch"]);
     }
 
     #[test]

@@ -170,6 +170,22 @@ comes with the nixpkgs revision and store path that shipped it, and a request
 to cache.nixos.org says whether it downloads or builds locally. Picking one
 is a hold at that revision. Only the package name is sent to the index.
 
+## Progress of an apply
+
+Applying or updating runs nixos-rebuild with --log-format internal-json:
+Nix then reports structured events instead of text (crates/core/src/progress.rs).
+Copy and build activities carry done and expected counts, summed across
+activities, which give the percentage; the time left extrapolates from the
+time spent once five percent is done. Evaluation and activation report no
+counts, so the bar pulses there instead of showing a made-up number. Messages
+and build log lines go to the details log, and the last error line of a
+failure becomes the message the user sees. Other commands (Home Manager, the
+garbage collector) keep a pulsing bar.
+
+The dialog can be closed while the work goes on; a desktop notification
+reports the end when the app is not in front. There is no notification per
+step: GNOME asks apps not to flood the user.
+
 ## Storage
 
 The Storage tab reads every store path once (`nix path-info --all --json`,

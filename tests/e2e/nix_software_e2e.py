@@ -113,7 +113,18 @@ class Environment:
         fakes = {
             "xdg-terminal-exec": 'echo "$@" >> "{log}/terminal.log"',
             "pkexec": 'echo "$@" >> "{log}/pkexec.log"; shift 2; exec "$@"',
-            "nixos-rebuild": 'echo "$@" >> "{log}/rebuild.log"; echo "building the system configuration..." >&2',
+            "nixos-rebuild": 'echo "$@" >> "{log}/rebuild.log"; echo "building the system configuration..." >&2; '
+            + "".join(
+                f"echo '@nix {line}' >&2; sleep 0.4; "
+                for line in [
+                    '{{"action":"start","id":1,"level":0,"parent":0,"text":"","type":103}}',
+                    '{{"action":"result","fields":[1,8,0,0],"id":1,"type":105}}',
+                    '{{"action":"result","fields":[3,8,0,0],"id":1,"type":105}}',
+                    '{{"action":"result","fields":[5,8,0,0],"id":1,"type":105}}',
+                    '{{"action":"result","fields":[7,8,0,0],"id":1,"type":105}}',
+                ]
+            )
+            + 'echo "activating the configuration..." >&2',
         }
         for name, body in fakes.items():
             fake = self.bin / name
@@ -294,7 +305,9 @@ def actions(env, s):
     s.do(MENU)
     s.do(MENU_APPLY)
     wait_for(lambda: "nixos-rebuild" in env.logged("pkexec"), 20, "apply through pkexec")
+    s.shot("action-apply-progress")
     assert "switch" in env.logged("rebuild"), "apply must switch"
+    assert "--log-format internal-json" in env.logged("rebuild"), "apply must ask for progress"
     s.do("wait:1000")
     s.shot("action-apply")
     s.do("key:Escape")

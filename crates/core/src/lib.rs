@@ -21,6 +21,7 @@ mod options;
 mod package;
 mod paths;
 mod profiles;
+mod progress;
 mod ratings;
 mod resolve;
 mod reviews;
@@ -64,6 +65,7 @@ pub use nix_check::{dry_build, parse_block, DryRun};
 pub use options::{module_for, search_options, NixOption};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use profiles::{installed_app, profile_apps, store_sizes, ProfileApp, Scope};
+pub use progress::{Phase, StreamEvent};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{

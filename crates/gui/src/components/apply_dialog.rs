@@ -1,13 +1,55 @@
-//! Live build log of an apply or update; `done` gets the outcome.
+//! Progress of an apply or update: phase, a smooth bar with percentage and
+//! time left, and the build log on demand. Closing the dialog lets the work
+//! go on; a notification tells when it ends.
+
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use nix_software_core::ApplyOutcome;
+use nix_software_core::{ApplyOutcome, Phase, StreamEvent};
 
 use crate::i18n::t;
 
 enum Event {
-    Line(String),
+    Stream(StreamEvent),
     Done(Result<ApplyOutcome, String>),
+}
+
+/// The phase as a short sentence.
+fn phase_text(phase: Phase) -> String {
+    match phase {
+        Phase::Starting => t("Preparing…"),
+        Phase::Downloading { done, expected } => crate::util::plural(
+            "Downloading {done} of {} package",
+            "Downloading {done} of {} packages",
+            expected as i64,
+        )
+        .replace("{done}", &done.to_string()),
+        Phase::Building { done, expected } => t("Building {done} of {total}")
+            .replace("{done}", &done.to_string())
+            .replace("{total}", &expected.to_string()),
+        Phase::Activating => t("Activating the new configuration…"),
+    }
+}
+
+/// "45 % · about 2 min left", from the share done and the time spent.
+fn progress_text(fraction: f64, elapsed: Duration) -> String {
+    let percent = format!("{:.0} %", fraction * 100.0);
+    if fraction < 0.05 || elapsed < Duration::from_secs(5) {
+        return percent;
+    }
+    let left = elapsed.as_secs_f64() * (1.0 - fraction) / fraction;
+    let estimate = if left < 60.0 {
+        t("less than a minute left")
+    } else {
+        crate::util::plural(
+            "about {} min left",
+            "about {} min left",
+            (left / 60.0).round() as i64,
+        )
+    };
+    format!("{percent} · {estimate}")
 }
 
 pub fn present(
@@ -16,21 +58,18 @@ pub fn present(
     argv: Vec<String>,
     done: impl Fn(Result<ApplyOutcome, String>) + 'static,
 ) {
-    let spinner = adw::Spinner::new();
-    let status = gtk::Label::new(Some(&t("Running…")));
-    status.set_xalign(0.0);
-    status.set_wrap(true);
-    status.set_hexpand(true);
-    let head = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    head.append(&spinner);
-    head.append(&status);
-
-    let command = gtk::Label::new(Some(&argv.join(" ")));
-    command.add_css_class("dim-label");
-    command.add_css_class("monospace");
-    command.set_xalign(0.0);
-    command.set_wrap(true);
-    command.set_selectable(true);
+    let phase = gtk::Label::new(Some(&t("Preparing…")));
+    phase.add_css_class("heading");
+    phase.set_xalign(0.0);
+    phase.set_wrap(true);
+    let bar = gtk::ProgressBar::new();
+    bar.set_pulse_step(0.08);
+    let detail = crate::util::dim_label(&t("Starting…"));
+    let outcome = gtk::Label::new(None);
+    outcome.set_xalign(0.0);
+    outcome.set_wrap(true);
+    outcome.set_selectable(true);
+    outcome.set_visible(false);
 
     let buffer = gtk::TextBuffer::new(None);
     let view = gtk::TextView::with_buffer(&buffer);
@@ -43,61 +82,161 @@ pub fn present(
     view.set_bottom_margin(8);
     view.set_left_margin(8);
     view.set_right_margin(8);
-    let scroller = gtk::ScrolledWindow::builder()
-        .child(&view)
+    let command = gtk::Label::new(Some(&argv.join(" ")));
+    command.add_css_class("dim-label");
+    command.add_css_class("monospace");
+    command.set_xalign(0.0);
+    command.set_wrap(true);
+    command.set_selectable(true);
+    let log = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    log.append(&command);
+    log.append(
+        &gtk::ScrolledWindow::builder()
+            .child(&view)
+            .vexpand(true)
+            .min_content_height(280)
+            .build(),
+    );
+    let revealer = gtk::Revealer::builder()
+        .child(&log)
+        .transition_type(gtk::RevealerTransitionType::SlideDown)
         .vexpand(true)
-        .min_content_height(320)
         .build();
+    let toggle = gtk::Button::with_mnemonic(&t("Show _Details"));
+    toggle.add_css_class("flat");
+    toggle.set_halign(gtk::Align::Start);
+    toggle.connect_clicked({
+        let revealer = revealer.clone();
+        move |b| {
+            let open = !revealer.reveals_child();
+            revealer.set_reveal_child(open);
+            b.set_label(&if open {
+                t("Hide _Details")
+            } else {
+                t("Show _Details")
+            });
+            b.set_use_underline(true);
+        }
+    });
 
-    let body = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 10);
     body.set_margin_top(12);
     body.set_margin_bottom(18);
     body.set_margin_start(18);
     body.set_margin_end(18);
-    body.append(&head);
-    body.append(&command);
-    body.append(&scroller);
-
+    for w in [
+        phase.upcast_ref::<gtk::Widget>(),
+        bar.upcast_ref(),
+        detail.upcast_ref(),
+        outcome.upcast_ref(),
+        toggle.upcast_ref(),
+        revealer.upcast_ref(),
+    ] {
+        body.append(w);
+    }
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&adw::HeaderBar::new());
     toolbar.set_content(Some(&body));
     let dialog = adw::Dialog::builder()
         .title(title)
-        .content_width(720)
-        .content_height(520)
+        .content_width(640)
         .child(&toolbar)
-        .can_close(false)
         .build();
     dialog.present(Some(parent));
 
+    let target: Rc<Cell<Option<f64>>> = Rc::new(Cell::new(None));
+    let finished = Rc::new(Cell::new(false));
+    gtk::glib::timeout_add_local(Duration::from_millis(50), {
+        let (bar, target, finished) = (bar.clone(), target.clone(), finished.clone());
+        let ticks = Cell::new(0u32);
+        move || {
+            match target.get() {
+                Some(goal) => {
+                    let now = bar.fraction();
+                    bar.set_fraction(now + (goal - now) * 0.15);
+                }
+                None => {
+                    ticks.set(ticks.get() + 1);
+                    if ticks.get().is_multiple_of(4) {
+                        bar.pulse();
+                    }
+                }
+            }
+            gtk::glib::ControlFlow::from(!finished.get() || (bar.fraction() - 1.0).abs() > 0.001)
+        }
+    });
+
     let (tx, rx) = async_channel::unbounded::<Event>();
     std::thread::spawn(move || {
-        let lines = tx.clone();
-        let res = nix_software_core::run_streaming(&argv, move |l| {
-            let _ = lines.send_blocking(Event::Line(l));
+        let events = tx.clone();
+        let res = nix_software_core::run_streaming(&argv, move |e| {
+            let _ = events.send_blocking(Event::Stream(e));
         })
         .map_err(|e| e.to_string());
         let _ = tx.send_blocking(Event::Done(res));
     });
 
+    let started = Instant::now();
+    let last_phase: Rc<RefCell<Option<Phase>>> = Rc::new(RefCell::new(None));
+    let title = title.to_string();
     gtk::glib::spawn_future_local(async move {
         while let Ok(event) = rx.recv().await {
             match event {
-                Event::Line(line) => {
+                Event::Stream(StreamEvent::Line(line)) => {
                     let mut end = buffer.end_iter();
                     buffer.insert(&mut end, &format!("{line}\n"));
                     let mark = buffer.create_mark(None, &buffer.end_iter(), false);
                     view.scroll_mark_onscreen(&mark);
                     buffer.delete_mark(&mark);
                 }
+                Event::Stream(StreamEvent::Progress(fraction, p)) => {
+                    if *last_phase.borrow() != Some(p) {
+                        phase.set_label(&phase_text(p));
+                        last_phase.replace(Some(p));
+                    }
+                    target.set(fraction);
+                    detail.set_label(&match fraction {
+                        Some(f) => progress_text(f, started.elapsed()),
+                        None => t("Working…"),
+                    });
+                }
                 Event::Done(res) => {
-                    spinner.set_visible(false);
-                    status.set_label(&crate::util::describe_apply(res.clone()));
-                    dialog.set_can_close(true);
+                    finished.set(true);
+                    let message = crate::util::describe_apply(res.clone());
+                    match &res {
+                        Ok(_) => {
+                            target.set(Some(1.0));
+                            phase.set_label(&t("Done"));
+                            detail.set_label(&format!("100 % · {}", t("finished")));
+                        }
+                        Err(_) => {
+                            target.set(Some(bar.fraction()));
+                            phase.set_label(&t("Failed"));
+                            detail.set_visible(false);
+                            bar.add_css_class("error");
+                        }
+                    }
+                    outcome.set_label(&message);
+                    outcome.set_visible(!matches!(res, Ok(ApplyOutcome::Done(_))));
+                    notify_if_away(&dialog, &title, &message);
                     done(res);
                     break;
                 }
             }
         }
     });
+}
+
+/// A desktop notification when the user is not looking at the app.
+fn notify_if_away(dialog: &adw::Dialog, title: &str, message: &str) {
+    let window_active = dialog
+        .root()
+        .and_downcast::<gtk::Window>()
+        .is_some_and(|w| w.is_active());
+    if dialog.parent().is_some() && window_active {
+        return;
+    }
+    let n = gtk::gio::Notification::new(title);
+    n.set_body(Some(message));
+    relm4::main_application().send_notification(Some("apply"), &n);
 }
