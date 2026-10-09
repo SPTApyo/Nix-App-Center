@@ -149,6 +149,8 @@ pub fn set_blocks(
     home_nix: Option<String>,
     system_nix: Option<String>,
 ) -> std::io::Result<()> {
+    let plain = config_gen::default_home_block(&crate::detect_layout(), &pkg.attr);
+    let home_nix = home_nix.filter(|b| b.trim() != plain);
     let mut m = load_manifest();
     match m.kept.iter_mut().find(|e| e.package.attr == pkg.attr) {
         Some(e) => {
@@ -305,6 +307,24 @@ mod tests {
         let after_unkeep = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
         assert!(!after_unkeep.contains("ripgrep"));
 
+        cleanup();
+    }
+
+    #[test]
+    fn the_default_block_stays_a_plain_entry() {
+        let _g = crate::env_lock();
+        sandbox("default-block");
+        let pkg = Package::from_attr("hello");
+        let plain = config_gen::default_home_block(&crate::detect_layout(), "hello");
+        set_blocks(
+            &pkg,
+            Some(plain),
+            Some("networking.hostName = \"x\";".into()),
+        )
+        .unwrap();
+        let e = load_manifest().entry("hello").cloned().unwrap();
+        assert!(e.home_nix.is_none(), "{:?}", e.home_nix);
+        assert!(e.system_nix.is_some());
         cleanup();
     }
 

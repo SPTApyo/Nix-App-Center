@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 19:26+0200\n"
+"POT-Creation-Date: 2026-10-09 20:16+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
 
-#: crates/core/src/manifest.rs:196
+#: crates/core/src/manifest.rs:199
 msgid "The nixpkgs revision in use is unknown."
 msgstr "La révision de nixpkgs utilisée est inconnue."
 
@@ -1186,55 +1186,55 @@ msgstr "Impossible d'ouvrir un shell : {}"
 msgid "Removed from your configuration. Apply it to uninstall."
 msgstr "Retirée de votre configuration. Appliquez-la pour désinstaller."
 
-#: crates/gui/src/views/detail.rs:1442 crates/gui/src/views/installed.rs:236
+#: crates/gui/src/views/detail.rs:1445 crates/gui/src/views/installed.rs:236
 msgid "Applying Configuration"
 msgstr "Application de la configuration"
 
-#: crates/gui/src/views/detail.rs:1465
+#: crates/gui/src/views/detail.rs:1468
 msgid "Command copied."
 msgstr "Commande copiée."
 
-#: crates/gui/src/views/detail.rs:1488
+#: crates/gui/src/views/detail.rs:1491
 msgid "In Your System Configuration"
 msgstr "Dans votre configuration système"
 
-#: crates/gui/src/views/detail.rs:1489
+#: crates/gui/src/views/detail.rs:1492
 msgid "In Your User Configuration"
 msgstr "Dans votre configuration utilisateur"
 
-#: crates/gui/src/views/detail.rs:1493
+#: crates/gui/src/views/detail.rs:1496
 msgid "Remove from Configuration"
 msgstr "Retirer de la configuration"
 
-#: crates/gui/src/views/detail.rs:1494
+#: crates/gui/src/views/detail.rs:1497
 msgid "Add to Configuration"
 msgstr "Ajouter à la configuration"
 
-#: crates/gui/src/views/detail.rs:1495
+#: crates/gui/src/views/detail.rs:1498
 msgid "Uninstall"
 msgstr "Désinstaller"
 
-#: crates/gui/src/views/detail.rs:1496
+#: crates/gui/src/views/detail.rs:1499
 msgid "Install for This User"
 msgstr "Installer pour cet utilisateur"
 
-#: crates/gui/src/views/detail.rs:1513
+#: crates/gui/src/views/detail.rs:1516
 msgid "Loading App Details"
 msgstr "Chargement des détails de l'application"
 
-#: crates/gui/src/views/detail.rs:1520
+#: crates/gui/src/views/detail.rs:1523
 msgid "Unable to Show App Details"
 msgstr "Impossible d'afficher les détails de l'application"
 
-#: crates/gui/src/views/detail.rs:1521
+#: crates/gui/src/views/detail.rs:1524
 msgid "No metadata could be retrieved for this package."
 msgstr "Aucune métadonnée n'a pu être récupérée pour ce paquet."
 
-#: crates/gui/src/views/detail.rs:1596
+#: crates/gui/src/views/detail.rs:1599
 msgid "Build Options"
 msgstr "Options de compilation"
 
-#: crates/gui/src/views/detail.rs:1598
+#: crates/gui/src/views/detail.rs:1601
 msgid ""
 "Changing an option builds the app on your computer, which can take a long "
 "time."
@@ -1242,198 +1242,198 @@ msgstr ""
 "Changer une option compile l'application sur votre ordinateur, ce qui peut "
 "prendre longtemps."
 
-#: crates/gui/src/views/detail.rs:1610
+#: crates/gui/src/views/detail.rs:1613
 msgid "On by default"
 msgstr "Activée par défaut"
 
-#: crates/gui/src/views/detail.rs:1612
+#: crates/gui/src/views/detail.rs:1615
 msgid "Off by default"
 msgstr "Désactivée par défaut"
 
-#: crates/gui/src/views/detail.rs:1620
+#: crates/gui/src/views/detail.rs:1623
 msgid "_Save Build Options"
 msgstr "_Enregistrer les options de compilation"
 
-#: crates/gui/src/views/detail.rs:1687
+#: crates/gui/src/views/detail.rs:1690
 msgid "Ratings & Reviews"
 msgstr "Évaluations"
 
-#: crates/gui/src/views/detail.rs:1712
+#: crates/gui/src/views/detail.rs:1715
 msgid "_Write a Review"
 msgstr "Écrire un a_vis"
 
-#: crates/gui/src/views/detail.rs:1726
+#: crates/gui/src/views/detail.rs:1729
 msgid "Thanks, your review was sent."
 msgstr "Merci, votre avis a été envoyé."
 
-#: crates/gui/src/views/detail.rs:1744 crates/gui/src/views/detail.rs:1769
+#: crates/gui/src/views/detail.rs:1747 crates/gui/src/views/detail.rs:1772
 msgid "All Reviews"
 msgstr "Tous les avis"
 
-#: crates/gui/src/views/detail.rs:1811
+#: crates/gui/src/views/detail.rs:1814
 msgid "Computing size…"
 msgstr "Calcul de la taille…"
 
-#: crates/gui/src/views/detail.rs:1815
+#: crates/gui/src/views/detail.rs:1818
 msgid "Total download including dependencies"
 msgstr "Téléchargement total avec dépendances"
 
-#: crates/gui/src/views/detail.rs:1818
+#: crates/gui/src/views/detail.rs:1821
 msgid "Needs a local build"
 msgstr "Nécessite une compilation locale"
 
-#: crates/gui/src/views/detail.rs:1823
+#: crates/gui/src/views/detail.rs:1826
 msgid "Download Size"
 msgstr "Taille du téléchargement"
 
-#: crates/gui/src/views/detail.rs:1831
+#: crates/gui/src/views/detail.rs:1834
 msgid "Broken"
 msgstr "Cassé"
 
-#: crates/gui/src/views/detail.rs:1832
+#: crates/gui/src/views/detail.rs:1835
 msgid "Marked broken in nixpkgs: running it will probably fail"
 msgstr "Marqué cassé dans nixpkgs : le lancement échouera probablement"
 
-#: crates/gui/src/views/detail.rs:1836
+#: crates/gui/src/views/detail.rs:1839
 msgid "Marked insecure in nixpkgs"
 msgstr "Marqué non sécurisé dans nixpkgs"
 
-#: crates/gui/src/views/detail.rs:1838
+#: crates/gui/src/views/detail.rs:1841
 #, rust-format
 msgid "Known vulnerabilities: {}"
 msgstr "Vulnérabilités connues : {}"
 
-#: crates/gui/src/views/detail.rs:1843
+#: crates/gui/src/views/detail.rs:1846
 msgid "Vulnerable"
 msgstr "Vulnérable"
 
-#: crates/gui/src/views/detail.rs:1848
+#: crates/gui/src/views/detail.rs:1851
 msgid "Free software with your full user rights"
 msgstr "Logiciel libre, avec tous vos droits d'utilisateur"
 
-#: crates/gui/src/views/detail.rs:1849
+#: crates/gui/src/views/detail.rs:1852
 msgid "Proprietary, with your full user rights"
 msgstr "Propriétaire, avec tous vos droits d'utilisateur"
 
-#: crates/gui/src/views/detail.rs:1850
+#: crates/gui/src/views/detail.rs:1853
 msgid "Runs with your full user rights"
 msgstr "S'exécute avec tous vos droits d'utilisateur"
 
-#: crates/gui/src/views/detail.rs:1855
+#: crates/gui/src/views/detail.rs:1858
 msgid "Not Sandboxed"
 msgstr "Sans bac à sable"
 
-#: crates/gui/src/views/detail.rs:1863
+#: crates/gui/src/views/detail.rs:1866
 msgid "Desktop Only"
 msgstr "Ordinateur uniquement"
 
-#: crates/gui/src/views/detail.rs:1864
+#: crates/gui/src/views/detail.rs:1867
 msgid "Works on desktops and laptops"
 msgstr "Fonctionne sur les ordinateurs de bureau et portables"
 
-#: crates/gui/src/views/detail.rs:1870
+#: crates/gui/src/views/detail.rs:1873
 msgid "No inappropriate content"
 msgstr "Aucun contenu inapproprié"
 
-#: crates/gui/src/views/detail.rs:1882 crates/gui/src/views/detail.rs:1889
+#: crates/gui/src/views/detail.rs:1885 crates/gui/src/views/detail.rs:1892
 msgid "Age Rating"
 msgstr "Classification par âge"
 
-#: crates/gui/src/views/detail.rs:1890
+#: crates/gui/src/views/detail.rs:1893
 msgid "No age rating information"
 msgstr "Aucune information de classification par âge"
 
-#: crates/gui/src/views/detail.rs:1923
+#: crates/gui/src/views/detail.rs:1926
 msgid "Add-ons"
 msgstr "Extensions"
 
-#: crates/gui/src/views/detail.rs:1974 crates/gui/src/views/detail.rs:1989
+#: crates/gui/src/views/detail.rs:1977 crates/gui/src/views/detail.rs:1992
 msgid "Version History"
 msgstr "Historique des versions"
 
-#: crates/gui/src/views/detail.rs:2015
+#: crates/gui/src/views/detail.rs:2018
 msgid "_Project Website"
 msgstr "Site web du _projet"
 
-#: crates/gui/src/views/detail.rs:2019
+#: crates/gui/src/views/detail.rs:2022
 msgid "_Donate"
 msgstr "Faire un _don"
 
-#: crates/gui/src/views/detail.rs:2021
+#: crates/gui/src/views/detail.rs:2024
 msgid "Contribute _Translations"
 msgstr "Contribuer aux _traductions"
 
-#: crates/gui/src/views/detail.rs:2026
+#: crates/gui/src/views/detail.rs:2029
 msgid "_Report an Issue"
 msgstr "_Signaler un problème"
 
-#: crates/gui/src/views/detail.rs:2030
+#: crates/gui/src/views/detail.rs:2033
 msgid "_Help"
 msgstr "_Aide"
 
-#: crates/gui/src/views/detail.rs:2032
+#: crates/gui/src/views/detail.rs:2035
 msgid "Package _Recipe"
 msgstr "_Recette du paquet"
 
-#: crates/gui/src/views/detail.rs:2037
+#: crates/gui/src/views/detail.rs:2040
 msgid "Download _Page"
 msgstr "_Page de téléchargement"
 
-#: crates/gui/src/views/detail.rs:2092
+#: crates/gui/src/views/detail.rs:2095
 msgid "No Metadata"
 msgstr "Aucune métadonnée"
 
-#: crates/gui/src/views/detail.rs:2097
+#: crates/gui/src/views/detail.rs:2100
 msgid ""
 "This package provides no link to a website, code repository or issue tracker."
 msgstr ""
 "Ce paquet ne fournit aucun lien vers un site web, un dépôt de code ou un "
 "suivi de bogues."
 
-#: crates/gui/src/views/detail.rs:2131
+#: crates/gui/src/views/detail.rs:2134
 msgid "Commands"
 msgstr "Commandes"
 
-#: crates/gui/src/views/detail.rs:2154
+#: crates/gui/src/views/detail.rs:2157
 msgid "Video"
 msgstr "Vidéo"
 
-#: crates/gui/src/views/detail.rs:2155
+#: crates/gui/src/views/detail.rs:2158
 msgid "Audio"
 msgstr "Audio"
 
-#: crates/gui/src/views/detail.rs:2156
+#: crates/gui/src/views/detail.rs:2159
 msgid "Images"
 msgstr "Images"
 
-#: crates/gui/src/views/detail.rs:2157
+#: crates/gui/src/views/detail.rs:2160
 msgid "Text"
 msgstr "Texte"
 
-#: crates/gui/src/views/detail.rs:2158
+#: crates/gui/src/views/detail.rs:2161
 msgid "Other files"
 msgstr "Autres fichiers"
 
-#: crates/gui/src/views/detail.rs:2167
+#: crates/gui/src/views/detail.rs:2170
 #, rust-format
 msgid "{} file type"
 msgid_plural "{} file types"
 msgstr[0] "{} type de fichier"
 msgstr[1] "{} types de fichiers"
 
-#: crates/gui/src/views/detail.rs:2170
+#: crates/gui/src/views/detail.rs:2173
 msgid "Opens"
 msgstr "Ouvre"
 
-#: crates/gui/src/views/detail.rs:2182
+#: crates/gui/src/views/detail.rs:2185
 msgid "nixpkgs Maintainers"
 msgstr "Mainteneurs nixpkgs"
 
-#: crates/gui/src/views/detail.rs:2184
+#: crates/gui/src/views/detail.rs:2187
 msgid "Nobody maintains this package in nixpkgs."
 msgstr "Personne ne maintient ce paquet dans nixpkgs."
 
-#: crates/gui/src/views/detail.rs:2342
+#: crates/gui/src/views/detail.rs:2345
 msgid "No description."
 msgstr "Pas de description."
 

@@ -40,7 +40,7 @@ pub struct DetailModel {
     /// The revision the app is held at.
     pin: Option<nix_software_core::Pin>,
     holding: bool,
-    /// The app has its own Nix blocks, which a hold cannot rewrite.
+    /// The app has its own user block, which a hold cannot rewrite.
     custom_blocks: bool,
     icon_tex: Option<gtk::gdk::Texture>,
     // Loaded apart; the flag tells pending from unknown.
@@ -751,7 +751,7 @@ impl SimpleComponent for DetailModel {
         let entry = nix_software_core::load_manifest().entry(&pkg.attr).cloned();
         let kept = entry.is_some();
         let pin = entry.as_ref().and_then(|e| e.pin.clone());
-        let custom_blocks = entry.as_ref().is_some_and(|e| e.is_promoted());
+        let custom_blocks = entry.as_ref().is_some_and(|e| e.home_nix.is_some());
 
         let toast_overlay = adw::ToastOverlay::new();
         let stack = gtk::Stack::new();
@@ -1427,6 +1427,9 @@ impl SimpleComponent for DetailModel {
                 Ok(()) => {
                     // Editing an app keeps it.
                     self.kept = true;
+                    self.custom_blocks = nix_software_core::load_manifest()
+                        .entry(&self.package.attr)
+                        .is_some_and(|e| e.home_nix.is_some());
                     if let Some(meta) = self.meta.clone() {
                         self.rebuild_problems(&meta, &sender);
                     }
@@ -1584,7 +1587,7 @@ impl DetailModel {
             .find(|e| e.package.attr == self.package.attr);
         let editable = self.managed
             && !self.installed_elsewhere()
-            && entry.as_ref().is_none_or(|e| !e.is_promoted());
+            && entry.as_ref().is_none_or(|e| e.home_nix.is_none());
         if meta.build_flags.is_empty() || !editable {
             self.build_box.set_visible(false);
             return;
