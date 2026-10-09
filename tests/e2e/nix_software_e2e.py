@@ -45,9 +45,13 @@ class Session:
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc):
-        self._browser.close()
-        self._pw.stop()
+    def __exit__(self, exc_type, *_):
+        try:
+            self._browser.close()
+            self._pw.stop()
+        except Exception:
+            if exc_type is None:
+                raise
 
     def do(self, cmd):
         kind, _, arg = cmd.partition(":")
@@ -182,7 +186,8 @@ MENU_KEEP_TOGGLE = "click:894,221"
 MENU_RUN = "click:834,259"
 MENU_COPY = "click:834,297"
 MENU_ADVANCED = "click:834,335"
-MENU_APPLY = "click:834,377"
+MENU_HOLD = "click:834,372"
+MENU_APPLY = "click:834,415"
 PRIMARY = "click:820,145"
 # Advanced options editor.
 EDITOR_SYSTEM_TAB = "click:566,147"
@@ -294,6 +299,20 @@ def actions(env, s):
     s.shot("action-apply")
     s.do("key:Escape")
     s.do("wait:500")
+
+    home = env.config / "nix-software-home.nix"
+    manifest = env.data / "nix-software" / "kept.json"
+    s.do(MENU)
+    s.do(MENU_HOLD)
+    wait_for(lambda: '"pin"' in manifest.read_text(), 180, "hello held in kept.json")
+    wait_for(lambda: "builtins.fetchTarball" in home.read_text(), 10, "held revision imported")
+    assert ".hello" in home.read_text(), "hello must come from the held revision"
+    s.do("wait:1500")
+    s.shot("action-hold")
+    s.do(MENU)
+    s.do(MENU_HOLD)
+    wait_for(lambda: '"pin"' not in manifest.read_text(), 10, "hold released")
+    assert "fetchTarball" not in home.read_text(), "a release drops the held import"
 
 
 def main():
