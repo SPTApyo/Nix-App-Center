@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 22:17+0200\n"
+"POT-Creation-Date: 2026-10-09 22:29+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -361,57 +361,53 @@ msgid "_Welcome Tour"
 msgstr "_Visite guidée"
 
 #: crates/gui/src/app.rs:128
-msgid "User _Guide"
-msgstr "_Guide de l'utilisateur"
-
-#: crates/gui/src/app.rs:129
 msgid "_Preferences"
 msgstr "_Préférences"
 
-#: crates/gui/src/app.rs:130
+#: crates/gui/src/app.rs:129
 msgid "_About Nix Software"
 msgstr "À _propos de Nix Software"
 
-#: crates/gui/src/app.rs:135
+#: crates/gui/src/app.rs:134
 msgid "Main Menu"
 msgstr "Menu principal"
 
-#: crates/gui/src/app.rs:179
+#: crates/gui/src/app.rs:171
 msgid "Search Nix packages…"
 msgstr "Rechercher des paquets Nix…"
 
-#: crates/gui/src/app.rs:251
+#: crates/gui/src/app.rs:243
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:255
+#: crates/gui/src/app.rs:247
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:258 crates/gui/src/views/preferences.rs:93
+#: crates/gui/src/app.rs:250 crates/gui/src/views/preferences.rs:93
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: crates/gui/src/app.rs:261
+#: crates/gui/src/app.rs:253
 msgid "Storage"
 msgstr "Stockage"
 
-#: crates/gui/src/app.rs:445
+#: crates/gui/src/app.rs:437
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:447
+#: crates/gui/src/app.rs:439
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:486
+#: crates/gui/src/app.rs:478
 msgid "Icon"
 msgstr "Icône"
 
-#: crates/gui/src/app.rs:493
+#: crates/gui/src/app.rs:485
 msgid "translator-credits"
 msgstr "SPTApyo"
 
