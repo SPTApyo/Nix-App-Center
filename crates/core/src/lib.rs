@@ -32,6 +32,7 @@ mod tried;
 mod updates;
 mod user_profile;
 mod util;
+mod versions;
 
 pub use app_meta::{app_meta, AppMeta};
 pub use appstream_db::{
@@ -56,8 +57,8 @@ pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{
-    keep, load_manifest, pin_current, set_blocks, set_flags, set_pin, unkeep, KeptEntry, Manifest,
-    Pin,
+    keep, load_manifest, pin_at, pin_current, set_blocks, set_flags, set_pin, unkeep, KeptEntry,
+    Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use options::{module_for, search_options, NixOption};
@@ -85,6 +86,7 @@ pub use updates::{
 };
 pub use user_profile::{profile_add, profile_elements, profile_remove, ProfileElement};
 pub use util::now_unix;
+pub use versions::{versions, VersionChoice};
 
 // Serializes tests that change environment variables.
 #[cfg(test)]

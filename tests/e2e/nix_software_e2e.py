@@ -187,7 +187,7 @@ MENU_RUN = "click:834,259"
 MENU_COPY = "click:834,297"
 MENU_ADVANCED = "click:834,335"
 MENU_HOLD = "click:834,372"
-MENU_APPLY = "click:834,415"
+MENU_APPLY = "click:834,453"
 PRIMARY = "click:820,145"
 # Advanced options editor.
 EDITOR_SYSTEM_TAB = "click:566,147"

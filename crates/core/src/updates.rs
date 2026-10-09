@@ -474,6 +474,7 @@ mod tests {
                 rev: "abc".into(),
                 sha256: "x".into(),
                 since: 0,
+                version: None,
             }),
             ..crate::manifest::KeptEntry::simple(crate::Package::from_attr("vlc"))
         };

@@ -164,6 +164,12 @@ after 30 days. Build options and the install scope are structured fields too
 (flags, system_wide), so a hold combines with them. Manifests written before
 read their old generated blocks back into these fields.
 
+"Choose a Version" lists the versions nixpkgs shipped over time, from the
+Devbox package index (search.devbox.sh, the data behind nixhub.io): each one
+comes with the nixpkgs revision and store path that shipped it, and a request
+to cache.nixos.org says whether it downloads or builds locally. Picking one
+is a hold at that revision. Only the package name is sent to the index.
+
 ## Storage
 
 The Storage tab reads every store path once (`nix path-info --all --json`,

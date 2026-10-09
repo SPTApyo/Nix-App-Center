@@ -123,6 +123,10 @@ pub enum DetailMsg {
     SaveBuildOptions,
     /// Holds the app at the revision in use, or releases it.
     ToggleHold,
+    /// Holds the app at an earlier version.
+    HoldAt(nix_software_core::VersionChoice),
+    ChooseVersion,
+    VersionsLoaded(Vec<nix_software_core::VersionChoice>),
     Held(Result<Option<nix_software_core::Pin>, String>),
     /// Keeps the app through its NixOS module.
     UseModule,
@@ -444,6 +448,15 @@ impl SimpleComponent for DetailModel {
                                                                     set_tooltip_text: Some(&t("Keep the app at the version installed now, or let it follow your configuration again.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ToggleHold,
+                                                                },
+                                                                gtk::Button {
+                                                                    set_label: &t("Choose a Version…"),
+                                                                    #[watch]
+                                                                    set_visible: model.can_hold(),
+                                                                    #[watch]
+                                                                    set_sensitive: !model.holding,
+                                                                    add_css_class: "flat",
+                                                                    connect_clicked => DetailMsg::ChooseVersion,
                                                                 },
                                                                 gtk::Button {
                                                                     set_label: &t("Wrong App?"),
@@ -1086,21 +1099,43 @@ impl SimpleComponent for DetailModel {
                     sender.input(DetailMsg::Held(res));
                     return;
                 }
-                self.holding = true;
-                crate::util::toast(
-                    &self.toast_overlay,
-                    &t("Downloading nixpkgs to hold this version…"),
-                );
-                let pkg = self.package.clone();
+                self.start_hold(None, &sender);
+            }
+            DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
+            DetailMsg::ChooseVersion => {
+                crate::util::toast(&self.toast_overlay, &t("Looking for versions…"));
+                let attr = self.package.attr.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = nix_software_core::pin_current()
-                        .and_then(|p| {
-                            nix_software_core::set_pin(&pkg, Some(p.clone())).map(|()| Some(p))
-                        })
-                        .map_err(|e| e.to_string());
-                    let _ = s.send(DetailMsg::Held(res));
+                    let _ = s.send(DetailMsg::VersionsLoaded(nix_software_core::versions(
+                        &attr,
+                    )));
                 });
+            }
+            DetailMsg::VersionsLoaded(choices) => {
+                if choices.is_empty() {
+                    crate::util::toast(
+                        &self.toast_overlay,
+                        &t("No other versions are known for this package."),
+                    );
+                    return;
+                }
+                let s = sender.input_sender().clone();
+                crate::components::version_dialog::present(
+                    &self.toast_overlay,
+                    choices,
+                    self.pin.as_ref().map(|p| p.rev.clone()),
+                    move |pick| {
+                        let _ = s.send(match pick {
+                            crate::components::version_dialog::Pick::Version(c) => {
+                                DetailMsg::HoldAt(c)
+                            }
+                            crate::components::version_dialog::Pick::Follow => {
+                                DetailMsg::ToggleHold
+                            }
+                        });
+                    },
+                );
             }
             DetailMsg::Held(res) => {
                 self.holding = false;
@@ -1475,6 +1510,33 @@ impl DetailModel {
     /// True when the user's own configuration installs it.
     fn installed_elsewhere(&self) -> bool {
         !self.kept && self.profile_name.is_none() && self.installed.is_some()
+    }
+
+    /// Holds the app at `choice`, else at the revision in use. Downloads in
+    /// a thread.
+    fn start_hold(
+        &mut self,
+        choice: Option<nix_software_core::VersionChoice>,
+        sender: &ComponentSender<Self>,
+    ) {
+        self.holding = true;
+        crate::util::toast(
+            &self.toast_overlay,
+            &t("Downloading nixpkgs to hold this version…"),
+        );
+        let pkg = self.package.clone();
+        let version = self.meta.as_ref().and_then(|m| m.version.clone());
+        let s = sender.input_sender().clone();
+        std::thread::spawn(move || {
+            let pin = match choice {
+                Some(c) => nix_software_core::pin_at(&c.rev, Some(c.version)),
+                None => nix_software_core::pin_current(version),
+            };
+            let res = pin
+                .and_then(|p| nix_software_core::set_pin(&pkg, Some(p.clone())).map(|()| Some(p)))
+                .map_err(|e| e.to_string());
+            let _ = s.send(DetailMsg::Held(res));
+        });
     }
 
     /// True when the menu offers to hold or release the app.

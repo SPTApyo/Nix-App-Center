@@ -8,6 +8,7 @@
 //!   nix-software-cli keep <attr>       add to the Nix Software manifest
 //!   nix-software-cli unkeep <attr>     remove from the manifest
 //!   nix-software-cli updates           nixpkgs pin vs its branch head, app changes
+//!   nix-software-cli versions <attr>   earlier versions and their nixpkgs revision
 //!   nix-software-cli locate <bin>      packages providing a binary (nix-locate)
 //!   nix-software-cli layout [--verify] what Nix Software detects of your config (read only)
 //!   nix-software-cli attach [--commit] consented attach (diff; --commit to write)
@@ -175,6 +176,21 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
 
+        Some("versions") => match args.get(2) {
+            Some(attr) => {
+                let found = nix_software_core::versions(attr);
+                if found.is_empty() {
+                    eprintln!("no known versions of {attr}");
+                    return ExitCode::FAILURE;
+                }
+                for v in found {
+                    let cache = if v.cached { "cached" } else { "builds locally" };
+                    println!("{}\t{}\t{}\t{cache}", v.version, v.date, v.rev);
+                }
+                ExitCode::SUCCESS
+            }
+            None => usage(),
+        },
         Some("locate") => match args.get(2) {
             Some(cmd) => {
                 let pkgs = nix_software_core::locate_binary(cmd);
@@ -378,7 +394,7 @@ fn main() -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: nix-software-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: nix-software-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
     );
     ExitCode::FAILURE
 }

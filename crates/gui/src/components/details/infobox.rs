@@ -93,9 +93,17 @@ pub fn held(pin: &nix_software_core::Pin, on_release: impl Fn() + 'static) -> gt
     } else {
         t("Held Version")
     };
-    let text = t("This app stays at nixpkgs {rev}, held {age}. It gets no security updates until you release it.")
+    let template = match pin.version {
+        Some(_) => t("This app stays at version {version} from nixpkgs {rev}, held {age}. It gets no security updates until you release it."),
+        None => t("This app stays at nixpkgs {rev}, held {age}. It gets no security updates until you release it."),
+    };
+    let text = template
+        .replace("{version}", pin.version.as_deref().unwrap_or_default())
         .replace("{rev}", pin.rev.get(..7).unwrap_or(&pin.rev))
-        .replace("{age}", &crate::util::format_relative(pin.since as i64).to_lowercase());
+        .replace(
+            "{age}",
+            &crate::util::format_relative(pin.since as i64).to_lowercase(),
+        );
     let b = warning(&[&heading, &text]);
     let release = gtk::Button::with_mnemonic(&t("_Release"));
     release.add_css_class("pill");

@@ -16,6 +16,9 @@ pub struct Pin {
     pub sha256: String,
     /// When the hold started, Unix seconds.
     pub since: u64,
+    /// The app version at that revision, for display only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
 }
 
 /// A kept app. Flat JSON, so old manifests of bare packages still read.
@@ -188,15 +191,22 @@ pub fn set_pin(pkg: &Package, pin: Option<Pin>) -> std::io::Result<()> {
     edit_entry(pkg, |e| e.pin = pin)
 }
 
-/// A hold at the nixpkgs revision the configuration uses now. Downloads the
-/// revision once to hash it: blocking.
+/// A hold at the nixpkgs revision the configuration uses now. Blocking.
 ///
 /// # Errors
 /// When the revision is unknown or cannot be fetched.
-pub fn pin_current() -> std::io::Result<Pin> {
+pub fn pin_current(version: Option<String>) -> std::io::Result<Pin> {
     let rev = crate::updates::pinned_rev().ok_or_else(|| {
         std::io::Error::other(crate::util::n_("The nixpkgs revision in use is unknown."))
     })?;
+    pin_at(rev, version)
+}
+
+/// A hold at nixpkgs `rev`, downloaded once to hash it. Blocking.
+///
+/// # Errors
+/// When the revision cannot be fetched.
+pub fn pin_at(rev: &str, version: Option<String>) -> std::io::Result<Pin> {
     let out = std::process::Command::new("nix-prefetch-url")
         .args(["--unpack", &crate::config_gen::nixpkgs_tarball(rev)])
         .output()?;
@@ -210,6 +220,7 @@ pub fn pin_current() -> std::io::Result<Pin> {
         rev: rev.to_string(),
         sha256,
         since: crate::util::now_unix(),
+        version,
     })
 }
 

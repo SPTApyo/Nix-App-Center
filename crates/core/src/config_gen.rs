@@ -526,6 +526,7 @@ mod tests {
                 rev: rev.into(),
                 sha256: "0abc".into(),
                 since: 0,
+                version: None,
             }),
             ..simple(attr)
         }
