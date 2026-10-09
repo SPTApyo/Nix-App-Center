@@ -233,15 +233,17 @@ pub fn verify(layout: &Layout) -> Result<Verified, String> {
 /// The host to use from a flake: this machine's hostname when declared,
 /// else the first `nixosConfigurations` entry.
 pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
-    let hosts = nixos_hosts(flake_src);
-    if hosts.is_empty() {
-        return None;
-    }
-    let this = hostname();
-    if let Some(h) = this.as_ref().filter(|h| hosts.contains(h)) {
-        return Some(h.clone());
-    }
-    hosts.into_iter().next()
+    pick_host(nixos_hosts(flake_src), hostname().as_deref())
+}
+
+/// The host named like this machine, ignoring case, else the first one.
+fn pick_host(hosts: Vec<String>, this: Option<&str>) -> Option<String> {
+    let same = |h: &&String| this.is_some_and(|t| h.eq_ignore_ascii_case(t));
+    hosts
+        .iter()
+        .find(same)
+        .cloned()
+        .or_else(|| hosts.into_iter().next())
 }
 
 /// Every host declared in `nixosConfigurations`.
@@ -565,6 +567,17 @@ mod tests {
     #[test]
     fn no_host_when_flake_has_no_nixos_configurations() {
         assert!(first_nixos_host("outputs = { }: { packages.x = y; };").is_none());
+    }
+
+    #[test]
+    fn the_host_matches_the_machine_whatever_the_case() {
+        let hosts = vec!["laptop".to_string(), "desktop-01".to_string()];
+        assert_eq!(
+            pick_host(hosts.clone(), Some("Desktop-01")).as_deref(),
+            Some("desktop-01")
+        );
+        assert_eq!(pick_host(hosts, Some("other")).as_deref(), Some("laptop"));
+        assert_eq!(pick_host(Vec::new(), Some("x")), None);
     }
 
     #[test]
