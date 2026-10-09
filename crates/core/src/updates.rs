@@ -382,62 +382,57 @@ fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) ->
     out
 }
 
-/// The command moving the pin and applying, when Nix Software can run it.
-pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<String>> {
-    let shell = |script: String, sudo: bool| -> Vec<String> {
-        let mut argv: Vec<String> = Vec::new();
-        if sudo {
-            argv.push("sudo".into());
-        }
-        argv.extend(["sh".into(), "-c".into(), script]);
-        argv
-    };
-    let (sudo, apply) = match layout.apply.split_first() {
-        Some((first, rest)) if first == "sudo" => (true, quote_all(rest)),
-        _ => (false, quote_all(&layout.apply)),
-    };
+/// The steps moving the pin and applying, when Nix Software can run them.
+/// The lock is updated as the user when the user owns it.
+pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<Vec<String>>> {
+    let apply = layout.apply.clone();
     match &source.method {
-        UpdateMethod::FlakeInput { dir, input } if !apply.is_empty() => Some(shell(
-            format!(
-                "nix --extra-experimental-features 'nix-command flakes' flake update {} --flake {} && {apply}",
-                quote(input),
-                quote(&dir.to_string_lossy())
-            ),
-            sudo,
-        )),
-        UpdateMethod::Channel => Some(
-            ["sudo", "nixos-rebuild", "switch", "--upgrade"]
-                .map(String::from)
-                .to_vec(),
-        ),
-        UpdateMethod::Profile => Some(
-            [
-                "env",
-                "NIXPKGS_ALLOW_UNFREE=1",
-                "nix",
-                "--extra-experimental-features",
-                "nix-command flakes",
-                "profile",
-                "upgrade",
-                "--all",
-                "--impure",
-            ]
+        UpdateMethod::FlakeInput { dir, input } if !apply.is_empty() => {
+            let owned = std::fs::OpenOptions::new()
+                .append(true)
+                .open(dir.join("flake.lock"))
+                .is_ok();
+            let mut update: Vec<String> = if owned {
+                Vec::new()
+            } else {
+                vec!["sudo".into()]
+            };
+            update.extend(
+                [
+                    "nix",
+                    "--extra-experimental-features",
+                    "nix-command flakes",
+                    "flake",
+                    "update",
+                    input,
+                    "--flake",
+                    &dir.to_string_lossy(),
+                ]
+                .map(String::from),
+            );
+            Some(vec![update, apply])
+        }
+        UpdateMethod::Channel => Some(vec![["sudo", "nixos-rebuild", "switch", "--upgrade"]
             .map(String::from)
-            .to_vec(),
-        ),
+            .to_vec()]),
+        UpdateMethod::Profile => Some(vec![[
+            "env",
+            "NIXPKGS_ALLOW_UNFREE=1",
+            "nix",
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "profile",
+            "upgrade",
+            "--all",
+            "--impure",
+        ]
+        .map(String::from)
+        .to_vec()]),
         UpdateMethod::HmChannel if !apply.is_empty() => {
-            Some(shell(format!("nix-channel --update && {apply}"), sudo))
+            Some(vec![vec!["nix-channel".into(), "--update".into()], apply])
         }
         _ => None,
     }
-}
-
-fn quote(s: &str) -> String {
-    format!("'{}'", s.replace('\'', r"'\''"))
-}
-
-fn quote_all(argv: &[String]) -> String {
-    argv.iter().map(|a| quote(a)).collect::<Vec<_>>().join(" ")
 }
 
 /// True when `candidate` is newer than `current`, by numeric segments.
@@ -516,7 +511,8 @@ global flake:nixpkgs github:NixOS/nixpkgs/nixpkgs-unstable\n";
             apply: Vec::new(),
             hm_user: None,
         };
-        let argv = update_command(&source, &layout).unwrap();
+        let steps = update_command(&source, &layout).unwrap();
+        let argv = &steps[0];
         assert!(
             argv.windows(2).any(|w| w == ["upgrade", "--all"]),
             "{argv:?}"
@@ -649,17 +645,17 @@ global flake:nixpkgs github:NixOS/nixpkgs/nixpkgs-unstable\n";
     }
 
     #[test]
-    fn flake_update_then_apply_under_one_sudo() {
+    fn flake_update_then_apply() {
         let source = Source {
             branch: None,
             rev: None,
             last_modified: None,
             method: UpdateMethod::FlakeInput {
-                dir: PathBuf::from("/etc/nixos"),
+                dir: PathBuf::from("/nonexistent/nixos"),
                 input: "nixpkgs".into(),
             },
         };
-        let argv = update_command(
+        let steps = update_command(
             &source,
             &layout(&[
                 "sudo",
@@ -670,8 +666,13 @@ global flake:nixpkgs github:NixOS/nixpkgs/nixpkgs-unstable\n";
             ]),
         )
         .unwrap();
-        assert_eq!(argv[..3], ["sudo", "sh", "-c"]);
-        assert!(argv[3].contains("flake update 'nixpkgs' --flake '/etc/nixos' && 'nixos-rebuild'"));
+        assert_eq!(steps.len(), 2);
+        assert_eq!(
+            steps[0][0], "sudo",
+            "a lock the user cannot write needs rights"
+        );
+        assert!(steps[0].windows(2).any(|w| w == ["update", "nixpkgs"]));
+        assert_eq!(steps[1][..2], ["sudo", "nixos-rebuild"]);
     }
 
     #[test]

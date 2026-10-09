@@ -66,12 +66,17 @@ pub enum DryRun {
 /// The dry check command of the layout.
 fn dry_argv(layout: &Layout) -> Option<Vec<String>> {
     match &layout.kind {
-        LayoutKind::NixosFlake { dir, host } => Some(vec![
-            "nixos-rebuild".into(),
-            "dry-build".into(),
-            "--flake".into(),
-            format!("{}#{}", dir.display(), host),
-        ]),
+        LayoutKind::NixosFlake { dir, host } => Some(
+            [
+                "nixos-rebuild".into(),
+                "dry-build".into(),
+                "--flake".into(),
+                format!("{}#{}", dir.display(), host),
+            ]
+            .into_iter()
+            .chain(crate::config_layout::local_overrides(dir))
+            .collect(),
+        ),
         LayoutKind::NixosLegacy { .. } => Some(vec!["nixos-rebuild".into(), "dry-build".into()]),
         LayoutKind::HmFlake { dir, user } => Some(vec![
             "home-manager".into(),
@@ -165,7 +170,7 @@ mod tests {
     fn dry_argv_matches_the_layout() {
         let flake = Layout {
             kind: LayoutKind::NixosFlake {
-                dir: PathBuf::from("/etc/nixos"),
+                dir: PathBuf::from("/nonexistent/nixos"),
                 host: "laptop".into(),
             },
             home: None,
@@ -175,7 +180,12 @@ mod tests {
         };
         assert_eq!(
             dry_argv(&flake).unwrap(),
-            ["nixos-rebuild", "dry-build", "--flake", "/etc/nixos#laptop"]
+            [
+                "nixos-rebuild",
+                "dry-build",
+                "--flake",
+                "/nonexistent/nixos#laptop"
+            ]
         );
         // A dry build needs no rights.
         assert!(!dry_argv(&flake).unwrap().contains(&"sudo".to_string()));

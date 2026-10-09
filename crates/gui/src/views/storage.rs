@@ -142,7 +142,7 @@ impl SimpleComponent for StorageModel {
                 crate::components::apply_dialog::present(
                     &self.content,
                     &t("Cleaning Up"),
-                    argv,
+                    vec![argv],
                     move |_| {
                         let _ = s.send(StorageMsg::Cleaned);
                     },

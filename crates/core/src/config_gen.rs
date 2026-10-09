@@ -319,8 +319,6 @@ pub fn apply_argv() -> Option<Vec<String>> {
     layout.is_usable().then_some(layout.apply)
 }
 
-/// Runs `argv` and passes each output line to `on_line`. `sudo` becomes
-/// pkexec; without pkexec, a terminal. Blocking.
 /// `argv` asking nixos-rebuild for progress events, also inside a script.
 fn with_progress_log(argv: Vec<String>) -> Vec<String> {
     let flags = ["--log-format", "internal-json"];
@@ -331,17 +329,124 @@ fn with_progress_log(argv: Vec<String>) -> Vec<String> {
             out.extend(flags.map(String::from));
         } else {
             out.push(arg.replace(
-                "'nixos-rebuild'",
-                "'nixos-rebuild' '--log-format' 'internal-json'",
+                "nixos-rebuild ",
+                "nixos-rebuild --log-format internal-json ",
             ));
         }
     }
     out
 }
 
+/// Runs `steps` in order and passes progress and log lines to `on_event`;
+/// stops at the first failure. A `sudo` step asks for rights through pkexec.
+/// Switching a flake builds as the user (their git access, files they own)
+/// and only activates as root. Blocking.
 pub fn run_streaming(
-    argv: &[String],
+    steps: &[Vec<String>],
     on_event: impl Fn(crate::progress::StreamEvent) + Send + Sync + 'static,
+) -> std::io::Result<ApplyOutcome> {
+    if steps.iter().all(Vec::is_empty) {
+        return Ok(ApplyOutcome::UnknownLayout);
+    }
+    let shared = Shared {
+        last: std::sync::Arc::new(std::sync::Mutex::new(String::new())),
+        tracker: std::sync::Arc::new(std::sync::Mutex::new(crate::progress::Tracker::default())),
+        on_event: std::sync::Arc::new(on_event),
+    };
+    let mut outcome = Ok(ApplyOutcome::UnknownLayout);
+    for step in steps.iter().filter(|s| !s.is_empty()) {
+        outcome = match split_flake_switch(step) {
+            Some((build, action)) => build_then_activate(&build, &action, &shared),
+            None => run_step(step, &shared),
+        };
+        if !matches!(outcome, Ok(ApplyOutcome::Done(_))) {
+            break;
+        }
+    }
+    outcome
+}
+
+/// What every step of a run shares.
+struct Shared<F> {
+    last: std::sync::Arc<std::sync::Mutex<String>>,
+    tracker: std::sync::Arc<std::sync::Mutex<crate::progress::Tracker>>,
+    on_event: std::sync::Arc<F>,
+}
+
+/// For `sudo nixos-rebuild <switch|boot|test> --flake …`: the same command
+/// building as the user, and the action to activate.
+fn split_flake_switch(step: &[String]) -> Option<(Vec<String>, String)> {
+    let (sudo, rest) = step.split_first()?;
+    let is_rebuild = rest
+        .first()
+        .is_some_and(|b| b == "nixos-rebuild" || b.ends_with("/nixos-rebuild"));
+    if sudo != "sudo" || !is_rebuild || !rest.iter().any(|a| a == "--flake") {
+        return None;
+    }
+    let i = rest
+        .iter()
+        .position(|a| matches!(a.as_str(), "switch" | "boot" | "test"))?;
+    let mut build = rest.to_vec();
+    let action = std::mem::replace(&mut build[i], "build".into());
+    Some((build, action))
+}
+
+/// Builds as the user, then activates the result as root.
+fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    build: &[String],
+    action: &str,
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    use std::os::unix::fs::DirBuilderExt;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.subsec_nanos());
+    let dir =
+        std::env::temp_dir().join(format!("nix-software-build-{}-{nanos}", std::process::id()));
+    std::fs::DirBuilder::new().mode(0o700).create(&dir)?;
+    let built = run_in(build, &dir, shared);
+    let out = std::fs::canonicalize(dir.join("result"));
+    let _ = std::fs::remove_dir_all(&dir);
+    if !matches!(built, Ok(ApplyOutcome::Done(_))) {
+        return built;
+    }
+    let out = out?;
+    let out = out.to_string_lossy().to_string();
+    let safe = out.starts_with("/nix/store/")
+        && out[11..]
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"+-._".contains(&b));
+    if !safe {
+        return Err(std::io::Error::other(crate::util::n_(
+            "The build gave an unexpected result.",
+        )));
+    }
+    let profile = if action == "test" {
+        String::new()
+    } else {
+        format!("nix-env -p /nix/var/nix/profiles/system --set {out} && ")
+    };
+    let activate = vec![
+        "sudo".to_string(),
+        "sh".into(),
+        "-c".into(),
+        format!("{profile}{out}/bin/switch-to-configuration {action}"),
+    ];
+    run_step(&activate, shared)
+}
+
+fn run_step<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    argv: &[String],
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    run_in(argv, &crate::util::home(), shared)
+}
+
+/// Runs one command in `dir`, streaming its output.
+fn run_in<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    argv: &[String],
+    dir: &std::path::Path,
+    shared: &Shared<F>,
 ) -> std::io::Result<ApplyOutcome> {
     use std::io::BufRead;
     let elevated = argv.first().is_some_and(|b| b == "sudo");
@@ -368,17 +473,18 @@ pub fn run_streaming(
     let argv = with_progress_log(argv);
     let mut child = Command::new(&argv[0])
         .args(&argv[1..])
+        .current_dir(dir)
         .env("SHELL", "/bin/sh")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
-    // Last readable line of both streams, and progress.
-    let last = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
-    let tracker = std::sync::Arc::new(std::sync::Mutex::new(crate::progress::Tracker::default()));
-    let on_event = std::sync::Arc::new(on_event);
     let pump = |reader: Box<dyn std::io::Read + Send>| {
-        let (on_event, last, tracker) = (on_event.clone(), last.clone(), tracker.clone());
+        let (on_event, last, tracker) = (
+            shared.on_event.clone(),
+            shared.last.clone(),
+            shared.tracker.clone(),
+        );
         std::thread::spawn(move || {
             for line in std::io::BufReader::new(reader)
                 .lines()
@@ -394,9 +500,7 @@ pub fn run_streaming(
                     }
                     on_event(crate::progress::StreamEvent::Line(text));
                 }
-                if line.starts_with("@nix ") {
-                    on_event(progress);
-                }
+                on_event(progress);
             }
         })
     };
@@ -404,8 +508,13 @@ pub fn run_streaming(
     let err = pump(Box::new(child.stderr.take().expect("piped stderr")));
     let status = child.wait()?;
     let _ = (out.join(), err.join());
-    let last = last.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let error = tracker
+    let last = shared
+        .last
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let error = shared
+        .tracker
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .error()
@@ -475,11 +584,14 @@ mod tests {
     fn run_streaming_forwards_lines_and_reports_the_last() {
         let lines = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let sink = lines.clone();
-        let res = run_streaming(&argv("echo building >&2; sleep 0.1; echo done"), move |e| {
-            if let crate::progress::StreamEvent::Line(l) = e {
-                sink.lock().unwrap().push(l)
-            }
-        });
+        let res = run_streaming(
+            &[argv("echo building >&2; sleep 0.1; echo done")],
+            move |e| {
+                if let crate::progress::StreamEvent::Line(l) = e {
+                    sink.lock().unwrap().push(l)
+                }
+            },
+        );
         assert_eq!(res.unwrap(), ApplyOutcome::Done("done".into()));
         let mut got = lines.lock().unwrap().clone();
         got.sort();
@@ -493,19 +605,47 @@ mod tests {
             direct,
             ["nixos-rebuild", "--log-format", "internal-json", "switch"]
         );
-        let script = with_progress_log(vec![
+        let custom = with_progress_log(vec![
             "sh".into(),
             "-c".into(),
-            "nix flake update && 'nixos-rebuild' 'switch'".into(),
+            "cd /x && nixos-rebuild switch --flake .#h".into(),
         ]);
-        assert!(script[2].ends_with("'nixos-rebuild' '--log-format' 'internal-json' 'switch'"));
+        assert_eq!(
+            custom[2],
+            "cd /x && nixos-rebuild --log-format internal-json switch --flake .#h"
+        );
         let other = with_progress_log(vec!["home-manager".into(), "switch".into()]);
         assert_eq!(other, ["home-manager", "switch"]);
     }
 
     #[test]
+    fn a_flake_switch_builds_as_the_user() {
+        let step: Vec<String> = ["sudo", "nixos-rebuild", "switch", "--flake", "/etc/nixos#h"]
+            .map(String::from)
+            .to_vec();
+        let (build, action) = split_flake_switch(&step).unwrap();
+        assert_eq!(build, ["nixos-rebuild", "build", "--flake", "/etc/nixos#h"]);
+        assert_eq!(action, "switch");
+        let channels: Vec<String> = ["sudo", "nixos-rebuild", "switch", "--upgrade"]
+            .map(String::from)
+            .to_vec();
+        assert!(
+            split_flake_switch(&channels).is_none(),
+            "channels need root to update"
+        );
+    }
+
+    #[test]
+    fn steps_stop_at_the_first_failure() {
+        let res = run_streaming(&[argv("exit 3"), argv("touch /nonexistent/never")], |_| {});
+        assert!(res.is_err());
+        let res = run_streaming(&[argv("true"), argv("echo second")], |_| {});
+        assert_eq!(res.unwrap(), ApplyOutcome::Done("second".into()));
+    }
+
+    #[test]
     fn run_streaming_fails_with_the_last_error_line() {
-        let res = run_streaming(&argv("echo 'error: boom' >&2; exit 1"), |_| {});
+        let res = run_streaming(&[argv("echo 'error: boom' >&2; exit 1")], |_| {});
         assert_eq!(res.unwrap_err().to_string(), "error: boom");
     }
     use crate::Package;

@@ -37,6 +37,21 @@ pub struct Tracker {
     build: (u64, u64),
     activating: bool,
     error: Option<String>,
+    /// (done, expected) read from plain text logs, for commands without JSON.
+    text_copy: (u64, u64),
+    text_build: (u64, u64),
+}
+
+/// The count of "these 12 paths will be fetched" or "this path will be…".
+fn announced(line: &str) -> Option<u64> {
+    if line.starts_with("this ") {
+        return Some(1);
+    }
+    line.strip_prefix("these ")?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()
 }
 
 /// `text` without terminal color codes.
@@ -61,9 +76,7 @@ impl Tracker {
     /// Reads one output line; returns the text it adds to the log, if any.
     pub fn feed(&mut self, line: &str) -> Option<String> {
         let Some(json) = line.strip_prefix("@nix ") else {
-            if line.contains("activating the configuration") {
-                self.activating = true;
-            }
+            self.read_text(line);
             return Some(line.to_string());
         };
         let v: serde_json::Value = serde_json::from_str(json).ok()?;
@@ -121,6 +134,35 @@ impl Tracker {
         }
     }
 
+    /// Counts what plain Nix logs announce and report.
+    fn read_text(&mut self, line: &str) {
+        let text = plain(line);
+        let l = text.trim();
+        if l.contains("activating the configuration") {
+            self.activating = true;
+        } else if l.contains("will be fetched") {
+            self.text_copy.1 += announced(l).unwrap_or(0);
+        } else if l.contains("will be built") {
+            self.text_build.1 += announced(l).unwrap_or(0);
+        } else if l.starts_with("copying path '") {
+            self.text_copy.0 += 1;
+        } else if l.starts_with("building '") {
+            self.text_build.0 += 1;
+        } else if l.starts_with("error:") {
+            self.error = Some(l.to_string());
+        }
+    }
+
+    /// The counts of JSON events, else those of plain text logs.
+    fn counts(&self) -> ((u64, u64), (u64, u64)) {
+        if self.copy.1 + self.build.1 > 0 {
+            (self.copy, self.build)
+        } else {
+            let cap = |(d, e): (u64, u64)| (d.min(e), e);
+            (cap(self.text_copy), cap(self.text_build))
+        }
+    }
+
     /// The last error Nix reported, if any.
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
@@ -131,27 +173,29 @@ impl Tracker {
         if self.activating {
             return Some(1.0);
         }
-        let expected = self.copy.1 + self.build.1;
-        (expected > 0).then(|| (self.copy.0 + self.build.0) as f64 / expected as f64)
+        let (copy, build) = self.counts();
+        let expected = copy.1 + build.1;
+        (expected > 0).then(|| (copy.0 + build.0) as f64 / expected as f64)
     }
 
     pub fn phase(&self) -> Phase {
+        let (copy, build) = self.counts();
         if self.activating {
             Phase::Activating
-        } else if self.build.1 > self.build.0 && self.copy.0 >= self.copy.1 {
+        } else if build.1 > build.0 && copy.0 >= copy.1 {
             Phase::Building {
-                done: self.build.0,
-                expected: self.build.1,
+                done: build.0,
+                expected: build.1,
             }
-        } else if self.copy.1 > 0 {
+        } else if copy.1 > 0 {
             Phase::Downloading {
-                done: self.copy.0,
-                expected: self.copy.1,
+                done: copy.0,
+                expected: copy.1,
             }
-        } else if self.build.1 > 0 {
+        } else if build.1 > 0 {
             Phase::Building {
-                done: self.build.0,
-                expected: self.build.1,
+                done: build.0,
+                expected: build.1,
             }
         } else {
             Phase::Starting
@@ -203,6 +247,31 @@ mod tests {
         assert_eq!(
             t.error(),
             Some("error: The option `my.ai.models' does not exist.")
+        );
+    }
+
+    #[test]
+    fn counts_plain_text_logs_too() {
+        let mut t = Tracker::default();
+        t.feed("these 3 paths will be fetched (1.2 MiB download, 4 MiB unpacked):");
+        t.feed("this derivation will be built:");
+        t.feed("copying path '/nix/store/a' from 'https://cache.nixos.org'...");
+        assert_eq!(t.fraction(), Some(0.25));
+        assert_eq!(
+            t.phase(),
+            Phase::Downloading {
+                done: 1,
+                expected: 3
+            }
+        );
+        t.feed("copying path '/nix/store/b' from 'https://cache.nixos.org'...");
+        t.feed("copying path '/nix/store/c' from 'https://cache.nixos.org'...");
+        t.feed("building '/nix/store/x.drv'...");
+        assert_eq!(t.fraction(), Some(1.0));
+        t.feed("error: builder for '/nix/store/x.drv' failed");
+        assert_eq!(
+            t.error(),
+            Some("error: builder for '/nix/store/x.drv' failed")
         );
     }
 

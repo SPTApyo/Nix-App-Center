@@ -71,6 +71,67 @@ fn read(path: &Path) -> String {
 
 /// Detects the machine layout.
 pub fn detect() -> Layout {
+    let mut layout = detect_files();
+    let custom = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
+        .is_none()
+        .then(|| crate::settings::load_settings().apply_command)
+        .flatten()
+        .filter(|c| !c.trim().is_empty());
+    if let (Some(command), true) = (custom, layout.is_usable()) {
+        layout.apply = custom_apply(&command);
+    }
+    layout
+}
+
+/// argv running the user's own apply command; a leading `sudo` asks for
+/// administrator rights the graphical way.
+fn custom_apply(command: &str) -> Vec<String> {
+    match command.trim().strip_prefix("sudo ") {
+        Some(rest) => vec![
+            "sudo".into(),
+            "sh".into(),
+            "-c".into(),
+            rest.trim().to_string(),
+        ],
+        None => vec!["sh".into(), "-c".into(), command.trim().to_string()],
+    }
+}
+
+/// `--override-input` for each local input of the flake in `dir`, so its
+/// files are used as they are on disk instead of the locked copy.
+pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
+    std::fs::read_to_string(dir.join("flake.lock"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .map(|lock| overrides_from_lock(&lock))
+        .unwrap_or_default()
+}
+
+fn overrides_from_lock(lock: &serde_json::Value) -> Vec<String> {
+    let root = lock["root"].as_str().unwrap_or("root");
+    let Some(inputs) = lock["nodes"][root]["inputs"].as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (name, node) in inputs {
+        let Some(node) = node.as_str() else { continue };
+        let original = &lock["nodes"][node]["original"];
+        let source = match original["type"].as_str() {
+            Some("git") => original["url"]
+                .as_str()
+                .filter(|u| u.starts_with("file://"))
+                .map(|u| format!("git+{u}")),
+            Some("path") => original["path"].as_str().map(|p| format!("path:{p}")),
+            _ => None,
+        };
+        if let Some(source) = source {
+            out.extend(["--override-input".to_string(), name.clone(), source]);
+        }
+    }
+    out
+}
+
+fn detect_files() -> Layout {
     let nixos = nixos_dir();
     let hm = hm_dir();
 
@@ -125,9 +186,16 @@ pub struct Verified {
 /// # Errors
 /// The last line Nix printed.
 pub fn verify(layout: &Layout) -> Result<Verified, String> {
+    let overrides = match &layout.kind {
+        LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => {
+            local_overrides(dir)
+        }
+        _ => Vec::new(),
+    };
     let names = |expr: String| -> Result<Vec<String>, String> {
         let out = crate::util::nix()
             .args(["eval", "--json", &expr, "--apply", "builtins.attrNames"])
+            .args(&overrides)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -264,13 +332,14 @@ fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
 
 fn nixos_flake_layout(dir: PathBuf, host: String, hm_user: Option<String>) -> Layout {
     let (home, system) = nixos_scopes(&dir);
-    let apply = vec![
+    let mut apply = vec![
         "sudo".into(),
         "nixos-rebuild".into(),
         "switch".into(),
         "--flake".into(),
         format!("{}#{}", dir.display(), host),
     ];
+    apply.extend(local_overrides(&dir));
     Layout {
         kind: LayoutKind::NixosFlake { dir, host },
         home,
@@ -297,12 +366,13 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
         nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
         import_site: dir.join("home.nix"),
     });
-    let apply = vec![
+    let mut apply = vec![
         "home-manager".into(),
         "switch".into(),
         "--flake".into(),
         format!("{}#{}", dir.display(), user),
     ];
+    apply.extend(local_overrides(&dir));
     // Standalone Home Manager has no system scope.
     Layout {
         kind: LayoutKind::HmFlake { dir, user },
@@ -331,6 +401,45 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_inputs_are_used_as_they_are_on_disk() {
+        let lock = serde_json::json!({
+            "root": "root",
+            "nodes": {
+                "root": { "inputs": { "nixos-config": "nixos-config", "nixpkgs": "nixpkgs", "local": "local" } },
+                "nixos-config": { "original": { "type": "git", "url": "file:///home/u/nixos-config" } },
+                "nixpkgs": { "original": { "type": "github", "owner": "NixOS", "repo": "nixpkgs" } },
+                "local": { "original": { "type": "path", "path": "/home/u/mods" } }
+            }
+        });
+        let args = overrides_from_lock(&lock);
+        assert!(args.windows(3).any(|w| w
+            == [
+                "--override-input",
+                "nixos-config",
+                "git+file:///home/u/nixos-config"
+            ]));
+        assert!(args
+            .windows(3)
+            .any(|w| w == ["--override-input", "local", "path:/home/u/mods"]));
+        assert!(
+            !args.iter().any(|a| a == "nixpkgs"),
+            "remote inputs stay locked"
+        );
+    }
+
+    #[test]
+    fn a_custom_command_asks_for_rights_only_with_sudo() {
+        assert_eq!(
+            custom_apply("sudo nixos-rebuild switch"),
+            ["sudo", "sh", "-c", "nixos-rebuild switch"]
+        );
+        assert_eq!(
+            custom_apply("  home-manager switch "),
+            ["sh", "-c", "home-manager switch"]
+        );
+    }
 
     /// Throwaway fixture. No test ever touches the real `/etc/nixos` or `~`.
     fn fixture(name: &str) -> PathBuf {

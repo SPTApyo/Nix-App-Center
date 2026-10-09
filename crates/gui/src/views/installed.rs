@@ -234,7 +234,7 @@ impl SimpleComponent for InstalledModel {
                 crate::components::apply_dialog::present(
                     &self.content,
                     &t("Applying Configuration"),
-                    argv,
+                    vec![argv],
                     move |res| {
                         let _ = s.send(InstalledMsg::Applied(res));
                     },

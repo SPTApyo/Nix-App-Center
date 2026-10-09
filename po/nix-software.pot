@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 22:29+0200\n"
+"POT-Creation-Date: 2026-10-09 22:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: crates/core/src/config_gen.rs:418 crates/core/src/paths.rs:68
+#: crates/core/src/config_gen.rs:423
+msgid "The build gave an unexpected result."
+msgstr ""
+
+#: crates/core/src/config_gen.rs:529 crates/core/src/paths.rs:68
 msgid "Authentication was cancelled."
 msgstr ""
 
-#: crates/core/src/config_gen.rs:421 crates/core/src/paths.rs:72
+#: crates/core/src/config_gen.rs:532 crates/core/src/paths.rs:72
 msgid "Administrator rights were refused."
 msgstr ""
 
@@ -34,7 +38,7 @@ msgstr ""
 msgid "This is not a nixpkgs revision."
 msgstr ""
 
-#: crates/core/src/nix_check.rs:95
+#: crates/core/src/nix_check.rs:100
 msgid "Nix Software cannot find your Nix configuration."
 msgstr ""
 
@@ -490,32 +494,32 @@ msgstr[1] ""
 msgid "Starting…"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:107
-#: crates/gui/src/components/apply_dialog.rs:119
+#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:125
 msgid "Show _Details"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:109
+#: crates/gui/src/components/apply_dialog.rs:115
 msgid "Show the full build log."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:117
+#: crates/gui/src/components/apply_dialog.rs:123
 msgid "Hide _Details"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:204
+#: crates/gui/src/components/apply_dialog.rs:210
 msgid "Working…"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:213
+#: crates/gui/src/components/apply_dialog.rs:219
 msgid "Done"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:214
+#: crates/gui/src/components/apply_dialog.rs:220
 msgid "finished"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:218
+#: crates/gui/src/components/apply_dialog.rs:224
 msgid "Failed"
 msgstr ""
 
@@ -653,12 +657,12 @@ msgid ""
 msgstr ""
 
 #: crates/gui/src/components/details/infobox.rs:112
-#: crates/gui/src/views/updates.rs:412
+#: crates/gui/src/views/updates.rs:423
 msgid "_Release"
 msgstr ""
 
 #: crates/gui/src/components/details/infobox.rs:114
-#: crates/gui/src/views/updates.rs:414
+#: crates/gui/src/views/updates.rs:425
 msgid "Let the app follow your configuration again."
 msgstr ""
 
@@ -1830,71 +1834,102 @@ msgstr ""
 msgid "Downloading the nix-index database…"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:157
+#: crates/gui/src/views/preferences.rs:148
+msgid "Advanced"
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:150
+msgid ""
+"For unusual setups only, such as a configuration kept in another folder and "
+"built with your own script. Leave it empty if Apply already works."
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:154
+msgid "Apply command (empty: found by itself)"
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:165
+msgid "How It Runs"
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:167
+msgid ""
+"Run by the shell. Start it with sudo to run it as administrator: Nix "
+"Software asks for the password itself, so tools that call sudo on their own, "
+"such as nh, do not work here. The progress bar follows nixos-rebuild and "
+"plain Nix logs."
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:185
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:161
+#: crates/gui/src/views/preferences.rs:189
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:164
+#: crates/gui/src/views/preferences.rs:192
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:167
+#: crates/gui/src/views/preferences.rs:195
 #, rust-format
 msgid "Home Manager in {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:169
+#: crates/gui/src/views/preferences.rs:197
 msgid "No configuration found."
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:174
+#: crates/gui/src/views/preferences.rs:201
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:183
+#: crates/gui/src/views/preferences.rs:204
+#, rust-format
+msgid "Applied with: {}"
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:212
 #, rust-format
 msgid "Configurations: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:187
+#: crates/gui/src/views/preferences.rs:216
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:189
+#: crates/gui/src/views/preferences.rs:218
 msgid "No Home Manager module."
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:190
+#: crates/gui/src/views/preferences.rs:219
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:197
+#: crates/gui/src/views/preferences.rs:226
 msgid "Check with Nix"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:199
+#: crates/gui/src/views/preferences.rs:228
 msgid "Nix says"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:200
+#: crates/gui/src/views/preferences.rs:229
 msgid "Not checked yet."
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:207
+#: crates/gui/src/views/preferences.rs:236
 msgid "Evaluating your configuration…"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:217
+#: crates/gui/src/views/preferences.rs:246
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr ""
@@ -2249,37 +2284,37 @@ msgstr ""
 msgid "_Update"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:398
+#: crates/gui/src/views/updates.rs:409
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:425
+#: crates/gui/src/views/updates.rs:436
 msgid "Held Apps"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:432
+#: crates/gui/src/views/updates.rs:443
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:435
+#: crates/gui/src/views/updates.rs:446
 msgid "Nix Software cannot update this configuration by itself."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:443
+#: crates/gui/src/views/updates.rs:454
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
 "ready."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:446
+#: crates/gui/src/views/updates.rs:457
 msgid "Release _Notes"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:462
+#: crates/gui/src/views/updates.rs:473
 msgid "Everything is up to date"
 msgstr ""

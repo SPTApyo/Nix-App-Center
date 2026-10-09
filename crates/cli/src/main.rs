@@ -170,7 +170,10 @@ fn main() -> ExitCode {
                 println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);
             }
             match nix_software_core::update_command(&source, &nix_software_core::detect_layout()) {
-                Some(argv) => println!("update with: {}", argv.join(" ")),
+                Some(steps) => {
+                    let steps: Vec<String> = steps.iter().map(|a| a.join(" ")).collect();
+                    println!("update with: {}", steps.join(" && "));
+                }
                 None => println!("update the flake that pins nixpkgs, then apply"),
             }
             ExitCode::SUCCESS

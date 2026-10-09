@@ -17,7 +17,7 @@ pub struct Check {
     source: Source,
     latest: Option<Latest>,
     apps: Vec<AppUpdate>,
-    command: Option<Vec<String>>,
+    command: Option<Vec<Vec<String>>>,
     new_release: Option<String>,
 }
 
@@ -371,7 +371,18 @@ impl UpdatesModel {
             btn.add_css_class("suggested-action");
             btn.set_valign(gtk::Align::Center);
             btn.set_sensitive(!self.updating);
-            btn.set_tooltip_text(c.command.as_ref().map(|a| a.join(" ")).as_deref());
+            btn.set_tooltip_text(
+                c.command
+                    .as_ref()
+                    .map(|steps| {
+                        steps
+                            .iter()
+                            .map(|a| a.join(" "))
+                            .collect::<Vec<_>>()
+                            .join(" && ")
+                    })
+                    .as_deref(),
+            );
             btn.connect_clicked({
                 let s = sender.input_sender().clone();
                 move |_| {

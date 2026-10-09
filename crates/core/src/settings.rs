@@ -20,6 +20,8 @@ pub struct Settings {
     pub install_for_everyone: bool,
     /// The welcome tour was seen.
     pub onboarded: bool,
+    /// The user's own apply command, for unusual setups.
+    pub apply_command: Option<String>,
 }
 
 impl Default for Settings {
@@ -32,6 +34,7 @@ impl Default for Settings {
             odrs_user_hash: None,
             install_for_everyone: false,
             onboarded: false,
+            apply_command: None,
         }
     }
 }

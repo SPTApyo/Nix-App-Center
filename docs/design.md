@@ -179,8 +179,34 @@ activities, which give the percentage; the time left extrapolates from the
 time spent once five percent is done. Evaluation and activation report no
 counts, so the bar pulses there instead of showing a made-up number. Messages
 and build log lines go to the details log, and the last error line of a
-failure becomes the message the user sees. Other commands (Home Manager, the
-garbage collector) keep a pulsing bar.
+failure becomes the message the user sees. Commands without JSON logs (a
+custom apply command, Home Manager) are read as plain text: "these 12 paths
+will be fetched", then one "copying path" or "building" line each. The garbage
+collector keeps a pulsing bar.
+
+An apply is a list of steps run in order, stopping at the first failure. An
+update is two steps: refresh the lock or channel, then apply.
+
+## Building as the user
+
+A NixOS flake switch is split in two. nixos-rebuild build runs as the user in
+a fresh private temporary folder, then root only activates the result:
+nix-env sets the system profile and switch-to-configuration switches to it.
+Root cannot read a git repository it does not own, and has neither the user's
+SSH keys nor their git credentials, so building as root fails on a
+configuration kept in a private repository. The result path is checked to be
+a plain store path before root runs anything from it.
+
+Flake inputs that point to a local folder (git+file or path) are passed again
+with --override-input, so the configuration is built from the files on disk,
+including changes that are not committed or pushed yet. This covers the
+common setup of a small /etc/nixos flake that imports the real configuration
+from the home folder.
+
+For setups the detection cannot guess, Preferences has an advanced apply
+command run by the shell. A leading sudo runs it as administrator through
+pkexec, so tools that call sudo on their own do not work there. Detection
+still decides where apps are written.
 
 The dialog can be closed while the work goes on; a desktop notification
 reports the end when the app is not in front. There is no notification per

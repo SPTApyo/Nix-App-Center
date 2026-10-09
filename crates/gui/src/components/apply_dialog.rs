@@ -55,7 +55,7 @@ fn progress_text(fraction: f64, elapsed: Duration) -> String {
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     title: &str,
-    argv: Vec<String>,
+    steps: Vec<Vec<String>>,
     done: impl Fn(Result<ApplyOutcome, String>) + 'static,
 ) {
     let phase = gtk::Label::new(Some(&t("Preparing…")));
@@ -82,7 +82,13 @@ pub fn present(
     view.set_bottom_margin(8);
     view.set_left_margin(8);
     view.set_right_margin(8);
-    let command = gtk::Label::new(Some(&argv.join(" ")));
+    let command = gtk::Label::new(Some(
+        &steps
+            .iter()
+            .map(|s| s.join(" "))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    ));
     command.add_css_class("dim-label");
     command.add_css_class("monospace");
     command.set_xalign(0.0);
@@ -170,7 +176,7 @@ pub fn present(
     let (tx, rx) = async_channel::unbounded::<Event>();
     std::thread::spawn(move || {
         let events = tx.clone();
-        let res = nix_software_core::run_streaming(&argv, move |e| {
+        let res = nix_software_core::run_streaming(&steps, move |e| {
             let _ = events.send_blocking(Event::Stream(e));
         })
         .map_err(|e| e.to_string());

@@ -144,10 +144,38 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     }
     search.add(&by_command);
 
+    let advanced = adw::PreferencesGroup::builder()
+        .title(t("Advanced"))
+        .description(t(
+            "For unusual setups only, such as a configuration kept in another folder and built with your own script. Leave it empty if Apply already works.",
+        ))
+        .build();
+    let command = adw::EntryRow::builder()
+        .title(t("Apply command (empty: found by itself)"))
+        .show_apply_button(true)
+        .build();
+    if let Some(c) = &settings.apply_command {
+        command.set_text(c);
+    }
+    command.connect_apply(move |row| {
+        let text = row.text().trim().to_string();
+        save(&|s| s.apply_command = (!text.is_empty()).then(|| text.clone()));
+    });
+    let warning = adw::ActionRow::builder()
+        .title(t("How It Runs"))
+        .subtitle(esc(&t(
+            "Run by the shell. Start it with sudo to run it as administrator: Nix Software asks for the password itself, so tools that call sudo on their own, such as nh, do not work here. The progress bar follows nixos-rebuild and plain Nix logs.",
+        )))
+        .build();
+    warning.add_prefix(&gtk::Image::from_icon_name("dialog-warning-symbolic"));
+    advanced.add(&command);
+    advanced.add(&warning);
+
     page.add(&config);
     page.add(&installing);
     page.add(&updates);
     page.add(&search);
+    page.add(&advanced);
     dialog.add(&page);
     dialog.present(Some(parent));
 }
@@ -168,13 +196,14 @@ pub(crate) fn describe(layout: &Layout) -> String {
         }
         LayoutKind::Unknown => return t("No configuration found."),
     };
-    match &layout.hm_user {
-        Some(u) => format!(
-            "{base}\n{}",
-            t("Home Manager module for {}").replace("{}", u)
-        ),
-        None => base,
+    let mut lines = vec![base];
+    if let Some(u) = &layout.hm_user {
+        lines.push(t("Home Manager module for {}").replace("{}", u));
     }
+    if !layout.apply.is_empty() {
+        lines.push(t("Applied with: {}").replace("{}", &layout.apply.join(" ")));
+    }
+    lines.join("\n")
 }
 
 fn verified_text(v: &nix_software_core::Verified) -> String {

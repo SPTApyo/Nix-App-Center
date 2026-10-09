@@ -1476,7 +1476,7 @@ impl SimpleComponent for DetailModel {
                     crate::components::apply_dialog::present(
                         &self.toast_overlay,
                         &t("Applying Configuration"),
-                        argv,
+                        vec![argv],
                         move |res| {
                             let _ = s.send(DetailMsg::Applied(res));
                         },
