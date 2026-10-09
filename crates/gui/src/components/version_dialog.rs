@@ -12,6 +12,8 @@ pub enum Pick {
     Version(VersionChoice),
     /// Back to the version the configuration gives.
     Follow,
+    /// Hold the version installed now.
+    Installed,
 }
 
 /// Lists `choices`, marking the one at `held_rev`; `on_pick` gets the choice.
@@ -39,20 +41,26 @@ pub fn present(
     body.append(&note);
 
     let list = crate::util::boxed_list();
-    if held_rev.is_some() {
-        let follow = adw::ButtonRow::builder()
-            .title(t("_Follow Your Configuration"))
-            .use_underline(true)
-            .build();
-        follow.connect_activated({
-            let (dialog, on_pick) = (dialog.clone(), on_pick.clone());
-            move |_| {
-                dialog.close();
-                on_pick(Pick::Follow);
+    let (label, pick) = if held_rev.is_some() {
+        (t("_Follow Your Configuration"), Pick::Follow)
+    } else {
+        (t("_Keep the Installed Version"), Pick::Installed)
+    };
+    let top = adw::ButtonRow::builder()
+        .title(label)
+        .use_underline(true)
+        .build();
+    let pick = std::cell::Cell::new(Some(pick));
+    top.connect_activated({
+        let (dialog, on_pick) = (dialog.clone(), on_pick.clone());
+        move |_| {
+            dialog.close();
+            if let Some(p) = pick.take() {
+                on_pick(p);
             }
-        });
-        list.append(&follow);
-    }
+        }
+    });
+    list.append(&top);
     for choice in choices {
         let source = if choice.cached {
             t("Ready to download")

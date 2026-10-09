@@ -198,8 +198,9 @@ MENU_KEEP_TOGGLE = "click:894,221"
 MENU_RUN = "click:834,259"
 MENU_COPY = "click:834,297"
 MENU_ADVANCED = "click:834,335"
-MENU_HOLD = "click:834,372"
-MENU_APPLY = "click:834,453"
+MENU_VERSION = "click:834,372"
+VERSION_TOP = "click:504,248"
+MENU_APPLY = "click:834,415"
 PRIMARY = "click:820,145"
 # Advanced options editor.
 EDITOR_SYSTEM_TAB = "click:566,147"
@@ -322,14 +323,19 @@ def actions(env, s):
     home = env.config / "nix-software-home.nix"
     manifest = env.data / "nix-software" / "kept.json"
     s.do(MENU)
-    s.do(MENU_HOLD)
+    s.do(MENU_VERSION)
+    s.do("wait:8000")
+    s.shot("action-versions")
+    s.do(VERSION_TOP)
     wait_for(lambda: '"pin"' in manifest.read_text(), 180, "hello held in kept.json")
     wait_for(lambda: "builtins.fetchTarball" in home.read_text(), 10, "held revision imported")
     assert ".hello" in home.read_text(), "hello must come from the held revision"
     s.do("wait:1500")
     s.shot("action-hold")
     s.do(MENU)
-    s.do(MENU_HOLD)
+    s.do(MENU_VERSION)
+    s.do("wait:8000")
+    s.do(VERSION_TOP)
     wait_for(lambda: '"pin"' not in manifest.read_text(), 10, "hold released")
     assert "fetchTarball" not in home.read_text(), "a release drops the held import"
 

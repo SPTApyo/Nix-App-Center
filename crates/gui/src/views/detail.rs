@@ -439,37 +439,14 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Button {
-                                                                    #[watch]
-                                                                    set_label: &if model.pin.is_some() {
-                                                                        t("Release Held Version")
-                                                                    } else {
-                                                                        t("Hold This Version")
-                                                                    },
+                                                                    set_label: &t("Version…"),
                                                                     #[watch]
                                                                     set_visible: model.can_hold(),
                                                                     #[watch]
                                                                     set_sensitive: !model.holding,
-                                                                    set_tooltip_text: Some(&t("Keep the app at the version installed now, or let it follow your configuration again.")),
-                                                                    add_css_class: "flat",
-                                                                    connect_clicked => DetailMsg::ToggleHold,
-                                                                },
-                                                                gtk::Button {
-                                                                    set_label: &t("Choose a Version…"),
-                                                                    #[watch]
-                                                                    set_visible: model.can_hold(),
-                                                                    #[watch]
-                                                                    set_sensitive: !model.holding,
-                                                                    set_tooltip_text: Some(&t("Pick an earlier version, held at the nixpkgs revision that shipped it.")),
+                                                                    set_tooltip_text: Some(&t("Keep the installed version, or pick an earlier one.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ChooseVersion,
-                                                                },
-                                                                gtk::Button {
-                                                                    set_label: &t("Wrong App?"),
-                                                                    #[watch]
-                                                                    set_visible: model.meta.as_ref().is_some_and(|m| m.app_id.is_some()),
-                                                                    set_tooltip_text: Some(&t("Tell Nix Software this page shows the details of another app.")),
-                                                                    add_css_class: "flat",
-                                                                    connect_clicked => DetailMsg::ReportMatch,
                                                                 },
                                                                 gtk::Separator {
                                                                     set_orientation: gtk::Orientation::Horizontal,
@@ -580,16 +557,33 @@ impl SimpleComponent for DetailModel {
                                             gtk::Box { add_css_class: "skeleton", set_height_request: 13, set_hexpand: true },
                                             gtk::Box { add_css_class: "skeleton", set_height_request: 13, set_width_request: 320, set_halign: gtk::Align::Start },
                                         },
-                                        gtk::Label {
+                                        gtk::Stack {
                                             #[watch]
                                             set_visible: !model.loading,
-                                            #[watch]
-                                            set_label: &desc_display(&model.meta, &model.package.description, model.desc_expanded),
-                                            set_halign: gtk::Align::Fill,
+                                            set_transition_type: gtk::StackTransitionType::Crossfade,
+                                            set_transition_duration: 280,
+                                            set_interpolate_size: true,
+                                            set_vhomogeneous: false,
                                             set_hexpand: true,
-                                            set_valign: gtk::Align::Start,
-                                            set_wrap: true,
-                                            set_xalign: 0.0,
+
+                                            add_named[Some("short")] = &gtk::Label {
+                                                #[watch]
+                                                set_label: &desc_display(&model.meta, &model.package.description, false),
+                                                set_halign: gtk::Align::Fill,
+                                                set_valign: gtk::Align::Start,
+                                                set_wrap: true,
+                                                set_xalign: 0.0,
+                                            },
+                                            add_named[Some("full")] = &gtk::Label {
+                                                #[watch]
+                                                set_label: &desc_display(&model.meta, &model.package.description, true),
+                                                set_halign: gtk::Align::Fill,
+                                                set_valign: gtk::Align::Start,
+                                                set_wrap: true,
+                                                set_xalign: 0.0,
+                                            },
+                                            #[watch]
+                                            set_visible_child_name: if model.desc_expanded { "full" } else { "short" },
                                         },
                                         gtk::Button {
                                             #[watch]
@@ -968,7 +962,10 @@ impl SimpleComponent for DetailModel {
                     meta.version.as_deref(),
                     self.toast_overlay.clone().upcast(),
                 );
-                build_license_box(&self.license_box, &meta);
+                let s = sender.input_sender().clone();
+                build_license_box(&self.license_box, &meta, move || {
+                    let _ = s.send(DetailMsg::ReportMatch);
+                });
                 self.rebuild_build_options(&meta, &sender);
 
                 // Shown only when nixpkgs has one of them.
@@ -1120,13 +1117,6 @@ impl SimpleComponent for DetailModel {
                 });
             }
             DetailMsg::VersionsLoaded(choices) => {
-                if choices.is_empty() {
-                    crate::util::toast(
-                        &self.toast_overlay,
-                        &t("No other versions are known for this package."),
-                    );
-                    return;
-                }
                 let s = sender.input_sender().clone();
                 crate::components::version_dialog::present(
                     &self.toast_overlay,
@@ -1137,7 +1127,8 @@ impl SimpleComponent for DetailModel {
                             crate::components::version_dialog::Pick::Version(c) => {
                                 DetailMsg::HoldAt(c)
                             }
-                            crate::components::version_dialog::Pick::Follow => {
+                            crate::components::version_dialog::Pick::Follow
+                            | crate::components::version_dialog::Pick::Installed => {
                                 DetailMsg::ToggleHold
                             }
                         });
@@ -2082,7 +2073,7 @@ fn build_version_history(
 }
 
 /// License card and links, side by side.
-fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
+fn build_license_box(container: &gtk::Box, meta: &AppMeta, on_wrong_app: impl Fn() + 'static) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
@@ -2148,6 +2139,18 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
             list.append(&maintainers_row(meta));
         }
         for row in [commands_row(meta), opens_row(meta)].into_iter().flatten() {
+            list.append(&row);
+        }
+        if meta.app_id.is_some() {
+            let row = adw::ActionRow::builder()
+                .title(esc(&t("Wrong App?")))
+                .subtitle(esc(&t(
+                    "This page shows another app's name, icon or pictures",
+                )))
+                .activatable(true)
+                .build();
+            row.add_prefix(&gtk::Image::from_icon_name("dialog-question-symbolic"));
+            row.connect_activated(move |_| on_wrong_app());
             list.append(&row);
         }
         stack.add_named(&list, Some("links"));
