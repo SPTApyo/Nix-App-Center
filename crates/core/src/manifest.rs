@@ -207,6 +207,11 @@ pub fn pin_current(version: Option<String>) -> std::io::Result<Pin> {
 /// # Errors
 /// When the revision cannot be fetched.
 pub fn pin_at(rev: &str, version: Option<String>) -> std::io::Result<Pin> {
+    if !crate::versions::is_rev(rev) {
+        return Err(std::io::Error::other(crate::util::n_(
+            "This is not a nixpkgs revision.",
+        )));
+    }
     let out = std::process::Command::new("nix-prefetch-url")
         .args(["--unpack", &crate::config_gen::nixpkgs_tarball(rev)])
         .output()?;

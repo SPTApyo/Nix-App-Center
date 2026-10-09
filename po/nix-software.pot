@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 20:22+0200\n"
+"POT-Creation-Date: 2026-10-09 20:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,12 +18,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: crates/core/src/config_gen.rs:372 crates/core/src/paths.rs:66
+#: crates/core/src/config_gen.rs:382 crates/core/src/paths.rs:66
 msgid "Authentication was cancelled."
 msgstr ""
 
 #: crates/core/src/manifest.rs:201
 msgid "The nixpkgs revision in use is unknown."
+msgstr ""
+
+#: crates/core/src/manifest.rs:213
+msgid "This is not a nixpkgs revision."
 msgstr ""
 
 #: crates/core/src/nix_check.rs:95

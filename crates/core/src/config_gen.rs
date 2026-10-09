@@ -57,19 +57,29 @@ fn pin_binding(rev: &str) -> String {
 /// revision when pinned, with its build options.
 fn package_expr(e: &KeptEntry) -> String {
     let attr = &e.package.attr;
-    if e.pin.is_none() && e.flags.is_empty() {
+    let pin = valid_pin(e);
+    if pin.is_none() && e.flags.is_empty() {
         return attr.clone();
     }
-    let base = match &e.pin {
+    let base = match pin {
         Some(p) => format!("{}.{attr}", pin_binding(&p.rev)),
         None => format!("pkgs.{attr}"),
     };
     crate::build_flags::with_flags(&base, &e.flags)
 }
 
+/// The entry's hold, when its revision and hash are safe to write as Nix.
+fn valid_pin(e: &KeptEntry) -> Option<&crate::manifest::Pin> {
+    e.pin.as_ref().filter(|p| {
+        crate::versions::is_rev(&p.rev)
+            && !p.sha256.is_empty()
+            && p.sha256.bytes().all(|b| b.is_ascii_alphanumeric())
+    })
+}
+
 /// `let` bindings importing each held revision once, shared by its apps.
 fn pin_bindings<'a>(entries: impl Iterator<Item = &'a KeptEntry>) -> String {
-    let mut pins: Vec<&crate::manifest::Pin> = entries.filter_map(|e| e.pin.as_ref()).collect();
+    let mut pins: Vec<&crate::manifest::Pin> = entries.filter_map(valid_pin).collect();
     pins.sort_by(|a, b| a.rev.cmp(&b.rev));
     pins.dedup_by(|a, b| a.rev == b.rev);
     if pins.is_empty() {
@@ -541,7 +551,7 @@ mod tests {
             simple("firefox"),
             pinned("vlc", rev),
             gimp,
-            pinned("mpv", "fedcba9876543210"),
+            pinned("mpv", &"fedcba9876543210".repeat(3)[..40]),
         ];
         let out = render_home(&kept, &HomeShape::HomeManager);
         assert_eq!(out.matches("builtins.fetchTarball").count(), 2, "{out}");
@@ -563,8 +573,19 @@ mod tests {
     }
 
     #[test]
+    fn a_malformed_hold_is_never_written() {
+        let bad = pinned("vlc", "\"; builtins.exec [ ]; \"");
+        let out = render_home(&[bad], &HomeShape::HomeManager);
+        assert!(
+            !out.contains("builtins.exec") && !out.contains("fetchTarball"),
+            "{out}"
+        );
+        assert!(out.contains("  vlc\n"));
+    }
+
+    #[test]
     fn apps_for_everyone_go_to_the_system_packages() {
-        let mut vlc = pinned("vlc", "0123456789abcdef");
+        let mut vlc = pinned("vlc", &"0123456789abcdef".repeat(3)[..40]);
         vlc.system_wide = true;
         let kept = [simple("firefox"), vlc];
         let system = render_system(&kept);

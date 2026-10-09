@@ -14,7 +14,14 @@ pub struct VersionChoice {
 
 /// Versions of `attr` for this machine, newest first. Network: blocking.
 pub fn versions(attr: &str) -> Vec<VersionChoice> {
-    let url = format!("https://search.devbox.sh/v2/pkg?name={attr}");
+    let name: String = attr
+        .bytes()
+        .map(|b| match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'.' | b'_' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect();
+    let url = format!("https://search.devbox.sh/v2/pkg?name={name}");
     let Some(v) = crate::http::get_json(&url) else {
         return Vec::new();
     };
@@ -46,15 +53,24 @@ fn parse_versions(v: &serde_json::Value, attr: &str, system: &str) -> Vec<(Versi
                 .find(|o| o["name"].as_str() == Some("out"))?["path"]
                 .as_str()?
                 .to_string();
+            let rev = p["commit_hash"].as_str().filter(|r| is_rev(r))?;
             let choice = VersionChoice {
                 version: r["version"].as_str()?.to_string(),
-                rev: p["commit_hash"].as_str()?.to_string(),
+                rev: rev.to_string(),
                 date: p["date"].as_str()?.get(..10)?.to_string(),
                 cached: false,
             };
             Some((choice, out))
         })
         .collect()
+}
+
+/// True for a full nixpkgs commit hash: 40 lowercase hex digits.
+pub(crate) fn is_rev(rev: &str) -> bool {
+    rev.len() == 40
+        && rev
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// True when cache.nixos.org has the store path `out`.
@@ -76,22 +92,35 @@ mod tests {
     fn reads_the_releases_of_this_system() {
         let v = serde_json::json!({ "releases": [
             { "version": "3.0.21", "platforms": [
-                { "system": "aarch64-linux", "attribute_path": "vlc", "commit_hash": "aaa",
+                { "system": "aarch64-linux", "attribute_path": "vlc", "commit_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                   "date": "2025-11-23T00:00:00Z", "outputs": [{ "name": "out", "path": "/nix/store/x-vlc" }] },
-                { "system": "x86_64-linux", "attribute_path": "vlc", "commit_hash": "bbb",
+                { "system": "x86_64-linux", "attribute_path": "vlc", "commit_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                   "date": "2025-11-23T00:00:00Z",
                   "outputs": [{ "name": "man", "path": "/nix/store/m" }, { "name": "out", "path": "/nix/store/o" }] }
             ]},
             { "version": "1.0", "platforms": [
-                { "system": "x86_64-linux", "attribute_path": "vlc-other", "commit_hash": "ccc",
+                { "system": "x86_64-linux", "attribute_path": "vlc-other", "commit_hash": "cccccccccccccccccccccccccccccccccccccccc",
                   "date": "2020-01-01T00:00:00Z", "outputs": [{ "name": "out", "path": "/nix/store/z" }] }
             ]}
         ]});
         let found = parse_versions(&v, "vlc", "x86_64-linux");
         assert_eq!(found.len(), 1, "other systems and attrs are skipped");
         assert_eq!(found[0].0.version, "3.0.21");
-        assert_eq!(found[0].0.rev, "bbb");
+        assert_eq!(found[0].0.rev, "b".repeat(40));
         assert_eq!(found[0].0.date, "2025-11-23");
         assert_eq!(found[0].1, "/nix/store/o");
+    }
+
+    #[test]
+    fn rejects_revisions_that_are_not_commit_hashes() {
+        assert!(is_rev(&"0123456789abcdef".repeat(3)[..40]));
+        assert!(!is_rev("abc"));
+        assert!(!is_rev(&format!("{}\"; x", "a".repeat(37))));
+        let v = serde_json::json!({ "releases": [{ "version": "1", "platforms": [
+            { "system": "x86_64-linux", "attribute_path": "vlc",
+              "commit_hash": "\"; builtins.exec [ ] ; \"", "date": "2025-01-01T00:00:00Z",
+              "outputs": [{ "name": "out", "path": "/nix/store/o" }] }
+        ]}]});
+        assert!(parse_versions(&v, "vlc", "x86_64-linux").is_empty());
     }
 }
