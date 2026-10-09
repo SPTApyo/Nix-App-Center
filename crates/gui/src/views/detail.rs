@@ -37,6 +37,11 @@ pub struct DetailModel {
     kept: bool,
     /// The NixOS module that sets the app up.
     module: Option<nix_software_core::NixOption>,
+    /// The revision the app is held at.
+    pin: Option<nix_software_core::Pin>,
+    holding: bool,
+    /// The app has its own Nix blocks, which a hold cannot rewrite.
+    custom_blocks: bool,
     icon_tex: Option<gtk::gdk::Texture>,
     // Loaded apart; the flag tells pending from unknown.
     size_loaded: bool,
@@ -116,6 +121,9 @@ pub enum DetailMsg {
     ModuleLoaded(Option<nix_software_core::NixOption>),
     /// Keeps the app with the switched build options.
     SaveBuildOptions,
+    /// Holds the app at the revision in use, or releases it.
+    ToggleHold,
+    Held(Result<Option<nix_software_core::Pin>, String>),
     /// Keeps the app through its NixOS module.
     UseModule,
     ShowModule,
@@ -423,6 +431,21 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Button {
+                                                                    #[watch]
+                                                                    set_label: &if model.pin.is_some() {
+                                                                        t("Release Held Version")
+                                                                    } else {
+                                                                        t("Hold This Version")
+                                                                    },
+                                                                    #[watch]
+                                                                    set_visible: model.can_hold(),
+                                                                    #[watch]
+                                                                    set_sensitive: !model.holding,
+                                                                    set_tooltip_text: Some(&t("Keep the app at the version installed now, or let it follow your configuration again.")),
+                                                                    add_css_class: "flat",
+                                                                    connect_clicked => DetailMsg::ToggleHold,
+                                                                },
+                                                                gtk::Button {
                                                                     set_label: &t("Wrong App?"),
                                                                     #[watch]
                                                                     set_visible: model.meta.as_ref().is_some_and(|m| m.app_id.is_some()),
@@ -725,9 +748,10 @@ impl SimpleComponent for DetailModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let kept = nix_software_core::load_manifest()
-            .entry(&pkg.attr)
-            .is_some();
+        let entry = nix_software_core::load_manifest().entry(&pkg.attr).cloned();
+        let kept = entry.is_some();
+        let pin = entry.as_ref().and_then(|e| e.pin.clone());
+        let custom_blocks = entry.as_ref().is_some_and(|e| e.is_promoted());
 
         let toast_overlay = adw::ToastOverlay::new();
         let stack = gtk::Stack::new();
@@ -785,6 +809,9 @@ impl SimpleComponent for DetailModel {
             },
             profile_busy: false,
             kept,
+            pin,
+            holding: false,
+            custom_blocks,
             module: None,
             icon_tex,
             size_loaded: false,
@@ -1050,6 +1077,40 @@ impl SimpleComponent for DetailModel {
                 let res =
                     nix_software_core::set_flags(&self.package, changes).map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
+            }
+            DetailMsg::ToggleHold => {
+                if self.pin.is_some() {
+                    let res = nix_software_core::set_pin(&self.package, None)
+                        .map(|()| None)
+                        .map_err(|e| e.to_string());
+                    sender.input(DetailMsg::Held(res));
+                    return;
+                }
+                self.holding = true;
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &t("Downloading nixpkgs to hold this version…"),
+                );
+                let pkg = self.package.clone();
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = nix_software_core::pin_current()
+                        .and_then(|p| {
+                            nix_software_core::set_pin(&pkg, Some(p.clone())).map(|()| Some(p))
+                        })
+                        .map_err(|e| e.to_string());
+                    let _ = s.send(DetailMsg::Held(res));
+                });
+            }
+            DetailMsg::Held(res) => {
+                self.holding = false;
+                match res {
+                    Ok(pin) => {
+                        self.pin = pin;
+                        sender.input(DetailMsg::BlocksSaved(Ok(())));
+                    }
+                    Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
+                }
             }
             DetailMsg::UseModule => {
                 let Some(option) = &self.module else {
@@ -1320,6 +1381,7 @@ impl SimpleComponent for DetailModel {
             DetailMsg::Unkeep => match nix_software_core::unkeep(&self.package.attr) {
                 Ok(()) => {
                     self.kept = false;
+                    self.pin = None;
                     apply_toast(
                         &self.toast_overlay,
                         &sender,
@@ -1412,6 +1474,14 @@ impl DetailModel {
         !self.kept && self.profile_name.is_none() && self.installed.is_some()
     }
 
+    /// True when the menu offers to hold or release the app.
+    fn can_hold(&self) -> bool {
+        self.managed
+            && !self.installed_elsewhere()
+            && !self.custom_blocks
+            && (self.pin.is_some() || nix_software_core::pinned_rev().is_some())
+    }
+
     fn keep_label(&self) -> String {
         if self.installed_elsewhere() {
             return match self.installed.as_ref().map(|a| a.scope) {
@@ -1469,6 +1539,12 @@ impl DetailModel {
             infobox::problems(meta.broken, meta.insecure, &meta.known_vulnerabilities)
         {
             self.problems_box.append(&bar);
+        }
+        if let Some(pin) = &self.pin {
+            let s = sender.input_sender().clone();
+            self.problems_box.append(&infobox::held(pin, move || {
+                let _ = s.send(DetailMsg::ToggleHold);
+            }));
         }
         if let Some(option) = &self.module {
             let in_use = nix_software_core::load_manifest().kept.iter().any(|e| {

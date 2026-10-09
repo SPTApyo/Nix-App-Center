@@ -50,7 +50,7 @@ pub struct AppUpdate {
 }
 
 /// The nixpkgs revision the config is pinned to, computed once.
-pub(crate) fn pinned_rev() -> Option<&'static str> {
+pub fn pinned_rev() -> Option<&'static str> {
     static REV: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     REV.get_or_init(|| current_source().rev).as_deref()
 }

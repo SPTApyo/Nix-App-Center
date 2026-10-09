@@ -81,3 +81,27 @@ pub fn module(
     b.append(&buttons);
     b
 }
+
+/// Days after which a hold is called out more strongly.
+const LONG_HOLD_DAYS: u64 = 30;
+
+/// The held version infobar, with a button releasing the hold.
+pub fn held(pin: &nix_software_core::Pin, on_release: impl Fn() + 'static) -> gtk::Box {
+    let days = nix_software_core::now_unix().saturating_sub(pin.since) / 86_400;
+    let heading = if days >= LONG_HOLD_DAYS {
+        crate::util::plural("Held for {} day", "Held for {} days", days as i64)
+    } else {
+        t("Held Version")
+    };
+    let text = t("This app stays at nixpkgs {rev}, held {age}. It gets no security updates until you release it.")
+        .replace("{rev}", pin.rev.get(..7).unwrap_or(&pin.rev))
+        .replace("{age}", &crate::util::format_relative(pin.since as i64).to_lowercase());
+    let b = warning(&[&heading, &text]);
+    let release = gtk::Button::with_mnemonic(&t("_Release"));
+    release.add_css_class("pill");
+    release.set_halign(gtk::Align::Center);
+    release.set_margin_top(6);
+    release.connect_clicked(move |_| on_release());
+    b.append(&release);
+    b
+}

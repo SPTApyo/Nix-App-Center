@@ -80,7 +80,7 @@ pub use storage::{
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
-    app_updates, current_source, latest, newer_release, nixpkgs_ref, updatable_apps,
+    app_updates, current_source, latest, newer_release, nixpkgs_ref, pinned_rev, updatable_apps,
     update_command, AppUpdate, Latest, Source, UpdateMethod,
 };
 pub use user_profile::{profile_add, profile_elements, profile_remove, ProfileElement};

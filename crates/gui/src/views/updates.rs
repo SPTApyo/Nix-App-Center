@@ -63,9 +63,11 @@ pub enum UpdatesMsg {
     Refresh,
     /// Daily check; notifies when updates are pending.
     Background,
-    Checked(Check),
+    Checked(Box<Check>),
     Update,
     Updated(Result<nix_software_core::ApplyOutcome, String>),
+    /// Releases the hold of an attr.
+    Release(String),
 }
 
 #[relm4::component(pub)]
@@ -124,6 +126,8 @@ impl SimpleComponent for UpdatesModel {
                     .is_none_or(|at| at.elapsed() > RECHECK_AFTER)
                 {
                     sender.input(UpdatesMsg::Refresh);
+                } else {
+                    self.rebuild(&sender);
                 }
             }
             UpdatesMsg::Refresh => {
@@ -134,7 +138,7 @@ impl SimpleComponent for UpdatesModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(UpdatesMsg::Checked(check()));
+                    let _ = s.send(UpdatesMsg::Checked(Box::new(check())));
                 });
             }
             UpdatesMsg::Background => {
@@ -149,7 +153,7 @@ impl SimpleComponent for UpdatesModel {
                     count: c.pending(),
                     notify,
                 });
-                self.check = Some(c);
+                self.check = Some(*c);
                 self.rebuild(&sender);
             }
             UpdatesMsg::Update => {
@@ -170,6 +174,14 @@ impl SimpleComponent for UpdatesModel {
                         let _ = s.send(UpdatesMsg::Updated(res));
                     },
                 );
+            }
+            UpdatesMsg::Release(attr) => {
+                let pkg = nix_software_core::Package::from_attr(attr);
+                self.status = Some(match nix_software_core::set_pin(&pkg, None) {
+                    Ok(()) => t("Released. Update or apply your configuration to move it forward."),
+                    Err(e) => util::failed(&e),
+                });
+                sender.input(UpdatesMsg::Refresh);
             }
             UpdatesMsg::Updated(res) => {
                 self.updating = false;
@@ -209,6 +221,24 @@ fn check() -> Check {
     }
 }
 
+/// Held apps, with their installed copy when found.
+fn held_apps() -> Vec<(
+    nix_software_core::KeptEntry,
+    Option<nix_software_core::ProfileApp>,
+)> {
+    let profile = nix_software_core::profile_apps();
+    nix_software_core::load_manifest()
+        .kept
+        .into_iter()
+        .filter(|e| e.pin.is_some())
+        .map(|e| {
+            let pname = e.package.attr.rsplit('.').next().unwrap_or(&e.package.attr);
+            let app = profile.iter().find(|a| a.pname == pname).cloned();
+            (e, app)
+        })
+        .collect()
+}
+
 fn short(rev: &str) -> &str {
     rev.get(..7).unwrap_or(rev)
 }
@@ -242,6 +272,10 @@ impl UpdatesModel {
             self.content.append(&release_banner(release));
         }
         self.content.append(&self.source_list(c, sender));
+        let held = held_apps();
+        if !held.is_empty() {
+            self.content.append(&held_list(&held, sender));
+        }
 
         let Some(latest) = &c.latest else {
             let text = if c.source.branch.is_none() {
@@ -275,7 +309,7 @@ impl UpdatesModel {
             }
             self.content.append(&list);
             self.content.append(&util::dim_label(&t(
-                "Apps update together: they all come from the same nixpkgs revision. To keep one app as it is, pin its version in your configuration.",
+                "Apps update together: they all come from the same nixpkgs revision. To keep one app as it is, hold its version from its page.",
             )));
         }
     }
@@ -348,6 +382,46 @@ impl UpdatesModel {
         }
         hb
     }
+}
+
+/// The held apps, each with a Release button.
+fn held_list(
+    held: &[(
+        nix_software_core::KeptEntry,
+        Option<nix_software_core::ProfileApp>,
+    )],
+    sender: &ComponentSender<UpdatesModel>,
+) -> gtk::Box {
+    let list = util::boxed_list();
+    for (entry, app) in held {
+        let since = entry.pin.as_ref().map_or(0, |p| p.since);
+        let mut subtitle = t("Held {age}, gets no security updates")
+            .replace("{age}", &util::format_relative(since as i64).to_lowercase());
+        if let Some(app) = app {
+            subtitle = format!("{} · {subtitle}", app.version);
+        }
+        let row = app
+            .as_ref()
+            .and_then(|a| util::desktop_row(&a.desktop_file, &subtitle))
+            .unwrap_or_else(|| {
+                adw::ActionRow::builder()
+                    .title(esc(&entry.package.attr))
+                    .subtitle(esc(&subtitle))
+                    .build()
+            });
+        let release = gtk::Button::with_mnemonic(&t("_Release"));
+        release.set_valign(gtk::Align::Center);
+        release.connect_clicked({
+            let s = sender.input_sender().clone();
+            let attr = entry.package.attr.clone();
+            move |_| {
+                let _ = s.send(UpdatesMsg::Release(attr.clone()));
+            }
+        });
+        row.add_suffix(&release);
+        list.append(&row);
+    }
+    util::section(&t("Held Apps"), None, &list)
 }
 
 /// Why Nix Software cannot update by itself.

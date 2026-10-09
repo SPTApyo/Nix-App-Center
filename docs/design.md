@@ -135,6 +135,35 @@ Updating moves the pin and applies the config in one terminal command. When
 nixpkgs comes through another flake input, Nix Software says which one and does not
 touch it.
 
+## Holding a version
+
+Every package follows the nixpkgs revision the configuration pins, so holding
+one app means taking it from another revision. A hold records that revision,
+the hash of its tarball and the day it started (kept.json, field pin); the
+revision is the truth, the version is only shown. The generated file imports
+each held revision once, in a let binding shared by its apps:
+
+    nixpkgs-cf5e76507c6e = import (builtins.fetchTarball {
+      url = "https://github.com/NixOS/nixpkgs/archive/<rev>.tar.gz";
+      sha256 = "<hash>";
+    }) {
+      config = lib.filterAttrs (_: v: v != null) pkgs.config;
+      system = pkgs.stdenv.hostPlatform.system;
+    };
+
+fetchTarball works with flakes and channels without editing flake.nix. Pure
+evaluation, the flake default, refuses it without a hash, so the hash is
+computed once with nix-prefetch-url --unpack when the user holds an app. The
+held nixpkgs reuses the main one's settings (allowUnfree and the rest);
+passing pkgs.config whole fails, since its unset options are null and do not
+type check again. Overlays of the main nixpkgs do not apply to the held one.
+
+Held apps leave the update list and show in their own section with a Release
+button; their page warns that they get no security updates, more strongly
+after 30 days. Build options and the install scope are structured fields too
+(flags, system_wide), so a hold combines with them. Manifests written before
+read their old generated blocks back into these fields.
+
 ## Storage
 
 The Storage tab reads every store path once (`nix path-info --all --json`,
