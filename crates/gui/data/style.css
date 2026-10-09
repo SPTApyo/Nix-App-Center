@@ -427,6 +427,7 @@ button.carousel-slide-5 { background: linear-gradient(135deg, #613583, #1b6ac9);
   from { opacity: 0; transform: translateY(18px); }
 }
 .welcome-icon { color: @accent_color; }
+.welcome-page:not(.welcome-active) > * { opacity: 0; }
 .welcome-active .welcome-icon { animation: welcome-pop 560ms cubic-bezier(0.2, 0.9, 0.3, 1.25) backwards; }
 .welcome-active .welcome-title { animation: welcome-rise 440ms 120ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 .welcome-active .welcome-body { animation: welcome-rise 440ms 220ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }

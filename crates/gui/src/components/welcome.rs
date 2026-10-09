@@ -219,12 +219,19 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         let show = show.clone();
         move |_, index| show(index)
     });
+    let go = {
+        let (carousel, pages) = (carousel.clone(), pages.clone());
+        move |index: u32| {
+            pages[index as usize].add_css_class("welcome-active");
+            carousel.scroll_to(&carousel.nth_page(index), true);
+        }
+    };
     back.connect_clicked({
-        let carousel = carousel.clone();
+        let (carousel, go) = (carousel.clone(), go.clone());
         move |_| {
             let i = carousel.position().round() as u32;
             if i > 0 {
-                carousel.scroll_to(&carousel.nth_page(i - 1), true);
+                go(i - 1);
             }
         }
     });
@@ -235,7 +242,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             if i >= last {
                 dialog.close();
             } else {
-                carousel.scroll_to(&carousel.nth_page(i + 1), true);
+                go(i + 1);
             }
         }
     });
