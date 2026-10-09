@@ -8,6 +8,10 @@ Project and coding documentation. To set up the project, start with
 - [repo-layout.md](repo-layout.md): where everything lives, and where to start for a given change
 - [writing-documentation.md](writing-documentation.md): conventions for adding to these docs
 
+## Using the app
+
+- [user-guide.md](user-guide.md): how Nix Software works, in plain words, for users
+
 ## How it works
 
 - [design.md](design.md): product principles, package identity, the config engine, each tab

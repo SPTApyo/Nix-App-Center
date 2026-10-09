@@ -124,6 +124,8 @@ impl SimpleComponent for AppModel {
         header.pack_start(&search_btn);
 
         let menu = gtk::gio::Menu::new();
+        menu.append(Some(&t("_Welcome Tour")), Some("win.welcome"));
+        menu.append(Some(&t("User _Guide")), Some("win.guide"));
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
         menu.append(Some(&t("_About Nix Software")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
@@ -139,6 +141,19 @@ impl SimpleComponent for AppModel {
             move |_, _| crate::views::preferences::present(&win)
         });
         root.add_action(&prefs);
+        let welcome = gtk::gio::SimpleAction::new("welcome", None);
+        welcome.connect_activate({
+            let win = root.clone();
+            move |_, _| crate::components::welcome::present(&win)
+        });
+        root.add_action(&welcome);
+        let guide = gtk::gio::SimpleAction::new("guide", None);
+        guide.connect_activate(|_, _| {
+            crate::util::open_uri(
+                "https://github.com/SPTApyo/nix-software/blob/main/docs/user-guide.md",
+            )
+        });
+        root.add_action(&guide);
         let about = gtk::gio::SimpleAction::new("about", None);
         about.connect_activate({
             let win = root.clone();
@@ -298,6 +313,10 @@ impl SimpleComponent for AppModel {
         });
 
         let settings = nix_software_core::load_settings();
+        if !settings.onboarded {
+            let win = root.clone();
+            gtk::glib::idle_add_local_once(move || crate::components::welcome::present(&win));
+        }
         let now = nix_software_core::now_unix();
         if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
             let su = updates.sender().clone();

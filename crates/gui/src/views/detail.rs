@@ -413,17 +413,20 @@ impl SimpleComponent for DetailModel {
                                                                     set_label: &model.keep_label(),
                                                                     #[watch]
                                                                     set_sensitive: !model.profile_busy && !model.installed_elsewhere(),
+                                                                    set_tooltip_text: Some(&model.keep_tooltip()),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ToggleKeep,
                                                                 },
                                                                 gtk::Button {
                                                                     #[watch]
                                                                     set_label: &if model.cli_first() { t("Try the App") } else { t("Try in a Shell") },
+                                                                    set_tooltip_text: Some(&if model.cli_first() { t("Start the app now, without installing it.") } else { t("Open a terminal where this package can be used, without installing it.") }),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AltLaunch,
                                                                 },
                                                                 gtk::Button {
                                                                     set_label: &t("Copy Command"),
+                                                                    set_tooltip_text: Some(&t("Copy the command that tries this package, to paste in a terminal.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::CopyCommand,
                                                                 },
@@ -431,6 +434,7 @@ impl SimpleComponent for DetailModel {
                                                                     set_label: &t("Advanced Options…"),
                                                                     #[watch]
                                                                     set_sensitive: !model.installed_elsewhere(),
+                                                                    set_tooltip_text: Some(&t("Write your own Nix for this app: services, options, overrides.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
@@ -455,6 +459,7 @@ impl SimpleComponent for DetailModel {
                                                                     set_visible: model.can_hold(),
                                                                     #[watch]
                                                                     set_sensitive: !model.holding,
+                                                                    set_tooltip_text: Some(&t("Pick an earlier version, held at the nixpkgs revision that shipped it.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ChooseVersion,
                                                                 },
@@ -462,6 +467,7 @@ impl SimpleComponent for DetailModel {
                                                                     set_label: &t("Wrong App?"),
                                                                     #[watch]
                                                                     set_visible: model.meta.as_ref().is_some_and(|m| m.app_id.is_some()),
+                                                                    set_tooltip_text: Some(&t("Tell Nix Software this page shows the details of another app.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ReportMatch,
                                                                 },
@@ -470,6 +476,7 @@ impl SimpleComponent for DetailModel {
                                                                 },
                                                                 gtk::Button {
                                                                     set_label: &t("Apply Configuration"),
+                                                                    set_tooltip_text: Some(&t("Rebuild your system now with the apps you added or removed.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ApplyConfig,
                                                                 },
@@ -1545,6 +1552,21 @@ impl DetailModel {
             && !self.installed_elsewhere()
             && !self.custom_blocks
             && (self.pin.is_some() || nix_software_core::pinned_rev().is_some())
+    }
+
+    fn keep_tooltip(&self) -> String {
+        if self.installed_elsewhere() {
+            return t("Your own configuration installs this app; Nix Software leaves it alone.");
+        }
+        match (self.managed, self.kept, self.profile_name.is_some()) {
+            (true, true, _) => {
+                t("Take the app out of your configuration. It is uninstalled when you apply.")
+            }
+            (true, false, _) => {
+                t("Add the app to your configuration. It is installed when you apply.")
+            }
+            (false, _, _) => t("Install or remove the app for your user only, with nix profile."),
+        }
     }
 
     fn keep_label(&self) -> String {

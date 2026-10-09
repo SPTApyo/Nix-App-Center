@@ -71,11 +71,15 @@ pub fn module(
         let use_btn = gtk::Button::with_mnemonic(&t("_Use the Module"));
         use_btn.add_css_class("suggested-action");
         use_btn.add_css_class("pill");
+        use_btn.set_tooltip_text(Some(&t(
+            "Add the module to your system configuration instead of the plain package.",
+        )));
         use_btn.connect_clicked(move |_| on_use());
         buttons.append(&use_btn);
     }
     let details = gtk::Button::with_mnemonic(&t("_Details"));
     details.add_css_class("pill");
+    details.set_tooltip_text(Some(&t("Show the module's option and what it does.")));
     details.connect_clicked(move |_| on_details());
     buttons.append(&details);
     b.append(&buttons);
@@ -107,6 +111,7 @@ pub fn held(pin: &nix_software_core::Pin, on_release: impl Fn() + 'static) -> gt
     let b = warning(&[&heading, &text]);
     let release = gtk::Button::with_mnemonic(&t("_Release"));
     release.add_css_class("pill");
+    release.set_tooltip_text(Some(&t("Let the app follow your configuration again.")));
     release.set_halign(gtk::Align::Center);
     release.set_margin_top(6);
     release.connect_clicked(move |_| on_release());

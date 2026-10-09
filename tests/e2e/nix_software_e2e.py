@@ -182,6 +182,7 @@ class Environment:
 
 
 # Window geometry at 1100×760 (Broadway draws the window at its default size).
+TOUR_SKIP = "click:196,659"
 SEARCH_TOGGLE = "click:47,48"
 BACK = "click:47,48"
 FIRST_RESULT = "click:400,230"
@@ -210,6 +211,11 @@ ATTACH_ACCEPT = "click:764,148"
 def scenario(env, s):
     """search → details → run → keep → attach → installed → remove."""
     s.do("wait:8000")
+    s.shot("welcome")
+    s.do(TOUR_SKIP)
+    settings = env.tmp / "config" / "nix-software" / "settings.json"
+    wait_for(lambda: '"onboarded": true' in settings.read_text(), 10, "tour remembered")
+    s.do("wait:800")
     s.shot("home")
 
     s.do(SEARCH_TOGGLE)

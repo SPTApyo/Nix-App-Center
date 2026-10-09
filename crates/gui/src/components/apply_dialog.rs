@@ -104,6 +104,7 @@ pub fn present(
         .build();
     let toggle = gtk::Button::with_mnemonic(&t("Show _Details"));
     toggle.add_css_class("flat");
+    toggle.set_tooltip_text(Some(&t("Show the full build log.")));
     toggle.set_halign(gtk::Align::Start);
     toggle.connect_clicked({
         let revealer = revealer.clone();

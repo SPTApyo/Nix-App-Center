@@ -96,6 +96,9 @@ pub fn present(
     } else {
         t("Close")
     });
+    close.set_tooltip_text(Some(&t(
+        "Copy the lines to paste yourself, and change nothing.",
+    )));
     header.pack_start(&close);
     {
         let dialog = dialog.clone();
@@ -111,6 +114,9 @@ pub fn present(
     if can_patch {
         let accept = gtk::Button::with_label(&t("Add Import Line"));
         accept.add_css_class("suggested-action");
+        accept.set_tooltip_text(Some(&t(
+            "Add these lines to your file. A backup is written first.",
+        )));
         header.pack_end(&accept);
 
         let dialog2 = dialog.clone();

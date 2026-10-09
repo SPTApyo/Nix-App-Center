@@ -1,6 +1,8 @@
 //! The rotating featured banner of the home page.
 
 use adw::prelude::*;
+
+use crate::i18n::t;
 use nix_software_core::Package;
 use relm4::prelude::*;
 
@@ -46,6 +48,7 @@ impl SimpleComponent for FeaturedCarousel {
 
                 add_overlay = &gtk::Button {
                     set_icon_name: "go-previous-symbolic",
+                    set_tooltip_text: Some(&t("Previous")),
                     set_halign: gtk::Align::Start,
                     set_valign: gtk::Align::Center,
                     set_margin_start: 9,
@@ -55,6 +58,7 @@ impl SimpleComponent for FeaturedCarousel {
                 },
                 add_overlay = &gtk::Button {
                     set_icon_name: "go-next-symbolic",
+                    set_tooltip_text: Some(&t("Next")),
                     set_halign: gtk::Align::End,
                     set_valign: gtk::Align::Center,
                     set_margin_end: 9,

@@ -9,6 +9,7 @@ pub mod featured_carousel;
 pub mod option_dialog;
 pub mod package_row;
 pub mod version_dialog;
+pub mod welcome;
 
 pub use app_list::{AppList, AppListInput};
 pub use app_tile::AppTile;

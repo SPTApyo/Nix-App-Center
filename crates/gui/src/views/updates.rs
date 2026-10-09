@@ -411,6 +411,7 @@ fn held_list(
             });
         let release = gtk::Button::with_mnemonic(&t("_Release"));
         release.set_valign(gtk::Align::Center);
+        release.set_tooltip_text(Some(&t("Let the app follow your configuration again.")));
         release.connect_clicked({
             let s = sender.input_sender().clone();
             let attr = entry.package.attr.clone();

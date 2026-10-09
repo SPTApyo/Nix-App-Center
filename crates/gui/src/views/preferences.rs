@@ -61,32 +61,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         }
     });
 
-    let check = adw::ButtonRow::builder().title(t("Check with Nix")).build();
-    let verdict = adw::ActionRow::builder()
-        .title(t("Nix says"))
-        .subtitle(esc(&t("Not checked yet.")))
-        .subtitle_selectable(true)
-        .build();
-    check.connect_activated({
-        let verdict = verdict.clone();
-        move |row| {
-            row.set_sensitive(false);
-            verdict.set_subtitle(&esc(&t("Evaluating your configuration…")));
-            let (row, verdict) = (row.clone(), verdict.clone());
-            gtk::glib::spawn_future_local(async move {
-                let layout = nix_software_core::detect_layout();
-                let res =
-                    gtk::gio::spawn_blocking(move || nix_software_core::verify_layout(&layout))
-                        .await
-                        .unwrap_or_else(|_| Err(String::new()));
-                verdict.set_subtitle(&esc(&match res {
-                    Ok(v) => verified_text(&v),
-                    Err(e) => t("Nix could not evaluate it: {}").replace("{}", &e),
-                }));
-                row.set_sensitive(true);
-            });
-        }
-    });
+    let (check, verdict) = nix_check_rows();
     for w in [
         detected.upcast_ref::<gtk::Widget>(),
         dir.upcast_ref(),
@@ -141,6 +116,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         .build();
     if !nix_software_core::locate_ready() {
         let download = gtk::Button::with_label(&t("Download"));
+        download.set_tooltip_text(Some(&t("Download the nix-index database, about 100 MB.")));
         download.set_valign(gtk::Align::Center);
         download.connect_clicked({
             let row = by_command.clone();
@@ -176,7 +152,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     dialog.present(Some(parent));
 }
 
-fn describe(layout: &Layout) -> String {
+pub(crate) fn describe(layout: &Layout) -> String {
     let base = match &layout.kind {
         LayoutKind::NixosFlake { dir, host } => t("NixOS flake in {dir}, host {host}")
             .replace("{dir}", &dir.display().to_string())
@@ -214,4 +190,35 @@ fn verified_text(v: &nix_software_core::Verified) -> String {
         Err(e) => t("This host does not evaluate: {}").replace("{}", e),
     });
     lines.join("\n")
+}
+
+/// "Check with Nix" and the row showing what Nix answered.
+pub(crate) fn nix_check_rows() -> (adw::ButtonRow, adw::ActionRow) {
+    let check = adw::ButtonRow::builder().title(t("Check with Nix")).build();
+    let verdict = adw::ActionRow::builder()
+        .title(t("Nix says"))
+        .subtitle(esc(&t("Not checked yet.")))
+        .subtitle_selectable(true)
+        .build();
+    check.connect_activated({
+        let verdict = verdict.clone();
+        move |row| {
+            row.set_sensitive(false);
+            verdict.set_subtitle(&esc(&t("Evaluating your configuration…")));
+            let (row, verdict) = (row.clone(), verdict.clone());
+            gtk::glib::spawn_future_local(async move {
+                let layout = nix_software_core::detect_layout();
+                let res =
+                    gtk::gio::spawn_blocking(move || nix_software_core::verify_layout(&layout))
+                        .await
+                        .unwrap_or_else(|_| Err(String::new()));
+                verdict.set_subtitle(&esc(&match res {
+                    Ok(v) => verified_text(&v),
+                    Err(e) => t("Nix could not evaluate it: {}").replace("{}", &e),
+                }));
+                row.set_sensitive(true);
+            });
+        }
+    });
+    (check, verdict)
 }

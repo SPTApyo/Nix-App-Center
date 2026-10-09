@@ -84,6 +84,8 @@ nix build .   # result/bin/nix-software and result/bin/nix-software-cli
 
 # Usage
 
+New to Nix? The [user guide](docs/user-guide.md) explains how it all works, in plain words. The app also opens a welcome tour on first launch.
+
 Open Nix Software from your app grid, or run nix-software.
 
 A text interface ships next to the app:

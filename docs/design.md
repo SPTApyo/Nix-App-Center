@@ -252,6 +252,15 @@ that a changed option builds the app locally, since the binary cache only
 holds the default build. Apps the user's own configuration installs show no
 options: Nix Software does not edit what it did not write.
 
+## First launch
+
+A welcome tour opens on first launch (settings.json, field onboarded): try,
+keep, the configuration found with a check by Nix, applying with the two
+main settings, and where to go next. Each page plays a short entrance
+animation when it comes into view. The tour and the user guide
+(docs/user-guide.md) stay in the main menu. Actions that are not obvious
+carry a tooltip saying what they change and when.
+
 ## Internationalization
 
 Same mechanism as GNOME Software: gettext driven by the system locale, no

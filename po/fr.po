@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-09 21:53+0200\n"
+"POT-Creation-Date: 2026-10-09 22:02+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -352,58 +352,66 @@ msgstr "ODRS est injoignable."
 msgid "ODRS did not accept this app."
 msgstr "ODRS n'accepte pas cette application."
 
-#: crates/gui/src/app.rs:122 crates/gui/src/views/preferences.rs:133
+#: crates/gui/src/app.rs:122 crates/gui/src/views/preferences.rs:108
 msgid "Search"
 msgstr "Rechercher"
 
 #: crates/gui/src/app.rs:127
+msgid "_Welcome Tour"
+msgstr "_Visite guidée"
+
+#: crates/gui/src/app.rs:128
+msgid "User _Guide"
+msgstr "_Guide de l'utilisateur"
+
+#: crates/gui/src/app.rs:129
 msgid "_Preferences"
 msgstr "_Préférences"
 
-#: crates/gui/src/app.rs:128
+#: crates/gui/src/app.rs:130
 msgid "_About Nix Software"
 msgstr "À _propos de Nix Software"
 
-#: crates/gui/src/app.rs:133
+#: crates/gui/src/app.rs:135
 msgid "Main Menu"
 msgstr "Menu principal"
 
-#: crates/gui/src/app.rs:164
+#: crates/gui/src/app.rs:179
 msgid "Search Nix packages…"
 msgstr "Rechercher des paquets Nix…"
 
-#: crates/gui/src/app.rs:236
+#: crates/gui/src/app.rs:251
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:240
+#: crates/gui/src/app.rs:255
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:243 crates/gui/src/views/preferences.rs:118
+#: crates/gui/src/app.rs:258 crates/gui/src/views/preferences.rs:93
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: crates/gui/src/app.rs:246
+#: crates/gui/src/app.rs:261
 msgid "Storage"
 msgstr "Stockage"
 
-#: crates/gui/src/app.rs:426
+#: crates/gui/src/app.rs:445
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:428
+#: crates/gui/src/app.rs:447
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:467
+#: crates/gui/src/app.rs:486
 msgid "Icon"
 msgstr "Icône"
 
-#: crates/gui/src/app.rs:474
+#: crates/gui/src/app.rs:493
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -488,27 +496,31 @@ msgid "Starting…"
 msgstr "Démarrage…"
 
 #: crates/gui/src/components/apply_dialog.rs:107
-#: crates/gui/src/components/apply_dialog.rs:118
+#: crates/gui/src/components/apply_dialog.rs:119
 msgid "Show _Details"
 msgstr "Afficher les _détails"
 
-#: crates/gui/src/components/apply_dialog.rs:116
+#: crates/gui/src/components/apply_dialog.rs:109
+msgid "Show the full build log."
+msgstr "Afficher le journal de build complet."
+
+#: crates/gui/src/components/apply_dialog.rs:117
 msgid "Hide _Details"
 msgstr "Masquer les _détails"
 
-#: crates/gui/src/components/apply_dialog.rs:203
+#: crates/gui/src/components/apply_dialog.rs:204
 msgid "Working…"
 msgstr "En cours…"
 
-#: crates/gui/src/components/apply_dialog.rs:212
+#: crates/gui/src/components/apply_dialog.rs:213
 msgid "Done"
 msgstr "Terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:213
+#: crates/gui/src/components/apply_dialog.rs:214
 msgid "finished"
 msgstr "terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:217
+#: crates/gui/src/components/apply_dialog.rs:218
 msgid "Failed"
 msgstr "Échec"
 
@@ -576,9 +588,17 @@ msgstr "Le faire moi-même"
 msgid "Close"
 msgstr "Fermer"
 
-#: crates/gui/src/components/details/attach_dialog.rs:112
+#: crates/gui/src/components/details/attach_dialog.rs:100
+msgid "Copy the lines to paste yourself, and change nothing."
+msgstr "Copier les lignes pour les coller vous-même, sans rien modifier."
+
+#: crates/gui/src/components/details/attach_dialog.rs:115
 msgid "Add Import Line"
 msgstr "Ajouter la ligne d'import"
+
+#: crates/gui/src/components/details/attach_dialog.rs:118
+msgid "Add these lines to your file. A backup is written first."
+msgstr "Ajouter ces lignes à votre fichier. Une sauvegarde est écrite avant."
 
 #: crates/gui/src/components/details/infobox.rs:30
 msgid "Broken Package"
@@ -620,22 +640,32 @@ msgstr ""
 msgid "_Use the Module"
 msgstr "_Utiliser le module"
 
-#: crates/gui/src/components/details/infobox.rs:77
+#: crates/gui/src/components/details/infobox.rs:75
+msgid ""
+"Add the module to your system configuration instead of the plain package."
+msgstr ""
+"Ajouter le module à votre configuration système au lieu du simple paquet."
+
+#: crates/gui/src/components/details/infobox.rs:80
 msgid "_Details"
 msgstr "_Détails"
 
-#: crates/gui/src/components/details/infobox.rs:92
+#: crates/gui/src/components/details/infobox.rs:82
+msgid "Show the module's option and what it does."
+msgstr "Afficher l'option du module et ce qu'elle fait."
+
+#: crates/gui/src/components/details/infobox.rs:96
 #, rust-format
 msgid "Held for {} day"
 msgid_plural "Held for {} days"
 msgstr[0] "Gardée depuis {} jour"
 msgstr[1] "Gardée depuis {} jours"
 
-#: crates/gui/src/components/details/infobox.rs:94
+#: crates/gui/src/components/details/infobox.rs:98
 msgid "Held Version"
 msgstr "Version gardée"
 
-#: crates/gui/src/components/details/infobox.rs:97
+#: crates/gui/src/components/details/infobox.rs:101
 #, rust-format
 msgid ""
 "This app stays at version {version} from nixpkgs {rev}, held {age}. It gets "
@@ -645,7 +675,7 @@ msgstr ""
 "{age}. Elle ne reçoit aucune mise à jour de sécurité tant que vous ne la "
 "libérez pas."
 
-#: crates/gui/src/components/details/infobox.rs:98
+#: crates/gui/src/components/details/infobox.rs:102
 #, rust-format
 msgid ""
 "This app stays at nixpkgs {rev}, held {age}. It gets no security updates "
@@ -654,10 +684,15 @@ msgstr ""
 "Cette application reste à nixpkgs {rev}, gardée {age}. Elle ne reçoit aucune "
 "mise à jour de sécurité tant que vous ne la libérez pas."
 
-#: crates/gui/src/components/details/infobox.rs:108
+#: crates/gui/src/components/details/infobox.rs:112
 #: crates/gui/src/views/updates.rs:412
 msgid "_Release"
 msgstr "_Libérer"
+
+#: crates/gui/src/components/details/infobox.rs:114
+#: crates/gui/src/views/updates.rs:414
+msgid "Let the app follow your configuration again."
+msgstr "Laisser l'application suivre à nouveau votre configuration."
 
 #: crates/gui/src/components/details/license_tile.rs:18
 #, rust-format
@@ -729,7 +764,7 @@ msgstr ""
 "utilisateur de cette application vont ici."
 
 #: crates/gui/src/components/details/nix_editor.rs:87
-#: crates/gui/src/views/installed.rs:369 crates/gui/src/views/storage.rs:169
+#: crates/gui/src/views/installed.rs:373 crates/gui/src/views/storage.rs:169
 msgid "User"
 msgstr "Utilisateur"
 
@@ -749,8 +784,8 @@ msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:97
 #: crates/gui/src/components/details/nix_editor.rs:108
-#: crates/gui/src/views/installed.rs:374 crates/gui/src/views/storage.rs:164
-#: crates/gui/src/views/storage.rs:474
+#: crates/gui/src/views/installed.rs:378 crates/gui/src/views/storage.rs:164
+#: crates/gui/src/views/storage.rs:480
 msgid "System"
 msgstr "Système"
 
@@ -897,8 +932,8 @@ msgstr ""
 "le vérifieront."
 
 #: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/views/detail.rs:1239 crates/gui/src/views/storage.rs:643
-#: crates/gui/src/views/storage.rs:659
+#: crates/gui/src/views/detail.rs:1246 crates/gui/src/views/storage.rs:649
+#: crates/gui/src/views/storage.rs:665
 msgid "_Cancel"
 msgstr "_Annuler"
 
@@ -942,6 +977,14 @@ msgstr "Notes de version"
 #: crates/gui/src/components/details/version_history_row.rs:70
 msgid "No details for this version."
 msgstr "Aucun détail pour cette version."
+
+#: crates/gui/src/components/featured_carousel.rs:51
+msgid "Previous"
+msgstr "Précédent"
+
+#: crates/gui/src/components/featured_carousel.rs:61
+msgid "Next"
+msgstr "Suivant"
 
 #: crates/gui/src/components/option_dialog.rs:33
 msgid "Type"
@@ -993,6 +1036,141 @@ msgstr "Compilée sur votre ordinateur"
 #: crates/gui/src/components/version_dialog.rs:68
 msgid "In use"
 msgstr "Utilisée"
+
+#: crates/gui/src/components/welcome.rs:43
+#: crates/gui/src/views/preferences.rs:22
+msgid "Detected"
+msgstr "Détectée"
+
+#: crates/gui/src/components/welcome.rs:51
+msgid "Change in Preferences…"
+msgstr "Modifier dans les préférences…"
+
+#: crates/gui/src/components/welcome.rs:75
+#: crates/gui/src/views/preferences.rs:79
+msgid "Install for Everyone"
+msgstr "Installer pour tout le monde"
+
+#: crates/gui/src/components/welcome.rs:77
+#: crates/gui/src/views/preferences.rs:81
+msgid "Apps you add go to the system packages, for every user of this computer"
+msgstr ""
+"Les applications ajoutées vont dans les paquets système, pour tous les "
+"utilisateurs de cet ordinateur"
+
+#: crates/gui/src/components/welcome.rs:89
+#: crates/gui/src/views/preferences.rs:95
+msgid "Check for Updates Automatically"
+msgstr "Rechercher les mises à jour automatiquement"
+
+#: crates/gui/src/components/welcome.rs:91
+#: crates/gui/src/views/preferences.rs:97
+msgid "Once a day, with a notification when apps can be updated"
+msgstr ""
+"Une fois par jour, avec une notification quand des applications peuvent être "
+"mises à jour"
+
+#: crates/gui/src/components/welcome.rs:119
+msgid "Welcome to Nix Software"
+msgstr "Bienvenue dans Nix Software"
+
+#: crates/gui/src/components/welcome.rs:120
+msgid ""
+"An app store for NixOS and Home Manager. In one minute, see how it works and "
+"check that it found your configuration."
+msgstr ""
+"Une logithèque pour NixOS et Home Manager. En une minute, découvrez comment "
+"elle fonctionne et vérifiez qu'elle a trouvé votre configuration."
+
+#: crates/gui/src/components/welcome.rs:125
+msgid "Try Apps Without Installing"
+msgstr "Essayer sans installer"
+
+#: crates/gui/src/components/welcome.rs:126
+msgid ""
+"Try starts any app right away. Nothing is installed and nothing changes on "
+"your system: close the app and it is gone."
+msgstr ""
+"Essayer lance n'importe quelle application tout de suite. Rien n'est "
+"installé et rien ne change sur votre système : fermez l'application et elle "
+"disparaît."
+
+#: crates/gui/src/components/welcome.rs:131
+msgid "Keep the Ones You Like"
+msgstr "Garder celles qui vous plaisent"
+
+#: crates/gui/src/components/welcome.rs:132
+msgid ""
+"Add to Configuration writes the app into two small files that belong to Nix "
+"Software. Your own files are touched once, to import them, and only after "
+"you approve the exact change."
+msgstr ""
+"Ajouter à la configuration écrit l'application dans deux petits fichiers qui "
+"appartiennent à Nix Software. Vos propres fichiers ne sont modifiés qu'une "
+"fois, pour les importer, et seulement après que vous avez approuvé la "
+"modification exacte."
+
+#: crates/gui/src/components/welcome.rs:137
+msgid "Your Configuration"
+msgstr "Votre configuration"
+
+#: crates/gui/src/components/welcome.rs:138
+msgid ""
+"This is where Nix Software found your system. If it is wrong, correct it "
+"now: apps would otherwise be added to the wrong place."
+msgstr ""
+"Voici où Nix Software a trouvé votre système. Si c'est faux, corrigez-le "
+"maintenant : sinon les applications seraient ajoutées au mauvais endroit."
+
+#: crates/gui/src/components/welcome.rs:143
+msgid "Apply When You Are Ready"
+msgstr "Appliquer quand vous êtes prêt"
+
+#: crates/gui/src/components/welcome.rs:144
+msgid ""
+"Apply rebuilds your system with the apps you added. A bar shows how far it "
+"is; you can close it and keep browsing."
+msgstr ""
+"Appliquer reconstruit votre système avec les applications ajoutées. Une "
+"barre montre l'avancement ; vous pouvez la fermer et continuer à naviguer."
+
+#: crates/gui/src/components/welcome.rs:149
+msgid "You Are All Set"
+msgstr "Tout est prêt"
+
+#: crates/gui/src/components/welcome.rs:150
+msgid ""
+"Explore apps, look at Updates for new versions and at Storage to free space. "
+"This tour stays in the main menu."
+msgstr ""
+"Explorez les applications, consultez Mises à jour pour les nouvelles "
+"versions et Stockage pour libérer de l'espace. Cette visite reste dans le "
+"menu principal."
+
+#: crates/gui/src/components/welcome.rs:165
+msgid "_Skip"
+msgstr "_Passer"
+
+#: crates/gui/src/components/welcome.rs:167
+msgid "Close the tour. It stays in the main menu."
+msgstr "Fermer la visite. Elle reste dans le menu principal."
+
+#: crates/gui/src/components/welcome.rs:168
+msgid "_Back"
+msgstr "_Précédent"
+
+#: crates/gui/src/components/welcome.rs:169
+#: crates/gui/src/components/welcome.rs:213
+msgid "_Next"
+msgstr "_Suivant"
+
+#: crates/gui/src/components/welcome.rs:190
+msgid "Welcome"
+msgstr "Bienvenue"
+
+#: crates/gui/src/components/welcome.rs:211
+msgid "_Start Exploring"
+msgstr "_Commencer"
 
 #: crates/gui/src/util.rs:28
 msgid "Configuration applied."
@@ -1131,31 +1309,49 @@ msgid "Start the app without installing it. Nothing is added to your system."
 msgstr ""
 "Démarre l'application sans l'installer. Rien n'est ajouté à votre système."
 
-#: crates/gui/src/views/detail.rs:421
+#: crates/gui/src/views/detail.rs:422
 msgid "Try in a Shell"
 msgstr "Essayer dans un shell"
 
-#: crates/gui/src/views/detail.rs:421
+#: crates/gui/src/views/detail.rs:422
 msgid "Try the App"
 msgstr "Essayer l'application"
 
-#: crates/gui/src/views/detail.rs:426
+#: crates/gui/src/views/detail.rs:423
+msgid "Open a terminal where this package can be used, without installing it."
+msgstr "Ouvrir un terminal où ce paquet est utilisable, sans l'installer."
+
+#: crates/gui/src/views/detail.rs:423
+msgid "Start the app now, without installing it."
+msgstr "Lancer l'application maintenant, sans l'installer."
+
+#: crates/gui/src/views/detail.rs:428
 msgid "Copy Command"
 msgstr "Copier la commande"
 
-#: crates/gui/src/views/detail.rs:431
+#: crates/gui/src/views/detail.rs:429
+msgid "Copy the command that tries this package, to paste in a terminal."
+msgstr "Copier la commande qui essaie ce paquet, à coller dans un terminal."
+
+#: crates/gui/src/views/detail.rs:434
 msgid "Advanced Options…"
 msgstr "Options avancées…"
 
-#: crates/gui/src/views/detail.rs:440
+#: crates/gui/src/views/detail.rs:437
+msgid "Write your own Nix for this app: services, options, overrides."
+msgstr ""
+"Écrire votre propre Nix pour cette application : services, options, "
+"surcharges."
+
+#: crates/gui/src/views/detail.rs:444
 msgid "Release Held Version"
 msgstr "Libérer la version gardée"
 
-#: crates/gui/src/views/detail.rs:442
+#: crates/gui/src/views/detail.rs:446
 msgid "Hold This Version"
 msgstr "Garder cette version"
 
-#: crates/gui/src/views/detail.rs:448
+#: crates/gui/src/views/detail.rs:452
 msgid ""
 "Keep the app at the version installed now, or let it follow your "
 "configuration again."
@@ -1163,63 +1359,79 @@ msgstr ""
 "Garder l'application dans la version installée maintenant, ou la laisser à "
 "nouveau suivre votre configuration."
 
-#: crates/gui/src/views/detail.rs:453
+#: crates/gui/src/views/detail.rs:457
 msgid "Choose a Version…"
 msgstr "Choisir une version…"
 
 #: crates/gui/src/views/detail.rs:462
+msgid "Pick an earlier version, held at the nixpkgs revision that shipped it."
+msgstr ""
+"Choisir une version plus ancienne, gardée à la révision de nixpkgs qui la "
+"fournissait."
+
+#: crates/gui/src/views/detail.rs:467
 msgid "Wrong App?"
 msgstr "Mauvaise application ?"
 
-#: crates/gui/src/views/detail.rs:472
+#: crates/gui/src/views/detail.rs:470
+msgid "Tell Nix Software this page shows the details of another app."
+msgstr "Signaler que cette page affiche les détails d'une autre application."
+
+#: crates/gui/src/views/detail.rs:478
 msgid "Apply Configuration"
 msgstr "Appliquer la configuration"
 
-#: crates/gui/src/views/detail.rs:522
+#: crates/gui/src/views/detail.rs:479
+msgid "Rebuild your system now with the apps you added or removed."
+msgstr ""
+"Reconstruire votre système maintenant avec les applications ajoutées ou "
+"retirées."
+
+#: crates/gui/src/views/detail.rs:529
 msgid "Nix package collection"
 msgstr "Collection de paquets Nix"
 
-#: crates/gui/src/views/detail.rs:591
+#: crates/gui/src/views/detail.rs:598
 msgid "Show Less"
 msgstr "Afficher moins"
 
-#: crates/gui/src/views/detail.rs:591
+#: crates/gui/src/views/detail.rs:598
 msgid "Show More"
 msgstr "Afficher davantage"
 
-#: crates/gui/src/views/detail.rs:1055
+#: crates/gui/src/views/detail.rs:1062
 msgid "Other Apps"
 msgstr "Autres applications"
 
-#: crates/gui/src/views/detail.rs:1057
+#: crates/gui/src/views/detail.rs:1064
 #, rust-format
 msgid "Other Apps by {}"
 msgstr "Autres applications par {}"
 
-#: crates/gui/src/views/detail.rs:1106
+#: crates/gui/src/views/detail.rs:1113
 msgid "Looking for versions…"
 msgstr "Recherche des versions…"
 
-#: crates/gui/src/views/detail.rs:1119
+#: crates/gui/src/views/detail.rs:1126
 msgid "No other versions are known for this package."
 msgstr "Aucune autre version n'est connue pour ce paquet."
 
-#: crates/gui/src/views/detail.rs:1173
+#: crates/gui/src/views/detail.rs:1180
 #, rust-format
 msgid "{} install on Flathub last month"
 msgid_plural "{} installs on Flathub last month"
 msgstr[0] "{} installation sur Flathub le mois dernier"
 msgstr[1] "{} installations sur Flathub le mois dernier"
 
-#: crates/gui/src/views/detail.rs:1210
+#: crates/gui/src/views/detail.rs:1217
 msgid "Enlarge"
 msgstr "Agrandir"
 
-#: crates/gui/src/views/detail.rs:1234
+#: crates/gui/src/views/detail.rs:1241
 msgid "Not the Same App?"
 msgstr "Pas la même application ?"
 
-#: crates/gui/src/views/detail.rs:1235
+#: crates/gui/src/views/detail.rs:1242
 #, rust-format
 msgid ""
 "Nix Software matched the nixpkgs package “{attr}” with the Flathub app "
@@ -1230,125 +1442,150 @@ msgstr ""
 "« {name} ». Si ce sont deux applications différentes, Nix Software "
 "n'affichera plus les données Flathub (icône, captures, avis) pour ce paquet."
 
-#: crates/gui/src/views/detail.rs:1240
+#: crates/gui/src/views/detail.rs:1247
 msgid "_Not the Same App"
 msgstr "_Pas la même application"
 
-#: crates/gui/src/views/detail.rs:1254
+#: crates/gui/src/views/detail.rs:1261
 msgid "Saved. Open the page again to see the package alone."
 msgstr "Enregistré. Rouvrez la page pour voir le paquet seul."
 
-#: crates/gui/src/views/detail.rs:1270
+#: crates/gui/src/views/detail.rs:1277
 msgid "Could not open the app."
 msgstr "Impossible d'ouvrir l'application."
 
-#: crates/gui/src/views/detail.rs:1294
+#: crates/gui/src/views/detail.rs:1301
 #, rust-format
 msgid "{} is marked broken in nixpkgs. Trying anyway…"
 msgstr "{} est marqué cassé dans nixpkgs. Tentative de lancement quand même…"
 
-#: crates/gui/src/views/detail.rs:1299
+#: crates/gui/src/views/detail.rs:1306
 #, rust-format
 msgid "Starting {}…"
 msgstr "Lancement de {}…"
 
-#: crates/gui/src/views/detail.rs:1314
+#: crates/gui/src/views/detail.rs:1321
 #, rust-format
 msgid "Could not start: {}"
 msgstr "Échec du lancement : {}"
 
-#: crates/gui/src/views/detail.rs:1323
+#: crates/gui/src/views/detail.rs:1330
 #, rust-format
 msgid "{name} stopped with an error: {err}"
 msgstr "{name} s'est arrêté avec une erreur : {err}"
 
-#: crates/gui/src/views/detail.rs:1339
+#: crates/gui/src/views/detail.rs:1346
 msgid "Uninstalling…"
 msgstr "Désinstallation…"
 
-#: crates/gui/src/views/detail.rs:1341
+#: crates/gui/src/views/detail.rs:1348
 msgid "Installing…"
 msgstr "Installation…"
 
-#: crates/gui/src/views/detail.rs:1363
+#: crates/gui/src/views/detail.rs:1370
 msgid "Installed for your user."
 msgstr "Installée pour votre utilisateur."
 
-#: crates/gui/src/views/detail.rs:1367
+#: crates/gui/src/views/detail.rs:1374
 msgid "Uninstalled."
 msgstr "Désinstallée."
 
-#: crates/gui/src/views/detail.rs:1388
+#: crates/gui/src/views/detail.rs:1395
 #, rust-format
 msgid "{} opened in a terminal…"
 msgstr "{} ouvert dans un terminal…"
 
-#: crates/gui/src/views/detail.rs:1401
+#: crates/gui/src/views/detail.rs:1408
 msgid "No terminal found. Command copied."
 msgstr "Aucun terminal trouvé. Commande copiée."
 
-#: crates/gui/src/views/detail.rs:1406
+#: crates/gui/src/views/detail.rs:1413
 #, rust-format
 msgid "Could not open a shell: {}"
 msgstr "Impossible d'ouvrir un shell : {}"
 
-#: crates/gui/src/views/detail.rs:1423
+#: crates/gui/src/views/detail.rs:1430
 msgid "Removed from your configuration. Apply it to uninstall."
 msgstr "Retirée de votre configuration. Appliquez-la pour désinstaller."
 
-#: crates/gui/src/views/detail.rs:1480 crates/gui/src/views/installed.rs:236
+#: crates/gui/src/views/detail.rs:1487 crates/gui/src/views/installed.rs:236
 msgid "Applying Configuration"
 msgstr "Application de la configuration"
 
-#: crates/gui/src/views/detail.rs:1503
+#: crates/gui/src/views/detail.rs:1510
 msgid "Command copied."
 msgstr "Commande copiée."
 
-#: crates/gui/src/views/detail.rs:1525
+#: crates/gui/src/views/detail.rs:1532
 msgid "Downloading nixpkgs to hold this version…"
 msgstr "Téléchargement de nixpkgs pour garder cette version…"
 
-#: crates/gui/src/views/detail.rs:1553
+#: crates/gui/src/views/detail.rs:1559
+msgid "Your own configuration installs this app; Nix Software leaves it alone."
+msgstr ""
+"Votre propre configuration installe cette application ; Nix Software n'y "
+"touche pas."
+
+#: crates/gui/src/views/detail.rs:1563
+msgid ""
+"Take the app out of your configuration. It is uninstalled when you apply."
+msgstr ""
+"Retirer l'application de votre configuration. Elle est désinstallée quand "
+"vous appliquez."
+
+#: crates/gui/src/views/detail.rs:1566
+msgid "Add the app to your configuration. It is installed when you apply."
+msgstr ""
+"Ajouter l'application à votre configuration. Elle est installée quand vous "
+"appliquez."
+
+#: crates/gui/src/views/detail.rs:1568
+msgid "Install or remove the app for your user only, with nix profile."
+msgstr ""
+"Installer ou retirer l'application pour votre utilisateur seulement, avec "
+"nix profile."
+
+#: crates/gui/src/views/detail.rs:1575
 msgid "In Your System Configuration"
 msgstr "Dans votre configuration système"
 
-#: crates/gui/src/views/detail.rs:1554
+#: crates/gui/src/views/detail.rs:1576
 msgid "In Your User Configuration"
 msgstr "Dans votre configuration utilisateur"
 
-#: crates/gui/src/views/detail.rs:1558
+#: crates/gui/src/views/detail.rs:1580
 msgid "Remove from Configuration"
 msgstr "Retirer de la configuration"
 
-#: crates/gui/src/views/detail.rs:1559
+#: crates/gui/src/views/detail.rs:1581
 msgid "Add to Configuration"
 msgstr "Ajouter à la configuration"
 
-#: crates/gui/src/views/detail.rs:1560
+#: crates/gui/src/views/detail.rs:1582
 msgid "Uninstall"
 msgstr "Désinstaller"
 
-#: crates/gui/src/views/detail.rs:1561
+#: crates/gui/src/views/detail.rs:1583
 msgid "Install for This User"
 msgstr "Installer pour cet utilisateur"
 
-#: crates/gui/src/views/detail.rs:1578
+#: crates/gui/src/views/detail.rs:1600
 msgid "Loading App Details"
 msgstr "Chargement des détails de l'application"
 
-#: crates/gui/src/views/detail.rs:1585
+#: crates/gui/src/views/detail.rs:1607
 msgid "Unable to Show App Details"
 msgstr "Impossible d'afficher les détails de l'application"
 
-#: crates/gui/src/views/detail.rs:1586
+#: crates/gui/src/views/detail.rs:1608
 msgid "No metadata could be retrieved for this package."
 msgstr "Aucune métadonnée n'a pu être récupérée pour ce paquet."
 
-#: crates/gui/src/views/detail.rs:1661
+#: crates/gui/src/views/detail.rs:1683
 msgid "Build Options"
 msgstr "Options de compilation"
 
-#: crates/gui/src/views/detail.rs:1663
+#: crates/gui/src/views/detail.rs:1685
 msgid ""
 "Changing an option builds the app on your computer, which can take a long "
 "time."
@@ -1356,198 +1593,198 @@ msgstr ""
 "Changer une option compile l'application sur votre ordinateur, ce qui peut "
 "prendre longtemps."
 
-#: crates/gui/src/views/detail.rs:1675
+#: crates/gui/src/views/detail.rs:1697
 msgid "On by default"
 msgstr "Activée par défaut"
 
-#: crates/gui/src/views/detail.rs:1677
+#: crates/gui/src/views/detail.rs:1699
 msgid "Off by default"
 msgstr "Désactivée par défaut"
 
-#: crates/gui/src/views/detail.rs:1685
+#: crates/gui/src/views/detail.rs:1707
 msgid "_Save Build Options"
 msgstr "_Enregistrer les options de compilation"
 
-#: crates/gui/src/views/detail.rs:1752
+#: crates/gui/src/views/detail.rs:1774
 msgid "Ratings & Reviews"
 msgstr "Évaluations"
 
-#: crates/gui/src/views/detail.rs:1777
+#: crates/gui/src/views/detail.rs:1799
 msgid "_Write a Review"
 msgstr "Écrire un a_vis"
 
-#: crates/gui/src/views/detail.rs:1791
+#: crates/gui/src/views/detail.rs:1813
 msgid "Thanks, your review was sent."
 msgstr "Merci, votre avis a été envoyé."
 
-#: crates/gui/src/views/detail.rs:1809 crates/gui/src/views/detail.rs:1834
+#: crates/gui/src/views/detail.rs:1831 crates/gui/src/views/detail.rs:1856
 msgid "All Reviews"
 msgstr "Tous les avis"
 
-#: crates/gui/src/views/detail.rs:1876
+#: crates/gui/src/views/detail.rs:1898
 msgid "Computing size…"
 msgstr "Calcul de la taille…"
 
-#: crates/gui/src/views/detail.rs:1880
+#: crates/gui/src/views/detail.rs:1902
 msgid "Total download including dependencies"
 msgstr "Téléchargement total avec dépendances"
 
-#: crates/gui/src/views/detail.rs:1883
+#: crates/gui/src/views/detail.rs:1905
 msgid "Needs a local build"
 msgstr "Nécessite une compilation locale"
 
-#: crates/gui/src/views/detail.rs:1888
+#: crates/gui/src/views/detail.rs:1910
 msgid "Download Size"
 msgstr "Taille du téléchargement"
 
-#: crates/gui/src/views/detail.rs:1896
+#: crates/gui/src/views/detail.rs:1918
 msgid "Broken"
 msgstr "Cassé"
 
-#: crates/gui/src/views/detail.rs:1897
+#: crates/gui/src/views/detail.rs:1919
 msgid "Marked broken in nixpkgs: running it will probably fail"
 msgstr "Marqué cassé dans nixpkgs : le lancement échouera probablement"
 
-#: crates/gui/src/views/detail.rs:1901
+#: crates/gui/src/views/detail.rs:1923
 msgid "Marked insecure in nixpkgs"
 msgstr "Marqué non sécurisé dans nixpkgs"
 
-#: crates/gui/src/views/detail.rs:1903
+#: crates/gui/src/views/detail.rs:1925
 #, rust-format
 msgid "Known vulnerabilities: {}"
 msgstr "Vulnérabilités connues : {}"
 
-#: crates/gui/src/views/detail.rs:1908
+#: crates/gui/src/views/detail.rs:1930
 msgid "Vulnerable"
 msgstr "Vulnérable"
 
-#: crates/gui/src/views/detail.rs:1913
+#: crates/gui/src/views/detail.rs:1935
 msgid "Free software with your full user rights"
 msgstr "Logiciel libre, avec tous vos droits d'utilisateur"
 
-#: crates/gui/src/views/detail.rs:1914
+#: crates/gui/src/views/detail.rs:1936
 msgid "Proprietary, with your full user rights"
 msgstr "Propriétaire, avec tous vos droits d'utilisateur"
 
-#: crates/gui/src/views/detail.rs:1915
+#: crates/gui/src/views/detail.rs:1937
 msgid "Runs with your full user rights"
 msgstr "S'exécute avec tous vos droits d'utilisateur"
 
-#: crates/gui/src/views/detail.rs:1920
+#: crates/gui/src/views/detail.rs:1942
 msgid "Not Sandboxed"
 msgstr "Sans bac à sable"
 
-#: crates/gui/src/views/detail.rs:1928
+#: crates/gui/src/views/detail.rs:1950
 msgid "Desktop Only"
 msgstr "Ordinateur uniquement"
 
-#: crates/gui/src/views/detail.rs:1929
+#: crates/gui/src/views/detail.rs:1951
 msgid "Works on desktops and laptops"
 msgstr "Fonctionne sur les ordinateurs de bureau et portables"
 
-#: crates/gui/src/views/detail.rs:1935
+#: crates/gui/src/views/detail.rs:1957
 msgid "No inappropriate content"
 msgstr "Aucun contenu inapproprié"
 
-#: crates/gui/src/views/detail.rs:1947 crates/gui/src/views/detail.rs:1954
+#: crates/gui/src/views/detail.rs:1969 crates/gui/src/views/detail.rs:1976
 msgid "Age Rating"
 msgstr "Classification par âge"
 
-#: crates/gui/src/views/detail.rs:1955
+#: crates/gui/src/views/detail.rs:1977
 msgid "No age rating information"
 msgstr "Aucune information de classification par âge"
 
-#: crates/gui/src/views/detail.rs:1988
+#: crates/gui/src/views/detail.rs:2010
 msgid "Add-ons"
 msgstr "Extensions"
 
-#: crates/gui/src/views/detail.rs:2039 crates/gui/src/views/detail.rs:2054
+#: crates/gui/src/views/detail.rs:2061 crates/gui/src/views/detail.rs:2076
 msgid "Version History"
 msgstr "Historique des versions"
 
-#: crates/gui/src/views/detail.rs:2080
+#: crates/gui/src/views/detail.rs:2102
 msgid "_Project Website"
 msgstr "Site web du _projet"
 
-#: crates/gui/src/views/detail.rs:2084
+#: crates/gui/src/views/detail.rs:2106
 msgid "_Donate"
 msgstr "Faire un _don"
 
-#: crates/gui/src/views/detail.rs:2086
+#: crates/gui/src/views/detail.rs:2108
 msgid "Contribute _Translations"
 msgstr "Contribuer aux _traductions"
 
-#: crates/gui/src/views/detail.rs:2091
+#: crates/gui/src/views/detail.rs:2113
 msgid "_Report an Issue"
 msgstr "_Signaler un problème"
 
-#: crates/gui/src/views/detail.rs:2095
+#: crates/gui/src/views/detail.rs:2117
 msgid "_Help"
 msgstr "_Aide"
 
-#: crates/gui/src/views/detail.rs:2097
+#: crates/gui/src/views/detail.rs:2119
 msgid "Package _Recipe"
 msgstr "_Recette du paquet"
 
-#: crates/gui/src/views/detail.rs:2102
+#: crates/gui/src/views/detail.rs:2124
 msgid "Download _Page"
 msgstr "_Page de téléchargement"
 
-#: crates/gui/src/views/detail.rs:2157
+#: crates/gui/src/views/detail.rs:2179
 msgid "No Metadata"
 msgstr "Aucune métadonnée"
 
-#: crates/gui/src/views/detail.rs:2162
+#: crates/gui/src/views/detail.rs:2184
 msgid ""
 "This package provides no link to a website, code repository or issue tracker."
 msgstr ""
 "Ce paquet ne fournit aucun lien vers un site web, un dépôt de code ou un "
 "suivi de bogues."
 
-#: crates/gui/src/views/detail.rs:2196
+#: crates/gui/src/views/detail.rs:2218
 msgid "Commands"
 msgstr "Commandes"
 
-#: crates/gui/src/views/detail.rs:2219
+#: crates/gui/src/views/detail.rs:2241
 msgid "Video"
 msgstr "Vidéo"
 
-#: crates/gui/src/views/detail.rs:2220
+#: crates/gui/src/views/detail.rs:2242
 msgid "Audio"
 msgstr "Audio"
 
-#: crates/gui/src/views/detail.rs:2221
+#: crates/gui/src/views/detail.rs:2243
 msgid "Images"
 msgstr "Images"
 
-#: crates/gui/src/views/detail.rs:2222
+#: crates/gui/src/views/detail.rs:2244
 msgid "Text"
 msgstr "Texte"
 
-#: crates/gui/src/views/detail.rs:2223
+#: crates/gui/src/views/detail.rs:2245
 msgid "Other files"
 msgstr "Autres fichiers"
 
-#: crates/gui/src/views/detail.rs:2232
+#: crates/gui/src/views/detail.rs:2254
 #, rust-format
 msgid "{} file type"
 msgid_plural "{} file types"
 msgstr[0] "{} type de fichier"
 msgstr[1] "{} types de fichiers"
 
-#: crates/gui/src/views/detail.rs:2235
+#: crates/gui/src/views/detail.rs:2257
 msgid "Opens"
 msgstr "Ouvre"
 
-#: crates/gui/src/views/detail.rs:2247
+#: crates/gui/src/views/detail.rs:2269
 msgid "nixpkgs Maintainers"
 msgstr "Mainteneurs nixpkgs"
 
-#: crates/gui/src/views/detail.rs:2249
+#: crates/gui/src/views/detail.rs:2271
 msgid "Nobody maintains this package in nixpkgs."
 msgstr "Personne ne maintient ce paquet dans nixpkgs."
 
-#: crates/gui/src/views/detail.rs:2407
+#: crates/gui/src/views/detail.rs:2429
 msgid "No description."
 msgstr "Pas de description."
 
@@ -1610,36 +1847,50 @@ msgstr "Nettoyage du store…"
 msgid "Done."
 msgstr "Terminé."
 
-#: crates/gui/src/views/installed.rs:304 crates/gui/src/views/installed.rs:336
-#: crates/gui/src/views/installed.rs:387
+#: crates/gui/src/views/installed.rs:304 crates/gui/src/views/installed.rs:337
+#: crates/gui/src/views/installed.rs:391
 msgid "Remove"
 msgstr "Retirer"
 
-#: crates/gui/src/views/installed.rs:313
+#: crates/gui/src/views/installed.rs:309
+msgid ""
+"Remove takes the app out of your configuration; it is uninstalled when you "
+"apply."
+msgstr ""
+"Retirer enlève l'application de votre configuration ; elle est désinstallée "
+"quand vous appliquez."
+
+#: crates/gui/src/views/installed.rs:314
 msgid "In Your Configuration"
 msgstr "Dans votre configuration"
 
-#: crates/gui/src/views/installed.rs:316
+#: crates/gui/src/views/installed.rs:317
 msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
 msgstr ""
 "Aucun paquet gardé pour l'instant. Ouvrez une application et choisissez "
 "« Ajouter à la configuration »."
 
-#: crates/gui/src/views/installed.rs:346 crates/gui/src/views/storage.rs:336
+#: crates/gui/src/views/installed.rs:343
+msgid "Remove deletes what this try downloaded, keeping what other apps need."
+msgstr ""
+"Retirer supprime ce que cet essai a téléchargé, en gardant ce dont les "
+"autres applications ont besoin."
+
+#: crates/gui/src/views/installed.rs:350 crates/gui/src/views/storage.rs:342
 msgid "Free Up Space"
 msgstr "Libérer de l'espace"
 
-#: crates/gui/src/views/installed.rs:352
+#: crates/gui/src/views/installed.rs:356
 msgid ""
 "Runs nix-collect-garbage: removes everything nothing uses from the store"
 msgstr ""
 "Lance nix-collect-garbage : supprime du store tout ce que rien n'utilise"
 
-#: crates/gui/src/views/installed.rs:357
+#: crates/gui/src/views/installed.rs:361
 msgid "Recently Tried"
 msgstr "Essayées récemment"
 
-#: crates/gui/src/views/installed.rs:359
+#: crates/gui/src/views/installed.rs:363
 msgid ""
 "Removing a tried app deletes it from the store and keeps what other apps "
 "need."
@@ -1647,17 +1898,17 @@ msgstr ""
 "Retirer une application essayée la supprime du store en gardant ce dont les "
 "autres ont besoin."
 
-#: crates/gui/src/views/installed.rs:362
+#: crates/gui/src/views/installed.rs:366
 msgid "Nothing tried yet. Run a package from search and it will show up here."
 msgstr ""
 "Aucun essai pour l'instant. Lancez un paquet depuis la recherche et il "
 "apparaîtra ici."
 
-#: crates/gui/src/views/installed.rs:370
+#: crates/gui/src/views/installed.rs:374
 msgid "Declared in your user configuration."
 msgstr "Déclarées dans votre configuration utilisateur."
 
-#: crates/gui/src/views/installed.rs:375
+#: crates/gui/src/views/installed.rs:379
 msgid "Declared in your system configuration."
 msgstr "Déclarées dans votre configuration système."
 
@@ -1673,10 +1924,6 @@ msgstr ""
 "Nix Software trouve votre configuration en lisant ses fichiers. Corrigez-la "
 "ici s'il se trompe."
 
-#: crates/gui/src/views/preferences.rs:22
-msgid "Detected"
-msgstr "Détectée"
-
 #: crates/gui/src/views/preferences.rs:27
 msgid "NixOS configuration folder (empty: /etc/nixos)"
 msgstr "Dossier de configuration NixOS (vide : /etc/nixos)"
@@ -1685,62 +1932,21 @@ msgstr "Dossier de configuration NixOS (vide : /etc/nixos)"
 msgid "Host (empty: this machine)"
 msgstr "Hôte (vide : cette machine)"
 
-#: crates/gui/src/views/preferences.rs:64
-msgid "Check with Nix"
-msgstr "Vérifier avec Nix"
-
-#: crates/gui/src/views/preferences.rs:66
-msgid "Nix says"
-msgstr "Réponse de Nix"
-
-#: crates/gui/src/views/preferences.rs:67
-msgid "Not checked yet."
-msgstr "Pas encore vérifiée."
-
-#: crates/gui/src/views/preferences.rs:74
-msgid "Evaluating your configuration…"
-msgstr "Évaluation de votre configuration…"
-
-#: crates/gui/src/views/preferences.rs:84
-#, rust-format
-msgid "Nix could not evaluate it: {}"
-msgstr "Nix n'a pas pu l'évaluer : {}"
-
-#: crates/gui/src/views/preferences.rs:101
+#: crates/gui/src/views/preferences.rs:76
 msgid "Installing"
 msgstr "Installation"
 
-#: crates/gui/src/views/preferences.rs:104
-msgid "Install for Everyone"
-msgstr "Installer pour tout le monde"
-
-#: crates/gui/src/views/preferences.rs:106
-msgid "Apps you add go to the system packages, for every user of this computer"
-msgstr ""
-"Les applications ajoutées vont dans les paquets système, pour tous les "
-"utilisateurs de cet ordinateur"
-
-#: crates/gui/src/views/preferences.rs:120
-msgid "Check for Updates Automatically"
-msgstr "Rechercher les mises à jour automatiquement"
-
-#: crates/gui/src/views/preferences.rs:122
-msgid "Once a day, with a notification when apps can be updated"
-msgstr ""
-"Une fois par jour, avec une notification quand des applications peuvent être "
-"mises à jour"
-
-#: crates/gui/src/views/preferences.rs:135
+#: crates/gui/src/views/preferences.rs:110
 msgid "Search by Command"
 msgstr "Recherche par commande"
 
-#: crates/gui/src/views/preferences.rs:137
-#: crates/gui/src/views/preferences.rs:155
+#: crates/gui/src/views/preferences.rs:112
+#: crates/gui/src/views/preferences.rs:131
 msgid "Ready: searching a command also lists the packages that provide it."
 msgstr ""
 "Prête : chercher une commande liste aussi les paquets qui la fournissent."
 
-#: crates/gui/src/views/preferences.rs:139
+#: crates/gui/src/views/preferences.rs:114
 msgid ""
 "Lists the packages that provide a command. Needs the nix-index database, "
 "about 100 MB."
@@ -1748,61 +1954,86 @@ msgstr ""
 "Liste les paquets qui fournissent une commande. Nécessite la base nix-index, "
 "environ 100 Mo."
 
-#: crates/gui/src/views/preferences.rs:143
+#: crates/gui/src/views/preferences.rs:118
 msgid "Download"
 msgstr "Télécharger"
 
-#: crates/gui/src/views/preferences.rs:149
+#: crates/gui/src/views/preferences.rs:119
+msgid "Download the nix-index database, about 100 MB."
+msgstr "Télécharger la base nix-index, environ 100 Mo."
+
+#: crates/gui/src/views/preferences.rs:125
 msgid "Downloading the nix-index database…"
 msgstr "Téléchargement de la base nix-index…"
 
-#: crates/gui/src/views/preferences.rs:181
+#: crates/gui/src/views/preferences.rs:157
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "Flake NixOS dans {dir}, hôte {host}"
 
-#: crates/gui/src/views/preferences.rs:185
+#: crates/gui/src/views/preferences.rs:161
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "NixOS avec canaux dans {}"
 
-#: crates/gui/src/views/preferences.rs:188
+#: crates/gui/src/views/preferences.rs:164
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "Flake Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:191
+#: crates/gui/src/views/preferences.rs:167
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:193
+#: crates/gui/src/views/preferences.rs:169
 msgid "No configuration found."
 msgstr "Aucune configuration trouvée."
 
-#: crates/gui/src/views/preferences.rs:198
+#: crates/gui/src/views/preferences.rs:174
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "Module Home Manager pour {}"
 
-#: crates/gui/src/views/preferences.rs:207
+#: crates/gui/src/views/preferences.rs:183
 #, rust-format
 msgid "Configurations: {}"
 msgstr "Configurations : {}"
 
-#: crates/gui/src/views/preferences.rs:211
+#: crates/gui/src/views/preferences.rs:187
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Utilisateurs Home Manager : {}"
 
-#: crates/gui/src/views/preferences.rs:213
+#: crates/gui/src/views/preferences.rs:189
 msgid "No Home Manager module."
 msgstr "Pas de module Home Manager."
 
-#: crates/gui/src/views/preferences.rs:214
+#: crates/gui/src/views/preferences.rs:190
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "Cet hôte ne s'évalue pas : {}"
+
+#: crates/gui/src/views/preferences.rs:197
+msgid "Check with Nix"
+msgstr "Vérifier avec Nix"
+
+#: crates/gui/src/views/preferences.rs:199
+msgid "Nix says"
+msgstr "Réponse de Nix"
+
+#: crates/gui/src/views/preferences.rs:200
+msgid "Not checked yet."
+msgstr "Pas encore vérifiée."
+
+#: crates/gui/src/views/preferences.rs:207
+msgid "Evaluating your configuration…"
+msgstr "Évaluation de votre configuration…"
+
+#: crates/gui/src/views/preferences.rs:217
+#, rust-format
+msgid "Nix could not evaluate it: {}"
+msgstr "Nix n'a pas pu l'évaluer : {}"
 
 #: crates/gui/src/views/storage.rs:126
 msgid "Cache cleared."
@@ -1870,15 +2101,21 @@ msgstr "Vider les déchets"
 msgid "{} that nothing uses anymore. Safe to delete."
 msgstr "{} dont plus rien ne se sert. Suppression sans risque."
 
-#: crates/gui/src/views/storage.rs:318
+#: crates/gui/src/views/storage.rs:319
+msgid "Runs the Nix garbage collector: deletes store paths nothing uses."
+msgstr ""
+"Lance le ramasse-miettes de Nix : supprime les chemins du store que rien "
+"n'utilise."
+
+#: crates/gui/src/views/storage.rs:321
 msgid "Clean"
 msgstr "Nettoyer"
 
-#: crates/gui/src/views/storage.rs:327
+#: crates/gui/src/views/storage.rs:330
 msgid "Delete Old Generations"
 msgstr "Supprimer les anciennes générations"
 
-#: crates/gui/src/views/storage.rs:328
+#: crates/gui/src/views/storage.rs:331
 #, rust-format
 msgid ""
 "About {}, and you can no longer roll back to them. The boot menu follows at "
@@ -1887,11 +2124,18 @@ msgstr ""
 "Environ {}, et vous ne pourrez plus y revenir. Le menu de démarrage suivra "
 "au prochain rebuild."
 
-#: crates/gui/src/views/storage.rs:330
+#: crates/gui/src/views/storage.rs:334
+msgid ""
+"Deletes the old generations: you can no longer boot or roll back to them."
+msgstr ""
+"Supprime les anciennes générations : vous ne pourrez plus démarrer dessus ni "
+"y revenir."
+
+#: crates/gui/src/views/storage.rs:336
 msgid "Delete…"
 msgstr "Supprimer…"
 
-#: crates/gui/src/views/storage.rs:450
+#: crates/gui/src/views/storage.rs:456
 #, rust-format
 msgid ""
 "{store} in {paths} store paths, before hard link sharing. The disk has "
@@ -1900,63 +2144,63 @@ msgstr ""
 "{store} dans {paths} chemins du store, avant partage par liens physiques. Le "
 "disque a {free} libres sur {disk}."
 
-#: crates/gui/src/views/storage.rs:457
+#: crates/gui/src/views/storage.rs:463
 msgid "Measure Again"
 msgstr "Mesurer à nouveau"
 
-#: crates/gui/src/views/storage.rs:464
+#: crates/gui/src/views/storage.rs:470
 msgid "Nix Store"
 msgstr "Store Nix"
 
-#: crates/gui/src/views/storage.rs:475
+#: crates/gui/src/views/storage.rs:481
 msgid "Home Manager"
 msgstr "Home Manager"
 
-#: crates/gui/src/views/storage.rs:476
+#: crates/gui/src/views/storage.rs:482
 msgid "User Profile"
 msgstr "Profil utilisateur"
 
-#: crates/gui/src/views/storage.rs:491
+#: crates/gui/src/views/storage.rs:497
 #, rust-format
 msgid "{} generation"
 msgid_plural "{} generations"
 msgstr[0] "{} génération"
 msgstr[1] "{} générations"
 
-#: crates/gui/src/views/storage.rs:492
+#: crates/gui/src/views/storage.rs:498
 #, rust-format
 msgid "{} old"
 msgid_plural "{} old"
 msgstr[0] "{} ancienne"
 msgstr[1] "{} anciennes"
 
-#: crates/gui/src/views/storage.rs:498
+#: crates/gui/src/views/storage.rs:504
 msgid "current"
 msgstr "actuelle"
 
-#: crates/gui/src/views/storage.rs:501
+#: crates/gui/src/views/storage.rs:507
 msgid "same as current"
 msgstr "identique à l'actuelle"
 
-#: crates/gui/src/views/storage.rs:504
+#: crates/gui/src/views/storage.rs:510
 msgid "booted"
 msgstr "démarrée"
 
-#: crates/gui/src/views/storage.rs:507 crates/gui/src/views/storage.rs:511
+#: crates/gui/src/views/storage.rs:513 crates/gui/src/views/storage.rs:517
 #, rust-format
 msgid "Generation {}"
 msgstr "Génération {}"
 
-#: crates/gui/src/views/storage.rs:520
+#: crates/gui/src/views/storage.rs:526
 #, rust-format
 msgid "frees {}"
 msgstr "libère {}"
 
-#: crates/gui/src/views/storage.rs:531
+#: crates/gui/src/views/storage.rs:537
 msgid "Generations"
 msgstr "Générations"
 
-#: crates/gui/src/views/storage.rs:532
+#: crates/gui/src/views/storage.rs:538
 msgid ""
 "Each rebuild keeps the previous state so you can roll back. Old ones share "
 "most of their files: deleting one frees only what it alone keeps."
@@ -1965,48 +2209,48 @@ msgstr ""
 "anciennes partagent la plupart de leurs fichiers : en supprimer une ne "
 "libère que ce qu'elle seule garde."
 
-#: crates/gui/src/views/storage.rs:540
+#: crates/gui/src/views/storage.rs:546
 msgid "System Apps"
 msgstr "Applications système"
 
-#: crates/gui/src/views/storage.rs:541
+#: crates/gui/src/views/storage.rs:547
 msgid "User Apps"
 msgstr "Applications utilisateur"
 
-#: crates/gui/src/views/storage.rs:544
+#: crates/gui/src/views/storage.rs:550
 msgid "Nix Software Apps"
 msgstr "Applications Nix Software"
 
-#: crates/gui/src/views/storage.rs:557
+#: crates/gui/src/views/storage.rs:563
 #, rust-format
 msgid "{} app"
 msgid_plural "{} apps"
 msgstr[0] "{} application"
 msgstr[1] "{} applications"
 
-#: crates/gui/src/views/storage.rs:561
+#: crates/gui/src/views/storage.rs:567
 #, rust-format
 msgid "{} itself"
 msgstr "{} seule"
 
-#: crates/gui/src/views/storage.rs:565
+#: crates/gui/src/views/storage.rs:571
 #, rust-format
 msgid "{} with its dependencies"
 msgstr "{} avec ses dépendances"
 
-#: crates/gui/src/views/storage.rs:568
+#: crates/gui/src/views/storage.rs:574
 msgid "kept by Nix Software"
 msgstr "gardée par Nix Software"
 
-#: crates/gui/src/views/storage.rs:569
+#: crates/gui/src/views/storage.rs:575
 msgid "tried"
 msgstr "essayée"
 
-#: crates/gui/src/views/storage.rs:587
+#: crates/gui/src/views/storage.rs:593
 msgid "Apps"
 msgstr "Applications"
 
-#: crates/gui/src/views/storage.rs:588
+#: crates/gui/src/views/storage.rs:594
 msgid ""
 "Sizes include every dependency, so apps sharing libraries add up to more "
 "than the store."
@@ -2014,32 +2258,32 @@ msgstr ""
 "Les tailles incluent toutes les dépendances : des applications qui partagent "
 "des bibliothèques dépassent ensemble la taille du store."
 
-#: crates/gui/src/views/storage.rs:603
+#: crates/gui/src/views/storage.rs:609
 msgid "Cache"
 msgstr "Cache"
 
-#: crates/gui/src/views/storage.rs:604
+#: crates/gui/src/views/storage.rs:610
 msgid "Data"
 msgstr "Données"
 
-#: crates/gui/src/views/storage.rs:605
+#: crates/gui/src/views/storage.rs:611
 msgid "Settings"
 msgstr "Paramètres"
 
-#: crates/gui/src/views/storage.rs:611
+#: crates/gui/src/views/storage.rs:617
 #, rust-format
 msgid "used by {}"
 msgstr "utilisé par {}"
 
-#: crates/gui/src/views/storage.rs:622
+#: crates/gui/src/views/storage.rs:628
 msgid "Clear…"
 msgstr "Vider…"
 
-#: crates/gui/src/views/storage.rs:629
+#: crates/gui/src/views/storage.rs:635
 msgid "Your Files"
 msgstr "Vos fichiers"
 
-#: crates/gui/src/views/storage.rs:630
+#: crates/gui/src/views/storage.rs:636
 #, rust-format
 msgid ""
 "Folders apps keep in your home: {} in all. A cache is rebuilt when needed; "
@@ -2049,12 +2293,12 @@ msgstr ""
 "total. Un cache se reconstruit au besoin ; les données et paramètres sont à "
 "vous, Nix Software ne les supprime jamais."
 
-#: crates/gui/src/views/storage.rs:637
+#: crates/gui/src/views/storage.rs:643
 #, rust-format
 msgid "Clear the “{}” Cache?"
 msgstr "Vider le cache « {} » ?"
 
-#: crates/gui/src/views/storage.rs:639
+#: crates/gui/src/views/storage.rs:645
 #, rust-format
 msgid ""
 "This frees {}. The app rebuilds what it needs; close it first if it is "
@@ -2063,15 +2307,15 @@ msgstr ""
 "Cela libère {}. L'application reconstruit ce dont elle a besoin ; fermez-la "
 "d'abord si elle tourne."
 
-#: crates/gui/src/views/storage.rs:644
+#: crates/gui/src/views/storage.rs:650
 msgid "C_lear"
 msgstr "_Vider"
 
-#: crates/gui/src/views/storage.rs:656
+#: crates/gui/src/views/storage.rs:662
 msgid "Delete Old Generations?"
 msgstr "Supprimer les anciennes générations ?"
 
-#: crates/gui/src/views/storage.rs:657
+#: crates/gui/src/views/storage.rs:663
 msgid ""
 "You will not be able to roll back to them. The current system and your "
 "current user setup stay."
@@ -2079,7 +2323,7 @@ msgstr ""
 "Vous ne pourrez plus y revenir. Le système actuel et votre configuration "
 "utilisateur actuelle restent."
 
-#: crates/gui/src/views/storage.rs:660
+#: crates/gui/src/views/storage.rs:666
 msgid "_Delete"
 msgstr "_Supprimer"
 
@@ -2175,11 +2419,11 @@ msgstr "_Mettre à jour"
 msgid "Held {age}, gets no security updates"
 msgstr "Gardée {age}, sans mises à jour de sécurité"
 
-#: crates/gui/src/views/updates.rs:424
+#: crates/gui/src/views/updates.rs:425
 msgid "Held Apps"
 msgstr "Applications gardées"
 
-#: crates/gui/src/views/updates.rs:431
+#: crates/gui/src/views/updates.rs:432
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
@@ -2188,11 +2432,11 @@ msgstr ""
 "nixpkgs vient de l'entrée « {} » de votre configuration. Mettez ce flake à "
 "jour, puis appliquez."
 
-#: crates/gui/src/views/updates.rs:434
+#: crates/gui/src/views/updates.rs:435
 msgid "Nix Software cannot update this configuration by itself."
 msgstr "Nix Software ne peut pas mettre à jour cette configuration lui-même."
 
-#: crates/gui/src/views/updates.rs:442
+#: crates/gui/src/views/updates.rs:443
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
@@ -2201,10 +2445,10 @@ msgstr ""
 "NixOS {0} est disponible. Passez votre configuration sur nixos-{0} quand "
 "vous êtes prêt."
 
-#: crates/gui/src/views/updates.rs:445
+#: crates/gui/src/views/updates.rs:446
 msgid "Release _Notes"
 msgstr "_Notes de version"
 
-#: crates/gui/src/views/updates.rs:461
+#: crates/gui/src/views/updates.rs:462
 msgid "Everything is up to date"
 msgstr "Tout est à jour"

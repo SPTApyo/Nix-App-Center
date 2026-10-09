@@ -306,6 +306,7 @@ impl InstalledModel {
                     InstalledMsg::Unkeep(i.package.attr.clone()),
                     sender,
                 ));
+                row.set_tooltip_text(Some(&t("Remove takes the app out of your configuration; it is uninstalled when you apply.")));
                 row.upcast()
             })
             .collect();
@@ -338,6 +339,9 @@ impl InstalledModel {
                     InstalledMsg::RemoveTried(i.package.attr.clone()),
                     sender,
                 ));
+                row.set_tooltip_text(Some(&t(
+                    "Remove deletes what this try downloaded, keeping what other apps need.",
+                )));
                 row.upcast()
             })
             .collect();

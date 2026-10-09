@@ -18,6 +18,8 @@ pub struct Settings {
     pub odrs_user_hash: Option<String>,
     /// Keep apps in the system packages instead of the user's.
     pub install_for_everyone: bool,
+    /// The welcome tour was seen.
+    pub onboarded: bool,
 }
 
 impl Default for Settings {
@@ -29,6 +31,7 @@ impl Default for Settings {
             last_update_check: 0,
             odrs_user_hash: None,
             install_for_everyone: false,
+            onboarded: false,
         }
     }
 }

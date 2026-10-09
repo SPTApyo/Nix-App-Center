@@ -315,6 +315,9 @@ impl StorageModel {
                     &size(of(Category::Garbage) + of(Category::TriedApps)),
                 )))
             .build();
+        garbage.set_tooltip_text(Some(&t(
+            "Runs the Nix garbage collector: deletes store paths nothing uses.",
+        )));
         garbage.add_suffix(&button(&t("Clean"), false, {
             let s = sender.input_sender().clone();
             move || {
@@ -327,6 +330,9 @@ impl StorageModel {
             .title(t("Delete Old Generations"))
             .subtitle(esc(&t("About {}, and you can no longer roll back to them. The boot menu follows at the next rebuild.").replace("{}", &size(of(Category::OldGenerations)))))
             .build();
+        old.set_tooltip_text(Some(&t(
+            "Deletes the old generations: you can no longer boot or roll back to them.",
+        )));
         old.add_suffix(&button(&t("Delete…"), true, {
             let s = sender.input_sender().clone();
             let parent = self.content.clone();
