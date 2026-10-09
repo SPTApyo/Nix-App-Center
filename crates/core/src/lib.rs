@@ -39,15 +39,15 @@ pub use appstream_db::{
     is_settled as appstream_settled, local_app, package_for_app, search_local, wait_appstream,
     LocalHit,
 };
-pub use build_flags::{overridden_flags, BuildFlag};
+pub use build_flags::BuildFlag;
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };
 pub use config_attach::{
     commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan,
 };
+pub use config_gen::default_home_block;
 pub use config_gen::{apply_argv, apply_config, run_streaming, ApplyOutcome};
-pub use config_gen::{default_home_block, override_home_block};
 pub use config_layout::{
     detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
 };
@@ -55,7 +55,10 @@ pub use detail::{closure_size, detail, PackageDetail};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
-pub use manifest::{keep, load_manifest, set_blocks, unkeep, KeptEntry, Manifest};
+pub use manifest::{
+    keep, load_manifest, pin_current, set_blocks, set_flags, set_pin, unkeep, KeptEntry, Manifest,
+    Pin,
+};
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use options::{module_for, search_options, NixOption};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};

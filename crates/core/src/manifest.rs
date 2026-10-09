@@ -7,8 +7,19 @@ use crate::paths::data_dir;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// A package held at a nixpkgs revision. The revision is the truth; `since`
+/// only dates the hold.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Pin {
+    pub rev: String,
+    /// Hash of the revision's unpacked tarball, as `fetchTarball` wants it.
+    pub sha256: String,
+    /// When the hold started, Unix seconds.
+    pub since: u64,
+}
+
 /// A kept app. Flat JSON, so old manifests of bare packages still read.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct KeptEntry {
     #[serde(flatten)]
     pub package: Package,
@@ -18,30 +29,50 @@ pub struct KeptEntry {
     /// System Nix block, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system_nix: Option<String>,
+    /// In the system packages instead of the user's.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub system_wide: bool,
+    /// Build options switched from their defaults.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flags: Vec<(String, bool)>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pin: Option<Pin>,
 }
 
 impl KeptEntry {
     pub fn simple(package: Package) -> Self {
         Self {
             package,
-            home_nix: None,
-            system_nix: None,
-        }
-    }
-
-    /// An app for every user: in the system packages, not the user's.
-    pub fn system_wide(package: Package) -> Self {
-        let system = format!("environment.systemPackages = [ pkgs.{} ];", package.attr);
-        Self {
-            package,
-            home_nix: Some(String::new()),
-            system_nix: Some(system),
+            ..Default::default()
         }
     }
 
     /// True when the app has its own Nix blocks.
     pub fn is_promoted(&self) -> bool {
         self.home_nix.is_some() || self.system_nix.is_some()
+    }
+
+    /// Turns blocks older versions generated into structured fields.
+    fn migrate(&mut self) {
+        let attr = self.package.attr.clone();
+        let wide = format!("environment.systemPackages = [ pkgs.{attr} ];");
+        if self.home_nix.as_deref() == Some("") && self.system_nix.as_deref() == Some(&wide) {
+            self.system_wide = true;
+            self.home_nix = None;
+            self.system_nix = None;
+        }
+        let Some(block) = self.home_nix.as_deref() else {
+            return;
+        };
+        let flags = crate::build_flags::overridden_flags(block, &attr);
+        let generated = format!(
+            "= [ {} ];",
+            crate::build_flags::with_flags(&format!("pkgs.{attr}"), &flags)
+        );
+        if !flags.is_empty() && !block.contains('\n') && block.trim_end().ends_with(&generated) {
+            self.flags = flags;
+            self.home_nix = None;
+        }
     }
 }
 
@@ -67,10 +98,12 @@ fn manifest_path() -> PathBuf {
 
 /// The manifest; empty when missing or unreadable.
 pub fn load_manifest() -> Manifest {
-    match std::fs::read(manifest_path()) {
-        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
-        Err(_) => Manifest::default(),
-    }
+    let mut m: Manifest = std::fs::read(manifest_path())
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    m.kept.iter_mut().for_each(KeptEntry::migrate);
+    m
 }
 
 fn save_manifest(m: &Manifest) -> std::io::Result<()> {
@@ -90,10 +123,9 @@ pub fn keep(pkg: &Package) -> std::io::Result<()> {
     if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
         let everyone = crate::settings::load_settings().install_for_everyone
             && crate::detect_layout().system.is_some();
-        m.kept.push(if everyone {
-            KeptEntry::system_wide(pkg.clone())
-        } else {
-            KeptEntry::simple(pkg.clone())
+        m.kept.push(KeptEntry {
+            system_wide: everyone,
+            ..KeptEntry::simple(pkg.clone())
         });
         commit(&m)?;
     }
@@ -124,12 +156,59 @@ pub fn set_blocks(
             e.system_nix = system_nix;
         }
         None => m.kept.push(KeptEntry {
-            package: pkg.clone(),
             home_nix,
             system_nix,
+            ..KeptEntry::simple(pkg.clone())
         }),
     }
     commit(&m)
+}
+
+/// Applies `edit` to the entry of `pkg`, keeping it first.
+fn edit_entry(pkg: &Package, edit: impl FnOnce(&mut KeptEntry)) -> std::io::Result<()> {
+    let mut m = load_manifest();
+    if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
+        m.kept.push(KeptEntry::simple(pkg.clone()));
+    }
+    if let Some(e) = m.kept.iter_mut().find(|e| e.package.attr == pkg.attr) {
+        edit(e);
+    }
+    commit(&m)
+}
+
+/// Keeps `pkg` with build options `flags` switched from their defaults.
+pub fn set_flags(pkg: &Package, flags: Vec<(String, bool)>) -> std::io::Result<()> {
+    edit_entry(pkg, |e| e.flags = flags)
+}
+
+/// Keeps `pkg` held at `pin`, or releases it with `None`.
+pub fn set_pin(pkg: &Package, pin: Option<Pin>) -> std::io::Result<()> {
+    edit_entry(pkg, |e| e.pin = pin)
+}
+
+/// A hold at the nixpkgs revision the configuration uses now. Downloads the
+/// revision once to hash it: blocking.
+///
+/// # Errors
+/// When the revision is unknown or cannot be fetched.
+pub fn pin_current() -> std::io::Result<Pin> {
+    let rev = crate::updates::pinned_rev().ok_or_else(|| {
+        std::io::Error::other(crate::util::n_("The nixpkgs revision in use is unknown."))
+    })?;
+    let out = std::process::Command::new("nix-prefetch-url")
+        .args(["--unpack", &crate::config_gen::nixpkgs_tarball(rev)])
+        .output()?;
+    let sha256 = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if !out.status.success() || sha256.is_empty() {
+        return Err(std::io::Error::other(crate::util::last_error_line(
+            &out.stderr,
+        )));
+    }
+    Ok(Pin {
+        rev: rev.to_string(),
+        sha256,
+        since: crate::util::now_unix(),
+    })
 }
 
 #[cfg(test)]
@@ -168,7 +247,44 @@ mod tests {
         let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
         let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
         assert!(!home.contains("ripgrep"), "{home}");
-        assert!(system.contains("environment.systemPackages = [ pkgs.ripgrep ];"));
+        assert!(
+            system.contains("environment.systemPackages = with pkgs; [\n    ripgrep\n  ];"),
+            "{system}"
+        );
+    }
+
+    #[test]
+    fn old_generated_blocks_become_fields() {
+        let mut wide = KeptEntry {
+            home_nix: Some(String::new()),
+            system_nix: Some("environment.systemPackages = [ pkgs.vlc ];".into()),
+            ..KeptEntry::simple(Package::from_attr("vlc"))
+        };
+        wide.migrate();
+        assert!(wide.system_wide && !wide.is_promoted());
+
+        let mut flagged = KeptEntry {
+            home_nix: Some(
+                "home.packages = [ (pkgs.obs-studio.override { browserSupport = false; }) ];"
+                    .into(),
+            ),
+            ..KeptEntry::simple(Package::from_attr("obs-studio"))
+        };
+        flagged.migrate();
+        assert_eq!(flagged.flags, [("browserSupport".to_string(), false)]);
+        assert!(flagged.home_nix.is_none());
+
+        let custom = "home.packages = [ (pkgs.obs-studio.override { browserSupport = false; }) ];\nprograms.x = 1;";
+        let mut kept = KeptEntry {
+            home_nix: Some(custom.into()),
+            ..KeptEntry::simple(Package::from_attr("obs-studio"))
+        };
+        kept.migrate();
+        assert_eq!(
+            kept.home_nix.as_deref(),
+            Some(custom),
+            "a user's own block stays"
+        );
     }
 
     fn cleanup() {

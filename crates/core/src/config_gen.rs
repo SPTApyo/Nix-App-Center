@@ -43,13 +43,76 @@ pub fn default_home_block(layout: &Layout, attr: &str) -> String {
     default_block(&HomeShape::of(layout), attr)
 }
 
-/// The user block installing `attr` with build options `changes`.
-pub fn override_home_block(layout: &Layout, attr: &str, changes: &[(String, bool)]) -> String {
-    format!(
-        "{} = [ {} ];",
-        HomeShape::of(layout).packages_option(),
-        crate::build_flags::overridden_package(attr, changes)
-    )
+/// Tarball of nixpkgs at `rev`.
+pub(crate) fn nixpkgs_tarball(rev: &str) -> String {
+    format!("https://github.com/NixOS/nixpkgs/archive/{rev}.tar.gz")
+}
+
+/// Name of the binding holding nixpkgs at `rev`.
+fn pin_binding(rev: &str) -> String {
+    format!("nixpkgs-{}", rev.get(..12).unwrap_or(rev))
+}
+
+/// The package expression of a plain entry: its attr, from the held
+/// revision when pinned, with its build options.
+fn package_expr(e: &KeptEntry) -> String {
+    let attr = &e.package.attr;
+    if e.pin.is_none() && e.flags.is_empty() {
+        return attr.clone();
+    }
+    let base = match &e.pin {
+        Some(p) => format!("{}.{attr}", pin_binding(&p.rev)),
+        None => format!("pkgs.{attr}"),
+    };
+    crate::build_flags::with_flags(&base, &e.flags)
+}
+
+/// `let` bindings importing each held revision once, shared by its apps.
+fn pin_bindings<'a>(entries: impl Iterator<Item = &'a KeptEntry>) -> String {
+    let mut pins: Vec<&crate::manifest::Pin> = entries.filter_map(|e| e.pin.as_ref()).collect();
+    pins.sort_by(|a, b| a.rev.cmp(&b.rev));
+    pins.dedup_by(|a, b| a.rev == b.rev);
+    if pins.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(
+        "let
+",
+    );
+    for p in pins {
+        out.push_str(&format!(
+            "  {} = import (builtins.fetchTarball {{\n    url = \"{}\";\n    sha256 = \"{}\";\n  }}) {{\n    config = lib.filterAttrs (_: v: v != null) pkgs.config;\n    system = pkgs.stdenv.hostPlatform.system;\n  }};\n",
+            pin_binding(&p.rev),
+            nixpkgs_tarball(&p.rev),
+            p.sha256
+        ));
+    }
+    out.push_str(
+        "in
+",
+    );
+    out
+}
+
+/// True for a plain entry of the user scope.
+fn in_home_list(e: &KeptEntry) -> bool {
+    e.home_nix.is_none() && !e.system_wide
+}
+
+/// `<option> = with pkgs; [ … ];` over `entries`, sorted.
+fn package_list<'a>(option: &str, entries: impl Iterator<Item = &'a KeptEntry>) -> String {
+    let mut items: Vec<String> = entries.map(package_expr).collect();
+    items.sort_unstable();
+    items.dedup();
+    if items.is_empty() {
+        return format!("{option} = with pkgs; [ ];\n");
+    }
+    let mut out = format!("{option} = with pkgs; [\n");
+    for item in items {
+        out.push_str(&format!("  {item}\n"));
+    }
+    out.push_str("];\n");
+    out
 }
 
 fn default_block(shape: &HomeShape, attr: &str) -> String {
@@ -125,34 +188,30 @@ fn regions(kept: &[KeptEntry], scope: fn(&KeptEntry) -> Option<&String>) -> Vec<
 
 /// User scope body: app regions, then the plain package list.
 fn home_body(kept: &[KeptEntry], packages: &str) -> String {
-    let mut simples: Vec<&str> = kept
-        .iter()
-        .filter(|e| e.home_nix.is_none())
-        .map(|e| e.package.attr.as_str())
-        .collect();
-    simples.sort_unstable();
-    simples.dedup();
-
     let mut out = imports_list(&regions(kept, |e| e.home_nix.as_ref()));
     if !out.is_empty() {
         out.push('\n');
     }
-
-    if simples.is_empty() {
-        out.push_str(&format!("{packages} = with pkgs; [ ];\n"));
-    } else {
-        out.push_str(&format!("{packages} = with pkgs; [\n"));
-        for attr in simples {
-            out.push_str(&format!("  {attr}\n"));
-        }
-        out.push_str("];\n");
-    }
+    out.push_str(&package_list(
+        packages,
+        kept.iter().filter(|e| in_home_list(e)),
+    ));
     out
 }
 
-/// System scope body: app regions only.
+/// System scope body: app regions, then the apps for every user.
 fn system_body(kept: &[KeptEntry]) -> String {
-    imports_list(&regions(kept, |e| e.system_nix.as_ref()))
+    let mut out = imports_list(&regions(kept, |e| e.system_nix.as_ref()));
+    if kept.iter().any(|e| e.system_wide) {
+        if !out.is_empty() {
+            out.push('\n');
+        }
+        out.push_str(&package_list(
+            "environment.systemPackages",
+            kept.iter().filter(|e| e.system_wide),
+        ));
+    }
+    out
 }
 
 /// `nix-software-home.nix`, shaped by the layout: a Home Manager module,
@@ -160,7 +219,9 @@ fn system_body(kept: &[KeptEntry]) -> String {
 pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
     let body = home_body(kept, &shape.packages_option());
     let mut out = header("User scope.");
-    out.push_str("{ pkgs, lib, config, ... }:\n{\n");
+    out.push_str("{ pkgs, lib, config, ... }:\n");
+    out.push_str(&pin_bindings(kept.iter().filter(|e| in_home_list(e))));
+    out.push_str("{\n");
     match shape {
         HomeShape::NixosHm(user) => {
             out.push_str(&format!("  home-manager.users.{user} = {{\n"));
@@ -180,7 +241,9 @@ pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
 pub(crate) fn render_system(kept: &[KeptEntry]) -> String {
     let body = system_body(kept);
     let mut out = header("System scope (NixOS).");
-    out.push_str("{ pkgs, lib, config, ... }:\n{\n");
+    out.push_str("{ pkgs, lib, config, ... }:\n");
+    out.push_str(&pin_bindings(kept.iter().filter(|e| e.system_wide)));
+    out.push_str("{\n");
     if !body.trim().is_empty() {
         out.push_str(&indent(body.trim_end(), 2));
         out.push('\n');
@@ -389,6 +452,7 @@ mod tests {
             package: Package::from_attr(attr),
             home_nix: home.map(str::to_string),
             system_nix: system.map(str::to_string),
+            ..Default::default()
         }
     }
 
@@ -453,6 +517,65 @@ mod tests {
         assert_eq!(
             HomeShape::of(&layout(LayoutKind::HmStandalone { dir }, None)),
             HomeShape::HomeManager
+        );
+    }
+
+    fn pinned(attr: &str, rev: &str) -> KeptEntry {
+        KeptEntry {
+            pin: Some(crate::manifest::Pin {
+                rev: rev.into(),
+                sha256: "0abc".into(),
+                since: 0,
+            }),
+            ..simple(attr)
+        }
+    }
+
+    #[test]
+    fn apps_held_at_one_revision_share_its_import() {
+        let rev = "0123456789abcdef0123456789abcdef01234567";
+        let mut gimp = pinned("gimp", rev);
+        gimp.flags = vec![("withPython".into(), false)];
+        let kept = [
+            simple("firefox"),
+            pinned("vlc", rev),
+            gimp,
+            pinned("mpv", "fedcba9876543210"),
+        ];
+        let out = render_home(&kept, &HomeShape::HomeManager);
+        assert_eq!(out.matches("builtins.fetchTarball").count(), 2, "{out}");
+        assert!(out.contains("nixpkgs-0123456789ab.vlc"));
+        assert!(out.contains("(nixpkgs-0123456789ab.gimp.override { withPython = false; })"));
+        assert!(out.contains("config = lib.filterAttrs (_: v: v != null) pkgs.config;"));
+        assert!(out.contains("  firefox\n"));
+        let path =
+            std::env::temp_dir().join(format!("nix-software-pins-{}.nix", std::process::id()));
+        std::fs::write(&path, &out).unwrap();
+        let parsed = Command::new("nix-instantiate")
+            .args(["--store", "dummy://", "--parse"])
+            .arg(&path)
+            .output();
+        let _ = std::fs::remove_file(&path);
+        if let Ok(o) = parsed {
+            assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        }
+    }
+
+    #[test]
+    fn apps_for_everyone_go_to_the_system_packages() {
+        let mut vlc = pinned("vlc", "0123456789abcdef");
+        vlc.system_wide = true;
+        let kept = [simple("firefox"), vlc];
+        let system = render_system(&kept);
+        assert!(
+            system.contains("environment.systemPackages = with pkgs; ["),
+            "{system}"
+        );
+        assert!(system.contains("nixpkgs-0123456789ab.vlc"));
+        let home = render_home(&kept, &HomeShape::HomeManager);
+        assert!(
+            !home.contains("vlc") && !home.contains("fetchTarball"),
+            "{home}"
         );
     }
 

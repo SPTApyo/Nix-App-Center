@@ -320,7 +320,21 @@ pub fn updatable_apps(source: &Source) -> Vec<ProfileApp> {
         let profile = crate::util::home().join(".nix-profile");
         apps.retain(|a| a.desktop_file.starts_with(&profile));
     }
+    let held = held_pnames(&crate::manifest::load_manifest());
+    apps.retain(|a| !held.contains(&a.pname));
     apps
+}
+
+/// pnames of the held packages: their updates are refused on purpose.
+fn held_pnames(m: &crate::manifest::Manifest) -> Vec<String> {
+    m.kept
+        .iter()
+        .filter(|e| e.pin.is_some())
+        .map(|e| {
+            let attr = &e.package.attr;
+            attr.rsplit('.').next().unwrap_or(attr).to_string()
+        })
+        .collect()
 }
 
 /// Installed apps `rev` ships in a newer version, in one evaluation.
@@ -452,6 +466,25 @@ fn version_newer(candidate: &str, current: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn held_packages_leave_the_updates() {
+        let held = crate::manifest::KeptEntry {
+            pin: Some(crate::manifest::Pin {
+                rev: "abc".into(),
+                sha256: "x".into(),
+                since: 0,
+            }),
+            ..crate::manifest::KeptEntry::simple(crate::Package::from_attr("vlc"))
+        };
+        let m = crate::manifest::Manifest {
+            kept: vec![
+                held,
+                crate::manifest::KeptEntry::simple(crate::Package::from_attr("gimp")),
+            ],
+        };
+        assert_eq!(held_pnames(&m), ["vlc"]);
+    }
 
     #[test]
     fn registry_branch_reads_github_and_channel_urls() {

@@ -1047,21 +1047,8 @@ impl SimpleComponent for DetailModel {
                     .filter(|(_, default, row)| row.is_active() != *default)
                     .map(|(name, _, row)| (name.clone(), row.is_active()))
                     .collect();
-                let system = nix_software_core::load_manifest()
-                    .kept
-                    .into_iter()
-                    .find(|e| e.package.attr == self.package.attr)
-                    .and_then(|e| e.system_nix);
-                // No change: back to the plain package.
-                let home = (!changes.is_empty()).then(|| {
-                    nix_software_core::override_home_block(
-                        &nix_software_core::detect_layout(),
-                        &self.package.attr,
-                        &changes,
-                    )
-                });
-                let res = nix_software_core::set_blocks(&self.package, home, system)
-                    .map_err(|e| e.to_string());
+                let res =
+                    nix_software_core::set_flags(&self.package, changes).map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
             }
             DetailMsg::UseModule => {
@@ -1515,18 +1502,18 @@ impl DetailModel {
             self.build_box.remove(&c);
         }
         self.flag_rows.clear();
-        let editable = self.managed && !self.installed_elsewhere();
+        let entry = nix_software_core::load_manifest()
+            .kept
+            .into_iter()
+            .find(|e| e.package.attr == self.package.attr);
+        let editable = self.managed
+            && !self.installed_elsewhere()
+            && entry.as_ref().is_none_or(|e| !e.is_promoted());
         if meta.build_flags.is_empty() || !editable {
             self.build_box.set_visible(false);
             return;
         }
-        let saved = nix_software_core::load_manifest()
-            .kept
-            .into_iter()
-            .find(|e| e.package.attr == self.package.attr)
-            .and_then(|e| e.home_nix)
-            .map(|b| nix_software_core::overridden_flags(&b, &self.package.attr))
-            .unwrap_or_default();
+        let saved = entry.map(|e| e.flags).unwrap_or_default();
 
         let expander = adw::ExpanderRow::builder()
             .title(esc(&t("Build Options")))
