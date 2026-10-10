@@ -356,7 +356,9 @@ trailing .0), so newer Flathub releases Nix cannot install are left out.
 When Flathub has no such release, the history comes from nixpkgs itself:
 the versions and dates the Devbox index lists for the attribute, loaded in
 the background when the page opens, from the nixpkgs version down, without
-notes (crates/core/src/app_meta.rs, nix_releases).
+notes (crates/core/src/app_meta.rs, nix_releases). The same request feeds
+Choose a Version…, at the end of the section, so the list is ready when
+clicked; the binary cache checks run side by side.
 
 Some apps only work well through their NixOS module: steam, docker or
 tailscale need services, groups or firewall rules the package alone does not

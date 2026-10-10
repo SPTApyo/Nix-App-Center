@@ -16,11 +16,13 @@ pub enum Pick {
     Installed,
 }
 
-/// Lists `choices`, marking the one at `held_rev`; `on_pick` gets the choice.
+/// Lists `choices`, marking the installed version and the one at
+/// `held_rev`; `on_pick` gets the choice.
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     choices: Vec<VersionChoice>,
     held_rev: Option<String>,
+    installed: Option<String>,
     on_pick: impl Fn(Pick) + 'static,
 ) {
     let dialog = adw::Dialog::builder()
@@ -72,7 +74,12 @@ pub fn present(
             .subtitle(esc(&format!("{} · {source}", choice.date)))
             .activatable(true)
             .build();
-        if held_rev.as_deref() == Some(choice.rev.as_str()) {
+        if installed.as_deref() == Some(choice.version.as_str()) {
+            let badge = gtk::Label::new(Some(&crate::i18n::pgettext("version badge", "Installed")));
+            badge.add_css_class("installed-badge");
+            badge.set_valign(gtk::Align::Center);
+            row.add_suffix(&badge);
+        } else if held_rev.as_deref() == Some(choice.rev.as_str()) {
             let current = gtk::Label::new(Some(&t("In use")));
             current.add_css_class("dim-label");
             row.add_suffix(&current);

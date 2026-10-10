@@ -13,23 +13,19 @@ pub struct VersionChoice {
 }
 
 /// Versions nixpkgs had for `attr`, newest first, with whether the binary
-/// cache has each one. Blocking: one request per version.
+/// cache has each one. Blocking: one index request, then the cache checks
+/// side by side.
 pub fn versions(attr: &str) -> Vec<VersionChoice> {
-    releases(attr)
+    let checks: Vec<_> = releases(attr)
         .into_iter()
         .map(|(mut choice, out)| {
-            choice.cached = in_binary_cache(&out);
-            choice
+            std::thread::spawn(move || {
+                choice.cached = in_binary_cache(&out);
+                choice
+            })
         })
-        .collect()
-}
-
-/// Versions and dates only, in one request: for the version history.
-pub fn version_history(attr: &str) -> Vec<VersionChoice> {
-    releases(attr)
-        .into_iter()
-        .map(|(choice, _)| choice)
-        .collect()
+        .collect();
+    checks.into_iter().filter_map(|h| h.join().ok()).collect()
 }
 
 fn releases(attr: &str) -> Vec<(VersionChoice, String)> {

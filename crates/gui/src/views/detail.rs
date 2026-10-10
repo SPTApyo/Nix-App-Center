@@ -44,6 +44,8 @@ pub struct DetailModel {
     home_module: Option<nix_software_core::NixOption>,
     /// nixpkgs versions of the app, newest first, for the history.
     nix_versions: Option<Vec<nix_software_core::VersionChoice>>,
+    /// Choose a Version… was clicked before the versions arrived.
+    choose_pending: bool,
     /// The revision the app is held at.
     pin: Option<nix_software_core::Pin>,
     holding: bool,
@@ -491,16 +493,6 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Version…"),
-                                                                    #[watch]
-                                                                    set_visible: model.can_hold(),
-                                                                    #[watch]
-                                                                    set_sensitive: !model.holding,
-                                                                    set_tooltip_text: Some(&t("Keep the installed version, or pick an earlier one.")),
-                                                                    add_css_class: "flat",
-                                                                    connect_clicked => DetailMsg::ChooseVersion,
-                                                                },
-                                                                gtk::Button {
                                                                     set_label: &t("Install As…"),
                                                                     #[watch]
                                                                     set_visible: model.kept && model.mode().is_some(),
@@ -891,6 +883,7 @@ impl SimpleComponent for DetailModel {
             other: None,
             home_module: None,
             nix_versions: None,
+            choose_pending: false,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -1050,21 +1043,13 @@ impl SimpleComponent for DetailModel {
                     });
                 }
                 build_addons(&self.addons_box, &meta);
-                build_version_history(
-                    &self.version_box,
-                    &meta,
-                    meta.version.as_deref(),
-                    self.nix_versions.as_deref().unwrap_or_default(),
-                    self.installed.as_ref().map(|a| a.version.as_str()) == meta.version.as_deref(),
-                    self.toast_overlay.clone().upcast(),
-                );
+                self.rebuild_versions(&meta, &sender);
                 if self.nix_versions.is_none() {
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ = s.send(DetailMsg::HistoryLoaded(
-                            nix_software_core::version_history(&attr),
-                        ));
+                        let _ =
+                            s.send(DetailMsg::HistoryLoaded(nix_software_core::versions(&attr)));
                     });
                 }
                 let s = sender.input_sender().clone();
@@ -1357,35 +1342,28 @@ impl SimpleComponent for DetailModel {
                 sender.input(DetailMsg::BlocksSaved(res));
             }
             DetailMsg::HistoryLoaded(choices) => {
-                if let Some(meta) = &self.meta {
-                    build_version_history(
-                        &self.version_box,
-                        meta,
-                        meta.version.as_deref(),
-                        &choices,
-                        self.installed.as_ref().map(|a| a.version.as_str())
-                            == meta.version.as_deref(),
-                        self.toast_overlay.clone().upcast(),
-                    );
+                if std::mem::take(&mut self.choose_pending) {
+                    sender.input(DetailMsg::VersionsLoaded(choices.clone()));
                 }
                 self.nix_versions = Some(choices);
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_versions(&meta, &sender);
+                }
             }
-            DetailMsg::ChooseVersion => {
-                crate::util::toast(&self.toast_overlay, &t("Looking for versions…"));
-                let attr = self.package.attr.clone();
-                let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let _ = s.send(DetailMsg::VersionsLoaded(nix_software_core::versions(
-                        &attr,
-                    )));
-                });
-            }
+            DetailMsg::ChooseVersion => match self.nix_versions.clone() {
+                Some(choices) => sender.input(DetailMsg::VersionsLoaded(choices)),
+                None => {
+                    self.choose_pending = true;
+                    crate::util::toast(&self.toast_overlay, &t("Looking for versions…"));
+                }
+            },
             DetailMsg::VersionsLoaded(choices) => {
                 let s = sender.input_sender().clone();
                 crate::components::version_dialog::present(
                     &self.toast_overlay,
                     choices,
                     self.pin.as_ref().map(|p| p.rev.clone()),
+                    self.installed.as_ref().map(|a| a.version.clone()),
                     move |pick| {
                         let _ = s.send(match pick {
                             crate::components::version_dialog::Pick::Version(c) => {
@@ -1928,7 +1906,27 @@ impl DetailModel {
         );
     }
 
+    /// The version section, with its version choice when the app can be held.
+    fn rebuild_versions(&self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        let on_choose = (self.can_hold() && !self.holding).then(|| {
+            let s = sender.input_sender().clone();
+            Box::new(move || {
+                let _ = s.send(DetailMsg::ChooseVersion);
+            }) as Box<dyn Fn()>
+        });
+        build_version_history(
+            &self.version_box,
+            meta,
+            meta.version.as_deref(),
+            self.nix_versions.as_deref().unwrap_or_default(),
+            self.installed.as_ref().map(|a| a.version.as_str()) == meta.version.as_deref(),
+            on_choose,
+            self.toast_overlay.clone().upcast(),
+        );
+    }
+
     fn rebuild_problems(&self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        self.rebuild_versions(meta, sender);
         while let Some(c) = self.problems_box.first_child() {
             self.problems_box.remove(&c);
         }
@@ -2363,6 +2361,7 @@ fn build_version_history(
     nix_version: Option<&str>,
     history: &[nix_software_core::VersionChoice],
     installed: bool,
+    on_choose: Option<Box<dyn Fn()>>,
     parent: gtk::Widget,
 ) {
     let badge = nix_version.map(|_| {
@@ -2411,6 +2410,16 @@ fn build_version_history(
             present_dialog(&t("Version History"), &list, 480, 560, &parent);
         });
         list.append(&more);
+    }
+    if let Some(on_choose) = on_choose {
+        let choose = adw::ButtonRow::new();
+        choose.set_title(&t("Choose a Version…"));
+        choose.set_end_icon_name(Some("go-next-symbolic"));
+        choose.set_tooltip_text(Some(&t(
+            "Keep the installed version, or pick an earlier one.",
+        )));
+        choose.connect_activated(move |_| on_choose());
+        list.append(&choose);
     }
 
     container.append(&list);

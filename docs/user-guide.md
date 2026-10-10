@@ -34,8 +34,8 @@ The Installed tab lists them all, with what you tried and can clean up.
 The Updates tab shows what can be updated. Update refreshes your
 configuration's nixpkgs, then applies.
 
-To stay on a version, open the app, then Version… in its menu. Release it
-from the same place or from Updates.
+To stay on a version, open the app, then Choose a Version… under its
+version. Release it from the same place or from Updates.
 
 ## Storage
 

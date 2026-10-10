@@ -98,7 +98,7 @@ pub use user_profile::{
     nix_env_names, nix_env_remove, profile_add, profile_elements, profile_remove, ProfileElement,
 };
 pub use util::now_unix;
-pub use versions::{version_history, versions, VersionChoice};
+pub use versions::{versions, VersionChoice};
 
 // Serializes tests that change environment variables.
 #[cfg(test)]

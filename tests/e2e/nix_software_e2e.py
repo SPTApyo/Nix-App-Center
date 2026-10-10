@@ -198,9 +198,11 @@ MENU_KEEP_TOGGLE = "click:894,221"
 MENU_RUN = "click:834,259"
 MENU_COPY = "click:834,297"
 MENU_ADVANCED = "click:834,335"
-MENU_VERSION = "click:834,372"
 VERSION_TOP = "click:504,248"
-MENU_APPLY = "click:834,415"
+# Install As… is hidden once the app has its own block: Apply moves up.
+MENU_APPLY = "click:834,378"
+# Version section of the details page.
+VERSION_CHOOSE = "click:494,669"
 PRIMARY = "click:820,145"
 
 
@@ -324,8 +326,7 @@ def actions(env, s):
 
     home = env.config / "nix-software-home.nix"
     manifest = env.data / "nix-software" / "kept.json"
-    s.do(MENU)
-    s.do(MENU_VERSION)
+    s.do(VERSION_CHOOSE)
     s.do("wait:8000")
     s.shot("action-versions")
     s.do(VERSION_TOP)
@@ -334,8 +335,7 @@ def actions(env, s):
     assert ".hello" in home.read_text(), "hello must come from the held revision"
     s.do("wait:1500")
     s.shot("action-hold")
-    s.do(MENU)
-    s.do(MENU_VERSION)
+    s.do(VERSION_CHOOSE)
     s.do("wait:8000")
     s.do(VERSION_TOP)
     wait_for(lambda: '"pin"' not in manifest.read_text(), 10, "hold released")
