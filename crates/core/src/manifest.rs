@@ -117,7 +117,22 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
 /// Writes the Nix files, then the manifest: a failed write keeps it unchanged.
 fn commit(m: &Manifest) -> std::io::Result<()> {
     config_gen::sync_config(&m.kept)?;
-    save_manifest(m)
+    save_manifest(m)?;
+    std::fs::write(pending_path(), "")
+}
+
+fn pending_path() -> PathBuf {
+    data_dir().join("apply-pending")
+}
+
+/// True when the configuration changed since the last apply.
+pub fn apply_pending() -> bool {
+    pending_path().exists()
+}
+
+/// Forgets the changes once an apply succeeded.
+pub fn applied() {
+    let _ = std::fs::remove_file(pending_path());
 }
 
 /// Keeps `pkg`; nothing when already kept.
@@ -167,6 +182,42 @@ pub fn set_blocks(
         }),
     }
     commit(&m)
+}
+
+/// How a kept app is installed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InstallMode {
+    Home,
+    System,
+    /// Through the NixOS module whose `enable` option this is.
+    Module(String),
+}
+
+impl KeptEntry {
+    /// The mode; `None` when custom blocks say more than a mode.
+    pub fn mode(&self) -> Option<InstallMode> {
+        match (self.home_nix.as_deref(), self.system_nix.as_deref()) {
+            (None, None) if self.system_wide => Some(InstallMode::System),
+            (None, None) => Some(InstallMode::Home),
+            (Some(""), Some(line)) => line
+                .trim()
+                .strip_suffix(" = true;")
+                .filter(|o| o.ends_with(".enable") && !o.contains(char::is_whitespace))
+                .map(|o| InstallMode::Module(o.to_string())),
+            _ => None,
+        }
+    }
+}
+
+/// Installs the kept `pkg` another way.
+pub fn set_mode(pkg: &Package, mode: &InstallMode) -> std::io::Result<()> {
+    edit_entry(pkg, |e| {
+        e.system_wide = mode == &InstallMode::System;
+        (e.home_nix, e.system_nix) = match mode {
+            InstallMode::Module(option) => (Some(String::new()), Some(format!("{option} = true;"))),
+            _ => (None, None),
+        };
+    })
 }
 
 /// Applies `edit` to the entry of `pkg`, keeping it first.
@@ -311,11 +362,38 @@ mod tests {
     }
 
     #[test]
+    fn the_install_mode_can_change() {
+        let _g = crate::env_lock();
+        sandbox("mode");
+        let pkg = Package::from_attr("steam");
+        let mode = || load_manifest().kept[0].mode();
+        keep(&pkg).unwrap();
+        assert_eq!(mode(), Some(InstallMode::Home));
+        let module = InstallMode::Module("programs.steam.enable".into());
+        set_mode(&pkg, &module).unwrap();
+        assert_eq!(mode(), Some(module));
+        set_mode(&pkg, &InstallMode::System).unwrap();
+        assert_eq!(mode(), Some(InstallMode::System));
+        set_blocks(
+            &pkg,
+            None,
+            Some("services.x.enable = true;\nfoo = 1;".into()),
+        )
+        .unwrap();
+        assert_eq!(mode(), None);
+        cleanup();
+    }
+
+    #[test]
     fn keep_then_unkeep_updates_generated_file() {
         let _g = crate::env_lock();
         let base = sandbox("keep");
 
+        assert!(!apply_pending());
         keep(&Package::from_attr("ripgrep")).unwrap();
+        assert!(apply_pending());
+        applied();
+        assert!(!apply_pending());
         let after_keep = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
         assert!(after_keep.contains("ripgrep"));
 

@@ -126,6 +126,8 @@ pub enum DetailMsg {
     /// Holds the app at an earlier version.
     HoldAt(nix_software_core::VersionChoice),
     ChooseVersion,
+    ChooseMode,
+    SetMode(nix_software_core::InstallMode),
     VersionsLoaded(Vec<nix_software_core::VersionChoice>),
     Held(Result<Option<nix_software_core::Pin>, String>),
     /// Keeps the app through its NixOS module.
@@ -451,6 +453,14 @@ impl SimpleComponent for DetailModel {
                                                                     set_tooltip_text: Some(&t("Keep the installed version, or pick an earlier one.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ChooseVersion,
+                                                                },
+                                                                gtk::Button {
+                                                                    set_label: &t("Install As…"),
+                                                                    #[watch]
+                                                                    set_visible: model.kept && model.mode().is_some(),
+                                                                    set_tooltip_text: Some(&t("Install this app another way: in your home, for every user, or through its module.")),
+                                                                    add_css_class: "flat",
+                                                                    connect_clicked => DetailMsg::ChooseMode,
                                                                 },
                                                                 gtk::Separator {
                                                                     set_orientation: gtk::Orientation::Horizontal,
@@ -1110,6 +1120,53 @@ impl SimpleComponent for DetailModel {
                 self.start_hold(None, &sender);
             }
             DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
+            DetailMsg::ChooseMode => {
+                use nix_software_core::InstallMode;
+                let layout = nix_software_core::detect_layout();
+                let module = self
+                    .module
+                    .as_ref()
+                    .filter(|_| layout.system.is_some())
+                    .map(|o| InstallMode::Module(o.name.clone()));
+                let choices = [
+                    (
+                        "home",
+                        t("In _Your Home"),
+                        layout.home.as_ref().map(|_| InstallMode::Home),
+                    ),
+                    (
+                        "system",
+                        t("For _Everyone"),
+                        layout.system.as_ref().map(|_| InstallMode::System),
+                    ),
+                    ("module", t("Through the _Module"), module),
+                ];
+                let dialog = adw::AlertDialog::new(
+                    Some(&t("Install As")),
+                    Some(&t("In your home, only you get the app. For everyone, it goes to the system packages. Its module also sets up what the app needs around it, such as services or groups.")),
+                );
+                dialog.add_response("cancel", &t("_Cancel"));
+                let current = self.mode();
+                let mut modes = Vec::new();
+                for (id, label, mode) in choices {
+                    let Some(mode) = mode else { continue };
+                    dialog.add_response(id, &label);
+                    dialog.set_response_enabled(id, current.as_ref() != Some(&mode));
+                    modes.push((id, mode));
+                }
+                let s = sender.input_sender().clone();
+                dialog.connect_response(None, move |_, id| {
+                    if let Some((_, mode)) = modes.iter().find(|(i, _)| *i == id) {
+                        let _ = s.send(DetailMsg::SetMode(mode.clone()));
+                    }
+                });
+                dialog.present(Some(&self.toast_overlay));
+            }
+            DetailMsg::SetMode(mode) => {
+                let res =
+                    nix_software_core::set_mode(&self.package, &mode).map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
+            }
             DetailMsg::ChooseVersion => {
                 crate::util::toast(&self.toast_overlay, &t("Looking for versions…"));
                 let attr = self.package.attr.clone();
@@ -1591,6 +1648,14 @@ impl DetailModel {
     /// raises this window.
     fn is_self(&self) -> bool {
         self.package.attr == crate::util::SELF_ATTR
+    }
+
+    /// How Nix Software installs this app; `None` when custom blocks
+    /// say more.
+    fn mode(&self) -> Option<nix_software_core::InstallMode> {
+        nix_software_core::load_manifest()
+            .entry(&self.package.attr)
+            .and_then(|e| e.mode())
     }
 
     fn cli_first(&self) -> bool {

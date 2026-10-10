@@ -212,15 +212,38 @@ The dialog can be closed while the work goes on; a desktop notification
 reports the end when the app is not in front. There is no notification per
 step: GNOME asks apps not to flood the user.
 
-## Installed badges
+## Installed pill
 
-Tiles and search rows of installed apps carry a badge: a blue screen for the
-system profile, a green house for the user profiles. The profiles are read
+Tiles and search rows of installed apps carry a pill: a green check, then
+where the app is (a screen for the system profile, a house for the user
+profiles), then how (a box for a package, a puzzle piece for a module). The
+profiles are read
 at most every five seconds, not once per tile. An app matches by pname; a
 nested attribute such as haskellPackages.Obsidian must match the version too,
 or every package named like an installed app would show the badge. The
 desktop file name counts as well, like on the Installed page: steam from
 programs.steam.enable resolves to steam-unwrapped but ships steam.desktop.
+
+The module guess needs no evaluation either. The configuration is not evaluated for that, it is read: any `X.enable` not set
+to false in the .nix files of the configuration folder or of its local
+inputs counts, whatever its form (programs.steam.enable, or steam.enable
+inside programs = { }). It is a guess, but an instant one, and it works on a
+configuration that does not evaluate.
+
+## Install modes
+
+A kept app is installed one of three ways: in the user's home, in the
+system packages, or through its NixOS module (`X.enable = true` in its
+system block). Install As… in its menu switches between them. It is offered
+only while the entry is one of these three; custom blocks say more than a
+mode and are left alone.
+
+## Pending changes
+
+Every change to the configuration leaves a marker in the data folder; a
+successful apply of the configuration removes it. While it is there, an
+Apply button shows in the header bar, so nobody has to open an app to find
+it.
 
 ## Nix Software in its own catalog
 

@@ -1,0 +1,7 @@
+<!--
+  SPDX-License-Identifier: CC0-1.0
+  SPDX-FileCopyrightText: 2026 SPTApyo
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+    <path fill="#222" d="M2 3.5h3.25a1.75 1.75 0 1 1 3.5 0H12v3.25a1.75 1.75 0 1 1 0 3.5V14H8.75a1.75 1.75 0 1 0-3.5 0H2v-3.75a1.75 1.75 0 1 0 0-3.5z"/>
+</svg>

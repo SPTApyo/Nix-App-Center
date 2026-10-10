@@ -8,17 +8,25 @@ How to use Nix Software. Short on purpose.
    changed.
 2. **Add to Configuration**: the app is written into your configuration.
    Nothing is installed yet.
-3. **Apply**: your system is rebuilt and the app is installed.
+3. **Apply**: your system is rebuilt and the app is installed. The Apply
+   button shows at the top of the window whenever something changed.
 
 The first time you add an app, Nix Software asks to add one import line to
 your configuration. It shows the change before writing anything.
 
 ## What is installed
 
-Installed apps show an icon next to their name:
+Installed apps show a pill next to their name: a green check, then where
+and how the app is installed.
 
-- a blue screen: installed on the system, for every user;
-- a green house: installed in your home, for you only.
+- a screen: on the system, for every user;
+- a house: in your home, for you only;
+- a box: as a plain package;
+- a puzzle piece: through a module, which also sets up what the app needs
+  around it.
+
+To install an app you added another way, open it, then Install As… in its
+menu.
 
 The Installed tab lists them all, with what you tried and can clean up.
 

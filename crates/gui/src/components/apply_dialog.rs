@@ -173,6 +173,7 @@ pub fn present(
         }
     });
 
+    let applies = nix_software_core::apply_argv().is_some_and(|a| steps.contains(&a));
     let (tx, rx) = async_channel::unbounded::<Event>();
     std::thread::spawn(move || {
         let events = tx.clone();
@@ -211,7 +212,10 @@ pub fn present(
                     finished.set(true);
                     let message = crate::util::describe_apply(res.clone());
                     match &res {
-                        Ok(_) => {
+                        Ok(outcome) => {
+                            if applies && matches!(outcome, ApplyOutcome::Done(_)) {
+                                nix_software_core::applied();
+                            }
                             target.set(Some(1.0));
                             phase.set_label(&t("Done"));
                             detail.set_label(&format!("100 % · {}", t("finished")));

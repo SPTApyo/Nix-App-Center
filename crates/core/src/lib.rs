@@ -10,6 +10,7 @@ mod config_attach;
 mod config_gen;
 mod config_layout;
 mod detail;
+mod enabled;
 mod flathub;
 mod http;
 mod launch;
@@ -54,12 +55,13 @@ pub use config_layout::{
     detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
 };
 pub use detail::{closure_size, detail, PackageDetail};
+pub use enabled::enabled_modules;
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{
-    keep, load_manifest, pin_at, pin_current, set_blocks, set_flags, set_pin, unkeep, KeptEntry,
-    Manifest, Pin,
+    applied, apply_pending, keep, load_manifest, pin_at, pin_current, set_blocks, set_flags,
+    set_mode, set_pin, unkeep, InstallMode, KeptEntry, Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use options::{module_for, search_options, NixOption};

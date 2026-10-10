@@ -3,7 +3,6 @@
 use adw::prelude::*;
 use nix_software_core::Package;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
-use relm4::RelmWidgetExt;
 
 use crate::util::{fallback_icon, texture_from_bytes_sized, AppItem, IconState};
 
@@ -12,6 +11,7 @@ pub struct AppTile {
     icon_tex: Option<gtk::gdk::Texture>,
     icon_state: IconState,
     scope: Option<nix_software_core::Scope>,
+    module: bool,
 }
 
 #[derive(Debug)]
@@ -33,8 +33,6 @@ impl FactoryComponent for AppTile {
         #[root]
         gtk::Button {
             add_css_class: "card",
-            set_class_active: ("installed-system", self.scope == Some(nix_software_core::Scope::System)),
-            set_class_active: ("installed-home", self.scope == Some(nix_software_core::Scope::User)),
             set_width_request: 190,
             set_hexpand: true,
             set_halign: gtk::Align::Fill,
@@ -112,14 +110,7 @@ impl FactoryComponent for AppTile {
                             set_ellipsize: gtk::pango::EllipsizeMode::End,
                             add_css_class: "app-tile-name",
                         },
-                        gtk::Image {
-                            set_visible: self.scope.is_some(),
-                            set_icon_name: self.scope.map(|s| crate::util::scope_badge(s).0),
-                            set_tooltip_text: self.scope.map(|s| crate::util::scope_badge(s).1).as_deref(),
-                            set_pixel_size: 16,
-                            set_valign: gtk::Align::Center,
-                            add_css_class: "scope-badge",
-                        },
+                        crate::util::installed_pill(self.scope, self.module) -> gtk::Box {},
                     },
                     gtk::Label {
                         set_label: &truncate_desc(&self.package.description),
@@ -158,12 +149,15 @@ impl FactoryComponent for AppTile {
                 )));
             });
         }
-        let scope = crate::util::installed_scope(&package);
+        let installed = crate::util::installed_scope(&package);
+        let scope = installed.map(|i| i.0);
+        let module = installed.is_some_and(|i| i.1);
         Self {
             package,
             icon_tex: None,
             icon_state,
             scope,
+            module,
         }
     }
 

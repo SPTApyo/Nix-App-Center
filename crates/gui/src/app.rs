@@ -147,6 +147,36 @@ impl SimpleComponent for AppModel {
             "Nix Software is still young: report what goes wrong.",
         )));
         header.pack_end(&beta);
+        let apply = gtk::Button::builder()
+            .label(t("_Apply"))
+            .use_underline(true)
+            .tooltip_text(t(
+                "Your configuration changed: rebuild it to install or remove the apps.",
+            ))
+            .visible(nix_software_core::apply_pending())
+            .build();
+        apply.add_css_class("suggested-action");
+        apply.connect_clicked(|btn| {
+            let Some(argv) = nix_software_core::apply_argv() else {
+                return;
+            };
+            btn.set_sensitive(false);
+            let btn2 = btn.clone();
+            crate::components::apply_dialog::present(
+                btn,
+                &t("Applying Configuration"),
+                vec![argv],
+                move |_| btn2.set_sensitive(true),
+            );
+        });
+        gtk::glib::timeout_add_seconds_local(2, {
+            let apply = apply.clone();
+            move || {
+                apply.set_visible(nix_software_core::apply_pending());
+                gtk::glib::ControlFlow::Continue
+            }
+        });
+        header.pack_end(&apply);
         let prefs = gtk::gio::SimpleAction::new("preferences", None);
         prefs.connect_activate({
             let win = root.clone();

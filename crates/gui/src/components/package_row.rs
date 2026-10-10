@@ -4,7 +4,6 @@
 use adw::prelude::*;
 use nix_software_core::{Package, Rating};
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender};
-use relm4::RelmWidgetExt;
 
 use crate::util::{fallback_icon, texture_from_bytes_sized, AppItem, IconState};
 
@@ -14,6 +13,7 @@ pub struct PackageRow {
     icon_tex: Option<gtk::gdk::Texture>,
     icon_state: IconState,
     scope: Option<nix_software_core::Scope>,
+    module: bool,
 }
 
 #[derive(Debug)]
@@ -40,8 +40,6 @@ impl FactoryComponent for PackageRow {
             set_margin_bottom: 10,
             set_margin_start: 12,
             set_margin_end: 12,
-            set_class_active: ("installed-system", self.scope == Some(nix_software_core::Scope::System)),
-            set_class_active: ("installed-home", self.scope == Some(nix_software_core::Scope::User)),
 
             add_controller = gtk::GestureClick {
                 connect_released[sender] => move |_, _, _, _| {
@@ -135,14 +133,7 @@ impl FactoryComponent for PackageRow {
                 },
             },
 
-            gtk::Image {
-                set_visible: self.scope.is_some(),
-                set_icon_name: self.scope.map(|s| crate::util::scope_badge(s).0),
-                set_tooltip_text: self.scope.map(|s| crate::util::scope_badge(s).1).as_deref(),
-                set_pixel_size: 20,
-                set_valign: gtk::Align::Center,
-                add_css_class: "scope-badge",
-            },
+            crate::util::installed_pill(self.scope, self.module) -> gtk::Box {},
         }
     }
 
@@ -168,13 +159,16 @@ impl FactoryComponent for PackageRow {
                 )));
             });
         }
-        let scope = crate::util::installed_scope(&package);
+        let installed = crate::util::installed_scope(&package);
+        let scope = installed.map(|i| i.0);
+        let module = installed.is_some_and(|i| i.1);
         Self {
             package,
             rating,
             icon_tex: None,
             icon_state,
             scope,
+            module,
         }
     }
 
