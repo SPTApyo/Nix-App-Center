@@ -1,7 +1,8 @@
 # Security
 
 Nix Software edits Nix configurations and runs some commands as root through
-pkexec (writing files under /etc/nixos, nixos-rebuild, garbage collection).
+pkexec (writing files under /etc/nixos, activating a built system, garbage
+collection).
 Bugs there matter, so please report them privately.
 
 ## Reporting
@@ -20,11 +21,14 @@ Only the latest release and main get security fixes.
 
 In scope:
 
-- anything run as root: the generated pkexec scripts, the files they write;
+- anything run as root: the generated pkexec scripts, the files they write,
+  the activation of a system built as the user;
 - edits to the user's own configuration (attach, detach);
-- text from the network (AppStream, Flathub, ODRS reviews) reaching a shell,
-  a Nix file or the UI markup;
-- deletion of store paths (removing tried apps, clean-ups).
+- text from outside reaching a shell, a Nix file or the UI markup: AppStream,
+  Flathub, ODRS reviews, the Devbox index, names from other flakes and
+  their lock files;
+- deletion of store paths, Flatpaks and AppImages.
 
-Out of scope: vulnerabilities in the packages Nix Software lets you run.
-They come from nixpkgs.
+Out of scope: vulnerabilities in the packages Nix Software lets you run,
+which come from nixpkgs or the flakes you add, and what you write yourself:
+option values, the advanced editor, a custom apply command.
