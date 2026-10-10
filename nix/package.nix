@@ -5,6 +5,9 @@
   lib,
   rustPlatform,
   fetchFromGitHub,
+  nix-update-script,
+  testers,
+  nixosTests,
   pkg-config,
   wrapGAppsHook4,
   gettext,
@@ -78,6 +81,17 @@ rustPlatform.buildRustPackage (finalAttrs: {
   preFixup = ''
     gappsWrapperArgs+=(--set NIX_SOFTWARE_LOCALEDIR "$out/share/locale")
   '';
+
+  passthru = {
+    updateScript = nix-update-script { };
+    tests = {
+      version = testers.testVersion {
+        package = finalAttrs.finalPackage;
+        command = "nix-software-cli --version";
+      };
+      module = nixosTests.nix-software;
+    };
+  };
 
   meta = {
     description = "Declarative app store for NixOS and Home Manager, built around try first";

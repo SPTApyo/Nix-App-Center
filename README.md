@@ -45,17 +45,20 @@ Try it without installing:
 nix run github:SPTApyo/nix-software
 ```
 
-On NixOS with flakes, add the input and the package:
+On NixOS with flakes, add the input and enable the module. It installs the
+app, the GNOME Shell search provider and polkit, which applying needs:
 
 ```nix
 # flake.nix
 inputs.nix-software.url = "github:SPTApyo/nix-software";
 
-# in a module
-environment.systemPackages = [
-  inputs.nix-software.packages.${pkgs.stdenv.hostPlatform.system}.default
-];
+# in your NixOS configuration
+imports = [ inputs.nix-software.nixosModules.default ];
+programs.nix-software.enable = true;
 ```
+
+Once Nix Software is in nixpkgs, `programs.nix-software.enable = true;` is
+enough, without the input.
 
 On NixOS without flakes, no channel needed:
 
