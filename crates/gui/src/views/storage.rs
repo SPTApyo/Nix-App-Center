@@ -134,6 +134,9 @@ impl SimpleComponent for StorageModel {
             StorageMsg::Loaded(res) => {
                 self.loading = false;
                 self.loaded_at = Some(Instant::now());
+                if self.report.is_some() {
+                    self.content.add_css_class("settled");
+                }
                 self.report = Some(res);
                 self.rebuild(&sender);
             }

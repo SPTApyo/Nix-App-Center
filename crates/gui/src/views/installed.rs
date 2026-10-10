@@ -158,6 +158,9 @@ impl SimpleComponent for InstalledModel {
                 });
             }
             InstalledMsg::DataReady(data) => {
+                if self.data.is_some() {
+                    self.content.add_css_class("settled");
+                }
                 self.data = Some(data);
                 self.rebuild(&sender);
             }

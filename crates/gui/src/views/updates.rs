@@ -127,6 +127,7 @@ impl SimpleComponent for UpdatesModel {
                 {
                     sender.input(UpdatesMsg::Refresh);
                 } else {
+                    self.content.add_css_class("settled");
                     self.rebuild(&sender);
                 }
             }
@@ -146,6 +147,9 @@ impl SimpleComponent for UpdatesModel {
                 sender.input(UpdatesMsg::Refresh);
             }
             UpdatesMsg::Checked(c) => {
+                if self.checked_at.is_some() {
+                    self.content.add_css_class("settled");
+                }
                 self.checking = false;
                 self.checked_at = Some(Instant::now());
                 let notify = std::mem::take(&mut self.background);
