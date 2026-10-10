@@ -53,16 +53,19 @@ pub fn profile_apps() -> Vec<ProfileApp> {
     out
 }
 
-/// The installed app matching a package, by pname or by desktop id.
+/// The installed app matching a package, by pname or by desktop file name:
+/// steam ships steam.desktop but resolves to steam-unwrapped.
 pub fn installed_app(attr: &str, app_id: Option<&str>) -> Option<ProfileApp> {
     let pname = attr.rsplit('.').next().unwrap_or(attr);
     profile_apps().into_iter().find(|a| {
+        let stem = a
+            .desktop_file
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
         a.pname.eq_ignore_ascii_case(pname)
-            || app_id.is_some_and(|id| {
-                a.desktop_file
-                    .file_stem()
-                    .is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(id))
-            })
+            || stem.eq_ignore_ascii_case(pname)
+            || app_id.is_some_and(|id| stem.eq_ignore_ascii_case(id))
     })
 }
 
