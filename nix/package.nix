@@ -100,7 +100,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     homepage = "https://github.com/SPTApyo/nix-software";
     changelog = "https://github.com/SPTApyo/nix-software/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.gpl3Plus;
-    maintainers = with lib.maintainers; [ sptapyo ];
+    maintainers = with lib.maintainers; [ SPTApyo ];
     mainProgram = "nix-software";
     platforms = lib.platforms.linux;
   };
