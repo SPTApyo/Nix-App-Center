@@ -82,6 +82,7 @@ pub struct DetailModel {
     dev_apps_box: gtk::Box,
     dev_apps_heading: gtk::Label,
     dev_tiles: FactoryVecDeque<AppTile>,
+    addon_tiles: FactoryVecDeque<AppTile>,
     toast_overlay: adw::ToastOverlay,
 }
 
@@ -843,6 +844,17 @@ impl SimpleComponent for DetailModel {
         dev_apps_heading.set_margin_top(21);
         dev_apps_heading.set_margin_bottom(6);
         dev_apps_heading.add_css_class("heading");
+        let addon_tiles: FactoryVecDeque<AppTile> = FactoryVecDeque::builder()
+            .launch(tile_grid())
+            .forward(sender.input_sender(), |p: Package| {
+                DetailMsg::OpenAddon(p.name)
+            });
+        let addons_heading = gtk::Label::new(Some(&t("Add-ons")));
+        addons_heading.set_xalign(0.0);
+        addons_heading.set_margin_bottom(6);
+        addons_heading.add_css_class("heading");
+        addons_box.append(&addons_heading);
+        addons_box.append(addon_tiles.widget());
         let dev_tiles: FactoryVecDeque<AppTile> = FactoryVecDeque::builder()
             .launch(tile_grid())
             .forward(sender.input_sender(), DetailMsg::OpenApp);
@@ -914,6 +926,7 @@ impl SimpleComponent for DetailModel {
             dev_apps_box: dev_apps_box.clone(),
             dev_apps_heading: dev_apps_heading.clone(),
             dev_tiles,
+            addon_tiles,
             toast_overlay: toast_overlay.clone(),
         };
         let widgets = view_output!();
@@ -1045,10 +1058,17 @@ impl SimpleComponent for DetailModel {
                         )));
                     });
                 }
-                let s = sender.input_sender().clone();
-                build_addons(&self.addons_box, &meta, move |name| {
-                    let _ = s.send(DetailMsg::OpenAddon(name));
-                });
+                let mut g = self.addon_tiles.guard();
+                g.clear();
+                for a in meta.addons.iter().take(12) {
+                    let pkg = Package {
+                        description: a.summary.clone().unwrap_or_default(),
+                        ..Package::from_attr(a.name.clone())
+                    };
+                    g.push_back(AppItem::new(pkg, a.icon_url.clone()));
+                }
+                drop(g);
+                self.addons_box.set_visible(!meta.addons.is_empty());
                 self.rebuild_versions(&meta, &sender);
                 if self.nix_versions.is_none() {
                     let attr = self.package.attr.clone();
@@ -2320,46 +2340,6 @@ fn age_color(label: &str) -> &'static str {
     }
 }
 
-/// The add-ons section; its tiles do not open pages.
-fn build_addons(container: &gtk::Box, meta: &AppMeta, on_open: impl Fn(String) + Clone + 'static) {
-    while let Some(c) = container.first_child() {
-        container.remove(&c);
-    }
-    if meta.addons.is_empty() {
-        container.set_visible(false);
-        return;
-    }
-
-    let title = gtk::Label::new(Some(&t("Add-ons")));
-    title.set_xalign(0.0);
-    title.set_halign(gtk::Align::Start);
-    title.set_valign(gtk::Align::Start);
-    title.set_hexpand(true);
-    title.set_margin_bottom(12);
-    title.add_css_class("title-2");
-    container.append(&title);
-
-    let flow = tile_grid();
-    for a in meta.addons.iter().take(12) {
-        let tile = info_tile(
-            &a.name,
-            a.summary.as_deref().filter(|s| !s.trim().is_empty()),
-            a.icon_url.clone(),
-        );
-        let button = gtk::Button::builder()
-            .child(&tile)
-            .tooltip_text(t("Open this add-on"))
-            .build();
-        button.add_css_class("flat");
-        button.add_css_class("addon-tile");
-        let (name, on_open) = (a.name.clone(), on_open.clone());
-        button.connect_clicked(move |_| on_open(name.clone()));
-        flow.append(&button);
-    }
-    container.append(&flow);
-    container.set_visible(true);
-}
-
 /// The nixpkgs release (else the latest) and the full history button.
 fn build_version_history(
     container: &gtk::Box,
@@ -2661,106 +2641,6 @@ fn link_row(label: &str, icon: &str, url: &str) -> adw::ActionRow {
     row
 }
 
-/// A tile like `AppTile` that opens nothing, for add-ons.
-fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk::Widget {
-    let icon_slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    icon_slot.set_width_request(64);
-    icon_slot.set_height_request(64);
-    icon_slot.set_valign(gtk::Align::Center);
-
-    let fallback = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    fallback.set_width_request(64);
-    fallback.set_height_request(64);
-    fallback.set_halign(gtk::Align::Center);
-    fallback.set_valign(gtk::Align::Center);
-    fallback.set_hexpand(false);
-    fallback.set_vexpand(false);
-    fallback.add_css_class("fallback-tile");
-    let (icon, class) = fallback_icon(&Package {
-        description: summary.unwrap_or_default().to_string(),
-        ..Package::from_attr(name)
-    });
-    fallback.add_css_class(class);
-    let glyph = gtk::Image::from_icon_name(icon);
-    glyph.set_pixel_size(48);
-    glyph.set_hexpand(true);
-    glyph.set_vexpand(true);
-    glyph.set_halign(gtk::Align::Center);
-    glyph.set_valign(gtk::Align::Center);
-    glyph.add_css_class("fallback-glyph");
-    fallback.append(&glyph);
-    icon_slot.append(&fallback);
-
-    // Image: 64 px layout, full resolution texture.
-    let img = gtk::Image::new();
-    img.set_pixel_size(64);
-    img.set_visible(false);
-    icon_slot.append(&img);
-
-    if let Some(url) = icon_url {
-        let img = img.clone();
-        let fallback = fallback.clone();
-        gtk::glib::spawn_future_local(async move {
-            let bytes =
-                gtk::gio::spawn_blocking(move || nix_software_core::cached_fetch_bytes(&url))
-                    .await
-                    .ok()
-                    .flatten();
-            if let Some(tex) = bytes
-                .as_deref()
-                .and_then(|b| texture_from_bytes_sized(b, 128))
-            {
-                img.set_paintable(Some(&tex));
-                img.set_visible(true);
-                fallback.set_visible(false);
-            }
-        });
-    }
-
-    let text = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    text.set_valign(gtk::Align::Center);
-    text.set_hexpand(true);
-
-    let name_label = gtk::Label::new(Some(name));
-    name_label.set_xalign(0.0);
-    name_label.set_max_width_chars(12);
-    name_label.set_width_chars(0);
-    name_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
-    name_label.add_css_class("app-tile-name");
-    text.append(&name_label);
-
-    if let Some(summary) = summary {
-        let s = gtk::Label::new(Some(summary));
-        s.set_xalign(0.0);
-        s.set_yalign(0.0);
-        s.set_wrap(true);
-        s.set_wrap_mode(gtk::pango::WrapMode::WordChar);
-        s.set_lines(2);
-        s.set_max_width_chars(16);
-        s.set_width_chars(0);
-        s.set_ellipsize(gtk::pango::EllipsizeMode::End);
-        s.add_css_class("app-tile-summary");
-        text.append(&s);
-    }
-
-    let inner = gtk::Box::new(gtk::Orientation::Horizontal, 14);
-    inner.set_margin_top(17);
-    inner.set_margin_bottom(17);
-    inner.set_margin_start(17);
-    inner.set_margin_end(17);
-    inner.append(&icon_slot);
-    inner.append(&text);
-
-    let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    card.add_css_class("card");
-    card.set_width_request(190);
-    card.set_hexpand(true);
-    card.set_halign(gtk::Align::Fill);
-    card.set_valign(gtk::Align::Start);
-    card.append(&inner);
-    card.upcast()
-}
-
 /// The grid of the add-ons and other apps sections.
 fn tile_grid() -> gtk::FlowBox {
     let flow = gtk::FlowBox::new();
@@ -2977,37 +2857,5 @@ mod tests {
             child = w.next_sibling();
         }
         assert_eq!(clamps, 10, "10 clamped sections expected");
-
-        // One GTK test only: GLib keeps the first thread.
-        assert_addons_render_as_tile_grid();
-    }
-
-    /// Add-ons render as a grid of tiles that open nothing.
-    fn assert_addons_render_as_tile_grid() {
-        let meta = AppMeta {
-            addons: vec![nix_software_core::Addon {
-                name: "Highlighter".into(),
-                summary: Some("Syntax highlighting".into()),
-                icon_url: None,
-            }],
-            ..Default::default()
-        };
-
-        let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        build_addons(&container, &meta, |_| {});
-        assert!(container.is_visible());
-
-        let flow = container
-            .last_child()
-            .and_downcast::<gtk::FlowBox>()
-            .expect("the section must end with a FlowBox grid");
-        assert_eq!(flow.max_children_per_line(), 3);
-
-        let tile = flow
-            .first_child()
-            .and_downcast::<gtk::FlowBoxChild>()
-            .and_then(|c| c.child())
-            .expect("a tile");
-        assert!(tile.has_css_class("card"), "the tile must be a card");
     }
 }

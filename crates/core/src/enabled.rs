@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::config_layout::LayoutKind;
 
 /// The .nix files of the configuration folder and of its local inputs,
-/// without the two Nix Software writes. Blocking.
+/// the two Nix Software writes included. Blocking.
 pub fn config_files() -> Vec<(PathBuf, String)> {
     let layout = crate::detect_layout();
     let dir = match &layout.kind {
@@ -100,6 +100,11 @@ fn confirm_later(key: u64, names: HashSet<String>, cache: PathBuf) {
 pub fn declared_in(attr: &str) -> Option<(PathBuf, usize)> {
     config_files()
         .into_iter()
+        .filter(|(path, _)| {
+            !path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with("nix-software-"))
+        })
         .find_map(|(path, text)| package_line(&text, attr).map(|n| (path, n)))
 }
 
@@ -160,7 +165,7 @@ fn scan(dir: &Path, out: &mut Vec<(PathBuf, String)>, depth: u8) {
     };
     for path in entries.filter_map(Result::ok).map(|e| e.path()) {
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name.starts_with('.') || name == "result" || name.starts_with("nix-software-") {
+        if name.starts_with('.') || name == "result" {
             continue;
         }
         if path.is_dir() && depth < 6 {

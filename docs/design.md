@@ -244,8 +244,8 @@ attribute such as haskellPackages.Obsidian must match the version too, or
 every package named like an installed app would show the pill.
 
 Modules are first guessed from the files: any `X.enable` not set to false in
-the .nix files of the configuration or of its local inputs, whatever its
-form. The guess is instant and works on a configuration that does not
+the .nix files of the configuration or of its local inputs, the two Nix
+Software writes included, whatever its form. The guess is instant and works on a configuration that does not
 evaluate. In the background, Nix then evaluates which of those names are
 really enabled (NixOS and Home Manager options), and the answer is cached
 until a file changes.
