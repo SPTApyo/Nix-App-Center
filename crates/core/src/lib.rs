@@ -38,7 +38,7 @@ mod user_profile;
 mod util;
 mod versions;
 
-pub use app_meta::{app_meta, AppMeta};
+pub use app_meta::{app_meta, nix_releases, AppMeta};
 pub use appstream_db::{
     apps_for_file_type, brand_colors, init_background as init_appstream_db,
     is_settled as appstream_settled, local_app, package_for_app, search_local, wait_appstream,
@@ -98,7 +98,7 @@ pub use user_profile::{
     nix_env_names, nix_env_remove, profile_add, profile_elements, profile_remove, ProfileElement,
 };
 pub use util::now_unix;
-pub use versions::{versions, VersionChoice};
+pub use versions::{version_history, versions, VersionChoice};
 
 // Serializes tests that change environment variables.
 #[cfg(test)]

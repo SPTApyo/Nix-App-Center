@@ -12,8 +12,27 @@ pub struct VersionChoice {
     pub cached: bool,
 }
 
-/// Versions of `attr` for this machine, newest first. Network: blocking.
+/// Versions nixpkgs had for `attr`, newest first, with whether the binary
+/// cache has each one. Blocking: one request per version.
 pub fn versions(attr: &str) -> Vec<VersionChoice> {
+    releases(attr)
+        .into_iter()
+        .map(|(mut choice, out)| {
+            choice.cached = in_binary_cache(&out);
+            choice
+        })
+        .collect()
+}
+
+/// Versions and dates only, in one request: for the version history.
+pub fn version_history(attr: &str) -> Vec<VersionChoice> {
+    releases(attr)
+        .into_iter()
+        .map(|(choice, _)| choice)
+        .collect()
+}
+
+fn releases(attr: &str) -> Vec<(VersionChoice, String)> {
     let name: String = attr
         .bytes()
         .map(|b| match b {
@@ -27,12 +46,6 @@ pub fn versions(attr: &str) -> Vec<VersionChoice> {
     };
     let system = format!("{}-linux", std::env::consts::ARCH);
     parse_versions(&v, attr, &system)
-        .into_iter()
-        .map(|(mut choice, out)| {
-            choice.cached = in_binary_cache(&out);
-            choice
-        })
-        .collect()
 }
 
 /// (choice, store path) per release of `attr` on `system`.

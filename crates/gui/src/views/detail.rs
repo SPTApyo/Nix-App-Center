@@ -42,6 +42,8 @@ pub struct DetailModel {
     /// A Flatpak, AppImage or nix-env install Nix Software can remove.
     other: Option<nix_software_core::Installed>,
     home_module: Option<nix_software_core::NixOption>,
+    /// nixpkgs versions of the app, newest first, for the history.
+    nix_versions: Option<Vec<nix_software_core::VersionChoice>>,
     /// The revision the app is held at.
     pin: Option<nix_software_core::Pin>,
     holding: bool,
@@ -142,6 +144,7 @@ pub enum DetailMsg {
     TriedRemoved(Result<u64, String>),
     SetMode(nix_software_core::InstallMode),
     VersionsLoaded(Vec<nix_software_core::VersionChoice>),
+    HistoryLoaded(Vec<nix_software_core::VersionChoice>),
     Held(Result<Option<nix_software_core::Pin>, String>),
     /// Keeps the app through its NixOS module.
     UseModule,
@@ -887,6 +890,7 @@ impl SimpleComponent for DetailModel {
             declared: None,
             other: None,
             home_module: None,
+            nix_versions: None,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -1050,8 +1054,18 @@ impl SimpleComponent for DetailModel {
                     &self.version_box,
                     &meta,
                     meta.version.as_deref(),
+                    self.nix_versions.as_deref().unwrap_or_default(),
                     self.toast_overlay.clone().upcast(),
                 );
+                if self.nix_versions.is_none() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::HistoryLoaded(
+                            nix_software_core::version_history(&attr),
+                        ));
+                    });
+                }
                 let s = sender.input_sender().clone();
                 build_license_box(&self.license_box, &meta, move || {
                     let _ = s.send(DetailMsg::ReportMatch);
@@ -1340,6 +1354,18 @@ impl SimpleComponent for DetailModel {
                 let res =
                     nix_software_core::set_mode(&self.package, &mode).map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
+            }
+            DetailMsg::HistoryLoaded(choices) => {
+                if let Some(meta) = &self.meta {
+                    build_version_history(
+                        &self.version_box,
+                        meta,
+                        meta.version.as_deref(),
+                        &choices,
+                        self.toast_overlay.clone().upcast(),
+                    );
+                }
+                self.nix_versions = Some(choices);
             }
             DetailMsg::ChooseVersion => {
                 crate::util::toast(&self.toast_overlay, &t("Looking for versions…"));
@@ -2331,44 +2357,43 @@ fn build_addons(container: &gtk::Box, meta: &AppMeta) {
 fn build_version_history(
     container: &gtk::Box,
     meta: &AppMeta,
-    installed_version: Option<&str>,
+    nix_version: Option<&str>,
+    history: &[nix_software_core::VersionChoice],
     parent: gtk::Widget,
 ) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
-    if meta.releases.is_empty() {
+    let releases = match nix_version {
+        Some(v) => nix_software_core::nix_releases(&meta.releases, v, history),
+        None => meta.releases.clone(),
+    };
+    let Some(latest) = releases.first() else {
         container.set_visible(false);
         return;
-    }
-    let latest = meta
-        .releases
-        .iter()
-        .find(|r| installed_version == Some(r.version.as_str()))
-        .unwrap_or(&meta.releases[0]);
+    };
     let list = crate::util::boxed_list();
     list.append(&version_history_row::row(
         &latest.version,
         latest.timestamp,
         latest.description.as_deref(),
-        installed_version == Some(latest.version.as_str()),
+        nix_version.is_some(),
         latest.url.as_deref(),
     ));
 
-    if meta.releases.len() > 1 {
+    if releases.len() > 1 {
         let more = adw::ButtonRow::new();
         more.set_title(&t("Version History"));
         more.set_end_icon_name(Some("go-next-symbolic"));
-        let releases = meta.releases.clone();
-        let installed = installed_version.map(str::to_string);
+        let flagged = nix_version.is_some();
         more.connect_activated(move |_| {
             let list = crate::util::boxed_list();
-            for r in &releases {
+            for (i, r) in releases.iter().enumerate() {
                 list.append(&version_history_row::row(
                     &r.version,
                     r.timestamp,
                     r.description.as_deref(),
-                    installed.as_deref() == Some(r.version.as_str()),
+                    flagged && i == 0,
                     r.url.as_deref(),
                 ));
             }

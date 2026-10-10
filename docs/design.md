@@ -349,6 +349,14 @@ while keeping Nix Software semantics: context tiles show Nix signals (closure
 download size, `broken`/`insecure`), the version badge means "this release is
 the one in nixpkgs", and sections without Nix data stay hidden.
 
+The version section follows nixpkgs, not Flathub. Flathub's release list
+starts at the release equal to the nixpkgs version (ignoring a leading v and
+trailing .0), so newer Flathub releases Nix cannot install are left out.
+When Flathub has no such release, the history comes from nixpkgs itself:
+the versions and dates the Devbox index lists for the attribute, loaded in
+the background when the page opens, from the nixpkgs version down, without
+notes (crates/core/src/app_meta.rs, nix_releases).
+
 Some apps only work well through their NixOS module: steam, docker or
 tailscale need services, groups or firewall rules the package alone does not
 set up. The page looks the package up in the NixOS options of the config's

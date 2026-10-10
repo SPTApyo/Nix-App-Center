@@ -184,9 +184,102 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
     }
 }
 
+/// The releases matching what nixpkgs ships: Flathub's from the release
+/// equal to `nix_version` down. When Flathub has no such release, nixpkgs'
+/// own `history` from that version down, so the page never shows a version
+/// Nix cannot install.
+pub fn nix_releases(
+    releases: &[Release],
+    nix_version: &str,
+    history: &[crate::versions::VersionChoice],
+) -> Vec<Release> {
+    let norm = |v: &str| {
+        let v = v.trim().trim_start_matches(['v', 'V']);
+        let mut parts: Vec<&str> = v.split('.').collect();
+        while parts.len() > 1 && parts.last() == Some(&"0") {
+            parts.pop();
+        }
+        parts.join(".")
+    };
+    let want = norm(nix_version);
+    if let Some(i) = releases.iter().position(|r| norm(&r.version) == want) {
+        return releases[i..].to_vec();
+    }
+    let from_nix = |v: &crate::versions::VersionChoice| Release {
+        version: v.version.clone(),
+        timestamp: day_to_unix(&v.date).unwrap_or(0),
+        description: None,
+        url: None,
+    };
+    match history.iter().position(|v| norm(&v.version) == want) {
+        Some(i) => history[i..].iter().map(from_nix).collect(),
+        None => std::iter::once(Release {
+            version: nix_version.to_string(),
+            timestamp: 0,
+            description: None,
+            url: None,
+        })
+        .chain(
+            history
+                .iter()
+                .filter(|v| crate::updates::version_newer(nix_version, &v.version))
+                .map(from_nix),
+        )
+        .collect(),
+    }
+}
+
+/// Unix time of a `YYYY-MM-DD` day, midnight UTC.
+fn day_to_unix(day: &str) -> Option<i64> {
+    let mut it = day.splitn(3, '-').map(|p| p.parse::<i64>().ok());
+    let (y, m, d) = (it.next()??, it.next()??, it.next()??);
+    // Days from civil, Howard Hinnant's algorithm.
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * ((m + 9) % 12) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some((era * 146_097 + doe - 719_468) * 86_400)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn releases_follow_the_nixpkgs_version() {
+        let r = |v: &str| Release {
+            version: v.into(),
+            timestamp: 1,
+            description: None,
+            url: None,
+        };
+        let fh = vec![r("1.8.0"), r("v1.7.2"), r("1.7.1")];
+        let names = |list: Vec<Release>| list.into_iter().map(|r| r.version).collect::<Vec<_>>();
+        assert_eq!(names(nix_releases(&fh, "1.7.2", &[])), ["v1.7.2", "1.7.1"]);
+        assert_eq!(nix_releases(&fh, "1.8", &[]).len(), 3);
+        assert_eq!(names(nix_releases(&fh, "1.6.9", &[])), ["1.6.9"]);
+        let h = |v: &str, date: &str| crate::versions::VersionChoice {
+            version: v.into(),
+            rev: String::new(),
+            date: date.into(),
+            cached: true,
+        };
+        let history = [
+            h("1.7.0", "2026-02-01"),
+            h("1.6.9", "1970-01-02"),
+            h("1.6.0", "1970-01-01"),
+        ];
+        let nix: Vec<(String, i64)> = nix_releases(&fh, "1.6.9", &history)
+            .into_iter()
+            .map(|r| (r.version, r.timestamp))
+            .collect();
+        assert_eq!(
+            nix,
+            [("1.6.9".to_string(), 86_400), ("1.6.0".to_string(), 0)]
+        );
+        assert_eq!(day_to_unix("2026-10-10"), Some(1_791_590_400));
+    }
 
     fn sample_fh() -> FlathubMeta {
         FlathubMeta {
