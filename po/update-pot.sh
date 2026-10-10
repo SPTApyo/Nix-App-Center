@@ -12,6 +12,9 @@ xgettext --language=Rust --from-code=UTF-8 \
   --msgid-bugs-address=https://github.com/SPTApyo/nix-software/issues \
   --files-from=po/POTFILES --output=po/nix-software.pot
 rm po/POTFILES
+if git diff --quiet --ignore-matching-lines='POT-Creation-Date' -- po/nix-software.pot; then
+  git checkout -- po/nix-software.pot
+fi
 for po in po/*.po; do
   msgmerge --quiet --update --backup=none "$po" po/nix-software.pot
   msgattrib --no-obsolete --output-file="$po" "$po"
