@@ -70,7 +70,24 @@ fn package_expr(e: &KeptEntry) -> Option<String> {
         return None;
     }
     if let Some(input) = &e.package.source {
-        if !ident(input, false) || attr.contains('.') {
+        if attr.contains('.') {
+            return None;
+        }
+        // A flake added in Preferences, no input: its locked reference.
+        if input.contains(':') {
+            let locked = ["github:", "gitlab:", "sourcehut:"]
+                .iter()
+                .any(|p| input.starts_with(p))
+                && input
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "-_.:/~".contains(c));
+            return locked.then(|| {
+                format!(
+                    "(builtins.getFlake \"{input}\").packages.${{pkgs.stdenv.hostPlatform.system}}.{attr}"
+                )
+            });
+        }
+        if !ident(input, false) {
             return None;
         }
         return Some(format!(
@@ -247,7 +264,12 @@ fn system_body(kept: &[KeptEntry]) -> String {
 /// The module's arguments; `inputs` only when an app comes from another
 /// flake, with a default so configurations without it still evaluate.
 fn module_args(kept: &[KeptEntry]) -> String {
-    if kept.iter().any(|e| e.package.source.is_some()) {
+    if kept.iter().any(|e| {
+        e.package
+            .source
+            .as_deref()
+            .is_some_and(|s| !s.contains(':'))
+    }) {
         "{ pkgs, lib, config, inputs ? { }, ... }:\n".into()
     } else {
         "{ pkgs, lib, config, ... }:\n".into()
@@ -950,6 +972,16 @@ mod tests {
             })
         };
         assert!(!render_system(&[evil]).contains("activationScripts"));
+        let extra = KeptEntry {
+            system_wide: true,
+            ..KeptEntry::simple(Package {
+                source: Some(format!("github:fufexan/nix-gaming/{}", "a".repeat(40))),
+                ..Package::from_attr("osu-lazer-bin")
+            })
+        };
+        let out = render_system(&[extra]);
+        assert!(out.contains("(builtins.getFlake \"github:fufexan/nix-gaming/aaaa"));
+        assert!(!out.contains("inputs ? { }"));
         assert!(
             render_home(&[], &HomeShape::HomeManager).contains("home.packages = with pkgs; [ ];")
         );

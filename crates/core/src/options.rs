@@ -17,11 +17,26 @@ pub struct NixOption {
     pub example: Option<String>,
     /// Module files declaring the option, relative to nixpkgs.
     pub declarations: Vec<String>,
+    /// A Home Manager option, set in the home file.
+    pub home: bool,
 }
 
 impl NixOption {
     /// A line to paste, from the example or the default.
     pub fn snippet(&self) -> String {
+        if self.type_ == FLAKE_MODULE {
+            let flake = self
+                .declarations
+                .first()
+                .map(String::as_str)
+                .unwrap_or_default();
+            let module = self.name.rsplit('.').next().unwrap_or_default();
+            return if flake.contains(':') {
+                format!("imports = [ (builtins.getFlake \"{flake}\").nixosModules.{module} ];")
+            } else {
+                format!("imports = [ inputs.{flake}.nixosModules.{module} ];")
+            };
+        }
         let value = self
             .example
             .as_deref()
@@ -103,6 +118,7 @@ fn parse(v: &serde_json::Value) -> Vec<NixOption> {
                         .collect()
                 })
                 .unwrap_or_default(),
+            home: false,
         })
         .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -112,6 +128,53 @@ fn parse(v: &serde_json::Value) -> Vec<NixOption> {
 /// Options matching every word of `query`, best first. Blocking at first.
 pub fn search_options(query: &str, limit: usize) -> Vec<NixOption> {
     rank(options(), query, limit)
+}
+
+/// The NixOS modules flakes ship, as options of type `FLAKE_MODULE`: name
+/// `SOURCE.nixosModules.MODULE`, the flake reference in `declarations`.
+/// Blocking: one evaluation per flake, once per run.
+pub fn flake_modules() -> &'static [NixOption] {
+    static MODULES: OnceLock<Vec<NixOption>> = OnceLock::new();
+    MODULES.get_or_init(|| {
+        let mut out = Vec::new();
+        for (name, flake) in crate::config_layout::flake_sources() {
+            let Ok(o) = crate::util::nix()
+                .args(["eval", "--json", &format!("{flake}#nixosModules")])
+                .args(["--apply", "builtins.attrNames"])
+                .output()
+            else {
+                continue;
+            };
+            let modules: Vec<String> = serde_json::from_slice(&o.stdout).unwrap_or_default();
+            let shown = name.split('/').nth(1).unwrap_or(&name).to_string();
+            for m in modules {
+                out.push(NixOption {
+                    name: format!("{shown}.nixosModules.{m}"),
+                    description: format!("NixOS module {m} of the {shown} flake."),
+                    type_: FLAKE_MODULE.into(),
+                    default: None,
+                    example: None,
+                    declarations: vec![name.clone()],
+                    home: false,
+                });
+            }
+        }
+        out.sort_by(|a, b| a.name.cmp(&b.name));
+        out
+    })
+}
+
+/// The type of the entries `flake_modules` returns.
+pub const FLAKE_MODULE: &str = "flake module";
+
+/// Flake modules matching `query`. Blocking at first.
+pub fn search_flake_modules(query: &str, limit: usize) -> Vec<NixOption> {
+    rank(flake_modules(), query, limit)
+}
+
+/// Home Manager options matching `query`. Blocking at first.
+pub fn search_hm_options(query: &str, limit: usize) -> Vec<NixOption> {
+    rank(hm_options(), query, limit)
 }
 
 static HM_OPTIONS: OnceLock<Vec<NixOption>> = OnceLock::new();
@@ -134,7 +197,11 @@ fn hm_options() -> &'static [NixOption] {
         std::fs::read(format!("{dir}/share/doc/home-manager/options.json"))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .map(|v| parse(&v))
+            .map(|v| {
+                let mut all = parse(&v);
+                all.iter_mut().for_each(|o| o.home = true);
+                all
+            })
             .unwrap_or_default()
     })
 }

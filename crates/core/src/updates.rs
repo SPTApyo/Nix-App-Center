@@ -375,6 +375,22 @@ pub fn app_updates(rev: &str, current: Option<&str>, apps: &[ProfileApp]) -> Vec
     newer_apps(&plain, &versions_at(rev, &names))
 }
 
+/// `attr` in nixos-unstable, when its version there is newer than
+/// `current`. Blocking: one metadata query, one evaluation.
+pub fn newer_in_unstable(attr: &str, current: &str) -> Option<crate::versions::VersionChoice> {
+    let head = latest("nixos-unstable")?;
+    let version = versions_at(&head.rev, &[attr])
+        .get(attr)?
+        .as_str()?
+        .to_string();
+    version_newer(&version, current).then(|| crate::versions::VersionChoice {
+        version,
+        rev: head.rev,
+        date: String::new(),
+        cached: true,
+    })
+}
+
 /// Versions of `names` in nixpkgs `rev`, in one evaluation.
 fn versions_at(rev: &str, names: &[&str]) -> serde_json::Map<String, Value> {
     let list = names

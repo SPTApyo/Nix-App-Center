@@ -168,7 +168,26 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         )))
         .build();
     warning.add_prefix(&gtk::Image::from_icon_name("dialog-warning-symbolic"));
+    let flakes = adw::EntryRow::builder()
+        .title(t(
+            "Other flakes to search (github:owner/repo, comma separated)",
+        ))
+        .show_apply_button(true)
+        .text(settings.extra_flakes.join(", "))
+        .build();
+    flakes.connect_apply(|row| {
+        let list: Vec<String> = row
+            .text()
+            .split(',')
+            .map(|f| f.trim().to_string())
+            .filter(|f| !f.is_empty())
+            .collect();
+        let mut s = nix_software_core::load_settings();
+        s.extra_flakes = list;
+        let _ = nix_software_core::save_settings(&s);
+    });
     advanced.add(&command);
+    advanced.add(&flakes);
     advanced.add(&warning);
 
     page.add(&config);

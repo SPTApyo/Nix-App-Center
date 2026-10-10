@@ -46,6 +46,12 @@ pub struct DetailModel {
     nix_versions: Option<Vec<nix_software_core::VersionChoice>>,
     /// Choose a Version… was clicked before the versions arrived.
     choose_pending: bool,
+    /// The newer version nixos-unstable has, if any.
+    unstable: Option<nix_software_core::VersionChoice>,
+    /// Module lookups still running.
+    lookups: u8,
+    /// Add to Configuration waits for them.
+    keep_pending: bool,
     /// The revision the app is held at.
     pin: Option<nix_software_core::Pin>,
     holding: bool,
@@ -146,12 +152,14 @@ pub enum DetailMsg {
     ChooseVersion,
     ChooseMode,
     KeepAs(nix_software_core::InstallMode),
+    KeepNow,
     CopyName,
     Remove,
     TriedRemoved(Result<u64, String>),
     SetMode(nix_software_core::InstallMode),
     VersionsLoaded(Vec<nix_software_core::VersionChoice>),
     HistoryLoaded(Vec<nix_software_core::VersionChoice>),
+    UnstableLoaded(Option<nix_software_core::VersionChoice>),
     Held(Result<Option<nix_software_core::Pin>, String>),
     ToggleDescription,
     /// Applies the configuration.
@@ -543,7 +551,7 @@ impl SimpleComponent for DetailModel {
                                                             },
                                                             #[name(origin_label)]
                                                             gtk::Label {
-                                                                set_label: model.package.source.as_deref().unwrap_or("nixpkgs"),
+                                                                set_label: &origin_name(model.package.source.as_deref()),
                                                                 set_valign: gtk::Align::Center,
                                                                 set_max_width_chars: 12,
                                                                 set_ellipsize: gtk::pango::EllipsizeMode::End,
@@ -897,6 +905,9 @@ impl SimpleComponent for DetailModel {
             home_module: None,
             nix_versions: None,
             choose_pending: false,
+            unstable: None,
+            lookups: 0,
+            keep_pending: false,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -1033,6 +1044,7 @@ impl SimpleComponent for DetailModel {
                 self.rebuild_context_bar(&meta);
                 self.rebuild_problems(&meta, &sender);
                 if std::path::Path::new("/etc/NIXOS").exists() {
+                    self.lookups += 1;
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
@@ -1042,6 +1054,7 @@ impl SimpleComponent for DetailModel {
                     });
                 }
                 if nix_software_core::detect_layout().home.is_some() {
+                    self.lookups += 1;
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
@@ -1085,6 +1098,15 @@ impl SimpleComponent for DetailModel {
                 drop(g);
                 self.addons_box.set_visible(!meta.addons.is_empty());
                 self.rebuild_versions(&meta, &sender);
+                if let Some(current) = meta.version.clone() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::UnstableLoaded(
+                            nix_software_core::newer_in_unstable(&attr, &current),
+                        ));
+                    });
+                }
                 if self.nix_versions.is_none() {
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
@@ -1094,7 +1116,7 @@ impl SimpleComponent for DetailModel {
                     });
                 }
                 let s = sender.input_sender().clone();
-                build_license_box(&self.license_box, &meta, move || {
+                build_license_box(&self.license_box, &meta, &self.package, move || {
                     let _ = s.send(DetailMsg::ReportMatch);
                 });
                 self.rebuild_build_options(&meta, &sender);
@@ -1250,6 +1272,7 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::ModuleLoaded(module) => {
                 self.module = module;
+                self.lookup_done(&sender);
                 if let Some(meta) = self.meta.clone() {
                     self.rebuild_problems(&meta, &sender);
                 }
@@ -1279,6 +1302,7 @@ impl SimpleComponent for DetailModel {
             DetailMsg::OtherLoaded(other) => self.other = other,
             DetailMsg::HomeModuleLoaded(module) => {
                 self.home_module = module;
+                self.lookup_done(&sender);
             }
             DetailMsg::RemoveOther => {
                 let Some(item) = self.other.clone() else {
@@ -1360,6 +1384,12 @@ impl SimpleComponent for DetailModel {
                 let res =
                     nix_software_core::set_mode(&self.package, &mode).map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
+            }
+            DetailMsg::UnstableLoaded(unstable) => {
+                self.unstable = unstable;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_versions(&meta, &sender);
+                }
             }
             DetailMsg::HistoryLoaded(choices) => {
                 if std::mem::take(&mut self.choose_pending) {
@@ -1652,6 +1682,18 @@ impl SimpleComponent for DetailModel {
                     &t("Could not open a shell: {}").replace("{}", &crate::util::tr_err(&e)),
                 ),
             },
+            DetailMsg::Keep if self.managed && self.lookups > 0 => {
+                self.keep_pending = true;
+                // Never wait more than a few seconds.
+                let s = sender.input_sender().clone();
+                gtk::glib::timeout_add_seconds_local_once(4, move || {
+                    let _ = s.send(DetailMsg::KeepNow);
+                });
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &t("Checking how this app can be installed…"),
+                );
+            }
             DetailMsg::Keep if self.managed && self.mode_offer().has_choice() => {
                 let s = sender.input_sender().clone();
                 let everyone = nix_software_core::load_settings().install_for_everyone
@@ -1669,6 +1711,12 @@ impl SimpleComponent for DetailModel {
                         let _ = s.send(DetailMsg::KeepAs(mode));
                     },
                 );
+            }
+            DetailMsg::KeepNow => {
+                if std::mem::take(&mut self.keep_pending) {
+                    self.lookups = 0;
+                    sender.input(DetailMsg::Keep);
+                }
             }
             DetailMsg::KeepAs(mode) => {
                 let res = nix_software_core::keep(&self.package)
@@ -1905,6 +1953,14 @@ impl DetailModel {
             .and_then(|e| e.mode())
     }
 
+    /// One module lookup answered; a waiting add goes on once all did.
+    fn lookup_done(&mut self, sender: &ComponentSender<Self>) {
+        self.lookups = self.lookups.saturating_sub(1);
+        if self.lookups == 0 && std::mem::take(&mut self.keep_pending) {
+            sender.input(DetailMsg::Keep);
+        }
+    }
+
     /// Where and how this app can be installed here.
     fn mode_offer(&self) -> crate::components::install_options::Offer {
         let layout = nix_software_core::detect_layout();
@@ -1961,13 +2017,30 @@ impl DetailModel {
                 let _ = s.send(DetailMsg::ChooseVersion);
             }) as Box<dyn Fn()>
         });
+        let unstable = self
+            .unstable
+            .clone()
+            .filter(|_| self.can_hold() && !self.holding)
+            .map(|choice| {
+                let s = sender.input_sender().clone();
+                let version = choice.version.clone();
+                (
+                    version,
+                    Box::new(move || {
+                        let _ = s.send(DetailMsg::HoldAt(choice.clone()));
+                    }) as Box<dyn Fn()>,
+                )
+            });
         build_version_history(
             &self.version_box,
             meta,
             meta.version.as_deref(),
             self.nix_versions.as_deref().unwrap_or_default(),
             self.installed.as_ref().map(|a| a.version.as_str()) == meta.version.as_deref(),
-            on_choose,
+            VersionActions {
+                choose: on_choose,
+                unstable,
+            },
             self.toast_overlay.clone().upcast(),
         );
     }
@@ -2349,6 +2422,14 @@ fn age_color(label: &str) -> &'static str {
     }
 }
 
+/// What the version section offers besides the history.
+struct VersionActions {
+    /// Opens the version choice.
+    choose: Option<Box<dyn Fn()>>,
+    /// A newer version in unstable, and installing it.
+    unstable: Option<(String, Box<dyn Fn()>)>,
+}
+
 /// The nixpkgs release (else the latest) and the full history button.
 fn build_version_history(
     container: &gtk::Box,
@@ -2356,9 +2437,13 @@ fn build_version_history(
     nix_version: Option<&str>,
     history: &[nix_software_core::VersionChoice],
     installed: bool,
-    on_choose: Option<Box<dyn Fn()>>,
+    actions: VersionActions,
     parent: gtk::Widget,
 ) {
+    let VersionActions {
+        choose: on_choose,
+        unstable,
+    } = actions;
     let badge = nix_version.map(|_| {
         if installed {
             crate::i18n::pgettext("version badge", "Installed")
@@ -2406,6 +2491,18 @@ fn build_version_history(
         });
         list.append(&more);
     }
+    if let Some((version, on_install)) = unstable {
+        let row = adw::ActionRow::builder()
+            .title(esc(&t("Version {} in Unstable").replace("{}", &version)))
+            .subtitle(esc(&t("Newer than your configuration's nixpkgs. Installing it holds the app at that revision.")))
+            .build();
+        let install = gtk::Button::with_label(&t("Install"));
+        install.set_valign(gtk::Align::Center);
+        install.add_css_class("pill");
+        install.connect_clicked(move |_| on_install());
+        row.add_suffix(&install);
+        list.append(&row);
+    }
     if let Some(on_choose) = on_choose {
         let choose = adw::ButtonRow::new();
         choose.set_title(&t("Choose a Version…"));
@@ -2422,7 +2519,12 @@ fn build_version_history(
 }
 
 /// License card and links, side by side.
-fn build_license_box(container: &gtk::Box, meta: &AppMeta, on_wrong_app: impl Fn() + 'static) {
+fn build_license_box(
+    container: &gtk::Box,
+    meta: &AppMeta,
+    pkg: &Package,
+    on_wrong_app: impl Fn() + 'static,
+) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
@@ -2476,9 +2578,7 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta, on_wrong_app: impl Fn
     let stack = gtk::Stack::new();
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
-    if present.is_empty() {
-        stack.add_named(&no_metadata_card(), Some("empty"));
-    } else {
+    {
         let list = crate::util::boxed_list();
         for (label, icon, url) in present {
             list.append(&link_row(&label, icon, &url));
@@ -2490,6 +2590,8 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta, on_wrong_app: impl Fn
         for row in [commands_row(meta), opens_row(meta)].into_iter().flatten() {
             list.append(&row);
         }
+        list.append(&by_hand_row(pkg));
+        wiki_row(&list, meta, pkg);
         if meta.app_id.is_some() {
             let row = adw::ActionRow::builder()
                 .title(esc(&t("Wrong App?")))
@@ -2505,42 +2607,6 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta, on_wrong_app: impl Fn
         stack.add_named(&list, Some("links"));
     }
     container.append(&stack);
-}
-
-/// Card shown when the package has no links.
-fn no_metadata_card() -> gtk::Box {
-    let card = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    card.set_hexpand_set(true);
-    card.add_css_class("card");
-
-    let inner = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    inner.set_margin_top(14);
-    inner.set_margin_bottom(14);
-    inner.set_margin_start(14);
-    inner.set_margin_end(14);
-    inner.set_valign(gtk::Align::Center);
-    inner.set_hexpand(true);
-    inner.add_css_class("dim-label");
-
-    let img = gtk::Image::from_icon_name("dialog-question-symbolic");
-    img.set_pixel_size(96);
-    img.set_margin_bottom(8);
-    inner.append(&img);
-
-    let title = gtk::Label::new(Some(&t("No Metadata")));
-    title.add_css_class("heading");
-    inner.append(&title);
-
-    let desc = gtk::Label::new(Some(&t(
-        "This package provides no link to a website, code repository or issue tracker.",
-    )));
-    desc.set_justify(gtk::Justification::Center);
-    desc.set_wrap(true);
-    desc.set_xalign(0.5);
-    inner.append(&desc);
-
-    card.append(&inner);
-    card
 }
 
 /// `105082` as `105K`.
@@ -2751,6 +2817,79 @@ fn addon_package(name: &str, parent: &str) -> Option<Package> {
     let of_parent =
         |p: &&Package| p.attr.to_lowercase().starts_with(parent) && p.attr.contains('.');
     found.iter().find(of_parent).or(found.first()).cloned()
+}
+
+/// The commands installing the package without Nix Software.
+fn by_hand_row(pkg: &Package) -> adw::ActionRow {
+    let row = adw::ActionRow::builder()
+        .title(esc(&t("Install by Hand")))
+        .subtitle(esc(&t("The lines to write yourself")))
+        .activatable(true)
+        .build();
+    row.add_prefix(&gtk::Image::from_icon_name("utilities-terminal-symbolic"));
+    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+    let pkg = pkg.clone();
+    row.connect_activated(move |row| {
+        let installable = nix_software_core::installable(&pkg);
+        let attr = &pkg.attr;
+        let list = crate::util::boxed_list();
+        for (title, line) in [
+            (
+                t("NixOS Configuration"),
+                format!("environment.systemPackages = [ pkgs.{attr} ];"),
+            ),
+            (
+                t("Home Manager"),
+                format!("home.packages = [ pkgs.{attr} ];"),
+            ),
+            (t("nix profile"), format!("nix profile add {installable}")),
+            (t("Temporary Shell"), format!("nix shell {installable}")),
+        ] {
+            let r = adw::ActionRow::builder()
+                .title(esc(&title))
+                .subtitle(esc(&line))
+                .subtitle_selectable(true)
+                .build();
+            r.add_css_class("property");
+            let copy = gtk::Button::from_icon_name("edit-copy-symbolic");
+            copy.add_css_class("flat");
+            copy.set_valign(gtk::Align::Center);
+            copy.set_tooltip_text(Some(&t("Copy")));
+            copy.connect_clicked(move |_| crate::util::copy_to_clipboard(&line));
+            r.add_suffix(&copy);
+            list.append(&r);
+        }
+        present_dialog(&t("Install by Hand"), &list, 560, 420, row);
+    });
+    row
+}
+
+/// A NixOS Wiki link, appended once the wiki confirms the page exists.
+fn wiki_row(list: &gtk::ListBox, meta: &AppMeta, pkg: &Package) {
+    let title = meta_name(&Some(meta.clone()), &pkg.name).replace(' ', "_");
+    let url = format!("https://wiki.nixos.org/wiki/{title}");
+    let list = list.clone();
+    gtk::glib::spawn_future_local(async move {
+        let check = url.clone();
+        let found = gtk::gio::spawn_blocking(move || nix_software_core::url_exists(&check))
+            .await
+            .unwrap_or(false);
+        if found {
+            list.append(&link_row(&t("NixOS _Wiki"), "help-link-symbolic", &url));
+        }
+    });
+}
+
+/// The origin as shown: nixpkgs, a flake input, or owner/repo of a flake
+/// added in Preferences.
+fn origin_name(source: Option<&str>) -> String {
+    match source {
+        None => "nixpkgs".into(),
+        Some(s) => match s.split_once(':') {
+            Some((_, rest)) => rest.split('/').take(2).collect::<Vec<_>>().join("/"),
+            None => s.to_string(),
+        },
+    }
 }
 
 #[cfg(test)]

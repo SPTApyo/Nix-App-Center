@@ -22,6 +22,10 @@ pub struct Settings {
     pub onboarded: bool,
     /// The user's own apply command, for unusual setups.
     pub apply_command: Option<String>,
+    /// Flakes searched besides the configuration's inputs
+    /// (`github:owner/repo`).
+    #[serde(default)]
+    pub extra_flakes: Vec<String>,
 }
 
 impl Default for Settings {
@@ -35,6 +39,7 @@ impl Default for Settings {
             install_for_everyone: false,
             onboarded: false,
             apply_command: None,
+            extra_flakes: Vec::new(),
         }
     }
 }

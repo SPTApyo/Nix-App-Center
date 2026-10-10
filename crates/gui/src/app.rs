@@ -419,12 +419,20 @@ impl SimpleComponent for AppModel {
                         .collect();
                     let _ = s4.send(AppMsg::FileTypesDone(q4, apps));
                 });
-                if nix_software_core::detect_layout().system.is_some() {
+                let layout = nix_software_core::detect_layout();
+                let (system, home) = (layout.system.is_some(), layout.home.is_some());
+                if system || home {
                     let s3 = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ = s3.send(AppMsg::OptionsDone(nix_software_core::search_options(
-                            &query, 6,
-                        )));
+                        let mut found = Vec::new();
+                        if system {
+                            found.extend(nix_software_core::search_options(&query, 6));
+                            found.extend(nix_software_core::search_flake_modules(&query, 3));
+                        }
+                        if home {
+                            found.extend(nix_software_core::search_hm_options(&query, 4));
+                        }
+                        let _ = s3.send(AppMsg::OptionsDone(found));
                     });
                 }
             }

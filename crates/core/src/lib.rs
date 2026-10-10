@@ -60,15 +60,20 @@ pub use detail::{closure_size, detail, PackageDetail};
 pub use enabled::{declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use foreign::{appimage_files, remove_foreign};
+pub use http::exists as url_exists;
 pub use installed::{find as find_installed, installed_index, Installed, Origin};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{
-    applied, apply_pending, keep, load_manifest, pin_at, pin_current, set_blocks, set_flags,
-    set_mode, set_pin, unkeep, InstallMode, KeptEntry, Manifest, Pin,
+    applied, apply_pending, import_flake_module, keep, load_manifest, pin_at, pin_current,
+    set_blocks, set_flags, set_mode, set_option, set_pin, unkeep, unset_option, InstallMode,
+    KeptEntry, Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
-pub use options::{hm_module_for, module_for, search_options, NixOption};
+pub use options::{
+    hm_module_for, module_for, search_flake_modules, search_hm_options, search_options, NixOption,
+    FLAKE_MODULE,
+};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use profiles::{
     installed_app, profile_apps, profile_packages, store_sizes, ProfileApp, ProfilePackage, Scope,
@@ -91,8 +96,9 @@ pub use storage::{
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
-    app_updates, current_source, installable, latest, newer_release, nixpkgs_ref, pinned_rev,
-    updatable_apps, update_command, version_newer, AppUpdate, Latest, Source, UpdateMethod,
+    app_updates, current_source, installable, latest, newer_in_unstable, newer_release,
+    nixpkgs_ref, pinned_rev, updatable_apps, update_command, version_newer, AppUpdate, Latest,
+    Source, UpdateMethod,
 };
 pub use user_profile::{
     nix_env_names, nix_env_remove, profile_add, profile_elements, profile_remove, ProfileElement,

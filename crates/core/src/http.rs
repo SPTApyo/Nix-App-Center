@@ -17,7 +17,7 @@ pub(crate) fn get(url: &str, timeout: Duration) -> Result<ureq::BodyReader<'stat
 }
 
 /// True when `url` answers HEAD with a success status.
-pub(crate) fn exists(url: &str) -> bool {
+pub fn exists(url: &str) -> bool {
     ureq::head(url)
         .config()
         .timeout_global(Some(TIMEOUT))

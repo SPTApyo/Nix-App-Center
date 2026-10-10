@@ -40,6 +40,9 @@ pub struct KeptEntry {
     pub flags: Vec<(String, bool)>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pin: Option<Pin>,
+    /// An option setting, not a package: `package.attr` is the option.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub option: bool,
 }
 
 impl KeptEntry {
@@ -87,7 +90,29 @@ pub struct Manifest {
 impl Manifest {
     /// The kept packages.
     pub fn packages(&self) -> Vec<Package> {
-        self.kept.iter().map(|e| e.package.clone()).collect()
+        self.kept
+            .iter()
+            .filter(|e| !e.option)
+            .map(|e| e.package.clone())
+            .collect()
+    }
+
+    /// The value Nix Software sets `option` to, if it does.
+    pub fn option_value(&self, option: &str) -> Option<String> {
+        self.kept
+            .iter()
+            .find(|e| e.option && e.package.attr == option)
+            .and_then(|e| {
+                let line = e
+                    .system_nix
+                    .as_deref()
+                    .filter(|b| !b.is_empty())
+                    .or(e.home_nix.as_deref())?;
+                line.trim()
+                    .strip_prefix(&format!("{option} = "))?
+                    .strip_suffix(';')
+                    .map(str::to_string)
+            })
     }
 
     pub fn entry(&self, attr: &str) -> Option<&KeptEntry> {
@@ -181,6 +206,71 @@ pub fn set_blocks(
             ..KeptEntry::simple(pkg.clone())
         }),
     }
+    commit(&m)
+}
+
+/// Sets `option` to the Nix expression `value`, in the home file for a
+/// Home Manager option, else in the system file.
+pub fn set_option(option: &str, value: &str, home: bool) -> std::io::Result<()> {
+    let plain = !option.is_empty()
+        && option
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '"' | '<' | '>'));
+    let value = value.trim().trim_end_matches(';').trim();
+    if !plain || value.is_empty() || value.contains("nix-software:") {
+        return Err(std::io::Error::other(crate::util::n_(
+            "This option cannot be set here.",
+        )));
+    }
+    let line = format!("{option} = {value};");
+    let mut m = load_manifest();
+    m.kept.retain(|e| !(e.option && e.package.attr == option));
+    m.kept.push(KeptEntry {
+        option: true,
+        home_nix: Some(if home { line.clone() } else { String::new() }),
+        system_nix: (!home).then_some(line),
+        ..KeptEntry::simple(Package::from_attr(option))
+    });
+    commit(&m)
+}
+
+/// Imports module `module` of flake `source` (an input name, or the locked
+/// reference of a flake added in Preferences) in the system file.
+pub fn import_flake_module(source: &str, module: &str) -> std::io::Result<()> {
+    let plain = |s: &str, extra: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_".contains(c) || extra.contains(c))
+    };
+    let flake = if source.contains(':') {
+        plain(source, ".:/~").then(|| format!("(builtins.getFlake \"{source}\")"))
+    } else {
+        plain(source, "").then(|| format!("inputs.{source}"))
+    };
+    let Some(flake) = flake.filter(|_| plain(module, "")) else {
+        return Err(std::io::Error::other(crate::util::n_(
+            "This option cannot be set here.",
+        )));
+    };
+    let key = format!("{source}#{module}");
+    let mut m = load_manifest();
+    m.kept.retain(|e| !(e.option && e.package.attr == key));
+    m.kept.push(KeptEntry {
+        option: true,
+        home_nix: Some(String::new()),
+        system_nix: Some(format!("imports = [ {flake}.nixosModules.{module} ];")),
+        ..KeptEntry::simple(Package {
+            source: Some(source.to_string()),
+            ..Package::from_attr(key)
+        })
+    });
+    commit(&m)
+}
+
+/// Stops setting `option`.
+pub fn unset_option(option: &str) -> std::io::Result<()> {
+    let mut m = load_manifest();
+    m.kept.retain(|e| !(e.option && e.package.attr == option));
     commit(&m)
 }
 
@@ -368,6 +458,25 @@ mod tests {
     fn cleanup() {
         std::env::remove_var("XDG_DATA_HOME");
         std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
+    }
+
+    #[test]
+    fn options_are_set_and_unset() {
+        let _g = crate::env_lock();
+        let base = sandbox("option");
+        set_option("services.printing.enable", "true", false).unwrap();
+        let m = load_manifest();
+        assert_eq!(
+            m.option_value("services.printing.enable").as_deref(),
+            Some("true")
+        );
+        assert!(m.packages().is_empty());
+        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        assert!(system.contains("services.printing.enable = true;"));
+        assert!(set_option("x; y = 1", "true", false).is_err());
+        unset_option("services.printing.enable").unwrap();
+        assert!(load_manifest().kept.is_empty());
+        cleanup();
     }
 
     #[test]

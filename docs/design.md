@@ -278,6 +278,33 @@ searches nixpkgs for its name and opens the best match, preferring the
 parent's package set (gimpPlugins for gimp); without a match, a toast says
 it is not in nixpkgs.
 
+## Options
+
+Search also lists NixOS options, Home Manager options (from its docs-json
+package) and the NixOS modules the searched flakes ship (`nixosModules`,
+evaluated once per run). An option's dialog can set it: the value is kept
+in kept.json as an option entry and written as `NAME = VALUE;` in its own
+module region, in the system file for NixOS, in the home file for Home
+Manager. A flake module is imported the same way (`imports = [ … ];`).
+Option names must be plain attribute paths; the value is the user's own Nix.
+
+## Newer in unstable
+
+When an app can be held, its page asks nixos-unstable for a newer version.
+If there is one, a row offers to install it, which holds the app at the
+unstable revision with the existing hold feature.
+
+## Install by hand and the wiki
+
+App pages list the lines to install the package without Nix Software (NixOS
+configuration, Home Manager, nix profile, a temporary shell), and link the
+NixOS Wiki page named after the app when the wiki answers for it.
+
+## Search filters
+
+Results filter by package set, by flake, or to installed apps, and sort by
+relevance or by name.
+
 ## Install modes
 
 A kept app is installed one of four ways: in the user's home, in the
@@ -291,13 +318,19 @@ is one of these; custom blocks say more than a mode and are left alone.
 
 ## Other flakes
 
-Search also runs `nix search` on the GitHub inputs of the configuration's
+Search also runs `nix search` on the GitHub, GitLab and sourcehut inputs of
+the configuration's
 flake.lock and of its local inputs, nixpkgs and plumbing (flake-utils,
 home-manager…) aside, in parallel. Their packages carry the input name,
 shown as their origin. They are written as
 `inputs.NAME.packages.${pkgs.stdenv.hostPlatform.system}.ATTR`; the
 generated file then takes `inputs ? { }`, which the configuration must pass
 through specialArgs (or extraSpecialArgs for Home Manager).
+
+Flakes that are no input can be added in Preferences (github:owner/repo).
+They are locked to their current revision once per run, searched like
+inputs, and written as `(builtins.getFlake "github:owner/repo/REV")`, which
+needs no change to the configuration's flake.
 
 ## Pending changes
 

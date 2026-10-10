@@ -107,9 +107,62 @@ pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// The flakes the user added in Preferences, locked once per run, as
+/// (locked reference, locked reference): they are no input of the
+/// configuration, so the reference is their name.
+fn extra_sources() -> Vec<(String, String)> {
+    static LOCKED: std::sync::OnceLock<Vec<(String, String)>> = std::sync::OnceLock::new();
+    LOCKED
+        .get_or_init(|| {
+            crate::settings::load_settings()
+                .extra_flakes
+                .iter()
+                .filter_map(|flake| lock_flake(flake))
+                .map(|r| (r.clone(), r))
+                .collect()
+        })
+        .clone()
+}
+
+/// `github:owner/repo` with its current revision; `None` for other forms.
+fn lock_flake(flake: &str) -> Option<String> {
+    let rest = flake.trim().strip_prefix("github:")?;
+    let mut parts = rest.split('/');
+    let (owner, repo) = (parts.next()?, parts.next()?);
+    let safe = |s: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+    };
+    if !safe(owner) || !safe(repo) {
+        return None;
+    }
+    let out = crate::util::nix()
+        .args([
+            "flake",
+            "metadata",
+            "--json",
+            &format!("github:{owner}/{repo}"),
+        ])
+        .output()
+        .ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let rev = v["revision"]
+        .as_str()
+        .filter(|r| crate::versions::is_rev(r))?;
+    Some(format!("github:{owner}/{repo}/{rev}"))
+}
+
 /// Flake inputs of the configuration and of its local inputs that may hold
-/// packages, as (name, locked reference). nixpkgs and plumbing are left out.
+/// packages, as (name, locked reference), then the flakes added in
+/// Preferences. nixpkgs and plumbing are left out.
 pub fn flake_sources() -> Vec<(String, String)> {
+    let mut out = config_sources();
+    out.extend(extra_sources());
+    out
+}
+
+fn config_sources() -> Vec<(String, String)> {
     let dir = match detect().kind {
         LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => dir,
         _ => return Vec::new(),
@@ -155,7 +208,7 @@ fn sources_from_lock(lock: &serde_json::Value) -> Vec<(String, String)> {
     for (name, node) in inputs {
         let Some(node) = node.as_str() else { continue };
         let locked = &lock["nodes"][node]["locked"];
-        let (Some("github"), Some(owner), Some(repo), Some(rev)) = (
+        let (Some(kind @ ("github" | "gitlab" | "sourcehut")), Some(owner), Some(repo), Some(rev)) = (
             locked["type"].as_str(),
             locked["owner"].as_str(),
             locked["repo"].as_str(),
@@ -170,8 +223,9 @@ fn sources_from_lock(lock: &serde_json::Value) -> Vec<(String, String)> {
             s.chars()
                 .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
         };
-        if safe(name) && safe(owner) && safe(repo) && crate::versions::is_rev(rev) {
-            out.push((name.clone(), format!("github:{owner}/{repo}/{rev}")));
+        let owner_ok = safe(owner.strip_prefix('~').unwrap_or(owner));
+        if safe(name) && owner_ok && safe(repo) && crate::versions::is_rev(rev) {
+            out.push((name.clone(), format!("{kind}:{owner}/{repo}/{rev}")));
         }
     }
     out
