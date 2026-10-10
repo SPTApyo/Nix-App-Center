@@ -127,6 +127,8 @@ pub enum DetailMsg {
     HoldAt(nix_software_core::VersionChoice),
     ChooseVersion,
     ChooseMode,
+    Remove,
+    TriedRemoved(Result<u64, String>),
     SetMode(nix_software_core::InstallMode),
     VersionsLoaded(Vec<nix_software_core::VersionChoice>),
     Held(Result<Option<nix_software_core::Pin>, String>),
@@ -378,10 +380,12 @@ impl SimpleComponent for DetailModel {
                                                 // Primary: try. Menu: everything else.
                                                 #[name(box_install_remove)]
                                                 gtk::Box {
+                                                    add_css_class: "linked",
+                                                    add_css_class: "action-group",
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_halign: gtk::Align::Center,
 
-                                                    adw::SplitButton {
+                                                    gtk::Button {
                                                         #[watch]
                                                         set_label: &if model.installed.is_some() {
                                                             t("_Open")
@@ -404,6 +408,21 @@ impl SimpleComponent for DetailModel {
                                                         set_valign: gtk::Align::Center,
                                                         add_css_class: "suggested-action",
                                                         connect_clicked => DetailMsg::Primary,
+                                                    },
+                                                    gtk::Button {
+                                                        set_icon_name: "user-trash-symbolic",
+                                                        #[watch]
+                                                        set_visible: model.removable(),
+                                                        #[watch]
+                                                        set_tooltip_text: Some(&model.remove_tooltip()),
+                                                        add_css_class: "suggested-action",
+                                                        connect_clicked => DetailMsg::Remove,
+                                                    },
+                                                    gtk::MenuButton {
+                                                        set_icon_name: "pan-down-symbolic",
+                                                        set_tooltip_text: Some(&t("More Actions")),
+                                                        set_valign: gtk::Align::Center,
+                                                        add_css_class: "suggested-action",
 
                                                         #[wrap(Some)]
                                                         #[name(actions_popover)]
@@ -425,7 +444,7 @@ impl SimpleComponent for DetailModel {
                                                                     #[watch]
                                                                     set_label: &if model.cli_first() { t("Try the App") } else { t("Try in a Shell") },
                                                                     #[watch]
-                                                                    set_visible: !model.is_self(),
+                                                                    set_visible: model.installed.is_none() && !model.is_self(),
                                                                     set_tooltip_text: Some(&if model.cli_first() { t("Start the app now, without installing it.") } else { t("Open a terminal where this package can be used, without installing it.") }),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AltLaunch,
@@ -1120,6 +1139,25 @@ impl SimpleComponent for DetailModel {
                 self.start_hold(None, &sender);
             }
             DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
+            DetailMsg::Remove => {
+                if self.kept || self.profile_name.is_some() {
+                    sender.input(DetailMsg::ToggleKeep);
+                    return;
+                }
+                let attr = self.package.attr.clone();
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = nix_software_core::remove_tried(&attr).map_err(|e| e.to_string());
+                    let _ = s.send(DetailMsg::TriedRemoved(res));
+                });
+            }
+            DetailMsg::TriedRemoved(res) => {
+                let text = match res {
+                    Ok(_) => t("{} removed.").replace("{}", &self.package.name),
+                    Err(e) => crate::util::failed(&e),
+                };
+                crate::util::toast(&self.toast_overlay, &text);
+            }
             DetailMsg::ChooseMode => {
                 use nix_software_core::InstallMode;
                 let layout = nix_software_core::detect_layout();
@@ -1607,6 +1645,29 @@ impl DetailModel {
             && !self.installed_elsewhere()
             && !self.custom_blocks
             && (self.pin.is_some() || nix_software_core::pinned_rev().is_some())
+    }
+
+    /// True when the app can be taken off: kept, installed with nix
+    /// profile, or tried.
+    fn removable(&self) -> bool {
+        self.kept || self.profile_name.is_some() || self.tried()
+    }
+
+    fn tried(&self) -> bool {
+        nix_software_core::load_tried()
+            .tried
+            .iter()
+            .any(|e| e.package.attr == self.package.attr)
+    }
+
+    fn remove_tooltip(&self) -> String {
+        if self.kept {
+            t("Take the app out of your configuration. It is uninstalled when you apply.")
+        } else if self.profile_name.is_some() {
+            t("Uninstall the app from your user profile.")
+        } else {
+            t("Delete the tried app from the store.")
+        }
     }
 
     fn keep_tooltip(&self) -> String {

@@ -106,6 +106,12 @@ The details page is the only place to act on a package. Its split button has
 "Run" as primary action, and a menu with keep/remove, try in a shell, copy
 command, advanced options and apply. Search rows are purely navigational.
 
+A trash button sits between the main button and the menu arrow once there
+is something to take off.
+It removes what Nix Software put there: a kept app leaves the configuration,
+an app installed with nix profile is uninstalled, a tried app is deleted
+from the store. Apps your own configuration installs get no trash button.
+
 "Try in a Shell" exists because `nix run` is useless for CLI tools: it opens
 a terminal with the package in `PATH` (`nix shell`). Terminal detection tries
 `xdg-terminal-exec` first, then common emulators. Without any terminal, the

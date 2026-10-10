@@ -471,3 +471,22 @@ button.app-tile { padding: 0; }
 	border-radius: 6px;
 	padding: 2px 8px;
 }
+
+.action-group > menubutton,
+.action-group > menubutton.suggested-action > button.toggle,
+.action-group menubutton button {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	box-shadow: inset 1px 0 alpha(@accent_fg_color, .25);
+}
+
+.action-group > button:not(:first-child) {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	box-shadow: inset 1px 0 alpha(@accent_fg_color, .25);
+}
+
+.action-group > button:not(:last-child) {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}

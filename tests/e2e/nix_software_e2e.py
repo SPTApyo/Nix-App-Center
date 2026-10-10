@@ -202,6 +202,8 @@ MENU_VERSION = "click:834,372"
 VERSION_TOP = "click:504,248"
 MENU_APPLY = "click:834,415"
 PRIMARY = "click:820,145"
+
+
 # Advanced options editor.
 EDITOR_SYSTEM_TAB = "click:566,147"
 EDITOR_TEXT = "click:500,300"
