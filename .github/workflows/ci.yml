@@ -52,14 +52,17 @@ jobs:
       - run: nix develop -c just deny
 
   package:
-    name: nix build (${{ matrix.system }})
+    # "nix build" alone is the check main requires.
+    name: nix build${{ matrix.suffix }}
     strategy:
       matrix:
         include:
           - system: x86_64-linux
             runner: ubuntu-latest
+            suffix: ""
           - system: aarch64-linux
             runner: ubuntu-24.04-arm
+            suffix: " (aarch64-linux)"
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
