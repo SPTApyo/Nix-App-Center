@@ -17,6 +17,13 @@ pub struct Offer {
     pub home_module: Option<String>,
 }
 
+impl Offer {
+    /// True when the app has a module: the user should pick.
+    pub fn has_choice(&self) -> bool {
+        self.module.is_some() || self.home_module.is_some()
+    }
+}
+
 /// The mode a choice of place and kind maps to.
 fn mode_for(offer: &Offer, everyone: bool, module: bool) -> Option<InstallMode> {
     match (everyone, module) {
@@ -27,11 +34,32 @@ fn mode_for(offer: &Offer, everyone: bool, module: bool) -> Option<InstallMode> 
     }
 }
 
+/// Asks how to install an app being added, `default` selected; `on_add`
+/// gets the choice.
+pub fn present_new(
+    parent: &impl IsA<gtk::Widget>,
+    offer: Offer,
+    default: InstallMode,
+    on_add: impl Fn(InstallMode) + 'static,
+) {
+    show(parent, offer, Some(default), true, on_add);
+}
+
 /// Shows the options with `current` selected; `on_save` gets the new mode.
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     offer: Offer,
     current: Option<InstallMode>,
+    on_save: impl Fn(InstallMode) + 'static,
+) {
+    show(parent, offer, current, false, on_save);
+}
+
+fn show(
+    parent: &impl IsA<gtk::Widget>,
+    offer: Offer,
+    current: Option<InstallMode>,
+    adding: bool,
     on_save: impl Fn(InstallMode) + 'static,
 ) {
     let everyone_now = matches!(current, Some(InstallMode::System | InstallMode::Module(_)));
@@ -70,7 +98,11 @@ pub fn present(
     kind.add(&package_row);
     kind.add(&module_row);
 
-    let save = gtk::Button::with_mnemonic(&t("_Save"));
+    let save = gtk::Button::with_mnemonic(&if adding {
+        t("_Add to Configuration")
+    } else {
+        t("_Save")
+    });
     save.add_css_class("suggested-action");
     save.add_css_class("pill");
     save.set_halign(gtk::Align::Center);
@@ -106,7 +138,7 @@ pub fn present(
                 package.set_active(true);
             }
             let chosen = mode_for(&offer, everyone, module.is_active());
-            save.set_sensitive(chosen.is_some() && chosen != current);
+            save.set_sensitive(chosen.is_some() && (adding || chosen != current));
         }
     };
     if everyone_now {

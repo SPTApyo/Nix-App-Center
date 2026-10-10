@@ -374,9 +374,9 @@ tailscale need services, groups or firewall rules the package alone does not
 set up. The page looks the package up in the NixOS options of the config's
 branch: a module counts when its package option defaults to the package
 (programs.steam.package = pkgs.steam) or when it is named after it
-(programs.gamemode). "Use the Module" keeps the app as programs.steam.enable
-= true in the system file, and leaves it out of the user package list, since
-the module installs it.
+(programs.gamemode). When such a module exists, Add to Configuration first
+asks where and how to install the app, so the choice is made once, at the
+start; Installation Options… changes it later.
 
 Build options are the boolean arguments of the package recipe
 (withQt5 ? true in vlc), read from the recipe file meta.position points to:

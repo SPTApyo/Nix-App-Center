@@ -145,6 +145,7 @@ pub enum DetailMsg {
     HoldAt(nix_software_core::VersionChoice),
     ChooseVersion,
     ChooseMode,
+    KeepAs(nix_software_core::InstallMode),
     CopyName,
     Remove,
     TriedRemoved(Result<u64, String>),
@@ -152,9 +153,6 @@ pub enum DetailMsg {
     VersionsLoaded(Vec<nix_software_core::VersionChoice>),
     HistoryLoaded(Vec<nix_software_core::VersionChoice>),
     Held(Result<Option<nix_software_core::Pin>, String>),
-    /// Keeps the app through its NixOS module.
-    UseModule,
-    ShowModule,
     ToggleDescription,
     /// Applies the configuration.
     ApplyConfig,
@@ -707,18 +705,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // 8. License and links
-                                adw::Clamp {
-                                    set_maximum_size: CLAMP_MAX,
-                                    set_tightening_threshold: CLAMP_TIGHTEN,
-                                    set_margin_start: 12,
-                                    set_margin_end: 12,
-
-                                    #[local_ref]
-                                    license_box -> gtk::Box {},
-                                },
-
-                                // 9. Build options
+                                // 8. Build options
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -730,6 +717,18 @@ impl SimpleComponent for DetailModel {
                                         set_orientation: gtk::Orientation::Vertical,
                                         set_visible: false,
                                     },
+
+                                // 9. License and links
+                                adw::Clamp {
+                                    set_maximum_size: CLAMP_MAX,
+                                    set_tightening_threshold: CLAMP_TIGHTEN,
+                                    set_margin_start: 12,
+                                    set_margin_end: 12,
+
+                                    #[local_ref]
+                                    license_box -> gtk::Box {},
+                                },
+
                                 },
 
                                 // 10. Ratings and reviews
@@ -1328,21 +1327,7 @@ impl SimpleComponent for DetailModel {
                 crate::util::toast(&self.toast_overlay, &text);
             }
             DetailMsg::ChooseMode => {
-                let layout = nix_software_core::detect_layout();
-                let offer = crate::components::install_options::Offer {
-                    home: layout.home.is_some(),
-                    system: layout.system.is_some(),
-                    module: self
-                        .module
-                        .as_ref()
-                        .filter(|_| layout.system.is_some())
-                        .map(|o| o.name.clone()),
-                    home_module: self
-                        .home_module
-                        .as_ref()
-                        .filter(|_| layout.home.is_some())
-                        .map(|o| o.name.clone()),
-                };
+                let offer = self.mode_offer();
                 let s = sender.input_sender().clone();
                 crate::components::install_options::present(
                     &self.toast_overlay,
@@ -1402,23 +1387,6 @@ impl SimpleComponent for DetailModel {
                         sender.input(DetailMsg::BlocksSaved(Ok(())));
                     }
                     Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
-                }
-            }
-            DetailMsg::UseModule => {
-                let Some(option) = &self.module else {
-                    return;
-                };
-                let res = nix_software_core::set_blocks(
-                    &self.package,
-                    Some(String::new()),
-                    Some(format!("{} = true;", option.name)),
-                )
-                .map_err(|e| e.to_string());
-                sender.input(DetailMsg::BlocksSaved(res));
-            }
-            DetailMsg::ShowModule => {
-                if let Some(option) = &self.module {
-                    crate::components::option_dialog::present(&self.toast_overlay, option);
                 }
             }
             DetailMsg::ToggleDescription => {
@@ -1666,6 +1634,30 @@ impl SimpleComponent for DetailModel {
                     &t("Could not open a shell: {}").replace("{}", &crate::util::tr_err(&e)),
                 ),
             },
+            DetailMsg::Keep if self.managed && self.mode_offer().has_choice() => {
+                let s = sender.input_sender().clone();
+                let everyone = nix_software_core::load_settings().install_for_everyone
+                    && nix_software_core::detect_layout().system.is_some();
+                let default = if everyone {
+                    nix_software_core::InstallMode::System
+                } else {
+                    nix_software_core::InstallMode::Home
+                };
+                crate::components::install_options::present_new(
+                    &self.toast_overlay,
+                    self.mode_offer(),
+                    default,
+                    move |mode| {
+                        let _ = s.send(DetailMsg::KeepAs(mode));
+                    },
+                );
+            }
+            DetailMsg::KeepAs(mode) => {
+                let res = nix_software_core::keep(&self.package)
+                    .and_then(|()| nix_software_core::set_mode(&self.package, &mode))
+                    .map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
+            }
             DetailMsg::Keep => match nix_software_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
@@ -1894,6 +1886,25 @@ impl DetailModel {
             .and_then(|e| e.mode())
     }
 
+    /// Where and how this app can be installed here.
+    fn mode_offer(&self) -> crate::components::install_options::Offer {
+        let layout = nix_software_core::detect_layout();
+        crate::components::install_options::Offer {
+            home: layout.home.is_some(),
+            system: layout.system.is_some(),
+            module: self
+                .module
+                .as_ref()
+                .filter(|_| layout.system.is_some())
+                .map(|o| o.name.clone()),
+            home_module: self
+                .home_module
+                .as_ref()
+                .filter(|_| layout.home.is_some())
+                .map(|o| o.name.clone()),
+        }
+    }
+
     fn cli_first(&self) -> bool {
         self.meta.as_ref().is_some_and(|m| m.app_id.is_none())
     }
@@ -1976,27 +1987,6 @@ impl DetailModel {
                 .append(&infobox::declared(file, *line, move || {
                     let _ = s.send(DetailMsg::TakeOver);
                 }));
-        }
-        if let Some(option) = &self.module {
-            let in_use = nix_software_core::load_manifest().kept.iter().any(|e| {
-                e.system_nix
-                    .as_deref()
-                    .is_some_and(|b| b.contains(&option.name))
-            });
-            let can_use = !in_use
-                && !self.installed_elsewhere()
-                && nix_software_core::detect_layout().system.is_some();
-            let on_use = can_use.then(|| {
-                let s = sender.input_sender().clone();
-                Box::new(move || {
-                    let _ = s.send(DetailMsg::UseModule);
-                }) as Box<dyn Fn()>
-            });
-            let s = sender.input_sender().clone();
-            let bar = infobox::module(&option.name, on_use, move || {
-                let _ = s.send(DetailMsg::ShowModule);
-            });
-            self.problems_box.append(&bar);
         }
         self.problems_box
             .set_visible(self.problems_box.first_child().is_some());
