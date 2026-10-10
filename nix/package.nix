@@ -61,8 +61,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     install -d $out/share/dbus-1/services
     printf '[D-BUS Service]\nName=io.github.sptapyo.NixSoftware\nExec=%s --gapplication-service\n' \
       "$out/bin/nix-software" > $out/share/dbus-1/services/io.github.sptapyo.NixSoftware.service
-    mkdir -p $out/share/icons
-    cp -r crates/gui/data/icons/hicolor $out/share/icons/
+    install -Dm644 -t $out/share/icons/hicolor/scalable/apps \
+      crates/gui/data/icons/hicolor/scalable/apps/io.github.sptapyo.NixSoftware.svg
+    mkdir -p $out/share/nix-software/icons
+    cp -r crates/gui/data/icons/hicolor $out/share/nix-software/icons/
     for po in po/*.po; do
       lang=$(basename "$po" .po)
       install -d $out/share/locale/$lang/LC_MESSAGES

@@ -212,6 +212,22 @@ The dialog can be closed while the work goes on; a desktop notification
 reports the end when the app is not in front. There is no notification per
 step: GNOME asks apps not to flood the user.
 
+## Installed badges
+
+Tiles and search rows of installed apps carry a badge: a blue screen for the
+system profile, a green house for the user profiles, and tiles also glow in
+that color. The profiles are read at most every five seconds, not once per
+tile. An app matches by pname; a nested attribute such as
+haskellPackages.Obsidian must match the version too, or every package named
+like an installed app would light up.
+
+## Nix Software in its own catalog
+
+Once in nixpkgs, Nix Software lists itself. Its page works like any other
+(add, remove, hold), except Try and Open: the app is single instance, so a
+second launch only raises the window already open. The primary button says
+so instead.
+
 ## Storage
 
 The Storage tab reads every store path once (`nix path-info --all --json`,

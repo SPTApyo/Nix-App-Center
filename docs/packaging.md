@@ -14,6 +14,11 @@ and the core tests in the Nix sandbox.
 
 Change nix/package.nix, never a copy of it.
 
+Only the app icon goes to share/icons. The other icons have names that other
+packages ship too (GNOME Software's category and action icons), which would
+collide in a profile. They live in share/nix-software/icons, and the app adds
+that folder to its icon search path.
+
 ## Releasing
 
 1. Bump version in crates/*/Cargo.toml and nix/package.nix, then run

@@ -390,7 +390,9 @@ impl SimpleComponent for DetailModel {
                                                         },
                                                         set_use_underline: true,
                                                         #[watch]
-                                                        set_tooltip_text: Some(&if model.installed.is_some() {
+                                                        set_tooltip_text: Some(&if model.is_self() {
+                                                            t("This is the app you are using.")
+                                                        } else if model.installed.is_some() {
                                                             t("Open the installed app")
                                                         } else if model.cli_first() {
                                                             t("Open a terminal where this package can be used. Nothing is added to your system.")
@@ -420,6 +422,8 @@ impl SimpleComponent for DetailModel {
                                                                 gtk::Button {
                                                                     #[watch]
                                                                     set_label: &if model.cli_first() { t("Try the App") } else { t("Try in a Shell") },
+                                                                    #[watch]
+                                                                    set_visible: !model.is_self(),
                                                                     set_tooltip_text: Some(&if model.cli_first() { t("Start the app now, without installing it.") } else { t("Open a terminal where this package can be used, without installing it.") }),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AltLaunch,
@@ -1268,6 +1272,9 @@ impl SimpleComponent for DetailModel {
                     crate::util::toast(&self.toast_overlay, &t("Could not open the app."));
                 }
             }
+            DetailMsg::Primary if self.is_self() => {
+                crate::util::toast(&self.toast_overlay, &t("This is the app you are using."));
+            }
             DetailMsg::Primary => {
                 sender.input(if self.installed.is_some() {
                     DetailMsg::Open
@@ -1578,6 +1585,12 @@ impl DetailModel {
     /// True when the license is known to be unfree.
     fn unfree(&self) -> bool {
         self.meta.as_ref().and_then(|m| m.is_free_license) == Some(false)
+    }
+
+    /// True on the page of Nix Software itself: running it only
+    /// raises this window.
+    fn is_self(&self) -> bool {
+        self.package.attr == crate::util::SELF_ATTR
     }
 
     fn cli_first(&self) -> bool {

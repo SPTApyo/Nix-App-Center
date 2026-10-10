@@ -84,10 +84,16 @@ impl SimpleComponent for AppModel {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        // Bundled icons; `cargo run` reads the source tree.
+        // Bundled icons: installed next to bin, or the source tree.
         if let Some(display) = gtk::gdk::Display::default() {
-            gtk::IconTheme::for_display(&display)
-                .add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
+            let theme = gtk::IconTheme::for_display(&display);
+            if let Some(out) = std::env::current_exe()
+                .ok()
+                .and_then(|exe| Some(exe.parent()?.parent()?.to_path_buf()))
+            {
+                theme.add_search_path(out.join("share/nix-software/icons"));
+            }
+            theme.add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
         }
         gtk::Window::set_default_icon_name("io.github.sptapyo.NixSoftware");
 

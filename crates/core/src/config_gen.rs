@@ -439,7 +439,9 @@ fn run_step<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     argv: &[String],
     shared: &Shared<F>,
 ) -> std::io::Result<ApplyOutcome> {
-    run_in(argv, &crate::util::home(), shared)
+    let home = crate::util::home();
+    let dir = if home.is_dir() { home } else { "/".into() };
+    run_in(argv, &dir, shared)
 }
 
 /// Runs one command in `dir`, streaming its output.

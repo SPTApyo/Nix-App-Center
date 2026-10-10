@@ -497,3 +497,53 @@ impl AppItem {
         }
     }
 }
+
+/// The attribute of Nix Software itself in nixpkgs.
+pub const SELF_ATTR: &str = "nix-software";
+
+/// When the profiles were read, and each app's pname, version and scope.
+type InstalledCache = Option<(
+    std::time::Instant,
+    Vec<(String, String, nix_software_core::Scope)>,
+)>;
+
+thread_local! {
+    static INSTALLED: std::cell::RefCell<InstalledCache> = const { std::cell::RefCell::new(None) };
+}
+
+/// Where the package is installed, if it is; profiles read every 5 s at most.
+/// Nested attributes (haskellPackages.X) must match the version too.
+pub fn installed_scope(pkg: &Package) -> Option<nix_software_core::Scope> {
+    let pname = pkg.attr.rsplit('.').next().unwrap_or(&pkg.attr);
+    let top_level = !pkg.attr.contains('.');
+    INSTALLED.with_borrow_mut(|cache| {
+        if cache
+            .as_ref()
+            .is_none_or(|(at, _)| at.elapsed() > std::time::Duration::from_secs(5))
+        {
+            let apps = nix_software_core::profile_apps()
+                .into_iter()
+                .map(|a| (a.pname, a.version, a.scope))
+                .collect();
+            *cache = Some((std::time::Instant::now(), apps));
+        }
+        let (_, apps) = cache.as_ref()?;
+        apps.iter()
+            .find(|(p, v, _)| {
+                p.eq_ignore_ascii_case(pname)
+                    && (top_level || pkg.version.is_empty() || *v == pkg.version)
+            })
+            .map(|(_, _, s)| *s)
+    })
+}
+
+/// Icon and tooltip of the installed badge.
+pub fn scope_badge(scope: nix_software_core::Scope) -> (&'static str, String) {
+    match scope {
+        nix_software_core::Scope::System => (
+            "installed-system-symbolic",
+            t("Installed on the system, for every user"),
+        ),
+        nix_software_core::Scope::User => ("installed-home-symbolic", t("Installed in your home")),
+    }
+}
