@@ -38,7 +38,7 @@ pub struct AppList {
     filter_dropdown: gtk::DropDown,
     sort_dropdown: gtk::DropDown,
     items: Vec<AppItem>,
-    licenses: HashMap<String, bool>,
+    meta: HashMap<String, nix_software_core::ResultMeta>,
     filters: Vec<Filter>, // DropDown index to filter
 }
 
@@ -52,8 +52,8 @@ pub enum AppListInput {
     SetFileTypes(String, Vec<Package>),
     /// NixOS options matching the query.
     SetOptions(Vec<nix_software_core::NixOption>),
-    /// Free license or not, per attribute, found after the results.
-    SetLicenses(HashMap<String, bool>),
+    /// License and platform per attribute, found after the results.
+    SetMeta(HashMap<String, nix_software_core::ResultMeta>),
     Filter,
     Open(Package),
 }
@@ -208,7 +208,7 @@ impl SimpleComponent for AppList {
             sort_dropdown,
             items: Vec::new(),
             filters: vec![Filter::All],
-            licenses: HashMap::new(),
+            meta: HashMap::new(),
         };
         let widgets = view_output!();
         root.append(&stack);
@@ -224,15 +224,16 @@ impl SimpleComponent for AppList {
                 self.set_options(&[]);
                 self.stack.set_visible_child_name("loading");
             }
-            AppListInput::SetLicenses(licenses) => {
-                self.licenses = licenses;
+            AppListInput::SetMeta(meta) => {
+                self.meta = meta;
                 let selected = self.filter_dropdown.selected();
                 self.rebuild_filter();
                 self.filter_dropdown.set_selected(selected);
+                self.apply();
             }
             AppListInput::Set(items) => {
                 self.items = items;
-                self.licenses.clear();
+                self.meta.clear();
                 self.rebuild_filter();
                 self.apply();
             }
@@ -362,7 +363,9 @@ impl AppList {
         let mut sources: HashMap<&str, usize> = HashMap::new();
         let mut no_set = 0usize;
         let mut installed = 0usize;
-        for it in &self.items {
+        let runs = |it: &&AppItem| self.meta.get(&it.package.attr).is_none_or(|m| m.available);
+        let items: Vec<&AppItem> = self.items.iter().filter(runs).collect();
+        for it in &items {
             if crate::util::installed(&it.package).is_some() {
                 installed += 1;
             }
@@ -379,15 +382,18 @@ impl AppList {
         let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
         sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
 
-        let mut labels: Vec<String> =
-            vec![t("All ({})").replace("{}", &self.items.len().to_string())];
+        let mut labels: Vec<String> = vec![t("All ({})").replace("{}", &items.len().to_string())];
         let mut filters: Vec<Filter> = vec![Filter::All];
         if installed > 0 {
             labels.push(t("Installed ({})").replace("{}", &installed.to_string()));
             filters.push(Filter::Installed);
         }
-        let free = self.licenses.values().filter(|f| **f).count();
-        let unfree = self.licenses.len() - free;
+        let free = self.meta.values().filter(|m| m.available && m.free).count();
+        let unfree = self
+            .meta
+            .values()
+            .filter(|m| m.available && !m.free)
+            .count();
         if free > 0 && unfree > 0 {
             labels.push(t("Free Software ({})").replace("{}", &free.to_string()));
             filters.push(Filter::Free);
@@ -425,15 +431,17 @@ impl AppList {
         let keep = |it: &AppItem| match &filter {
             Filter::All => true,
             Filter::Installed => crate::util::installed(&it.package).is_some(),
-            Filter::Free => self.licenses.get(&it.package.attr) == Some(&true),
-            Filter::Unfree => self.licenses.get(&it.package.attr) == Some(&false),
+            Filter::Free => self.meta.get(&it.package.attr).is_some_and(|m| m.free),
+            Filter::Unfree => self.meta.get(&it.package.attr).is_some_and(|m| !m.free),
             Filter::NoSet => it.package.source.is_none() && it.package.package_set().is_none(),
             Filter::Set(s) => {
                 it.package.source.is_none() && it.package.package_set() == Some(s.as_str())
             }
             Filter::Source(s) => it.package.source.as_deref() == Some(s.as_str()),
         };
-        let mut shown: Vec<&AppItem> = self.items.iter().filter(|i| keep(i)).collect();
+        // What cannot run on this machine is never shown.
+        let runs = |it: &AppItem| self.meta.get(&it.package.attr).is_none_or(|m| m.available);
+        let mut shown: Vec<&AppItem> = self.items.iter().filter(|i| runs(i) && keep(i)).collect();
         if self.sort_dropdown.selected() == 1 {
             shown.sort_by_key(|i| i.package.name.to_lowercase());
         }

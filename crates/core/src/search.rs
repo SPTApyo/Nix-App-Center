@@ -65,9 +65,17 @@ fn raw_flake_search(flake: &str, source: Option<&str>, patterns: &[String]) -> V
         .collect()
 }
 
-/// Which of `attrs` have a free license, in one evaluation of nixpkgs.
+/// What a search result's meta says, read after the results show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResultMeta {
+    pub free: bool,
+    /// Builds for this machine's platform.
+    pub available: bool,
+}
+
+/// The license and platform of `attrs`, in one evaluation of nixpkgs.
 /// Packages that fail to evaluate are left out. Blocking.
-pub fn free_licenses(attrs: &[String]) -> HashMap<String, bool> {
+pub fn results_meta(attrs: &[String]) -> HashMap<String, ResultMeta> {
     let safe = |a: &&String| {
         !a.is_empty()
             && a.chars()
@@ -84,11 +92,14 @@ pub fn free_licenses(attrs: &[String]) -> HashMap<String, bool> {
     }
     let system = format!("{}-linux", std::env::consts::ARCH);
     let expr = format!(
-        "let p = (builtins.getFlake \"{}\").legacyPackages.{system}; \
-         free = a: let r = builtins.tryEval (let l = (p.${{a}}.meta.license or {{ }}); \
-         in if builtins.isList l then builtins.all (x: x.free or true) l else l.free or true); \
+        "let f = builtins.getFlake \"{}\"; p = f.legacyPackages.{system}; lib = f.lib; \
+         meta = a: let r = builtins.tryEval (let x = lib.attrByPath (lib.splitString \".\" a) null p; \
+           l = x.meta.license or {{ }}; v = {{ \
+           free = if builtins.isList l then builtins.all (y: y.free or true) l else l.free or true; \
+           available = lib.meta.availableOn {{ system = \"{system}\"; }} x; }}; \
+           in if x == null then null else builtins.deepSeq v v); \
          in if r.success then r.value else null; \
-         in builtins.listToAttrs (map (a: {{ name = a; value = free a; }}) [ {list} ])",
+         in builtins.listToAttrs (map (a: {{ name = a; value = meta a; }}) [ {list} ])",
         crate::nixpkgs_ref()
     );
     let Ok(out) = crate::util::nix()
@@ -97,9 +108,19 @@ pub fn free_licenses(attrs: &[String]) -> HashMap<String, bool> {
     else {
         return HashMap::new();
     };
-    let v: HashMap<String, Option<bool>> = serde_json::from_slice(&out.stdout).unwrap_or_default();
+    let v: HashMap<String, Option<serde_json::Value>> =
+        serde_json::from_slice(&out.stdout).unwrap_or_default();
     v.into_iter()
-        .filter_map(|(k, f)| f.map(|f| (k, f)))
+        .filter_map(|(k, m)| {
+            let m = m?;
+            Some((
+                k,
+                ResultMeta {
+                    free: m["free"].as_bool().unwrap_or(true),
+                    available: m["available"].as_bool().unwrap_or(true),
+                },
+            ))
+        })
         .collect()
 }
 

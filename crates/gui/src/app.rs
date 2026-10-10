@@ -449,7 +449,7 @@ impl SimpleComponent for AppModel {
                     .collect();
                 let list = self.results.sender().clone();
                 std::thread::spawn(move || {
-                    let _ = list.send(AppListInput::SetLicenses(nix_software_core::free_licenses(
+                    let _ = list.send(AppListInput::SetMeta(nix_software_core::results_meta(
                         &attrs,
                     )));
                 });

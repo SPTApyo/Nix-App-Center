@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-10 21:50+0200\n"
+"POT-Creation-Date: 2026-10-10 22:07+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -482,41 +482,41 @@ msgstr "Aucun résultat"
 msgid "Try different keywords"
 msgstr "Essayez d'autres mots-clés"
 
-#: crates/gui/src/components/app_list.rs:240
+#: crates/gui/src/components/app_list.rs:241
 #, rust-format
 msgid "Provides the “{}” command"
 msgstr "Fournit la commande « {} »"
 
-#: crates/gui/src/components/app_list.rs:250
+#: crates/gui/src/components/app_list.rs:251
 #, rust-format
 msgid "Opens “{}” files"
 msgstr "Ouvre les fichiers « {} »"
 
-#: crates/gui/src/components/app_list.rs:305
+#: crates/gui/src/components/app_list.rs:306
 msgid "Set by Nix Software"
 msgstr "Réglée par Nix Software"
 
-#: crates/gui/src/components/app_list.rs:383
+#: crates/gui/src/components/app_list.rs:385
 #, rust-format
 msgid "All ({})"
 msgstr "Tous ({})"
 
-#: crates/gui/src/components/app_list.rs:386
+#: crates/gui/src/components/app_list.rs:388
 #, rust-format
 msgid "Installed ({})"
 msgstr "Installées ({})"
 
-#: crates/gui/src/components/app_list.rs:392
+#: crates/gui/src/components/app_list.rs:398
 #, rust-format
 msgid "Free Software ({})"
 msgstr "Logiciels libres ({})"
 
-#: crates/gui/src/components/app_list.rs:394
+#: crates/gui/src/components/app_list.rs:400
 #, rust-format
 msgid "Proprietary ({})"
 msgstr "Propriétaires ({})"
 
-#: crates/gui/src/components/app_list.rs:405
+#: crates/gui/src/components/app_list.rs:411
 #, rust-format
 msgid "No package set ({})"
 msgstr "Sans jeu de paquets ({})"

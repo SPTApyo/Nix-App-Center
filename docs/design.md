@@ -304,8 +304,11 @@ NixOS Wiki page named after the app when the wiki answers for it.
 ## Search filters
 
 Results filter by package set, by flake, to installed apps, and to free or
-proprietary software (one evaluation of nixpkgs for the whole page, after
-the results show), and sort by relevance or by name.
+proprietary software, and sort by relevance or by name. Packages that do not
+build for this machine's platform (meta.platforms, through
+lib.meta.availableOn) are hidden, so an ARM computer never lists x86 only
+software. License and platform come from one evaluation of nixpkgs for the
+whole page, after the results show.
 
 ## Install modes
 

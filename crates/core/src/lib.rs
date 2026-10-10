@@ -85,7 +85,7 @@ pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{
     act_on_review, featured_review, reviews_for, submit_review, Review, ReviewAction,
 };
-pub use search::{free_licenses, search, search_apps, SearchResult};
+pub use search::{results_meta, search, search_apps, ResultMeta, SearchResult};
 pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, forget_app_meta, known_icon_url,
     remember_icon_url,
