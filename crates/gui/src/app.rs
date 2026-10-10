@@ -140,6 +140,13 @@ impl SimpleComponent for AppModel {
             .tooltip_text(t("Main Menu"))
             .build();
         header.pack_end(&menu_btn);
+        let beta = gtk::Label::new(Some(&t("Beta")));
+        beta.add_css_class("beta-badge");
+        beta.set_valign(gtk::Align::Center);
+        beta.set_tooltip_text(Some(&t(
+            "Nix Software is still young: report what goes wrong.",
+        )));
+        header.pack_end(&beta);
         let prefs = gtk::gio::SimpleAction::new("preferences", None);
         prefs.connect_activate({
             let win = root.clone();

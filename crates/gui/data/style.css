@@ -445,3 +445,12 @@ button.carousel-slide-5 { background: linear-gradient(135deg, #613583, #1b6ac9);
 .installed-home .scope-badge {
 	color: @installed_home_color;
 }
+
+.beta-badge {
+	font-size: smaller;
+	font-weight: bold;
+	color: mix(@orange_4, @window_fg_color, .3);
+	background-color: alpha(@orange_3, .2);
+	border-radius: 6px;
+	padding: 2px 8px;
+}
