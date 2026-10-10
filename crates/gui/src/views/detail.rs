@@ -717,6 +717,7 @@ impl SimpleComponent for DetailModel {
                                         set_orientation: gtk::Orientation::Vertical,
                                         set_visible: false,
                                     },
+                                },
 
                                 // 9. License and links
                                 adw::Clamp {
@@ -727,8 +728,6 @@ impl SimpleComponent for DetailModel {
 
                                     #[local_ref]
                                     license_box -> gtk::Box {},
-                                },
-
                                 },
 
                                 // 10. Ratings and reviews
@@ -1235,6 +1234,9 @@ impl SimpleComponent for DetailModel {
             DetailMsg::ModuleLoaded(module) => {
                 self.module = module;
                 if let Some(meta) = self.meta.clone() {
+                    self.rebuild_build_options(&meta, &sender);
+                }
+                if let Some(meta) = self.meta.clone() {
                     self.rebuild_problems(&meta, &sender);
                 }
             }
@@ -1261,7 +1263,12 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
             DetailMsg::OtherLoaded(other) => self.other = other,
-            DetailMsg::HomeModuleLoaded(module) => self.home_module = module,
+            DetailMsg::HomeModuleLoaded(module) => {
+                self.home_module = module;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_build_options(&meta, &sender);
+                }
+            }
             DetailMsg::RemoveOther => {
                 let Some(item) = self.other.clone() else {
                     return;
@@ -2003,9 +2010,23 @@ impl DetailModel {
             .kept
             .into_iter()
             .find(|e| e.package.attr == self.package.attr);
+        // A module takes the build options through its package option.
+        let module_package = entry
+            .as_ref()
+            .and_then(|e| e.mode())
+            .is_some_and(|m| match m {
+                // Options are loaded once the module lookups answered.
+                nix_software_core::InstallMode::Module(o) if self.module.is_some() => {
+                    nix_software_core::has_option(&o.replace(".enable", ".package"))
+                }
+                nix_software_core::InstallMode::HomeModule(o) if self.home_module.is_some() => {
+                    nix_software_core::has_option(&o.replace(".enable", ".package"))
+                }
+                _ => false,
+            });
         let editable = self.managed
             && !self.installed_elsewhere()
-            && entry.as_ref().is_none_or(|e| e.home_nix.is_none());
+            && (module_package || entry.as_ref().is_none_or(|e| e.home_nix.is_none()));
         if meta.build_flags.is_empty() || !editable {
             self.build_box.set_visible(false);
             return;

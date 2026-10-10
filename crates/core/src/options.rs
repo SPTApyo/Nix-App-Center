@@ -139,6 +139,13 @@ fn hm_options() -> &'static [NixOption] {
     })
 }
 
+/// True when NixOS or Home Manager declares option `name`. Blocking at first.
+pub fn has_option(name: &str) -> bool {
+    [options(), hm_options()]
+        .iter()
+        .any(|all| all.binary_search_by(|o| o.name.as_str().cmp(name)).is_ok())
+}
+
 /// The Home Manager module setting up `attr`. Blocking at first.
 pub fn hm_module_for(attr: &str) -> Option<NixOption> {
     module_in(hm_options(), attr)

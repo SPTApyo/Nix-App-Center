@@ -383,8 +383,11 @@ Build options are the boolean arguments of the package recipe
 Nix gives the argument names but not their defaults. Saving keeps the app as
 (pkgs.vlc.override { withQt5 = false; }) in the user block. The page warns
 that a changed option builds the app locally, since the binary cache only
-holds the default build. Apps the user's own configuration installs show no
-options: Nix Software does not edit what it did not write.
+holds the default build. An app kept through its module gets them through
+the module's package option (programs.obs-studio.package = (pkgs.obs-studio
+.override { … })), when the module has one. Apps the user's own
+configuration installs show no options: Nix Software does not edit what it
+did not write.
 
 ## First launch
 
