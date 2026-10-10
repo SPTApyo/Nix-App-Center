@@ -1055,6 +1055,7 @@ impl SimpleComponent for DetailModel {
                     &meta,
                     meta.version.as_deref(),
                     self.nix_versions.as_deref().unwrap_or_default(),
+                    self.installed.as_ref().map(|a| a.version.as_str()) == meta.version.as_deref(),
                     self.toast_overlay.clone().upcast(),
                 );
                 if self.nix_versions.is_none() {
@@ -1362,6 +1363,8 @@ impl SimpleComponent for DetailModel {
                         meta,
                         meta.version.as_deref(),
                         &choices,
+                        self.installed.as_ref().map(|a| a.version.as_str())
+                            == meta.version.as_deref(),
                         self.toast_overlay.clone().upcast(),
                     );
                 }
@@ -2359,8 +2362,16 @@ fn build_version_history(
     meta: &AppMeta,
     nix_version: Option<&str>,
     history: &[nix_software_core::VersionChoice],
+    installed: bool,
     parent: gtk::Widget,
 ) {
+    let badge = nix_version.map(|_| {
+        if installed {
+            crate::i18n::pgettext("version badge", "Installed")
+        } else {
+            t("Available")
+        }
+    });
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
@@ -2377,7 +2388,7 @@ fn build_version_history(
         &latest.version,
         latest.timestamp,
         latest.description.as_deref(),
-        nix_version.is_some(),
+        badge.as_deref(),
         latest.url.as_deref(),
     ));
 
@@ -2385,7 +2396,7 @@ fn build_version_history(
         let more = adw::ButtonRow::new();
         more.set_title(&t("Version History"));
         more.set_end_icon_name(Some("go-next-symbolic"));
-        let flagged = nix_version.is_some();
+
         more.connect_activated(move |_| {
             let list = crate::util::boxed_list();
             for (i, r) in releases.iter().enumerate() {
@@ -2393,7 +2404,7 @@ fn build_version_history(
                     &r.version,
                     r.timestamp,
                     r.description.as_deref(),
-                    flagged && i == 0,
+                    badge.as_deref().filter(|_| i == 0),
                     r.url.as_deref(),
                 ));
             }

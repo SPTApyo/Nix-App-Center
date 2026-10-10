@@ -1,16 +1,16 @@
-//! A release row: version, date, notes, and an "In nixpkgs" badge.
+//! A release row: version, date, notes, and a badge on the version Nix gives.
 
 use gtk::prelude::*;
 
 use crate::i18n::t;
 use crate::util::format_relative;
 
-/// Row body; `installed` adds the "In nixpkgs" badge.
+/// Row body; `badge` labels the version Nix gives ("Installed", "Available").
 fn body(
     version: &str,
     timestamp: i64,
     description: Option<&str>,
-    installed: bool,
+    badge: Option<&str>,
     url: Option<&str>,
 ) -> gtk::Box {
     let vb = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -32,8 +32,8 @@ fn body(
     vnum.add_css_class("heading");
     head.append(&vnum);
 
-    if installed {
-        let badge = gtk::Label::new(Some(&t("In nixpkgs")));
+    if let Some(text) = badge {
+        let badge = gtk::Label::new(Some(text));
         badge.set_valign(gtk::Align::Center);
         badge.add_css_class("installed-badge");
         head.append(&badge);
@@ -82,12 +82,12 @@ pub fn row(
     version: &str,
     timestamp: i64,
     description: Option<&str>,
-    installed: bool,
+    badge: Option<&str>,
     url: Option<&str>,
 ) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();
     row.set_selectable(false);
     row.set_activatable(false);
-    row.set_child(Some(&body(version, timestamp, description, installed, url)));
+    row.set_child(Some(&body(version, timestamp, description, badge, url)));
     row
 }

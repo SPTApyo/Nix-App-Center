@@ -346,8 +346,9 @@ nixpkgs and opens its page.
 The details page copies the layout of GNOME Software's `gs-details-page.ui`
 widget by widget (one module per widget in `crates/gui/src/components/details`),
 while keeping Nix Software semantics: context tiles show Nix signals (closure
-download size, `broken`/`insecure`), the version badge means "this release is
-the one in nixpkgs", and sections without Nix data stay hidden.
+download size, `broken`/`insecure`), the version badge marks the release Nix gives with the configuration's
+nixpkgs ("Installed" when it is the one on the machine, "Available"
+otherwise), and sections without Nix data stay hidden.
 
 The version section follows nixpkgs, not Flathub. Flathub's release list
 starts at the release equal to the nixpkgs version (ignoring a leading v and

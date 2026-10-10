@@ -5,6 +5,8 @@ use gettextrs::{bind_textdomain_codeset, bindtextdomain, setlocale, textdomain, 
 
 /// Translates a displayed string, like `_()` in C.
 pub use gettextrs::gettext as t;
+/// Translates a string that means different things in different places.
+pub use gettextrs::pgettext;
 
 const DOMAIN: &str = "nix-software";
 

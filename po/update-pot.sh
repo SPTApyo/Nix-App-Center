@@ -6,7 +6,7 @@ shopt -s nullglob
 cd "$(dirname "$0")/.."
 find crates/gui/src crates/core/src -name '*.rs' | sort > po/POTFILES
 xgettext --language=Rust --from-code=UTF-8 \
-  --keyword=t --keyword=n_ --keyword=ngettext:1,2 --keyword=plural:1,2 \
+  --keyword=t --keyword=n_ --keyword=pgettext:1c,2 --keyword=pgettext:1c,2 --keyword=ngettext:1,2 --keyword=plural:1,2 \
   --add-comments=TRANSLATORS --sort-by-file \
   --package-name=nix-software --package-version=0.1.0 \
   --msgid-bugs-address=https://github.com/SPTApyo/nix-software/issues \
