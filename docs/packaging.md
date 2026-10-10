@@ -21,6 +21,14 @@ that folder to its icon search path.
 
 ## Releasing
 
+Versions follow SemVer, bumped once per release, not per commit:
+
+- last digit (0.1.x): fixes and small improvements;
+- middle digit (0.x.0): a new feature users can see;
+- 1.0.0: once the app is stable and in nixpkgs.
+
+Numbers never wrap: 0.1.9 is followed by 0.1.10.
+
 1. Bump version in crates/*/Cargo.toml and nix/package.nix, then run
    cargo update --workspace.
 2. Add a release entry to
