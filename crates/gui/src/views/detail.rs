@@ -124,6 +124,9 @@ pub enum DetailMsg {
     DevAppsResolved(Vec<(Package, Option<String>)>),
     /// An "Other Apps" tile clicked.
     OpenApp(Package),
+    /// Opens the nixpkgs package of an add-on, found by name.
+    OpenAddon(String),
+    AddonMissing(String),
     /// `nix run` failed, with its last error line.
     RunFailed(String),
     SizeLoaded(Option<u64>),
@@ -493,7 +496,7 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Install As…"),
+                                                                    set_label: &t("Installation Options…"),
                                                                     #[watch]
                                                                     set_visible: model.kept && model.mode().is_some(),
                                                                     set_tooltip_text: Some(&t("Install this app another way: in your home, for every user, or through its module.")),
@@ -1042,7 +1045,10 @@ impl SimpleComponent for DetailModel {
                         )));
                     });
                 }
-                build_addons(&self.addons_box, &meta);
+                let s = sender.input_sender().clone();
+                build_addons(&self.addons_box, &meta, move |name| {
+                    let _ = s.send(DetailMsg::OpenAddon(name));
+                });
                 self.rebuild_versions(&meta, &sender);
                 if self.nix_versions.is_none() {
                     let attr = self.package.attr.clone();
@@ -1159,6 +1165,21 @@ impl SimpleComponent for DetailModel {
             DetailMsg::OpenApp(pkg) => {
                 let _ = sender.output(pkg);
             }
+            DetailMsg::OpenAddon(name) => {
+                let parent = self.package.attr.to_lowercase();
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let found = addon_package(&name, &parent);
+                    let _ = s.send(match found {
+                        Some(pkg) => DetailMsg::OpenApp(pkg),
+                        None => DetailMsg::AddonMissing(name),
+                    });
+                });
+            }
+            DetailMsg::AddonMissing(name) => crate::util::toast(
+                &self.toast_overlay,
+                &t("{} is not in nixpkgs.").replace("{}", &name),
+            ),
             DetailMsg::SizeLoaded(size) => {
                 self.size_loaded = true;
                 self.closure_size = size;
@@ -1287,54 +1308,30 @@ impl SimpleComponent for DetailModel {
                 crate::util::toast(&self.toast_overlay, &text);
             }
             DetailMsg::ChooseMode => {
-                use nix_software_core::InstallMode;
                 let layout = nix_software_core::detect_layout();
-                let module = self
-                    .module
-                    .as_ref()
-                    .filter(|_| layout.system.is_some())
-                    .map(|o| InstallMode::Module(o.name.clone()));
-                let choices = [
-                    (
-                        "home",
-                        t("In _Your Home"),
-                        layout.home.as_ref().map(|_| InstallMode::Home),
-                    ),
-                    (
-                        "system",
-                        t("For _Everyone"),
-                        layout.system.as_ref().map(|_| InstallMode::System),
-                    ),
-                    ("module", t("Through the _Module"), module),
-                    (
-                        "home-module",
-                        t("Through the _Home Manager Module"),
-                        self.home_module
-                            .as_ref()
-                            .filter(|_| layout.home.is_some())
-                            .map(|o| InstallMode::HomeModule(o.name.clone())),
-                    ),
-                ];
-                let dialog = adw::AlertDialog::new(
-                    Some(&t("Install As")),
-                    Some(&t("In your home, only you get the app. For everyone, it goes to the system packages. Its module also sets up what the app needs around it, such as services or groups.")),
-                );
-                dialog.add_response("cancel", &t("_Cancel"));
-                let current = self.mode();
-                let mut modes = Vec::new();
-                for (id, label, mode) in choices {
-                    let Some(mode) = mode else { continue };
-                    dialog.add_response(id, &label);
-                    dialog.set_response_enabled(id, current.as_ref() != Some(&mode));
-                    modes.push((id, mode));
-                }
+                let offer = crate::components::install_options::Offer {
+                    home: layout.home.is_some(),
+                    system: layout.system.is_some(),
+                    module: self
+                        .module
+                        .as_ref()
+                        .filter(|_| layout.system.is_some())
+                        .map(|o| o.name.clone()),
+                    home_module: self
+                        .home_module
+                        .as_ref()
+                        .filter(|_| layout.home.is_some())
+                        .map(|o| o.name.clone()),
+                };
                 let s = sender.input_sender().clone();
-                dialog.connect_response(None, move |_, id| {
-                    if let Some((_, mode)) = modes.iter().find(|(i, _)| *i == id) {
-                        let _ = s.send(DetailMsg::SetMode(mode.clone()));
-                    }
-                });
-                dialog.present(Some(&self.toast_overlay));
+                crate::components::install_options::present(
+                    &self.toast_overlay,
+                    offer,
+                    self.mode(),
+                    move |mode| {
+                        let _ = s.send(DetailMsg::SetMode(mode));
+                    },
+                );
             }
             DetailMsg::SetMode(mode) => {
                 let res =
@@ -2324,7 +2321,7 @@ fn age_color(label: &str) -> &'static str {
 }
 
 /// The add-ons section; its tiles do not open pages.
-fn build_addons(container: &gtk::Box, meta: &AppMeta) {
+fn build_addons(container: &gtk::Box, meta: &AppMeta, on_open: impl Fn(String) + Clone + 'static) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
@@ -2344,11 +2341,20 @@ fn build_addons(container: &gtk::Box, meta: &AppMeta) {
 
     let flow = tile_grid();
     for a in meta.addons.iter().take(12) {
-        flow.append(&info_tile(
+        let tile = info_tile(
             &a.name,
             a.summary.as_deref().filter(|s| !s.trim().is_empty()),
             a.icon_url.clone(),
-        ));
+        );
+        let button = gtk::Button::builder()
+            .child(&tile)
+            .tooltip_text(t("Open this add-on"))
+            .build();
+        button.add_css_class("flat");
+        button.add_css_class("addon-tile");
+        let (name, on_open) = (a.name.clone(), on_open.clone());
+        button.connect_clicked(move |_| on_open(name.clone()));
+        flow.append(&button);
     }
     container.append(&flow);
     container.set_visible(true);
@@ -2849,6 +2855,15 @@ fn other_install(
     nix_software_core::find_installed(&index, attr, version, app_id).cloned()
 }
 
+/// The nixpkgs package of an add-on of `parent`: a search on its name,
+/// preferring packages of the parent's set (gimpPlugins for gimp). Blocking.
+fn addon_package(name: &str, parent: &str) -> Option<Package> {
+    let found = nix_software_core::search(name);
+    let of_parent =
+        |p: &&Package| p.attr.to_lowercase().starts_with(parent) && p.attr.contains('.');
+    found.iter().find(of_parent).or(found.first()).cloned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2979,7 +2994,7 @@ mod tests {
         };
 
         let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        build_addons(&container, &meta);
+        build_addons(&container, &meta, |_| {});
         assert!(container.is_visible());
 
         let flow = container

@@ -23,8 +23,8 @@ and how (box: a package, puzzle piece: a module).
 If your own configuration installs an app, its page shows the file and
 line, and Take Over moves it to Nix Software.
 
-To install an app you added another way, open it, then Install As… in its
-menu. The trash button next to the main button removes the app, whatever
+To install an app you added another way, open it, then Installation Options…
+in its menu. The trash button next to the main button removes the app, whatever
 installed it.
 
 The Installed tab lists them all, with what you tried and can clean up.

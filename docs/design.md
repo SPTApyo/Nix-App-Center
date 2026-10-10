@@ -267,13 +267,22 @@ When the installed version is neither the nixpkgs one nor an older one
 waiting for an apply, the configuration changes the app, usually with an
 overlay. The page says so, and Updates leaves it alone.
 
+## Add-ons
+
+Add-ons come from AppStream and have no nixpkgs attribute. A click on one
+searches nixpkgs for its name and opens the best match, preferring the
+parent's package set (gimpPlugins for gimp); without a match, a toast says
+it is not in nixpkgs.
+
 ## Install modes
 
 A kept app is installed one of four ways: in the user's home, in the
 system packages, through its NixOS module (`X.enable = true` in its system
 block) or through its Home Manager module (the same line in its home
-block). Home Manager's options come from its docs-json package. Install
-As… in its menu switches between them. It is offered only while the entry
+block). Home Manager's options come from its docs-json package.
+Installation Options… in its menu switches between them with two choices:
+where (home or everyone) and how (package or module); the module offered
+follows the place, the NixOS one for everyone, Home Manager's for the home. It is offered only while the entry
 is one of these; custom blocks say more than a mode and are left alone.
 
 ## Other flakes

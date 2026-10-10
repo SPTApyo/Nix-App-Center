@@ -490,3 +490,8 @@ button.app-tile { padding: 0; }
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
+
+button.addon-tile {
+	padding: 0;
+	border-radius: 12px;
+}
