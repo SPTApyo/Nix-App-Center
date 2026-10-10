@@ -35,6 +35,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
     gettext
   ];
 
+  # The gettext bundled by gettext-sys does not build with recent glibc.
+  env.GETTEXT_SYSTEM = true;
+
   buildInputs = [
     gtk4
     libadwaita
