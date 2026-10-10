@@ -961,6 +961,21 @@ impl SimpleComponent for DetailModel {
         ] {
             sg.add_widget(&w);
         }
+        // A hidden section hides its clamp, so no spacing is left behind.
+        for section in [
+            &addons_box,
+            &version_box,
+            &problems_box,
+            &build_box,
+            &dev_apps_box,
+        ] {
+            if let Some(clamp) = section.parent() {
+                section
+                    .bind_property("visible", &clamp, "visible")
+                    .sync_create()
+                    .build();
+            }
+        }
         let sg_origin = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         sg_origin.add_widget(&widgets.box_install_remove);
         sg_origin.add_widget(&widgets.origin_btn);
@@ -1059,9 +1074,11 @@ impl SimpleComponent for DetailModel {
                 let mut g = self.addon_tiles.guard();
                 g.clear();
                 for a in meta.addons.iter().take(12) {
+                    // No attribute: an add-on is no package until opened.
                     let pkg = Package {
+                        name: a.name.clone(),
                         description: a.summary.clone().unwrap_or_default(),
-                        ..Package::from_attr(a.name.clone())
+                        ..Package::default()
                     };
                     g.push_back(AppItem::new(pkg, a.icon_url.clone()));
                 }

@@ -508,6 +508,9 @@ thread_local! {
 
 /// How the package is installed, if it is; read every 5 s at most.
 pub fn installed(pkg: &Package) -> Option<nix_software_core::Installed> {
+    if pkg.attr.is_empty() {
+        return None;
+    }
     INSTALLED.with_borrow_mut(|cache| {
         if cache
             .as_ref()
