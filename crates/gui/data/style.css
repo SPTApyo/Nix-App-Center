@@ -438,14 +438,6 @@ button.carousel-slide-5 { background: linear-gradient(135deg, #613583, #1b6ac9);
 @define-color installed_system_color @blue_3;
 @define-color installed_home_color @green_4;
 
-.card.installed-system {
-	box-shadow: inset 0 0 0 2px alpha(@installed_system_color, .8), 0 0 14px alpha(@installed_system_color, .35);
-}
-
-.card.installed-home {
-	box-shadow: inset 0 0 0 2px alpha(@installed_home_color, .8), 0 0 14px alpha(@installed_home_color, .35);
-}
-
 .installed-system .scope-badge {
 	color: @installed_system_color;
 }

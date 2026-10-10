@@ -501,10 +501,11 @@ impl AppItem {
 /// The attribute of Nix Software itself in nixpkgs.
 pub const SELF_ATTR: &str = "nix-software";
 
-/// When the profiles were read, and each app's pname, version and scope.
+/// When the profiles were read, and each app's pname, desktop file name,
+/// version and scope.
 type InstalledCache = Option<(
     std::time::Instant,
-    Vec<(String, String, nix_software_core::Scope)>,
+    Vec<(String, String, String, nix_software_core::Scope)>,
 )>;
 
 thread_local! {
@@ -523,17 +524,24 @@ pub fn installed_scope(pkg: &Package) -> Option<nix_software_core::Scope> {
         {
             let apps = nix_software_core::profile_apps()
                 .into_iter()
-                .map(|a| (a.pname, a.version, a.scope))
+                .map(|a| {
+                    let stem = a
+                        .desktop_file
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    (a.pname, stem, a.version, a.scope)
+                })
                 .collect();
             *cache = Some((std::time::Instant::now(), apps));
         }
         let (_, apps) = cache.as_ref()?;
         apps.iter()
-            .find(|(p, v, _)| {
-                p.eq_ignore_ascii_case(pname)
+            .find(|(p, stem, v, _)| {
+                (p.eq_ignore_ascii_case(pname) || stem.eq_ignore_ascii_case(pname))
                     && (top_level || pkg.version.is_empty() || *v == pkg.version)
             })
-            .map(|(_, _, s)| *s)
+            .map(|(_, _, _, s)| *s)
     })
 }
 

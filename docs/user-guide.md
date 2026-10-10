@@ -15,10 +15,10 @@ your configuration. It shows the change before writing anything.
 
 ## What is installed
 
-Installed apps glow in the lists:
+Installed apps show an icon next to their name:
 
-- blue with a screen icon: installed on the system, for every user;
-- green with a house icon: installed in your home, for you only.
+- a blue screen: installed on the system, for every user;
+- a green house: installed in your home, for you only.
 
 The Installed tab lists them all, with what you tried and can clean up.
 

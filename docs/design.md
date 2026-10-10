@@ -215,11 +215,12 @@ step: GNOME asks apps not to flood the user.
 ## Installed badges
 
 Tiles and search rows of installed apps carry a badge: a blue screen for the
-system profile, a green house for the user profiles, and tiles also glow in
-that color. The profiles are read at most every five seconds, not once per
-tile. An app matches by pname; a nested attribute such as
-haskellPackages.Obsidian must match the version too, or every package named
-like an installed app would light up.
+system profile, a green house for the user profiles. The profiles are read
+at most every five seconds, not once per tile. An app matches by pname; a
+nested attribute such as haskellPackages.Obsidian must match the version too,
+or every package named like an installed app would show the badge. The
+desktop file name counts as well, like on the Installed page: steam from
+programs.steam.enable resolves to steam-unwrapped but ships steam.desktop.
 
 ## Nix Software in its own catalog
 
