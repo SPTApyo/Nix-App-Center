@@ -551,8 +551,12 @@ pub fn installed_scope(pkg: &Package) -> Option<(nix_software_core::Scope, bool)
 
 /// The installed pill: a green check, then where the app is installed and
 /// how (package or module). Hidden when the app is not installed.
-pub fn installed_pill(scope: Option<nix_software_core::Scope>, module: bool) -> gtk::Box {
-    let pill = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+pub fn installed_pill(
+    scope: Option<nix_software_core::Scope>,
+    module: bool,
+    icon_size: i32,
+) -> gtk::Box {
+    let pill = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     pill.add_css_class("installed-pill");
     pill.set_valign(gtk::Align::Center);
     pill.set_visible(scope.is_some());
@@ -580,7 +584,7 @@ pub fn installed_pill(scope: Option<nix_software_core::Scope>, module: bool) -> 
         (how_icon, "installed-kind"),
     ] {
         let image = gtk::Image::from_icon_name(icon);
-        image.set_pixel_size(12);
+        image.set_pixel_size(icon_size);
         image.add_css_class(class);
         pill.append(&image);
     }

@@ -16,8 +16,8 @@ your configuration. It shows the change before writing anything.
 
 ## What is installed
 
-Installed apps show a pill next to their name: a green check, then where
-and how the app is installed.
+Installed apps show a pill: a green check, then where and how the app is
+installed.
 
 - a screen: on the system, for every user;
 - a house: in your home, for you only;

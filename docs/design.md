@@ -214,11 +214,11 @@ step: GNOME asks apps not to flood the user.
 
 ## Installed pill
 
-Tiles and search rows of installed apps carry a pill: a green check, then
-where the app is (a screen for the system profile, a house for the user
-profiles), then how (a box for a package, a puzzle piece for a module). The
-profiles are read
-at most every five seconds, not once per tile. An app matches by pname; a
+Tiles and search rows of installed apps carry a pill: a green check in a
+darker round, then where the app is (a screen for the system profile, a
+house for the user profiles), then how (a box for a package, a puzzle piece
+for a module). On tiles it floats in the top right corner.
+The profiles are read at most every five seconds, not once per tile. An app matches by pname; a
 nested attribute such as haskellPackages.Obsidian must match the version too,
 or every package named like an installed app would show the badge. The
 desktop file name counts as well, like on the Installed page: steam from

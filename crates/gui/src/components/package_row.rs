@@ -133,7 +133,9 @@ impl FactoryComponent for PackageRow {
                 },
             },
 
-            crate::util::installed_pill(self.scope, self.module) -> gtk::Box {},
+            crate::util::installed_pill(self.scope, self.module, 16) -> gtk::Box {
+                add_css_class: "large",
+            },
         }
     }
 

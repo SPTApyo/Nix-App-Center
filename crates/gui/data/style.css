@@ -436,19 +436,32 @@ button.carousel-slide-5 { background: linear-gradient(135deg, #613583, #1b6ac9);
 .welcome-active .welcome-extra { animation: welcome-rise 440ms 320ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 
 .installed-pill {
-	background-color: alpha(@window_fg_color, .1);
+	background-color: alpha(@window_fg_color, .08);
 	border-radius: 9999px;
-	padding: 2px 7px 2px 2px;
+	padding: 0 12px 0 0;
 }
 
 .installed-check {
-	background-color: @success_bg_color;
-	color: @success_fg_color;
+	background-color: alpha(@window_fg_color, .16);
+	color: @success_color;
 	border-radius: 9999px;
-	padding: 2px;
+	padding: 4px;
 }
 
-.installed-kind { color: alpha(@window_fg_color, .75); }
+.installed-pill.large {
+	padding: 4px 14px 4px 4px;
+}
+
+.large .installed-check { padding: 5px; }
+
+.installed-kind { color: alpha(@window_fg_color, .8); }
+
+button.app-tile { padding: 0; }
+
+.installed-pill.corner {
+	background-color: alpha(@window_fg_color, .05);
+	padding: 3px 10px 3px 3px;
+}
 
 .beta-badge {
 	font-size: smaller;
