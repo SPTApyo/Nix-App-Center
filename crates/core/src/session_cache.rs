@@ -82,12 +82,9 @@ fn icon_fallbacks(url: &str) -> Vec<String> {
 }
 
 fn fetch_one(url: &str) -> Option<Vec<u8>> {
-    let resp = ureq::get(url)
-        .timeout(std::time::Duration::from_secs(30))
-        .call()
-        .ok()?;
     let mut buf = Vec::new();
-    resp.into_reader()
+    crate::http::get(url, std::time::Duration::from_secs(30))
+        .ok()?
         .take(20_000_000)
         .read_to_end(&mut buf)
         .ok()?;

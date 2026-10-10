@@ -78,10 +78,7 @@ fn in_binary_cache(out: &str) -> bool {
     let Some(hash) = out.strip_prefix("/nix/store/").and_then(|n| n.get(..32)) else {
         return false;
     };
-    ureq::head(&format!("https://cache.nixos.org/{hash}.narinfo"))
-        .timeout(crate::http::TIMEOUT)
-        .call()
-        .is_ok()
+    crate::http::exists(&format!("https://cache.nixos.org/{hash}.narinfo"))
 }
 
 #[cfg(test)]

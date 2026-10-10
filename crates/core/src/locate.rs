@@ -20,14 +20,12 @@ pub fn locate_ready() -> bool {
 /// Downloads the nix-index database (about 100 MB). Blocking.
 pub fn download_locate_db() -> std::io::Result<()> {
     let url = INDEX_URL.replace("{arch}", std::env::consts::ARCH);
-    let resp = ureq::get(&url)
-        .timeout(std::time::Duration::from_secs(900))
-        .call()
+    let mut body = crate::http::get(&url, std::time::Duration::from_secs(900))
         .map_err(std::io::Error::other)?;
     let dir = db_dir();
     std::fs::create_dir_all(&dir)?;
     let tmp = dir.join("files.part");
-    std::io::copy(&mut resp.into_reader(), &mut std::fs::File::create(&tmp)?)?;
+    std::io::copy(&mut body, &mut std::fs::File::create(&tmp)?)?;
     std::fs::rename(tmp, dir.join("files"))
 }
 

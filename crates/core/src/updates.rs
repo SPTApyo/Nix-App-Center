@@ -296,9 +296,7 @@ pub fn latest(branch: &str) -> Option<Latest> {
 pub fn newer_release(branch: &str) -> Option<String> {
     let next = next_release(branch)?;
     let url = format!("https://channels.nixos.org/nixos-{next}/git-revision");
-    ureq::get(&url)
-        .timeout(crate::http::TIMEOUT)
-        .call()
+    crate::http::get(&url, crate::http::TIMEOUT)
         .ok()
         .map(|_| next)
 }

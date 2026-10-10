@@ -492,12 +492,9 @@ fn refresh(url: &str, path: &std::path::Path) {
 
 fn download(url: &str) -> Option<Vec<u8>> {
     use std::io::Read;
-    let resp = ureq::get(url)
-        .timeout(std::time::Duration::from_secs(120))
-        .call()
-        .ok()?;
     let mut bytes = Vec::new();
-    resp.into_reader()
+    crate::http::get(url, std::time::Duration::from_secs(120))
+        .ok()?
         .take(200 * 1024 * 1024)
         .read_to_end(&mut bytes)
         .ok()?;
@@ -660,12 +657,10 @@ impl<R: BufRead> Events<R> {
         loop {
             let ev = self.peeked.take().unwrap_or_else(|| self.read());
             let piece = match &ev {
-                Event::Text(t) => t.decode().map(|s| s.into_owned()).ok(),
-                Event::GeneralRef(r) => r.decode().ok().and_then(|name| {
-                    quick_xml::escape::unescape(&format!("&{name};"))
-                        .ok()
-                        .map(|s| s.into_owned())
-                }),
+                Event::Text(t) => Some(t.to_string()),
+                Event::GeneralRef(r) => quick_xml::escape::unescape(&format!("&{};", &**r))
+                    .ok()
+                    .map(|s| s.into_owned()),
                 _ => {
                     let Some(t) = text else { return ev };
                     self.peeked = Some(ev);
@@ -688,8 +683,8 @@ fn lang_rank(e: &quick_xml::events::BytesStart, langs: &[String]) -> Option<usiz
     let attr = e
         .attributes()
         .flatten()
-        .find(|a| a.key.as_ref() == b"xml:lang")?;
-    let lang = String::from_utf8_lossy(&attr.value);
+        .find(|a| a.key.as_ref() == "xml:lang")?;
+    let lang = attr.value.clone();
     langs.iter().position(|l| *l == lang)
 }
 
@@ -758,15 +753,12 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                 }
 
                 let qname = e.name();
-                let tag = match std::str::from_utf8(qname.as_ref()) {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                };
+                let tag: &str = qname.as_ref();
 
                 let has_lang = e
                     .attributes()
                     .flatten()
-                    .any(|a| a.key.as_ref() == b"xml:lang");
+                    .any(|a| a.key.as_ref() == "xml:lang");
 
                 if in_desc && tag != "description" {
                     if has_lang {
@@ -795,8 +787,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                 match tag {
                     "components" => {
                         for attr in e.attributes().flatten() {
-                            if attr.key.as_ref() == b"media_baseurl" {
-                                media_base = String::from_utf8_lossy(&attr.value).into_owned();
+                            if attr.key.as_ref() == "media_baseurl" {
+                                media_base = attr.value.clone().into_owned();
                             }
                         }
                     }
@@ -804,8 +796,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         let comp_type: String = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"type")
-                            .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                            .find(|a| a.key.as_ref() == "type")
+                            .map(|a| a.value.into_owned())
                             .unwrap_or_default();
                         match comp_type.as_str() {
                             "desktop-application" | "desktop" | "addon" => {
@@ -891,16 +883,9 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         icon_scale = 1;
                         for attr in e.attributes().flatten() {
                             match attr.key.as_ref() {
-                                b"type" => {
-                                    itype = String::from_utf8_lossy(&attr.value).into_owned()
-                                }
-                                b"width" => {
-                                    w = String::from_utf8_lossy(&attr.value).parse().unwrap_or(0)
-                                }
-                                b"scale" => {
-                                    icon_scale =
-                                        String::from_utf8_lossy(&attr.value).parse().unwrap_or(1)
-                                }
+                                "type" => itype = attr.value.clone().into_owned(),
+                                "width" => w = attr.value.clone().parse().unwrap_or(0),
+                                "scale" => icon_scale = attr.value.clone().parse().unwrap_or(1),
                                 _ => {}
                             }
                         }
@@ -935,23 +920,24 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         collect = Collect::MediaType;
                     }
                     "launchable" => {
-                        let desktop = e.attributes().flatten().any(|a| {
-                            a.key.as_ref() == b"type" && a.value.as_ref() == b"desktop-id"
-                        });
+                        let desktop = e
+                            .attributes()
+                            .flatten()
+                            .any(|a| a.key.as_ref() == "type" && a.value.as_ref() == "desktop-id");
                         if desktop {
                             collect = Collect::Launchable;
                         }
                     }
                     "color" => {
-                        let attr = |k: &[u8]| {
+                        let attr = |k: &str| {
                             e.attributes()
                                 .flatten()
                                 .find(|a| a.key.as_ref() == k)
-                                .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                                .map(|a| a.value.into_owned())
                                 .unwrap_or_default()
                         };
-                        if attr(b"type") == "primary" {
-                            color_scheme = attr(b"scheme_preference");
+                        if attr("type") == "primary" {
+                            color_scheme = attr("scheme_preference");
                             collect = Collect::Color;
                         }
                     }
@@ -960,8 +946,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         content_attr_id = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"id")
-                            .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                            .find(|a| a.key.as_ref() == "id")
+                            .map(|a| a.value.into_owned())
                             .unwrap_or_default();
                         collect = Collect::ContentAttr;
                     }
@@ -983,8 +969,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         let is_source = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"type")
-                            .map(|a| a.value.as_ref() == b"source")
+                            .find(|a| a.key.as_ref() == "type")
+                            .map(|a| a.value.as_ref() == "source")
                             .unwrap_or(false);
                         if is_source {
                             collect = Collect::ImageUrl;
@@ -997,8 +983,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         url_kind = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"type")
-                            .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                            .find(|a| a.key.as_ref() == "type")
+                            .map(|a| a.value.into_owned())
                             .unwrap_or_default();
                         collect = Collect::Url;
                     }
@@ -1015,13 +1001,9 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         cur_rel = EntryRelease::default();
                         for attr in e.attributes().flatten() {
                             match attr.key.as_ref() {
-                                b"version" => {
-                                    cur_rel.version =
-                                        String::from_utf8_lossy(&attr.value).into_owned()
-                                }
-                                b"timestamp" => {
-                                    cur_rel.timestamp =
-                                        String::from_utf8_lossy(&attr.value).parse().unwrap_or(0)
+                                "version" => cur_rel.version = attr.value.clone().into_owned(),
+                                "timestamp" => {
+                                    cur_rel.timestamp = attr.value.clone().parse().unwrap_or(0)
                                 }
                                 _ => {}
                             }
@@ -1031,8 +1013,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         let t = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"type")
-                            .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                            .find(|a| a.key.as_ref() == "type")
+                            .map(|a| a.value.into_owned())
                             .unwrap_or_default();
                         if t == "details" {
                             collect = Collect::ReleaseUrl;
@@ -1043,8 +1025,8 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                         custom_key = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"key")
-                            .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                            .find(|a| a.key.as_ref() == "key")
+                            .map(|a| a.value.into_owned())
                             .unwrap_or_default();
                         collect = Collect::CustomVal;
                     }
@@ -1061,13 +1043,7 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                 }
 
                 let qname = e.name();
-                let tag = match std::str::from_utf8(qname.as_ref()) {
-                    Ok(s) => s,
-                    Err(_) => {
-                        depth -= 1;
-                        continue;
-                    }
-                };
+                let tag: &str = qname.as_ref();
 
                 if in_desc && depth > desc_depth {
                     if matches!(tag, "p" | "li") {
@@ -1170,22 +1146,19 @@ fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
                     continue;
                 }
 
-                let cow = match e.decode() {
-                    Ok(c) => c,
-                    Err(_) => continue,
-                };
+                let raw: &str = e;
                 if in_desc {
                     match desc_lang {
-                        Some((r, _)) => push_flowed(&mut desc_local[r], &cow),
-                        None => push_flowed(&mut desc_buf, &cow),
+                        Some((r, _)) => push_flowed(&mut desc_local[r], raw),
+                        None => push_flowed(&mut desc_buf, raw),
                     }
                     continue;
                 }
                 if in_rel_desc {
-                    push_flowed(&mut rel_desc_buf, &cow);
+                    push_flowed(&mut rel_desc_buf, raw);
                     continue;
                 }
-                let text = cow.trim();
+                let text = raw.trim();
                 if text.is_empty() {
                     continue;
                 }

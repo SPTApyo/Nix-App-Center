@@ -66,12 +66,9 @@ fn load(branch: &str) -> Option<Vec<NixOption>> {
 }
 
 fn download(branch: &str) -> Option<Vec<u8>> {
-    let resp = ureq::get(&URL.replace("{branch}", branch))
-        .timeout(Duration::from_secs(60))
-        .call()
-        .ok()?;
+    let body = crate::http::get(&URL.replace("{branch}", branch), Duration::from_secs(60)).ok()?;
     let mut json = Vec::new();
-    brotli_decompressor::Decompressor::new(resp.into_reader(), 4096)
+    brotli_decompressor::Decompressor::new(body, 4096)
         .take(200 * 1024 * 1024)
         .read_to_end(&mut json)
         .ok()?;
