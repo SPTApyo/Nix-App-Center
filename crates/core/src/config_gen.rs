@@ -212,40 +212,8 @@ fn regions(kept: &[KeptEntry], scope: fn(&KeptEntry) -> Option<&String>) -> Vec<
     promues.sort_by(|a, b| a.package.attr.cmp(&b.package.attr));
     promues
         .iter()
-        .map(|e| {
-            module_region(
-                &e.package.attr,
-                &with_module_package(e, scope(e).map(String::as_str).unwrap_or("")),
-            )
-        })
+        .map(|e| module_region(&e.package.attr, scope(e).map(String::as_str).unwrap_or("")))
         .collect()
-}
-
-/// A module block with the app's build options: the module's `package`
-/// option gets the overridden package, next to its `enable` line.
-fn with_module_package(e: &KeptEntry, block: &str) -> String {
-    let option = match e.mode() {
-        Some(
-            crate::manifest::InstallMode::Module(o) | crate::manifest::InstallMode::HomeModule(o),
-        ) => o,
-        _ => return block.to_string(),
-    };
-    if e.flags.is_empty() || !block.contains(&format!("{option} = true;")) {
-        return block.to_string();
-    }
-    let Some(expr) = package_expr(&KeptEntry {
-        home_nix: None,
-        ..e.clone()
-    }) else {
-        return block.to_string();
-    };
-    let package = option.trim_end_matches(".enable");
-    let expr = if expr.starts_with('(') || expr.contains('.') {
-        expr
-    } else {
-        format!("pkgs.{expr}")
-    };
-    format!("{}\n{package}.package = {expr};", block.trim_end())
 }
 
 /// User scope body: app regions, then the plain package list.
@@ -982,15 +950,6 @@ mod tests {
             })
         };
         assert!(!render_system(&[evil]).contains("activationScripts"));
-        let obs = KeptEntry {
-            home_nix: Some(String::new()),
-            system_nix: Some("programs.obs-studio.enable = true;".into()),
-            flags: vec![("cudaSupport".into(), true)],
-            ..KeptEntry::simple(Package::from_attr("obs-studio"))
-        };
-        assert!(render_system(&[obs]).contains(
-            "programs.obs-studio.package = (pkgs.obs-studio.override { cudaSupport = true; });"
-        ));
         assert!(
             render_home(&[], &HomeShape::HomeManager).contains("home.packages = with pkgs; [ ];")
         );
