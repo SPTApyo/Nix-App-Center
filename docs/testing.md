@@ -28,6 +28,14 @@ reaches. The GUI is not measured: the end-to-end suite covers it.
 Look at coverage before deciding where to add tests. Code that writes files,
 runs commands as root or deletes store paths comes first.
 
+## Nix checks
+
+nix build .#checks.x86_64-linux.module starts a NixOS virtual machine with
+programs.nix-software enabled and checks the app, its desktop entry and its
+search provider are there (nix/test.nix, the same test nixpkgs runs).
+nix build .#nix-software.tests.version checks the packaged CLI answers.
+CI runs both, and builds on aarch64-linux too.
+
 ## End-to-end tests
 
 tests/e2e/nix_software_e2e.py runs the real app on a GTK Broadway display

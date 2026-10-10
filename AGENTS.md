@@ -55,7 +55,6 @@ Use it to check UI changes instead of guessing, and look at the screenshot.
 - Finding your way around: docs/repo-layout.md
 - Why the app works the way it does: docs/design.md
 - Writing or fixing tests: docs/testing.md
-- What is done and what is missing: docs/roadmap.md
-- Commits, pull requests, translations: CONTRIBUTING.md
+- Commits, pull requests, translations, writing docs: CONTRIBUTING.md
 - Packaging, releases, nixpkgs: docs/packaging.md
 - Security boundaries: SECURITY.md

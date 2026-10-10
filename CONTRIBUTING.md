@@ -112,6 +112,25 @@ review. The size guide above applies however the code was written.
   static tables translated later). Use plural() for counts.
 - Never commit secrets, tokens or generated files (target/, result).
 
+## Documentation
+
+docs/ explains the project to people working on it, README.md and
+docs/user-guide.md to people using it. AGENTS.md only says how an agent
+operates here; how a subsystem works belongs in docs/.
+
+- A doc describes the project as it is. Plans, to-do lists, progress notes
+  and changelogs do not go in the repository: plans live in issues, changes
+  in the release notes.
+- Explain why. The code already says what.
+- First line is the title, then one or two sentences on what the doc
+  answers. Add every new doc to docs/README.md.
+- Kebab-case file names named after the topic: storage.md, not
+  storage-guide.md.
+- Cite source paths from the repository root: crates/core/src/config_attach.rs.
+- English, short sentences, plain words, no em dashes, no backticks around
+  names in prose.
+- Update the doc in the same pull request as the behavior it describes.
+
 ## Translations
 
 Translations live in po/. The template is po/nix-software.pot.

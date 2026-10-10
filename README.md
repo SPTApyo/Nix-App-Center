@@ -24,13 +24,13 @@
 ## Features
 
 - **Try first**: run any app with nix run, or open a nix shell for command line tools. Unfree packages included.
-- **Keep**: the app lands in nix-software-home.nix or nix-software-system.nix, imported by your configuration.
-- **Knows your setup**: NixOS with or without flakes, Home Manager as a module, flake or standalone. On other Linux distributions with Nix, or without a managed configuration, it installs for your user with nix profile and updates with nix profile upgrade.
-- **Rich pages**: Flathub metadata (names, screenshots, ratings, age ratings, permissions) when the app exists there too, plus reviews you can write.
-- **Installed**: what Nix Software keeps, what you tried (removable one by one from the store) and the apps your system and user profiles already hold.
-- **Updates**: the nixpkgs revision your config is pinned to, what the branch head changes for your apps, and a one click update with a live build log.
-- **Storage**: generations, apps and garbage by size, with clean-ups.
-- **Search**: packages, apps and NixOS options, optional search by command, and results in the GNOME Shell overview.
+- **Keep**: the app goes into two small Nix files Nix Software owns, imported by your configuration, in your home or for everyone, as a package or through its NixOS or Home Manager module.
+- **Knows your setup**: NixOS with or without flakes, Home Manager as a module or standalone, local and private configuration repositories. Elsewhere, it installs for your user with nix profile.
+- **Sees what is installed**: by your configuration, by Nix Software, with nix profile or nix-env, as a Flatpak or an AppImage, and removes what it can.
+- **Versions**: hold an app at any version nixpkgs shipped, or take a newer one from unstable.
+- **Search**: packages of nixpkgs and of other flakes, NixOS and Home Manager options you can set, search by command, and results in the GNOME Shell overview.
+- **Rich pages**: Flathub metadata (screenshots, ratings, age ratings) when the app exists there, reviews, build options.
+- **Updates and Storage**: what a nixpkgs update changes for your apps, and where the store space goes, with clean-ups.
 - **English and French** interface.
 
 # Getting Started
@@ -57,14 +57,14 @@ imports = [ inputs.nix-software.nixosModules.default ];
 programs.nix-software.enable = true;
 ```
 
-Once Nix Software is in nixpkgs, `programs.nix-software.enable = true;` is
+Once Nix Software is in nixpkgs, programs.nix-software.enable = true is
 enough, without the input.
 
 On NixOS without flakes, no channel needed:
 
 ```nix
 environment.systemPackages = [
-  (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-software/archive/main.tar.gz") { inherit pkgs; })
+  (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-software/archive/v0.2.1.tar.gz") { inherit pkgs; })
 ];
 ```
 
@@ -97,32 +97,20 @@ A text interface ships next to the app:
 nix-software-cli search gimp       # list matching packages
 nix-software-cli run vlc           # try an app
 nix-software-cli keep vlc          # add it to your configuration
-nix-software-cli layout --verify   # what Nix Software detects (read only)
-nix-software-cli attach            # show the import diff, --commit to write it
 nix-software-cli apply             # apply the configuration
 nix-software-cli updates           # nixpkgs pin against its branch head
+nix-software-cli versions vlc      # versions nixpkgs shipped
+nix-software-cli layout --verify   # what Nix Software detects (read only)
 ```
 
-## Environment
+nix-software-cli without arguments lists every command.
+NIX_SOFTWARE_CONFIG_DIR points Nix Software to another NixOS configuration
+folder, for example a copy to experiment safely.
 
-- NIX_SOFTWARE_CONFIG_DIR: NixOS configuration directory (default: /etc/nixos). Point it to a copy to experiment safely.
-- NIX_SOFTWARE_LOCALEDIR: where the compiled translations are (set by the Nix package).
+## Contributing
 
-## Development
-
-```bash
-nix develop   # Rust toolchain, GTK 4, libadwaita, gettext, just
-just setup    # commit message hook
-just check    # format, clippy, tests, translations, dependencies
-just run
-just e2e      # end-to-end tests, screenshots in target/e2e
-```
-
-- crates/core: all the logic, no UI dependency.
-- crates/gui: GTK 4 and libadwaita front end, written with relm4.
-- crates/cli: text front end.
-
-End-to-end tests drive the app through the GTK Broadway backend with Playwright. Each run uses a throwaway home and config, so your real configuration is never touched. Documentation lives in [docs/](docs/README.md), agent instructions in [AGENTS.md](AGENTS.md). Workflow, commit rules, tests and translations are in [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) to set up the project, and
+[docs/](docs/README.md) for how it works.
 
 # Community
 

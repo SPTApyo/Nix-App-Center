@@ -1,23 +1,10 @@
 # Documentation
 
-Project and coding documentation. To set up the project, start with
-[CONTRIBUTING.md](../CONTRIBUTING.md). Agents also read [AGENTS.md](../AGENTS.md).
+How Nix Software works, for people working on it. To set up the project,
+start with [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-## Start here
-
+- [user-guide.md](user-guide.md): how to use the app, for users
 - [repo-layout.md](repo-layout.md): where everything lives, and where to start for a given change
-- [writing-documentation.md](writing-documentation.md): conventions for adding to these docs
-
-## Using the app
-
-- [user-guide.md](user-guide.md): how Nix Software works, in plain words, for users
-
-## How it works
-
-- [design.md](design.md): product principles, package identity, the config engine, each tab
-- [roadmap.md](roadmap.md): Nix setups the app must handle, what is done, what is still open
-
-## Working on the code
-
-- [testing.md](testing.md): unit, coverage and end-to-end tests, and how to keep them off the real system
-- [packaging.md](packaging.md): the shared Nix recipe, releases, and getting into nixpkgs
+- [design.md](design.md): why the app works the way it does, from the Nix setups it handles to each tab
+- [testing.md](testing.md): unit, Nix and end-to-end tests, and how they stay off the real system
+- [packaging.md](packaging.md): the Nix recipe and module, releases, and nixpkgs
