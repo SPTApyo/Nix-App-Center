@@ -127,6 +127,7 @@ pub enum DetailMsg {
     HoldAt(nix_software_core::VersionChoice),
     ChooseVersion,
     ChooseMode,
+    CopyName,
     Remove,
     TriedRemoved(Result<u64, String>),
     SetMode(nix_software_core::InstallMode),
@@ -289,20 +290,33 @@ impl SimpleComponent for DetailModel {
                                                 set_hexpand: true,
                                                 set_spacing: 6,
 
-                                                gtk::Label {
-                                                    #[watch]
-                                                    set_label: &meta_name(&model.meta, &model.package.name),
-                                                    set_halign: gtk::Align::Fill,
-                                                    set_valign: gtk::Align::Start,
-                                                    set_hexpand: true,
-                                                    set_xalign: 0.0,
-                                                    set_selectable: true,
-                                                    // Else it takes the initial focus.
-                                                    set_focusable: false,
-                                                    set_wrap: true,
-                                                    set_max_width_chars: 20,
-                                                    add_css_class: "app-title",
-                                                    add_css_class: "title-1",
+                                                gtk::Box {
+                                                    set_spacing: 6,
+
+                                                    gtk::Label {
+                                                        #[watch]
+                                                        set_label: &meta_name(&model.meta, &model.package.name),
+                                                        set_halign: gtk::Align::Fill,
+                                                        set_valign: gtk::Align::Start,
+                                                        set_hexpand: false,
+                                                        set_xalign: 0.0,
+                                                        set_selectable: true,
+                                                        // Else it takes the initial focus.
+                                                        set_focusable: false,
+                                                        set_wrap: true,
+                                                        set_max_width_chars: 20,
+                                                        add_css_class: "app-title",
+                                                        add_css_class: "title-1",
+                                                    },
+                                                    gtk::Button {
+                                                        set_icon_name: "edit-copy-symbolic",
+                                                        set_valign: gtk::Align::Center,
+                                                        #[watch]
+                                                        set_tooltip_text: Some(&t("Copy the package name to write in a configuration: pkgs.{}").replace("{}", &model.package.attr)),
+                                                        add_css_class: "flat",
+                                                        add_css_class: "circular",
+                                                        connect_clicked => DetailMsg::CopyName,
+                                                    },
                                                 },
 
                                                 gtk::Box {
@@ -1590,6 +1604,15 @@ impl SimpleComponent for DetailModel {
             },
             DetailMsg::Applied(res) => {
                 crate::util::toast(&self.toast_overlay, &crate::util::describe_apply(res));
+            }
+            DetailMsg::CopyName => {
+                if let Some(display) = gtk::gdk::Display::default() {
+                    display.clipboard().set_text(&self.package.attr);
+                }
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &t("{} copied.").replace("{}", &self.package.attr),
+                );
             }
             DetailMsg::CopyCommand => {
                 if let Some(display) = gtk::gdk::Display::default() {
