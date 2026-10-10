@@ -1086,12 +1086,12 @@ msgstr ""
 "mise à jour de sécurité."
 
 #: crates/gui/src/components/version_dialog.rs:47
-msgid "_Follow Your Configuration"
-msgstr "_Suivre votre configuration"
+msgid "_Resume Updates"
+msgstr "_Reprendre les mises à jour"
 
 #: crates/gui/src/components/version_dialog.rs:49
-msgid "_Keep the Installed Version"
-msgstr "_Garder la version installée"
+msgid "_Stop Updates at This Version"
+msgstr "_Bloquer les mises à jour sur cette version"
 
 #: crates/gui/src/components/version_dialog.rs:68
 msgid "Ready to download"

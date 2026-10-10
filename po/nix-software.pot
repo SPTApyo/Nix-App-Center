@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-10 18:35+0200\n"
+"POT-Creation-Date: 2026-10-10 18:45+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1022,11 +1022,11 @@ msgid ""
 msgstr ""
 
 #: crates/gui/src/components/version_dialog.rs:47
-msgid "_Follow Your Configuration"
+msgid "_Resume Updates"
 msgstr ""
 
 #: crates/gui/src/components/version_dialog.rs:49
-msgid "_Keep the Installed Version"
+msgid "_Stop Updates at This Version"
 msgstr ""
 
 #: crates/gui/src/components/version_dialog.rs:68

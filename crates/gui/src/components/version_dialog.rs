@@ -44,9 +44,9 @@ pub fn present(
 
     let list = crate::util::boxed_list();
     let (label, pick) = if held_rev.is_some() {
-        (t("_Follow Your Configuration"), Pick::Follow)
+        (t("_Resume Updates"), Pick::Follow)
     } else {
-        (t("_Keep the Installed Version"), Pick::Installed)
+        (t("_Stop Updates at This Version"), Pick::Installed)
     };
     let top = adw::ButtonRow::builder()
         .title(label)
