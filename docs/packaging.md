@@ -12,7 +12,15 @@ the cargoHash for Cargo.lock. flake.nix imports default.nix. So every CI run
 of nix build tests the nixpkgs recipe: dependencies, install steps, metadata
 and the core tests in the Nix sandbox.
 
-Change nix/package.nix, never a copy of it.
+Change nix/package.nix, never a copy of it. The same goes for the NixOS
+module, nix/module.nix (nixos/modules/programs/nix-software.nix in nixpkgs),
+and its test, nix/test.nix (nixos/tests/nix-software.nix). The flake runs
+that test as checks.<system>.module, and CI builds on x86_64-linux and
+aarch64-linux.
+
+The recipe's passthru carries what nixpkgs reviewers look for:
+tests.version (the CLI answers --version), tests.module (the NixOS test)
+and updateScript, so the update bot follows new tags.
 
 Only the app icon goes to share/icons. The other icons have names that other
 packages ship too (GNOME Software's category and action icons), which would
@@ -39,7 +47,19 @@ Numbers never wrap: 0.1.9 is followed by 0.1.10.
 ## Getting into nixpkgs
 
 Each release after the first only needs the version and the two hashes
-updated, which nixpkgs' update bot can do. The first time:
+updated, which nixpkgs' update bot can do.
+
+Adding the module to nixpkgs also needs:
+
+- nixos/modules/programs/nix-software.nix: nix/module.nix without its two
+  comment lines.
+- nixos/modules/module-list.nix: ./programs/nix-software.nix, in order.
+- nixos/tests/nix-software.nix: nix/test.nix without its comment line.
+- nixos/tests/all-tests.nix: nix-software = runTest ./nix-software.nix;
+- nixos/doc/manual/release-notes, current release file: one line under new
+  modules, linking programs.nix-software.
+
+The first time:
 
 1. Fork NixOS/nixpkgs and branch from master.
 2. Add yourself to maintainers/maintainer-list.nix, in alphabetical order:
@@ -70,7 +90,7 @@ updated, which nixpkgs' update bot can do. The first time:
    nix-shell -p nixpkgs-review --run "nixpkgs-review wip"
    ```
 
-5. Commit as nix-software: init at 0.2.0 and open the pull request against
+5. Commit as nix-software: init at 0.2.1 and open the pull request against
    master, filling the template (tested on NixOS, built with sandboxing).
 
 Once merged, the package reaches nixos-unstable within a few days, and the

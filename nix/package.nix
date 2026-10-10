@@ -5,6 +5,9 @@
   lib,
   rustPlatform,
   fetchFromGitHub,
+  nix-update-script,
+  testers,
+  nixosTests,
   pkg-config,
   wrapGAppsHook4,
   gettext,
@@ -18,7 +21,9 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "nix-software";
-  version = "0.2.0";
+  version = "0.2.1";
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "SPTApyo";
@@ -36,7 +41,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   # The gettext bundled by gettext-sys does not build with recent glibc.
-  env.GETTEXT_SYSTEM = true;
+  env.GETTEXT_SYSTEM = "1";
 
   buildInputs = [
     gtk4
@@ -78,6 +83,17 @@ rustPlatform.buildRustPackage (finalAttrs: {
   preFixup = ''
     gappsWrapperArgs+=(--set NIX_SOFTWARE_LOCALEDIR "$out/share/locale")
   '';
+
+  passthru = {
+    updateScript = nix-update-script { };
+    tests = {
+      version = testers.testVersion {
+        package = finalAttrs.finalPackage;
+        command = "nix-software-cli --version";
+      };
+      module = nixosTests.nix-software;
+    };
+  };
 
   meta = {
     description = "Declarative app store for NixOS and Home Manager, built around try first";
