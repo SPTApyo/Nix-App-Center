@@ -70,7 +70,7 @@ updated, which nixpkgs' update bot can do. The first time:
    nix-shell -p nixpkgs-review --run "nixpkgs-review wip"
    ```
 
-5. Commit as nix-software: init at 0.1.0 and open the pull request against
+5. Commit as nix-software: init at 0.2.0 and open the pull request against
    master, filling the template (tested on NixOS, built with sandboxing).
 
 Once merged, the package reaches nixos-unstable within a few days, and the

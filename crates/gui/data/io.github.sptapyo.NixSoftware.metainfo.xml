@@ -41,6 +41,16 @@
   <url type="bugtracker">https://github.com/SPTApyo/nix-software/issues</url>
 
   <releases>
+    <release version="0.2.0" date="2026-10-10">
+      <description>
+        <p>Installed apps show where and how they are installed: home or
+           system, package or module, Flatpak or AppImage. Apps can switch
+           between those, versions can be held, options set and flake
+           modules imported from search. The configuration builds as the
+           user, so private repositories work, and an Apply button shows
+           whenever something changed.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-08">
       <description>
         <p>First release. Search nixpkgs with Flathub metadata, try any app
