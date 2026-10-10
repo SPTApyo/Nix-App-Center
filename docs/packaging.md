@@ -65,14 +65,14 @@ The first time:
 2. Add yourself to maintainers/maintainer-list.nix, in alphabetical order:
 
    ```nix
-   sptapyo = {
+   SPTApyo = {
      name = "SPTApyo";
      github = "SPTApyo";
      githubId = 172824481;
    };
    ```
 
-   Commit it alone: maintainers: add sptapyo.
+   Commit it alone: maintainers: add SPTApyo.
 3. Copy nix/package.nix to pkgs/by-name/ni/nix-software/package.nix. Fill the
    hashes: build once with lib.fakeHash, then paste the hash Nix prints, for
    src first and cargoHash second:
