@@ -23,6 +23,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
   pname = "nix-software";
   version = "0.2.1";
 
+  __structuredAttrs = true;
+
   src = fetchFromGitHub {
     owner = "SPTApyo";
     repo = "nix-software";
@@ -39,7 +41,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   # The gettext bundled by gettext-sys does not build with recent glibc.
-  env.GETTEXT_SYSTEM = true;
+  env.GETTEXT_SYSTEM = "1";
 
   buildInputs = [
     gtk4
