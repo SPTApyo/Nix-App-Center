@@ -41,6 +41,13 @@
   <url type="bugtracker">https://github.com/SPTApyo/nix-software/issues</url>
 
   <releases>
+    <release version="0.2.1" date="2026-10-11">
+      <description>
+        <p>A NixOS module, programs.nix-software.enable, installs the app
+           with its search provider and polkit. Builds on aarch64-linux, and
+           uses the system gettext.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-10-10">
       <description>
         <p>Installed apps show where and how they are installed: home or
