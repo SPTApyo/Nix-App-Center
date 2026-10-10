@@ -1,6 +1,4 @@
-//! `AppList`: search results in **two sections** ("Applications" = matched to
-//! AppStream, with icon; "Other Packages" = nix only) + a **package set
-//! filter** (Nix covers what AppStream lacks: haskellPackages, pythonPackages…).
+//! Search results: AppStream apps, other packages, and a package set filter.
 
 use std::collections::HashMap;
 
@@ -16,8 +14,13 @@ use crate::util::{skeleton_list, AppItem};
 #[derive(Clone)]
 enum Filter {
     All,
+    Installed,
+    Free,
+    Unfree,
     NoSet,
     Set(String),
+    /// Packages of another flake.
+    Source(String),
 }
 
 pub struct AppList {
@@ -33,7 +36,9 @@ pub struct AppList {
     heading_types: gtk::Label,
     types_list: gtk::ListBox,
     filter_dropdown: gtk::DropDown,
+    sort_dropdown: gtk::DropDown,
     items: Vec<AppItem>,
+    meta: HashMap<String, nix_software_core::ResultMeta>,
     filters: Vec<Filter>, // DropDown index to filter
 }
 
@@ -41,12 +46,14 @@ pub struct AppList {
 pub enum AppListInput {
     SetLoading,
     Set(Vec<AppItem>),
-    /// Results of `nix-locate bin/<query>` (section 3).
+    /// Packages providing the queried command.
     SetLocate(String, Vec<Package>),
     /// Apps that open files of the queried type.
     SetFileTypes(String, Vec<Package>),
-    /// NixOS options matching the query (last section).
+    /// NixOS options matching the query.
     SetOptions(Vec<nix_software_core::NixOption>),
+    /// License and platform per attribute, found after the results.
+    SetMeta(HashMap<String, nix_software_core::ResultMeta>),
     Filter,
     Open(Package),
 }
@@ -77,7 +84,6 @@ impl SimpleComponent for AppList {
             .launch(gtk::ListBox::new())
             .forward(sender.input_sender(), AppListInput::Open);
 
-        // Same look as crate::util::boxed_list (factories own these two).
         let lists: [&gtk::ListBox; 2] = [apps.widget(), others.widget()];
         for lb in lists {
             lb.add_css_class("boxed-list");
@@ -85,7 +91,6 @@ impl SimpleComponent for AppList {
             lb.set_valign(gtk::Align::Start);
         }
 
-        // Package set filter
         let filter_dropdown = gtk::DropDown::from_strings(&[&t("All")]);
         filter_dropdown.set_halign(gtk::Align::Start);
         filter_dropdown.set_visible(false);
@@ -93,6 +98,16 @@ impl SimpleComponent for AppList {
             let sender = sender.clone();
             move |_| sender.input(AppListInput::Filter)
         });
+
+        let sort_dropdown = gtk::DropDown::from_strings(&[&t("Best Match"), &t("Name")]);
+        sort_dropdown.set_tooltip_text(Some(&t("Sort")));
+        sort_dropdown.connect_selected_notify({
+            let sender = sender.clone();
+            move |_| sender.input(AppListInput::Filter)
+        });
+        let bar = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        bar.append(&filter_dropdown);
+        bar.append(&sort_dropdown);
 
         let heading_apps = section_heading(&t("Applications"));
         let heading_others = section_heading(&t("Other Packages"));
@@ -107,7 +122,7 @@ impl SimpleComponent for AppList {
         let types_list = crate::util::boxed_list();
         types_list.set_visible(false);
 
-        let heading_options = section_heading(&t("NixOS Options"));
+        let heading_options = section_heading(&t("Options"));
         heading_options.set_visible(false);
         let options_list = crate::util::boxed_list();
         options_list.set_visible(false);
@@ -116,7 +131,7 @@ impl SimpleComponent for AppList {
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
             .build();
-        content.append(&filter_dropdown);
+        content.append(&bar);
         content.append(&heading_apps);
         content.append(apps.widget());
         content.append(&heading_types);
@@ -140,8 +155,7 @@ impl SimpleComponent for AppList {
         scroll.set_child(Some(&clamp));
         crate::util::smooth_scroll(&scroll);
 
-        // Loading: title bar + skeleton list mirroring the real content
-        // ("Applications" section title + boxed list) so nothing shifts.
+        // Placeholder shaped like the real results.
         let loading_heading = gtk::Box::builder()
             .width_request(120)
             .height_request(18)
@@ -190,9 +204,11 @@ impl SimpleComponent for AppList {
             heading_types: heading_types.clone(),
             types_list: types_list.clone(),
             options_list: options_list.clone(),
-            filter_dropdown,
+            filter_dropdown: filter_dropdown.clone(),
+            sort_dropdown,
             items: Vec::new(),
             filters: vec![Filter::All],
+            meta: HashMap::new(),
         };
         let widgets = view_output!();
         root.append(&stack);
@@ -208,8 +224,16 @@ impl SimpleComponent for AppList {
                 self.set_options(&[]);
                 self.stack.set_visible_child_name("loading");
             }
+            AppListInput::SetMeta(meta) => {
+                self.meta = meta;
+                let selected = self.filter_dropdown.selected();
+                self.rebuild_filter();
+                self.filter_dropdown.set_selected(selected);
+                self.apply();
+            }
             AppListInput::Set(items) => {
                 self.items = items;
+                self.meta.clear();
                 self.rebuild_filter();
                 self.apply();
             }
@@ -268,6 +292,20 @@ impl AppList {
                 .subtitle_lines(1)
                 .activatable(true)
                 .build();
+            if o.home {
+                let tag = gtk::Label::new(Some("Home Manager"));
+                tag.add_css_class("dim-label");
+                tag.add_css_class("caption");
+                row.add_suffix(&tag);
+            }
+            if nix_software_core::load_manifest()
+                .option_value(&o.name)
+                .is_some()
+            {
+                let set = gtk::Image::from_icon_name("installed-check-symbolic");
+                set.set_tooltip_text(Some(&t("Set by Nix Software")));
+                row.add_suffix(&set);
+            }
             row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
             let opt = o.clone();
             row.connect_activated(move |row| crate::components::option_dialog::present(row, &opt));
@@ -281,7 +319,7 @@ impl AppList {
         clear(&self.heading_locate, &self.locate_list);
     }
 
-    /// Fills a side section (command, file type) with package rows.
+    /// Fills a side section with package rows.
     fn fill(
         &self,
         heading: &gtk::Label,
@@ -314,31 +352,61 @@ impl AppList {
             });
             list.append(&row);
         }
-        // Make sure "filled" is visible even when the text is empty.
         if self.stack.visible_child_name().as_deref() == Some("empty") {
             self.stack.set_visible_child_name("filled");
         }
     }
 
-    /// Recomputes the package sets present (with counts) and fills the
-    /// DropDown.
+    /// Refills the package set filter, with counts.
     fn rebuild_filter(&mut self) {
         let mut counts: HashMap<&str, usize> = HashMap::new();
+        let mut sources: HashMap<&str, usize> = HashMap::new();
         let mut no_set = 0usize;
-        for it in &self.items {
+        let mut installed = 0usize;
+        let runs = |it: &&AppItem| self.meta.get(&it.package.attr).is_none_or(|m| m.available);
+        let items: Vec<&AppItem> = self.items.iter().filter(runs).collect();
+        for it in &items {
+            if crate::util::installed(&it.package).is_some() {
+                installed += 1;
+            }
+            if let Some(src) = it.package.source.as_deref() {
+                *sources.entry(src).or_insert(0) += 1;
+                continue;
+            }
             match it.package.package_set() {
                 Some(s) => *counts.entry(s).or_insert(0) += 1,
                 None => no_set += 1,
             }
         }
 
-        // Sets sorted by decreasing count.
         let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
         sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
 
-        let mut labels: Vec<String> =
-            vec![t("All ({})").replace("{}", &self.items.len().to_string())];
+        let mut labels: Vec<String> = vec![t("All ({})").replace("{}", &items.len().to_string())];
         let mut filters: Vec<Filter> = vec![Filter::All];
+        if installed > 0 {
+            labels.push(t("Installed ({})").replace("{}", &installed.to_string()));
+            filters.push(Filter::Installed);
+        }
+        let free = self.meta.values().filter(|m| m.available && m.free).count();
+        let unfree = self
+            .meta
+            .values()
+            .filter(|m| m.available && !m.free)
+            .count();
+        if free > 0 && unfree > 0 {
+            labels.push(t("Free Software ({})").replace("{}", &free.to_string()));
+            filters.push(Filter::Free);
+            labels.push(t("Proprietary ({})").replace("{}", &unfree.to_string()));
+            filters.push(Filter::Unfree);
+        }
+        for (src, n) in &sources {
+            labels.push(format!(
+                "{} ({n})",
+                src.split(':').next_back().unwrap_or(src)
+            ));
+            filters.push(Filter::Source((*src).to_string()));
+        }
         if no_set > 0 {
             labels.push(t("No package set ({})").replace("{}", &no_set.to_string()));
             filters.push(Filter::NoSet);
@@ -353,27 +421,37 @@ impl AppList {
         self.filter_dropdown
             .set_model(Some(&gtk::StringList::new(&refs)));
         self.filter_dropdown.set_selected(0);
-        // Visible only when at least one package set exists.
-        self.filter_dropdown.set_visible(!sets.is_empty());
+        self.filter_dropdown.set_visible(self.filters.len() > 1);
     }
 
-    /// Filters items by the DropDown, splits them in two sections, fills them.
+    /// Filters the items and fills both sections.
     fn apply(&mut self) {
         let idx = self.filter_dropdown.selected() as usize;
         let filter = self.filters.get(idx).cloned().unwrap_or(Filter::All);
         let keep = |it: &AppItem| match &filter {
             Filter::All => true,
-            Filter::NoSet => it.package.package_set().is_none(),
-            Filter::Set(s) => it.package.package_set() == Some(s.as_str()),
+            Filter::Installed => crate::util::installed(&it.package).is_some(),
+            Filter::Free => self.meta.get(&it.package.attr).is_some_and(|m| m.free),
+            Filter::Unfree => self.meta.get(&it.package.attr).is_some_and(|m| !m.free),
+            Filter::NoSet => it.package.source.is_none() && it.package.package_set().is_none(),
+            Filter::Set(s) => {
+                it.package.source.is_none() && it.package.package_set() == Some(s.as_str())
+            }
+            Filter::Source(s) => it.package.source.as_deref() == Some(s.as_str()),
         };
+        // What cannot run on this machine is never shown.
+        let runs = |it: &AppItem| self.meta.get(&it.package.attr).is_none_or(|m| m.available);
+        let mut shown: Vec<&AppItem> = self.items.iter().filter(|i| runs(i) && keep(i)).collect();
+        if self.sort_dropdown.selected() == 1 {
+            shown.sort_by_key(|i| i.package.name.to_lowercase());
+        }
 
         let mut apps = self.apps.guard();
         let mut others = self.others.guard();
         apps.clear();
         others.clear();
-        for it in self.items.iter().filter(|i| keep(i)) {
-            // "Applications" = matched to AppStream (not "has an icon"): a
-            // recognized app without icon keeps its official name and rating.
+        for it in shown {
+            // Recognized apps, even without an icon.
             if it.recognized {
                 apps.push_back(it.clone());
             } else {
@@ -386,13 +464,17 @@ impl AppList {
         let has_apps = !self.apps.is_empty();
         let has_others = !self.others.is_empty();
         self.heading_apps.set_visible(has_apps);
+        self.sort_dropdown.set_visible(has_apps || has_others);
         self.apps.widget().set_visible(has_apps);
         self.others.widget().set_visible(has_others);
-        // "Other Packages" title only when Applications sit above it.
         self.heading_others.set_visible(has_others && has_apps);
 
+        // Options or commands may have arrived first.
+        let has_extra = self.options_list.is_visible()
+            || self.locate_list.is_visible()
+            || self.types_list.is_visible();
         self.stack
-            .set_visible_child_name(if has_apps || has_others {
+            .set_visible_child_name(if has_apps || has_others || has_extra {
                 "filled"
             } else {
                 "empty"

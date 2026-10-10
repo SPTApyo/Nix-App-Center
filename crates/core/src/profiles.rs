@@ -1,17 +1,14 @@
-//! Apps already on the machine, read from the Nix profiles the session uses.
-//!
-//! No evaluation: every profile exposes `share/applications`, and each desktop
-//! file there is a symlink into the store path of its package, whose name
-//! carries the pname and the version (`/nix/store/<hash>-vlc-3.0.23`).
+//! Apps already on the machine, read from the profiles' desktop files: their
+//! store path names give pname and version, without evaluation.
 
 use std::path::{Path, PathBuf};
 
 /// Which profile an app comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scope {
-    /// The NixOS system profile (`environment.systemPackages`).
+    /// The NixOS system profile.
     System,
-    /// The user profiles (`users.users.<u>.packages`, Home Manager, nix profile).
+    /// The user's profiles.
     User,
 }
 
@@ -56,20 +53,94 @@ pub fn profile_apps() -> Vec<ProfileApp> {
     out
 }
 
-/// The installed app matching a package, by pname or by desktop id.
+/// A package a profile holds, app or not: command line tools, fonts and
+/// themes included.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfilePackage {
+    pub scope: Scope,
+    pub pname: String,
+    pub version: String,
+}
+
+/// Every package of the session's profiles, from their store references.
+/// Blocking: one nix-store query per environment.
+pub fn profile_packages() -> Vec<ProfilePackage> {
+    let query = |path: &str| -> Vec<String> {
+        std::process::Command::new("nix-store")
+            .args(["--query", "--references", path])
+            .output()
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .lines()
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let mut out = Vec::new();
+    // fonts.packages stay out of the system profile.
+    let fonts = (
+        Scope::System,
+        PathBuf::from("/etc/fonts/conf.d/00-nixos-cache.conf"),
+    );
+    for (scope, profile) in profile_dirs().into_iter().chain([fonts]) {
+        let Ok(root) = std::fs::canonicalize(&profile) else {
+            continue;
+        };
+        for path in expand(&root.to_string_lossy(), &query, 0) {
+            if let Some((pname, version)) = store_name(Path::new(&path)) {
+                out.push(ProfilePackage {
+                    scope,
+                    pname,
+                    version,
+                });
+            }
+        }
+    }
+    out
+}
+
+/// True for the buildEnv layers profiles are made of, not packages.
+fn is_environment(path: &str) -> bool {
+    let name = path.get(44..).unwrap_or("");
+    name.ends_with("-path") || matches!(name, "user-environment" | "profile")
+}
+
+/// The packages under `root`, going through nested environments.
+fn expand(root: &str, query: &dyn Fn(&str) -> Vec<String>, depth: u8) -> Vec<String> {
+    let mut out = Vec::new();
+    for path in query(root) {
+        if path == root || path.ends_with(".drv") || path.contains("-env-manifest") {
+            continue;
+        }
+        if is_environment(&path) {
+            if depth < 3 {
+                out.extend(expand(&path, query, depth + 1));
+            }
+        } else {
+            out.push(path);
+        }
+    }
+    out
+}
+
+/// The installed app matching a package, by pname or by desktop file name:
+/// steam ships steam.desktop but resolves to steam-unwrapped.
 pub fn installed_app(attr: &str, app_id: Option<&str>) -> Option<ProfileApp> {
     let pname = attr.rsplit('.').next().unwrap_or(attr);
     profile_apps().into_iter().find(|a| {
+        let stem = a
+            .desktop_file
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
         a.pname.eq_ignore_ascii_case(pname)
-            || app_id.is_some_and(|id| {
-                a.desktop_file
-                    .file_stem()
-                    .is_some_and(|s| s.to_string_lossy().eq_ignore_ascii_case(id))
-            })
+            || stem.eq_ignore_ascii_case(pname)
+            || app_id.is_some_and(|id| stem.eq_ignore_ascii_case(id))
     })
 }
 
-/// Own size (NAR size) of each store path, in one query.
+/// Own size of each store path, in one query.
 pub fn store_sizes(paths: &[PathBuf]) -> std::collections::HashMap<PathBuf, u64> {
     if paths.is_empty() {
         return Default::default();
@@ -132,8 +203,8 @@ fn store_name(path: &Path) -> Option<(String, String)> {
     Some(split_name(name))
 }
 
-/// Splits `name-version` like Nix does: the version starts at the first dash
-/// followed by something other than a letter.
+/// Splits `name-version` like Nix: the version starts at the first dash
+/// before a non-letter.
 pub(crate) fn split_name(name: &str) -> (String, String) {
     let bytes = name.as_bytes();
     for (i, b) in bytes.iter().enumerate() {
@@ -147,6 +218,29 @@ pub(crate) fn split_name(name: &str) -> (String, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn environments_are_walked_through() {
+        let h = "0".repeat(32);
+        let p = |n: &str| format!("/nix/store/{h}-{n}");
+        let query = |path: &str| -> Vec<String> {
+            if path == p("user-environment") {
+                vec![p("home-manager-path"), p("env-manifest.nix")]
+            } else if path == p("home-manager-path") {
+                vec![
+                    p("ripgrep-14.1.0"),
+                    p("noto-fonts-2024.01"),
+                    p("home-manager-path"),
+                ]
+            } else {
+                Vec::new()
+            }
+        };
+        assert_eq!(
+            expand(&p("user-environment"), &query, 0),
+            vec![p("ripgrep-14.1.0"), p("noto-fonts-2024.01")]
+        );
+    }
 
     #[test]
     fn split_name_follows_nix_rules() {

@@ -1,6 +1,4 @@
-//! NixOS option search, from the `options.json` the NixOS channel publishes
-//! for the branch the config follows (the same data as search.nixos.org).
-//! Downloaded once a week (about 1 MB, brotli), searched in memory.
+//! NixOS option search over the branch's options.json, downloaded weekly.
 
 use std::io::Read;
 use std::path::PathBuf;
@@ -19,11 +17,31 @@ pub struct NixOption {
     pub example: Option<String>,
     /// Module files declaring the option, relative to nixpkgs.
     pub declarations: Vec<String>,
+    /// A Home Manager option, set in the home file.
+    pub home: bool,
 }
 
 impl NixOption {
-    /// A line to paste in a configuration, from the example or the default.
+    /// A line to paste, from the example or the default.
     pub fn snippet(&self) -> String {
+        if self.type_ == FLAKE_MODULE {
+            let flake = self
+                .declarations
+                .first()
+                .map(String::as_str)
+                .unwrap_or_default();
+            let module = self.name.rsplit('.').next().unwrap_or_default();
+            let set = if self.home {
+                "homeManagerModules"
+            } else {
+                "nixosModules"
+            };
+            return if flake.contains(':') {
+                format!("imports = [ (builtins.getFlake \"{flake}\").{set}.{module} ];")
+            } else {
+                format!("imports = [ inputs.{flake}.{set}.{module} ];")
+            };
+        }
         let value = self
             .example
             .as_deref()
@@ -36,7 +54,7 @@ impl NixOption {
 
 static OPTIONS: OnceLock<Vec<NixOption>> = OnceLock::new();
 
-/// The options of the config's NixOS branch, loaded once. Blocking.
+/// Options of the config's branch, loaded once. Blocking.
 fn options() -> &'static [NixOption] {
     OPTIONS.get_or_init(|| {
         let branch = crate::current_source()
@@ -68,19 +86,16 @@ fn load(branch: &str) -> Option<Vec<NixOption>> {
 }
 
 fn download(branch: &str) -> Option<Vec<u8>> {
-    let resp = ureq::get(&URL.replace("{branch}", branch))
-        .timeout(Duration::from_secs(60))
-        .call()
-        .ok()?;
+    let body = crate::http::get(&URL.replace("{branch}", branch), Duration::from_secs(60)).ok()?;
     let mut json = Vec::new();
-    brotli_decompressor::Decompressor::new(resp.into_reader(), 4096)
+    brotli_decompressor::Decompressor::new(body, 4096)
         .take(200 * 1024 * 1024)
         .read_to_end(&mut json)
         .ok()?;
     Some(json)
 }
 
-/// Reads `options.json`: `{ "<name>": { description, type, default, … } }`.
+/// Options of an `options.json` value.
 fn parse(v: &serde_json::Value) -> Vec<NixOption> {
     let text = |x: &serde_json::Value| -> Option<String> {
         x["text"]
@@ -108,16 +123,152 @@ fn parse(v: &serde_json::Value) -> Vec<NixOption> {
                         .collect()
                 })
                 .unwrap_or_default(),
+            home: false,
         })
         .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Options matching every word of `query`, best first. Blocking on the first
-/// call (download and parse).
+/// Options matching every word of `query`, best first. Blocking at first.
 pub fn search_options(query: &str, limit: usize) -> Vec<NixOption> {
     rank(options(), query, limit)
+}
+
+/// The NixOS modules flakes ship, as options of type `FLAKE_MODULE`: name
+/// `SOURCE.nixosModules.MODULE`, the flake reference in `declarations`.
+/// Blocking: one evaluation per flake, again when the flakes change.
+pub fn flake_modules() -> Vec<NixOption> {
+    type Found = (Vec<(String, String)>, Vec<NixOption>);
+    static MODULES: std::sync::Mutex<Option<Found>> = std::sync::Mutex::new(None);
+    let sources = crate::config_layout::flake_sources();
+    let mut cache = MODULES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, found)) = cache.as_ref().filter(|(s, _)| *s == sources) {
+        return found.clone();
+    }
+    let found = {
+        let mut out = Vec::new();
+        for (name, flake) in sources.clone() {
+            // One evaluation for both kinds; a flake may have neither.
+            let apply = "f: { nixos = builtins.attrNames (f.nixosModules or { }); \
+                         home = builtins.attrNames (f.homeManagerModules or f.homeModules or { }); }";
+            let Ok(o) = crate::util::nix()
+                .args(["eval", "--json", &format!("{flake}#.")])
+                .args(["--apply", apply])
+                .output()
+            else {
+                continue;
+            };
+            let v: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap_or_default();
+            let shown = name.split('/').nth(1).unwrap_or(&name).to_string();
+            for (kind, set, home) in [
+                ("nixos", "nixosModules", false),
+                ("home", "homeManagerModules", true),
+            ] {
+                for m in v[kind]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|m| m.as_str())
+                {
+                    out.push(NixOption {
+                        name: format!("{shown}.{set}.{m}"),
+                        description: if home {
+                            format!("Home Manager module {m} of the {shown} flake.")
+                        } else {
+                            format!("NixOS module {m} of the {shown} flake.")
+                        },
+                        type_: FLAKE_MODULE.into(),
+                        default: None,
+                        example: None,
+                        declarations: vec![name.clone()],
+                        home,
+                    });
+                }
+            }
+        }
+        out.sort_by(|a, b| a.name.cmp(&b.name));
+        out
+    };
+    *cache = Some((sources, found.clone()));
+    found
+}
+
+/// The type of the entries `flake_modules` returns.
+pub const FLAKE_MODULE: &str = "flake module";
+
+/// Flake modules matching `query`. Blocking at first.
+pub fn search_flake_modules(query: &str, limit: usize) -> Vec<NixOption> {
+    rank(&flake_modules(), query, limit)
+}
+
+/// Home Manager options matching `query`. Blocking at first.
+pub fn search_hm_options(query: &str, limit: usize) -> Vec<NixOption> {
+    rank(hm_options(), query, limit)
+}
+
+static HM_OPTIONS: OnceLock<Vec<NixOption>> = OnceLock::new();
+
+/// Home Manager's options, from its docs-json package. Blocking at first.
+fn hm_options() -> &'static [NixOption] {
+    HM_OPTIONS.get_or_init(|| {
+        let out = crate::util::nix()
+            .args([
+                "build",
+                "--no-link",
+                "--print-out-paths",
+                "github:nix-community/home-manager#docs-json",
+            ])
+            .output();
+        let Ok(out) = out else {
+            return Vec::new();
+        };
+        let dir = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        std::fs::read(format!("{dir}/share/doc/home-manager/options.json"))
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .map(|v| {
+                let mut all = parse(&v);
+                all.iter_mut().for_each(|o| o.home = true);
+                all
+            })
+            .unwrap_or_default()
+    })
+}
+
+/// The Home Manager module setting up `attr`. Blocking at first.
+pub fn hm_module_for(attr: &str) -> Option<NixOption> {
+    module_in(hm_options(), attr)
+}
+
+/// The `enable` option of the module setting up `attr`. Blocking at first.
+pub fn module_for(attr: &str) -> Option<NixOption> {
+    module_in(options(), attr)
+}
+
+/// The shallowest module whose `package` defaults to the package or whose
+/// name is the package's.
+fn module_in(all: &[NixOption], attr: &str) -> Option<NixOption> {
+    let pname = attr.rsplit('.').next().unwrap_or(attr);
+    let default = format!("pkgs.{pname}");
+    let by_package = all
+        .iter()
+        .filter(|o| o.default.as_deref() == Some(default.as_str()))
+        .filter_map(|o| o.name.strip_suffix(".package").map(str::to_string));
+    let by_name = ["programs", "services", "virtualisation", "hardware"]
+        .iter()
+        .map(|root| format!("{root}.{pname}"));
+    by_package
+        .chain(by_name)
+        .filter_map(|prefix| {
+            let enable = format!("{prefix}.enable");
+            let i = all
+                .binary_search_by(|o| o.name.as_str().cmp(&enable))
+                .ok()?;
+            Some(&all[i])
+        })
+        .min_by_key(|o| o.name.matches('.').count())
+        .cloned()
 }
 
 fn rank(all: &[NixOption], query: &str, limit: usize) -> Vec<NixOption> {
@@ -145,7 +296,7 @@ fn rank(all: &[NixOption], query: &str, limit: usize) -> Vec<NixOption> {
             {
                 score += 50;
             }
-            // The switch of a module is what people look for first.
+            // Module switches first.
             if name.ends_with(".enable") {
                 score += 20;
             }
@@ -183,6 +334,42 @@ mod tests {
                 "type": "boolean"
             }
         }))
+    }
+
+    fn modules() -> Vec<NixOption> {
+        parse(&serde_json::json!({
+            "programs.steam.enable": { "type": "boolean" },
+            "programs.steam.package": {
+                "default": { "_type": "literalExpression", "text": "pkgs.steam" }
+            },
+            "services.wivrn.steam.enable": { "type": "boolean" },
+            "services.wivrn.steam.package": {
+                "default": { "_type": "literalExpression", "text": "pkgs.steam" }
+            },
+            "virtualisation.virtualbox.host.enable": { "type": "boolean" },
+            "virtualisation.virtualbox.host.package": {
+                "default": { "_type": "literalExpression", "text": "pkgs.virtualbox" }
+            },
+            "programs.gamemode.enable": { "type": "boolean" },
+            "programs.gamemode.settings": { "type": "attribute set" }
+        }))
+    }
+
+    #[test]
+    fn finds_the_module_of_a_package() {
+        let all = modules();
+        let name = |attr| module_in(&all, attr).map(|o| o.name);
+        assert_eq!(name("steam").as_deref(), Some("programs.steam.enable"));
+        assert_eq!(
+            name("virtualbox").as_deref(),
+            Some("virtualisation.virtualbox.host.enable"),
+            "found through its package option"
+        );
+        assert_eq!(
+            name("gamemode").as_deref(),
+            Some("programs.gamemode.enable")
+        );
+        assert_eq!(name("vlc"), None);
     }
 
     #[test]

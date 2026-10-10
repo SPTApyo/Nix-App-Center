@@ -1,11 +1,5 @@
-//! The attach screen: the only place where Nix Software offers to edit a file the user
-//! wrote.
-//!
-//! Hard rule: **the exact diff is shown, and nothing is written without an
-//! explicit click.** No silent magic: this is someone else's configuration.
-//!
-//! There is always a way out: "Do It Myself" closes the dialog and copies the
-//! lines to paste. Nix Software never makes itself indispensable.
+//! The attach dialog: shows the exact diff to the user's file and writes
+//! only on approval; "Do It Myself" copies the lines instead.
 
 use crate::i18n::t;
 use adw::prelude::*;
@@ -28,8 +22,7 @@ fn code_block(text: &str) -> gtk::ScrolledWindow {
     scroller
 }
 
-/// Offers to attach. `on_attached` is only called when the user accepted AND the
-/// write succeeded.
+/// Offers the attach; `on_attached` runs once accepted and written.
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     plan: AttachPlan,
@@ -103,12 +96,14 @@ pub fn present(
     } else {
         t("Close")
     });
+    close.set_tooltip_text(Some(&t(
+        "Copy the lines to paste yourself, and change nothing.",
+    )));
     header.pack_start(&close);
     {
         let dialog = dialog.clone();
         let body = body.clone();
         close.connect_clicked(move |_| {
-            // Always a way out: lines go to the clipboard.
             if !body.is_empty() {
                 crate::util::copy_to_clipboard(&body);
             }
@@ -119,6 +114,9 @@ pub fn present(
     if can_patch {
         let accept = gtk::Button::with_label(&t("Add Import Line"));
         accept.add_css_class("suggested-action");
+        accept.set_tooltip_text(Some(&t(
+            "Add these lines to your file. A backup is written first.",
+        )));
         header.pack_end(&accept);
 
         let dialog2 = dialog.clone();

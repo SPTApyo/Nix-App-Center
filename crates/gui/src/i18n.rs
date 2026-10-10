@@ -1,22 +1,17 @@
-//! Internationalization, same mechanism as GNOME Software: gettext driven by the
-//! system locale, **no language picker**. English source strings are the `msgid`s;
-//! translations live in `po/<lang>.po` and are compiled to `.mo` files.
-//!
-//! Every visible string goes through [`gettext`] (imported as `t` for brevity).
-//! At runtime gettext picks the catalog from `LC_MESSAGES`/`LANGUAGE`.
+//! gettext translations, following the system locale like GNOME Software.
+//! English strings are the msgids; catalogs live in `po/`.
 
 use gettextrs::{bind_textdomain_codeset, bindtextdomain, setlocale, textdomain, LocaleCategory};
 
-/// Short alias of `gettextrs::gettext`, like `_()` in C. Use it on every displayed
-/// string: `t("Search…")`.
+/// Translates a displayed string, like `_()` in C.
 pub use gettextrs::gettext as t;
+/// Translates a string that means different things in different places.
+pub use gettextrs::pgettext;
 
 const DOMAIN: &str = "nix-software";
 
-/// Where to find `.mo` catalogs, by priority:
-/// 1. `NIX_SOFTWARE_LOCALEDIR`, set by the Nix package wrapper (`share/locale`);
-/// 2. `NIX_SOFTWARE_DEV_LOCALEDIR`, compiled by `build.rs` (dev: `cargo run`/`cargo test`);
-/// 3. the standard system path.
+/// The `.mo` folder: the package's, then the one `build.rs` compiles, then
+/// the system's.
 fn localedir() -> String {
     if let Ok(dir) = std::env::var("NIX_SOFTWARE_LOCALEDIR") {
         return dir;
@@ -27,10 +22,9 @@ fn localedir() -> String {
     "/usr/share/locale".to_string()
 }
 
-/// Binds gettext to the system locale and the "nix-software" domain. Call once, at the
-/// very start of `main`, before building any widget.
+/// Binds gettext to the locale and the domain. Call first in `main`.
 pub fn init() {
-    // SAFETY: runs first in main, no other thread yet.
+    // SAFETY: first in main, no other thread.
     unsafe {
         setlocale(LocaleCategory::LcAll, "");
     }
@@ -39,8 +33,7 @@ pub fn init() {
     let _ = textdomain(DOMAIN);
 }
 
-/// Marks a string for extraction without translating it (`N_()` in C). For
-/// `const` tables; translate with [`t`] where the string is displayed.
+/// Marks a string for extraction without translating it, like `N_()`.
 pub const fn n_(s: &'static str) -> &'static str {
     s
 }

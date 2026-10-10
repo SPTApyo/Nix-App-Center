@@ -1,6 +1,5 @@
-//! `AppModel`: the shell. Window, header (view switcher + search), home/results
-//! stack, tabs, and navigation (pushing category and details pages).
-//! It only orchestrates components and never draws a list or grid itself.
+//! The window: header, tabs, search, and navigation to category and
+//! details pages.
 
 use adw::prelude::*;
 use nix_software_core::Package;
@@ -17,13 +16,11 @@ use crate::views::{
     CategoryModel, DetailModel, HomeModel, InstalledModel, StorageModel, UpdatesModel,
 };
 
-/// App stylesheet: `crates/gui/data/style.css`. Rules ported from GNOME
-/// Software are annotated with their source line.
+/// App stylesheet.
 const APP_CSS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/style.css"));
 
 pub struct AppModel {
-    // Kept alive for the app lifetime (their widgets live in the stack/tabs),
-    // driven at init or through cloned senders.
+    // Controllers kept alive with their widgets.
     _home: Controller<HomeModel>,
     results: Controller<AppList>,
     _installed: Controller<InstalledModel>,
@@ -51,7 +48,7 @@ pub enum AppMsg {
     Home(HomeOutput),
     OpenCategory(&'static [&'static str], &'static str),
     OpenDetail(Package),
-    /// A page was popped (back arrow): release its controller.
+    /// A page was popped: release its controller.
     PagePopped,
     GoHome,
     Updates(UpdatesOutput),
@@ -77,11 +74,8 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        // Load the AppStream database in the background. Once ready, searches
-        // and details pages need no Flathub request.
         nix_software_core::init_appstream_db();
 
-        // ── CSS ───────────────────────────────────────────────────────────────
         let css = gtk::CssProvider::new();
         css.load_from_data(APP_CSS);
         gtk::style_context_add_provider_for_display(
@@ -90,17 +84,19 @@ impl SimpleComponent for AppModel {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        // Bundled icons (tabs, categories, tiles). Installed builds ship them in
-        // share/icons; `cargo run` reads them from the source tree.
+        // Bundled icons: installed next to bin, or the source tree.
         if let Some(display) = gtk::gdk::Display::default() {
-            gtk::IconTheme::for_display(&display)
-                .add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
+            let theme = gtk::IconTheme::for_display(&display);
+            if let Some(out) = std::env::current_exe()
+                .ok()
+                .and_then(|exe| Some(exe.parent()?.parent()?.to_path_buf()))
+            {
+                theme.add_search_path(out.join("share/nix-software/icons"));
+            }
+            theme.add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
         }
-        // Window / taskbar icon, resolved by app id from the path added above
-        // (data/icons/hicolor/scalable/apps/io.github.sptapyo.NixSoftware.svg).
         gtk::Window::set_default_icon_name("io.github.sptapyo.NixSoftware");
 
-        // ── Child components ──────────────────────────────────────────────────
         let home = HomeModel::builder()
             .launch(())
             .forward(sender.input_sender(), AppMsg::Home);
@@ -124,7 +120,6 @@ impl SimpleComponent for AppModel {
                 crate::views::gallery::GalleryOutput::Category(c, l) => AppMsg::OpenCategory(c, l),
             });
 
-        // ── View stack + header ───────────────────────────────────────────────
         let view_stack = adw::ViewStack::new();
         let header = adw::HeaderBar::new();
 
@@ -134,8 +129,8 @@ impl SimpleComponent for AppModel {
             .build();
         header.pack_start(&search_btn);
 
-        // Main menu, like every GNOME app.
         let menu = gtk::gio::Menu::new();
+        menu.append(Some(&t("_Welcome Tour")), Some("win.welcome"));
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
         menu.append(Some(&t("_About Nix Software")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
@@ -145,12 +140,55 @@ impl SimpleComponent for AppModel {
             .tooltip_text(t("Main Menu"))
             .build();
         header.pack_end(&menu_btn);
+        let beta = gtk::Label::new(Some(&t("Beta")));
+        beta.add_css_class("beta-badge");
+        beta.set_valign(gtk::Align::Center);
+        beta.set_tooltip_text(Some(&t(
+            "Nix Software is still young: report what goes wrong.",
+        )));
+        header.pack_end(&beta);
+        let apply = gtk::Button::builder()
+            .label(t("_Apply"))
+            .use_underline(true)
+            .tooltip_text(t(
+                "Your configuration changed: rebuild it to install or remove the apps.",
+            ))
+            .visible(nix_software_core::apply_pending())
+            .build();
+        apply.add_css_class("suggested-action");
+        apply.connect_clicked(|btn| {
+            let Some(argv) = nix_software_core::apply_argv() else {
+                return;
+            };
+            btn.set_sensitive(false);
+            let btn2 = btn.clone();
+            crate::components::apply_dialog::present(
+                btn,
+                &t("Applying Configuration"),
+                vec![argv],
+                move |_| btn2.set_sensitive(true),
+            );
+        });
+        gtk::glib::timeout_add_seconds_local(2, {
+            let apply = apply.clone();
+            move || {
+                apply.set_visible(nix_software_core::apply_pending());
+                gtk::glib::ControlFlow::Continue
+            }
+        });
+        header.pack_end(&apply);
         let prefs = gtk::gio::SimpleAction::new("preferences", None);
         prefs.connect_activate({
             let win = root.clone();
             move |_, _| crate::views::preferences::present(&win)
         });
         root.add_action(&prefs);
+        let welcome = gtk::gio::SimpleAction::new("welcome", None);
+        welcome.connect_activate({
+            let win = root.clone();
+            move |_, _| crate::components::welcome::present(&win)
+        });
+        root.add_action(&welcome);
         let about = gtk::gio::SimpleAction::new("about", None);
         about.connect_activate({
             let win = root.clone();
@@ -171,9 +209,7 @@ impl SimpleComponent for AppModel {
         switcher.set_stack(Some(&view_stack));
         header.set_title_widget(Some(&switcher));
 
-        // ── Search bar ────────────────────────────────────────────────────────
-        // Same dimensions as GNOME Software (gs-shell.ui): AdwClamp hexpand,
-        // maximum-size 500, tightening 500.
+        // Sized like GNOME Software's search bar.
         let search_entry = gtk::SearchEntry::builder()
             .placeholder_text(t("Search Nix packages…"))
             .hexpand(true)
@@ -186,9 +222,23 @@ impl SimpleComponent for AppModel {
         let search_bar = gtk::SearchBar::new();
         search_bar.set_child(Some(&entry_clamp));
         search_bar.connect_entry(&search_entry);
-        // Type-to-search: any key press in the window opens the bar and routes
-        // the input there (GNOME uses the window as key-capture-widget).
+        // Type-to-search from anywhere in the window.
         search_bar.set_key_capture_widget(Some(&root));
+
+        let search = gtk::gio::SimpleAction::new("search", None);
+        search.connect_activate({
+            let btn = search_btn.clone();
+            move |_, _| btn.set_active(!btn.is_active())
+        });
+        root.add_action(&search);
+        app.set_accels_for_action("win.search", &["<Control>f"]);
+        let quit = gtk::gio::SimpleAction::new("quit", None);
+        quit.connect_activate({
+            let win = root.clone();
+            move |_, _| win.close()
+        });
+        root.add_action(&quit);
+        app.set_accels_for_action("win.quit", &["<Control>q"]);
 
         search_btn.connect_toggled({
             let sb = search_bar.clone();
@@ -223,11 +273,8 @@ impl SimpleComponent for AppModel {
                 }
             }
         });
-        // No GoHome on search-changed: when type-to-search opens the bar the
-        // entry is briefly empty, which used to close everything. Going home
-        // happens when the bar closes (search-mode-enabled=false).
+        // Going home happens when the bar closes.
 
-        // ── Home / results stack (Explore tab) ────────────────────────────────
         let stack = gtk::Stack::builder()
             .transition_type(gtk::StackTransitionType::Crossfade)
             .transition_duration(150)
@@ -236,7 +283,6 @@ impl SimpleComponent for AppModel {
         stack.add_named(results.widget(), Some("results"));
         stack.set_visible_child_name("home");
 
-        // ── Tabs ──────────────────────────────────────────────────────────────
         let explorer_page = view_stack.add_titled(&stack, Some("explorer"), &t("Explore"));
         explorer_page.set_icon_name(Some("software-explore-symbolic"));
 
@@ -252,13 +298,10 @@ impl SimpleComponent for AppModel {
 
         #[cfg(feature = "dev-gallery")]
         {
-            // Any developer icon from the system theme; when missing the tab
-            // simply has no icon (dev only).
             let gallery_page = view_stack.add_titled(gallery.widget(), Some("gallery"), "Gallery");
             gallery_page.set_icon_name(Some("applications-engineering-symbolic"));
         }
 
-        // Reload the Installed / Updates tabs when entering them.
         view_stack.connect_visible_child_notify({
             let si = installed.sender().clone();
             let su = updates.sender().clone();
@@ -266,7 +309,7 @@ impl SimpleComponent for AppModel {
             let search_btn = search_btn.clone();
             move |vs| {
                 let tab = vs.visible_child_name();
-                // Search belongs to Explore: do not leave stale results open.
+                // Search results belong to Explore.
                 if tab.as_deref() != Some("explorer") {
                     search_btn.set_active(false);
                 }
@@ -285,7 +328,6 @@ impl SimpleComponent for AppModel {
             }
         });
 
-        // ── Toolbar view + navigation view ────────────────────────────────────
         let toolbar_view = adw::ToolbarView::new();
         toolbar_view.add_top_bar(&header);
         toolbar_view.add_top_bar(&search_bar);
@@ -299,15 +341,17 @@ impl SimpleComponent for AppModel {
             .build();
         nav.add(&root_page);
 
-        // Without this, controllers of popped pages (back arrow) stayed alive
-        // until the next GoHome, screenshot textures included.
+        // Release controllers of popped pages.
         nav.connect_popped({
             let sender = sender.clone();
             move |_, _| sender.input(AppMsg::PagePopped)
         });
 
-        // Daily background check, a little after start.
         let settings = nix_software_core::load_settings();
+        if !settings.onboarded {
+            let win = root.clone();
+            gtk::glib::idle_add_local_once(move || crate::components::welcome::present(&win));
+        }
         let now = nix_software_core::now_unix();
         if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
             let su = updates.sender().clone();
@@ -375,17 +419,40 @@ impl SimpleComponent for AppModel {
                         .collect();
                     let _ = s4.send(AppMsg::FileTypesDone(q4, apps));
                 });
-                // NixOS options only make sense on NixOS.
-                if nix_software_core::detect_layout().system.is_some() {
+                let layout = nix_software_core::detect_layout();
+                let (system, home) = (layout.system.is_some(), layout.home.is_some());
+                if system || home {
                     let s3 = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ = s3.send(AppMsg::OptionsDone(nix_software_core::search_options(
-                            &query, 6,
-                        )));
+                        let mut found = Vec::new();
+                        if system {
+                            found.extend(nix_software_core::search_options(&query, 6));
+                        }
+                        found.extend(nix_software_core::search_flake_modules(&query, 3));
+                        if home {
+                            found.extend(nix_software_core::search_hm_options(&query, 4));
+                        }
+                        found.retain(|o| {
+                            o.type_ != nix_software_core::FLAKE_MODULE
+                                || (o.home && home)
+                                || (!o.home && system)
+                        });
+                        let _ = s3.send(AppMsg::OptionsDone(found));
                     });
                 }
             }
             AppMsg::SearchDone(items) => {
+                let attrs: Vec<String> = items
+                    .iter()
+                    .filter(|r| r.package.source.is_none())
+                    .map(|r| r.package.attr.clone())
+                    .collect();
+                let list = self.results.sender().clone();
+                std::thread::spawn(move || {
+                    let _ = list.send(AppListInput::SetMeta(nix_software_core::results_meta(
+                        &attrs,
+                    )));
+                });
                 let items = items.into_iter().map(AppItem::from_search).collect();
                 self.results.emit(AppListInput::Set(items));
             }
@@ -413,8 +480,7 @@ impl SimpleComponent for AppModel {
                 self.categories.push(controller);
             }
             AppMsg::OpenDetail(pkg) => {
-                // forward (not detach): a details page may open another app
-                // ("Other apps by X" tiles).
+                // Forwarded: a details page may open another app.
                 let controller = DetailModel::builder()
                     .launch(pkg)
                     .forward(sender.input_sender(), AppMsg::OpenDetail);
@@ -422,8 +488,7 @@ impl SimpleComponent for AppModel {
                 self.details.push(controller);
             }
             AppMsg::PagePopped => {
-                // A popped page is removed from the NavigationView (no parent
-                // anymore): that is the signal to release its controller.
+                // Popped pages have no parent.
                 self.details.retain(|c| c.widget().parent().is_some());
                 self.categories.retain(|c| c.widget().parent().is_some());
             }
@@ -475,7 +540,7 @@ fn about_dialog() -> adw::AboutDialog {
         .license_type(gtk::License::Gpl30)
         .copyright("© 2026 SPTApyo")
         .build();
-    // The icon reuses two artworks: credit both, as their licenses ask.
+    // Credit both artworks of the icon.
     d.add_legal_section(
         &t("Icon"),
         Some(

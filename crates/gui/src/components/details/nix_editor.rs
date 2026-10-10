@@ -1,18 +1,5 @@
-//! The "advanced path": editing the raw Nix of an app.
-//!
-//! A kept app is only a name in a `home.packages` list. Here the user takes
-//! over and writes the module they want (service options, port, package
-//! override…), for the user and/or system scope.
-//!
-//! Two safety nets, one instant and one on demand:
-//! - **syntax** is checked on every keystroke (~50 ms) and "Save" stays disabled
-//!   while it is wrong;
-//! - **semantics** (unknown option, wrong type) need a full, slow `dry-build`
-//!   (30 s to 2 min): that is the "Check" button, triggered by the user and never
-//!   forced, since forcing it on every edit would make the editor painful.
-//!
-//! Nix Software writes **only** to its own files; the user's Nix is kept verbatim, never
-//! reformatted.
+//! Editor of an app's own Nix, user and system scopes. Syntax is checked
+//! while typing; a full dry build runs on demand.
 
 use crate::i18n::t;
 use adw::prelude::*;
@@ -21,8 +8,7 @@ use nix_software_core::Package;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// What the editor returns when the user saves: both blocks, `None` for a scope
-/// left empty (the app then becomes a plain list entry again).
+/// The saved blocks; `None` for an empty scope.
 pub struct Blocks {
     pub home: Option<String>,
     pub system: Option<String>,
@@ -33,14 +19,13 @@ fn text_of(buf: &gtk::TextBuffer) -> String {
         .to_string()
 }
 
-/// An empty scope is not an empty block: it is no block at all.
+/// The buffer text, `None` when blank.
 fn block_or_none(buf: &gtk::TextBuffer) -> Option<String> {
     let s = text_of(buf);
     (!s.trim().is_empty()).then_some(s)
 }
 
-/// A code area with a hint shown while it is empty: an empty scope otherwise
-/// looks like a broken, blank dialog.
+/// A code area with a hint while empty.
 fn editor_view(buf: &gtk::TextBuffer, hint: &str) -> gtk::Overlay {
     let view = gtk::TextView::with_buffer(buf);
     view.set_monospace(true);
@@ -78,8 +63,7 @@ fn editor_view(buf: &gtk::TextBuffer, hint: &str) -> gtk::Overlay {
     overlay
 }
 
-/// Opens the editor. `on_save` receives the saved blocks; it is only called when
-/// both scopes have valid syntax.
+/// Opens the editor; `on_save` gets the blocks once both parse.
 pub fn present(
     parent: &impl IsA<gtk::Widget>,
     package: &Package,
@@ -114,7 +98,6 @@ pub fn present(
         );
         page.set_icon_name(Some("computer-symbolic"));
     } else {
-        // Standalone home-manager cannot write NixOS options; say so.
         let msg = adw::StatusPage::new();
         msg.set_icon_name(Some("dialog-information-symbolic"));
         msg.set_title(&t("System Scope Unavailable"));
@@ -142,7 +125,6 @@ pub fn present(
 
     let cancel = gtk::Button::with_label(&t("Cancel"));
 
-    // Syntax check on every keystroke, both scopes.
     let recheck = {
         let status = status.clone();
         let save = save.clone();
@@ -172,7 +154,7 @@ pub fn present(
         })
     };
 
-    // Debounce: otherwise one `nix-instantiate` per keystroke.
+    // Debounced: one check per pause.
     let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
     for buf in [&home_buf, &system_buf] {
         let recheck = recheck.clone();
@@ -228,7 +210,6 @@ pub fn present(
         });
     }
 
-    // Slow dry-build runs off the main thread.
     {
         let status = status.clone();
         let verify_btn = verify.clone();

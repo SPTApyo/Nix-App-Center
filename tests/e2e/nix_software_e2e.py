@@ -45,9 +45,13 @@ class Session:
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc):
-        self._browser.close()
-        self._pw.stop()
+    def __exit__(self, exc_type, *_):
+        try:
+            self._browser.close()
+            self._pw.stop()
+        except Exception:
+            if exc_type is None:
+                raise
 
     def do(self, cmd):
         kind, _, arg = cmd.partition(":")
@@ -109,7 +113,18 @@ class Environment:
         fakes = {
             "xdg-terminal-exec": 'echo "$@" >> "{log}/terminal.log"',
             "pkexec": 'echo "$@" >> "{log}/pkexec.log"; shift 2; exec "$@"',
-            "nixos-rebuild": 'echo "$@" >> "{log}/rebuild.log"; echo "building the system configuration..." >&2',
+            "nixos-rebuild": 'echo "$@" >> "{log}/rebuild.log"; echo "building the system configuration..." >&2; '
+            + "".join(
+                f"echo '@nix {line}' >&2; sleep 0.4; "
+                for line in [
+                    '{{"action":"start","id":1,"level":0,"parent":0,"text":"","type":103}}',
+                    '{{"action":"result","fields":[1,8,0,0],"id":1,"type":105}}',
+                    '{{"action":"result","fields":[3,8,0,0],"id":1,"type":105}}',
+                    '{{"action":"result","fields":[5,8,0,0],"id":1,"type":105}}',
+                    '{{"action":"result","fields":[7,8,0,0],"id":1,"type":105}}',
+                ]
+            )
+            + 'echo "activating the configuration..." >&2',
         }
         for name, body in fakes.items():
             fake = self.bin / name
@@ -167,6 +182,7 @@ class Environment:
 
 
 # Window geometry at 1100×760 (Broadway draws the window at its default size).
+TOUR_SKIP = "click:196,659"
 SEARCH_TOGGLE = "click:47,48"
 BACK = "click:47,48"
 FIRST_RESULT = "click:400,230"
@@ -182,8 +198,17 @@ MENU_KEEP_TOGGLE = "click:894,221"
 MENU_RUN = "click:834,259"
 MENU_COPY = "click:834,297"
 MENU_ADVANCED = "click:834,335"
-MENU_APPLY = "click:834,377"
+VERSION_TOP = "click:504,248"
+# Install As… is hidden once the app has its own block: Apply moves up.
+MENU_APPLY = "click:834,378"
+# Version section of the details page.
+VERSION_CHOOSE = "click:494,669"
+# Search results with an option only, and its dialog.
+FIRST_OPTION = "click:500,187"
+OPTION_SET = "click:504,586"
 PRIMARY = "click:820,145"
+
+
 # Advanced options editor.
 EDITOR_SYSTEM_TAB = "click:566,147"
 EDITOR_TEXT = "click:500,300"
@@ -194,6 +219,11 @@ ATTACH_ACCEPT = "click:764,148"
 def scenario(env, s):
     """search → details → run → keep → attach → installed → remove."""
     s.do("wait:8000")
+    s.shot("welcome")
+    s.do(TOUR_SKIP)
+    settings = env.tmp / "config" / "nix-software" / "settings.json"
+    wait_for(lambda: '"onboarded": true' in settings.read_text(), 10, "tour remembered")
+    s.do("wait:800")
     s.shot("home")
 
     s.do(SEARCH_TOGGLE)
@@ -289,11 +319,46 @@ def actions(env, s):
     s.do(MENU)
     s.do(MENU_APPLY)
     wait_for(lambda: "nixos-rebuild" in env.logged("pkexec"), 20, "apply through pkexec")
+    s.shot("action-apply-progress")
     assert "switch" in env.logged("rebuild"), "apply must switch"
+    assert "--log-format internal-json" in env.logged("rebuild"), "apply must ask for progress"
     s.do("wait:1000")
     s.shot("action-apply")
     s.do("key:Escape")
     s.do("wait:500")
+
+    home = env.config / "nix-software-home.nix"
+    manifest = env.data / "nix-software" / "kept.json"
+    s.do(VERSION_CHOOSE)
+    s.do("wait:8000")
+    s.shot("action-versions")
+    s.do(VERSION_TOP)
+    wait_for(lambda: '"pin"' in manifest.read_text(), 180, "hello held in kept.json")
+    wait_for(lambda: "builtins.fetchTarball" in home.read_text(), 10, "held revision imported")
+    assert ".hello" in home.read_text(), "hello must come from the held revision"
+    s.do("wait:1500")
+    s.shot("action-hold")
+    s.do(VERSION_CHOOSE)
+    s.do("wait:8000")
+    s.do(VERSION_TOP)
+    wait_for(lambda: '"pin"' not in manifest.read_text(), 10, "hold released")
+    assert "fetchTarball" not in home.read_text(), "a release drops the held import"
+
+    # Options: found by search, set in the system file.
+    s.do(BACK)
+    s.do("wait:800")
+    s.do(SEARCH_TOGGLE)
+    s.do("key:Control+a")
+    s.do("type:services.printing.enable")
+    s.do("key:Enter")
+    s.do("wait:15000")
+    s.shot("option-search")
+    s.do(FIRST_OPTION)
+    s.do("wait:2000")
+    s.shot("option-dialog")
+    s.do(OPTION_SET)
+    wait_for(lambda: "services.printing.enable = true;" in system.read_text(), 10, "option set")
+    s.do("key:Escape")
 
 
 def main():

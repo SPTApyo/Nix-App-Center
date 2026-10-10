@@ -1,18 +1,6 @@
-//! Detection of the user's Nix configuration layout.
-//!
-//! Nix Software used to assume *standalone* home-manager: it wrote
-//! `~/.config/home-manager/nix-software-packages.nix` and applied with `home-manager switch`.
-//! Both assumptions break outside that case, and the most common NixOS setup
-//! (flake + home-manager as a NixOS module) has neither that file imported nor that
-//! binary. The generated file was then an **orphan**: "keep" had no effect.
-//!
-//! This module identifies the real layout and derives three things from it: where to
-//! put the Nix Software files, which `imports` to patch, and **the real apply command**.
-//!
-//! Detection is *text scanning*, not Nix parsing: it looks for markers and never
-//! rebuilds a file from an AST. So it can be wrong, which is why it is never applied
-//! silently: the front end shows what was found and asks for confirmation (see
-//! `config_attach`).
+//! Detects how the user's Nix configuration is laid out: where Nix Software
+//! writes its files, which file imports them and how to apply. Text scanning,
+//! so the front end always shows the result before writing.
 
 use std::path::{Path, PathBuf};
 
@@ -27,32 +15,29 @@ pub enum LayoutKind {
     HmFlake { dir: PathBuf, user: String },
     /// Standalone home-manager (`~/.config/home-manager/home.nix`).
     HmStandalone { dir: PathBuf },
-    /// Nothing recognizable. Nix Software does not guess: it falls back on the manual snippet.
+    /// Nothing recognizable: Nix Software shows a snippet instead of guessing.
     Unknown,
 }
 
-/// A scope Nix Software can write to: its file, and the file whose `imports` list must be
-/// patched so Nix Software's file is taken into account.
+/// A scope Nix Software writes to, and the file importing it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeTarget {
-    /// The file Nix Software owns (generated, never edited by hand).
+    /// The generated file Nix Software owns.
     pub nix_software_file: PathBuf,
-    /// The user's file whose `imports = [ … ]` gets patched, a single line.
+    /// The user's file whose `imports` list gets one line.
     pub import_site: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layout {
     pub kind: LayoutKind,
-    /// User scope (`home.packages`…). `None` when the layout offers none.
+    /// User scope, if any.
     pub home: Option<ScopeTarget>,
-    /// System scope (`networking.firewall`…). `None` outside NixOS: standalone
-    /// home-manager has no way to write system options.
+    /// System scope; `None` outside NixOS.
     pub system: Option<ScopeTarget>,
-    /// The full apply argv. Empty when the layout is unknown.
+    /// The apply argv; empty when unknown.
     pub apply: Vec<String>,
-    /// The home-manager user, when HM is plugged in as a NixOS module. It decides
-    /// the wrapping of the Nix Software file (`home-manager.users.<user> = { … }`).
+    /// The Home Manager user when Home Manager is a NixOS module.
     pub hm_user: Option<String>,
 }
 
@@ -66,8 +51,8 @@ impl Layout {
 const NIX_SOFTWARE_HOME_FILE: &str = "nix-software-home.nix";
 const NIX_SOFTWARE_SYSTEM_FILE: &str = "nix-software-system.nix";
 
-/// Root of the NixOS configuration. `$NIX_SOFTWARE_CONFIG_DIR` is the escape hatch (and
-/// the test injection point: no test may ever touch the real `/etc/nixos`).
+/// The NixOS configuration folder: `NIX_SOFTWARE_CONFIG_DIR`, the settings,
+/// else `/etc/nixos`.
 fn nixos_dir() -> PathBuf {
     std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
         .map(PathBuf::from)
@@ -86,13 +71,249 @@ fn read(path: &Path) -> String {
 
 /// Detects the machine layout.
 pub fn detect() -> Layout {
+    let mut layout = detect_files();
+    let custom = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
+        .is_none()
+        .then(|| crate::settings::load_settings().apply_command)
+        .flatten()
+        .filter(|c| !c.trim().is_empty());
+    if let (Some(command), true) = (custom, layout.is_usable()) {
+        layout.apply = custom_apply(&command);
+    }
+    layout
+}
+
+/// argv running the user's own apply command; a leading `sudo` asks for
+/// administrator rights the graphical way.
+fn custom_apply(command: &str) -> Vec<String> {
+    match command.trim().strip_prefix("sudo ") {
+        Some(rest) => vec![
+            "sudo".into(),
+            "sh".into(),
+            "-c".into(),
+            rest.trim().to_string(),
+        ],
+        None => vec!["sh".into(), "-c".into(), command.trim().to_string()],
+    }
+}
+
+/// `--override-input` for each local input of the flake in `dir`, so its
+/// files are used as they are on disk instead of the locked copy.
+pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
+    std::fs::read_to_string(dir.join("flake.lock"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .map(|lock| overrides_from_lock(&lock))
+        .unwrap_or_default()
+}
+
+/// The flakes the user added in Preferences, locked when the list changes,
+/// as (locked reference, locked reference): they are no input of the
+/// configuration, so the reference is their name.
+fn extra_sources() -> Vec<(String, String)> {
+    type Locked = (Vec<String>, Vec<(String, String)>);
+    static LOCKED: std::sync::Mutex<Option<Locked>> = std::sync::Mutex::new(None);
+    let wanted = crate::settings::load_settings().extra_flakes;
+    let mut cache = LOCKED.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, locked)) = cache.as_ref().filter(|(list, _)| *list == wanted) {
+        return locked.clone();
+    }
+    let locked: Vec<(String, String)> = wanted
+        .iter()
+        .filter_map(|flake| lock_flake(flake))
+        .map(|r| (r.clone(), r))
+        .collect();
+    *cache = Some((wanted, locked.clone()));
+    locked
+}
+
+/// The GitHub flakes search.nixos.org lists, as `github:owner/repo`. Read
+/// from its repository, cached a week; empty offline. Blocking.
+pub fn suggested_flakes() -> Vec<String> {
+    const URL: &str =
+        "https://raw.githubusercontent.com/NixOS/nixos-search/main/flakes/manual.toml";
+    let path = crate::cache::cache_dir().join("suggested-flakes.toml");
+    let fresh = std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age.as_secs() < 7 * 24 * 3600);
+    if !fresh {
+        let mut text = String::new();
+        let got = crate::http::get(URL, std::time::Duration::from_secs(15))
+            .ok()
+            .and_then(|mut r| std::io::Read::read_to_string(&mut r, &mut text).ok());
+        if got.is_some() {
+            let _ = crate::paths::write_atomic(&path, text.as_bytes());
+        }
+    }
+    parse_suggested(&std::fs::read_to_string(&path).unwrap_or_default())
+}
+
+/// `github:owner/repo` of each GitHub source of nixos-search's flake list.
+fn parse_suggested(toml: &str) -> Vec<String> {
+    let value = |line: &str, key: &str| {
+        line.trim()
+            .strip_prefix(key)?
+            .trim()
+            .strip_prefix('=')?
+            .trim()
+            .trim_matches('"')
+            .to_string()
+            .into()
+    };
+    let mut out = Vec::new();
+    for block in toml.split("[[sources]]").skip(1) {
+        let field = |key: &str| block.lines().find_map(|l| value(l, key));
+        if field("type").as_deref() != Some("github") {
+            continue;
+        }
+        if let (Some(owner), Some(repo)) = (field("owner"), field("repo")) {
+            out.push(format!("github:{owner}/{repo}"));
+        }
+    }
+    out
+}
+
+/// `github:owner/repo` with its current revision; `None` for other forms.
+fn lock_flake(flake: &str) -> Option<String> {
+    let rest = flake.trim().strip_prefix("github:")?;
+    let mut parts = rest.split('/');
+    let (owner, repo) = (parts.next()?, parts.next()?);
+    let safe = |s: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+    };
+    if !safe(owner) || !safe(repo) {
+        return None;
+    }
+    let out = crate::util::nix()
+        .args([
+            "flake",
+            "metadata",
+            "--json",
+            &format!("github:{owner}/{repo}"),
+        ])
+        .output()
+        .ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let rev = v["revision"]
+        .as_str()
+        .filter(|r| crate::versions::is_rev(r))?;
+    Some(format!("github:{owner}/{repo}/{rev}"))
+}
+
+/// Flake inputs of the configuration and of its local inputs that may hold
+/// packages, as (name, locked reference), then the flakes added in
+/// Preferences. nixpkgs and plumbing are left out.
+pub fn flake_sources() -> Vec<(String, String)> {
+    let mut out = config_sources();
+    out.extend(extra_sources());
+    out
+}
+
+fn config_sources() -> Vec<(String, String)> {
+    let dir = match detect().kind {
+        LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => dir,
+        _ => return Vec::new(),
+    };
+    let locals: Vec<PathBuf> = local_overrides(&dir)
+        .iter()
+        .filter_map(|s| s.strip_prefix("git+file://").or(s.strip_prefix("path:")))
+        .map(PathBuf::from)
+        .collect();
+    let mut out: Vec<(String, String)> = Vec::new();
+    for d in std::iter::once(dir).chain(locals) {
+        let Some(lock) = std::fs::read_to_string(d.join("flake.lock"))
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        else {
+            continue;
+        };
+        for (name, source) in sources_from_lock(&lock) {
+            if !out.iter().any(|(n, _)| *n == name) {
+                out.push((name, source));
+            }
+        }
+    }
+    out
+}
+
+fn sources_from_lock(lock: &serde_json::Value) -> Vec<(String, String)> {
+    const PLUMBING: [&str; 8] = [
+        "nixpkgs",
+        "home-manager",
+        "flake-utils",
+        "flake-parts",
+        "systems",
+        "flake-compat",
+        "nix-darwin",
+        "treefmt-nix",
+    ];
+    let root = lock["root"].as_str().unwrap_or("root");
+    let Some(inputs) = lock["nodes"][root]["inputs"].as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (name, node) in inputs {
+        let Some(node) = node.as_str() else { continue };
+        let locked = &lock["nodes"][node]["locked"];
+        let (Some(kind @ ("github" | "gitlab" | "sourcehut")), Some(owner), Some(repo), Some(rev)) = (
+            locked["type"].as_str(),
+            locked["owner"].as_str(),
+            locked["repo"].as_str(),
+            locked["rev"].as_str(),
+        ) else {
+            continue;
+        };
+        if PLUMBING.iter().any(|p| repo == *p || name.starts_with(p)) {
+            continue;
+        }
+        let safe = |s: &str| {
+            s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+        };
+        let owner_ok = safe(owner.strip_prefix('~').unwrap_or(owner));
+        if safe(name) && owner_ok && safe(repo) && crate::versions::is_rev(rev) {
+            out.push((name.clone(), format!("{kind}:{owner}/{repo}/{rev}")));
+        }
+    }
+    out
+}
+
+fn overrides_from_lock(lock: &serde_json::Value) -> Vec<String> {
+    let root = lock["root"].as_str().unwrap_or("root");
+    let Some(inputs) = lock["nodes"][root]["inputs"].as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (name, node) in inputs {
+        let Some(node) = node.as_str() else { continue };
+        let original = &lock["nodes"][node]["original"];
+        let source = match original["type"].as_str() {
+            Some("git") => original["url"]
+                .as_str()
+                .filter(|u| u.starts_with("file://"))
+                .map(|u| format!("git+{u}")),
+            Some("path") => original["path"].as_str().map(|p| format!("path:{p}")),
+            _ => None,
+        };
+        if let Some(source) = source {
+            out.extend(["--override-input".to_string(), name.clone(), source]);
+        }
+    }
+    out
+}
+
+fn detect_files() -> Layout {
     let nixos = nixos_dir();
     let hm = hm_dir();
 
     let flake = nixos.join("flake.nix");
     if flake.is_file() {
         let src = read(&flake);
-        // NIX_SOFTWARE_CONFIG_DIR (tests, e2e) bypasses the saved settings.
+        // The environment variable beats the settings.
         let chosen = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
             .is_none()
             .then(|| crate::settings::load_settings().host)
@@ -126,24 +347,30 @@ pub fn detect() -> Layout {
     }
 }
 
-// ── Verification ──────────────────────────────────────────────────────────────
-
-/// What Nix itself reports about a flake layout.
+/// What Nix reports about a flake layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verified {
     /// Configurations the flake really outputs.
     pub hosts: Vec<String>,
-    /// Home Manager users of the chosen host (empty without Home Manager),
-    /// or why Nix could not evaluate the host.
+    /// Home Manager users of the host, or why the host did not evaluate.
     pub hm_users: Result<Vec<String>, String>,
 }
 
-/// Asks Nix what the text scan guessed. Evaluates the flake (seconds):
-/// call it from a thread. `Err` carries the last line Nix printed.
+/// Checks the scan with Nix by evaluating the flake. Blocking.
+///
+/// # Errors
+/// The last line Nix printed.
 pub fn verify(layout: &Layout) -> Result<Verified, String> {
+    let overrides = match &layout.kind {
+        LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => {
+            local_overrides(dir)
+        }
+        _ => Vec::new(),
+    };
     let names = |expr: String| -> Result<Vec<String>, String> {
         let out = crate::util::nix()
             .args(["eval", "--json", &expr, "--apply", "builtins.attrNames"])
+            .args(&overrides)
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -178,21 +405,20 @@ pub fn verify(layout: &Layout) -> Result<Verified, String> {
     }
 }
 
-// ── Text scanning ─────────────────────────────────────────────────────────────
-
-/// First `nixosConfigurations.<host>` or `nixosConfigurations = { <host> = …`.
-/// When the machine hostname is among the configurations found, it wins: a
-/// multi-machine flake must not make Nix Software write into another machine's config.
+/// The host to use from a flake: this machine's hostname when declared,
+/// else the first `nixosConfigurations` entry.
 pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
-    let hosts = nixos_hosts(flake_src);
-    if hosts.is_empty() {
-        return None;
-    }
-    let this = hostname();
-    if let Some(h) = this.as_ref().filter(|h| hosts.contains(h)) {
-        return Some(h.clone());
-    }
-    hosts.into_iter().next()
+    pick_host(nixos_hosts(flake_src), hostname().as_deref())
+}
+
+/// The host named like this machine, ignoring case, else the first one.
+fn pick_host(hosts: Vec<String>, this: Option<&str>) -> Option<String> {
+    let same = |h: &&String| this.is_some_and(|t| h.eq_ignore_ascii_case(t));
+    hosts
+        .iter()
+        .find(same)
+        .cloned()
+        .or_else(|| hosts.into_iter().next())
 }
 
 /// Every host declared in `nixosConfigurations`.
@@ -200,14 +426,14 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     let mut out = Vec::new();
     for (idx, _) in flake_src.match_indices("nixosConfigurations") {
         let rest = &flake_src[idx + "nixosConfigurations".len()..];
-        // Form A: `nixosConfigurations.laptop = …`
+        // `nixosConfigurations.laptop = …`
         if let Some(after_dot) = rest.strip_prefix('.') {
             if let Some(name) = take_ident(after_dot) {
                 out.push(name);
                 continue;
             }
         }
-        // Form B: `nixosConfigurations = { laptop = … }`, first ident of the brace.
+        // `nixosConfigurations = { laptop = … }`
         if let Some(brace) = rest.find('{') {
             let inner = rest[brace + 1..].trim_start();
             if let Some(name) = take_ident(inner) {
@@ -219,7 +445,7 @@ fn nixos_hosts(flake_src: &str) -> Vec<String> {
     out
 }
 
-/// The Nix identifier at the head of `s` (`laptop = …` → `laptop`), quotes allowed.
+/// The Nix identifier at the start of `s`, quotes allowed.
 fn take_ident(s: &str) -> Option<String> {
     let s = s.trim_start().trim_start_matches('"');
     let ident: String = s
@@ -229,8 +455,7 @@ fn take_ident(s: &str) -> Option<String> {
     (!ident.is_empty()).then_some(ident)
 }
 
-/// The user of `home-manager.users.<user>` when it appears in a `.nix` file of
-/// the directory, a sign that home-manager is plugged in as a NixOS module.
+/// The `home-manager.users.<user>` user found in the folder's files.
 fn hm_user_in_dir(dir: &Path) -> Option<String> {
     let entries = std::fs::read_dir(dir).ok()?;
     for entry in entries.filter_map(Result::ok) {
@@ -260,14 +485,10 @@ pub(crate) fn current_user() -> String {
     std::env::var("USER").unwrap_or_else(|_| "root".to_string())
 }
 
-// ── Building layouts ──────────────────────────────────────────────────────────
-
-/// On NixOS both scopes attach at the **same** place: the top-level `imports` list
-/// of `configuration.nix`. It is the safest splice, no nested Nix to parse. The
-/// "home" file is then a NixOS module wrapping its content in
-/// `home-manager.users.<user>`, not a home-manager module.
+/// NixOS scopes: both files attach to the top-level `imports` list; the
+/// home file wraps its content in `home-manager.users.<user>`.
 fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
-    // A flake may have no configuration.nix: its modules list is the place.
+    // Without configuration.nix, the flake modules list.
     let config = dir.join("configuration.nix");
     let site = if config.is_file() || !dir.join("flake.nix").is_file() {
         config
@@ -288,13 +509,14 @@ fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
 
 fn nixos_flake_layout(dir: PathBuf, host: String, hm_user: Option<String>) -> Layout {
     let (home, system) = nixos_scopes(&dir);
-    let apply = vec![
+    let mut apply = vec![
         "sudo".into(),
         "nixos-rebuild".into(),
         "switch".into(),
         "--flake".into(),
         format!("{}#{}", dir.display(), host),
     ];
+    apply.extend(local_overrides(&dir));
     Layout {
         kind: LayoutKind::NixosFlake { dir, host },
         home,
@@ -321,14 +543,14 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
         nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
         import_site: dir.join("home.nix"),
     });
-    let apply = vec![
+    let mut apply = vec![
         "home-manager".into(),
         "switch".into(),
         "--flake".into(),
         format!("{}#{}", dir.display(), user),
     ];
-    // No system scope: standalone home-manager cannot write NixOS options.
-    // A system option is refused with a snippet to paste.
+    apply.extend(local_overrides(&dir));
+    // Standalone Home Manager has no system scope.
     Layout {
         kind: LayoutKind::HmFlake { dir, user },
         home,
@@ -356,6 +578,69 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_the_suggested_flakes() {
+        let toml = "[[sources]]\ntype = \"git\"\nurl = \"x\"\n\n[[sources]]\ntype = \"github\"\nowner = \"fufexan\"\nrepo = \"nix-gaming\"\n";
+        assert_eq!(parse_suggested(toml), vec!["github:fufexan/nix-gaming"]);
+    }
+
+    #[test]
+    fn package_sources_skip_nixpkgs_and_plumbing() {
+        let lock = serde_json::json!({ "root": "root", "nodes": {
+            "root": { "inputs": { "nixpkgs": "n", "nix-gaming": "g", "flake-utils": "u", "local": "l" } },
+            "n": { "locked": { "type": "github", "owner": "NixOS", "repo": "nixpkgs", "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+            "g": { "locked": { "type": "github", "owner": "fufexan", "repo": "nix-gaming", "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+            "u": { "locked": { "type": "github", "owner": "numtide", "repo": "flake-utils", "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+            "l": { "locked": { "type": "path", "path": "/x" } }
+        }});
+        assert_eq!(
+            sources_from_lock(&lock),
+            vec![(
+                "nix-gaming".to_string(),
+                "github:fufexan/nix-gaming/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn local_inputs_are_used_as_they_are_on_disk() {
+        let lock = serde_json::json!({
+            "root": "root",
+            "nodes": {
+                "root": { "inputs": { "nixos-config": "nixos-config", "nixpkgs": "nixpkgs", "local": "local" } },
+                "nixos-config": { "original": { "type": "git", "url": "file:///home/u/nixos-config" } },
+                "nixpkgs": { "original": { "type": "github", "owner": "NixOS", "repo": "nixpkgs" } },
+                "local": { "original": { "type": "path", "path": "/home/u/mods" } }
+            }
+        });
+        let args = overrides_from_lock(&lock);
+        assert!(args.windows(3).any(|w| w
+            == [
+                "--override-input",
+                "nixos-config",
+                "git+file:///home/u/nixos-config"
+            ]));
+        assert!(args
+            .windows(3)
+            .any(|w| w == ["--override-input", "local", "path:/home/u/mods"]));
+        assert!(
+            !args.iter().any(|a| a == "nixpkgs"),
+            "remote inputs stay locked"
+        );
+    }
+
+    #[test]
+    fn a_custom_command_asks_for_rights_only_with_sudo() {
+        assert_eq!(
+            custom_apply("sudo nixos-rebuild switch"),
+            ["sudo", "sh", "-c", "nixos-rebuild switch"]
+        );
+        assert_eq!(
+            custom_apply("  home-manager switch "),
+            ["sh", "-c", "home-manager switch"]
+        );
+    }
 
     /// Throwaway fixture. No test ever touches the real `/etc/nixos` or `~`.
     fn fixture(name: &str) -> PathBuf {
@@ -456,7 +741,7 @@ mod tests {
 
     #[test]
     fn hm_standalone_has_no_system_scope() {
-        // Standalone home-manager has no way to write NixOS options.
+        // Standalone Home Manager has no system scope.
         let dir = PathBuf::from("/tmp/hm");
         let layout = hm_standalone_layout(dir);
         assert!(layout.system.is_none());
@@ -468,7 +753,7 @@ mod tests {
         let src = "nixosConfigurations.Autre = a; nixosConfigurations.laptop = b;";
         let hosts = nixos_hosts(src);
         assert_eq!(hosts, ["Autre", "laptop"]);
-        // Without a match with the real hostname, the first declared one is used.
+        // Unknown hostname: the first host.
         assert!(first_nixos_host(src).is_some());
     }
 
@@ -481,6 +766,17 @@ mod tests {
     #[test]
     fn no_host_when_flake_has_no_nixos_configurations() {
         assert!(first_nixos_host("outputs = { }: { packages.x = y; };").is_none());
+    }
+
+    #[test]
+    fn the_host_matches_the_machine_whatever_the_case() {
+        let hosts = vec!["laptop".to_string(), "desktop-01".to_string()];
+        assert_eq!(
+            pick_host(hosts.clone(), Some("Desktop-01")).as_deref(),
+            Some("desktop-01")
+        );
+        assert_eq!(pick_host(hosts, Some("other")).as_deref(), Some("laptop"));
+        assert_eq!(pick_host(Vec::new(), Some("x")), None);
     }
 
     #[test]

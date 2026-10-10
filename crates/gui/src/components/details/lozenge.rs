@@ -1,32 +1,22 @@
-//! Tile badge, a copy of `gs-lozenge.ui` / `gs-lozenge.c`.
-//!
-//! `GtkBox .context-tile-lozenge` (halign/valign center, hexpand false) holding
-//! EITHER a 16 px `GtkImage` OR a `GtkLabel`, never both.
-//!
-//! GNOME implements `circular` with a custom `GtkLayoutManager` forcing
-//! width == height (`gs_lozenge_layout_measure`). Without a GTK subclass in
-//! Rust, a square `size_request` gives the same result: the CSS already makes
-//! an icon 40×40 (`min-width 18 + padding 11×2`), so only text lozenges really
-//! need the constraint.
+//! The badge of a context tile: an icon or a short text.
 
 use gtk::prelude::*;
 
-/// Side of a circular lozenge, derived from the CSS (`.context-tile-lozenge`).
+/// Side of a circular lozenge, as the CSS sizes icons.
 const CIRCULAR_SIZE: i32 = 40;
 
-/// Lozenge content: a symbolic icon OR a short text ("35.5 MB", "12").
+/// An icon or a short text.
 pub enum Content<'a> {
     Icon(&'a str),
     Text(&'a str),
 }
 
-/// Context bar lozenge. `color` is a CSS tint class
-/// (`grey`/`green`/`blue`/`yellow`/`orange`/`red`, or `details-rating-N`).
+/// A lozenge tinted by the CSS class `color`.
 pub fn lozenge(content: Content, color: &str) -> gtk::Box {
     build(content, color, false)
 }
 
-/// Circular lozenge (license tile: three round badges).
+/// A round lozenge.
 pub fn circular(content: Content, color: &str) -> gtk::Box {
     build(content, color, true)
 }

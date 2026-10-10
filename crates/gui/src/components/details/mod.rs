@@ -1,9 +1,5 @@
-//! Composite widgets of the details page. One module per GNOME Software
-//! widget, named after it, with the path of its source `.ui` at the top.
-//! Any divergence can thus be audited by diffing against the clone.
-//!
-//! None of these modules knows `AppMeta`: `views::detail` turns metadata into
-//! plain parameters and passes them.
+//! Widgets of the details page, one per GNOME Software widget. They take
+//! plain values, not `AppMeta`.
 
 pub mod attach_dialog;
 pub mod context_bar;

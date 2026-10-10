@@ -25,7 +25,7 @@
 
 - **Try first**: run any app with nix run, or open a nix shell for command line tools. Unfree packages included.
 - **Keep**: the app lands in nix-software-home.nix or nix-software-system.nix, imported by your configuration.
-- **Knows your setup**: NixOS with or without flakes, Home Manager as a module, flake or standalone. Without a managed configuration, it installs for your user with nix profile.
+- **Knows your setup**: NixOS with or without flakes, Home Manager as a module, flake or standalone. On other Linux distributions with Nix, or without a managed configuration, it installs for your user with nix profile and updates with nix profile upgrade.
 - **Rich pages**: Flathub metadata (names, screenshots, ratings, age ratings, permissions) when the app exists there too, plus reviews you can write.
 - **Installed**: what Nix Software keeps, what you tried (removable one by one from the store) and the apps your system and user profiles already hold.
 - **Updates**: the nixpkgs revision your config is pinned to, what the branch head changes for your apps, and a one click update with a live build log.
@@ -83,6 +83,8 @@ nix build .   # result/bin/nix-software and result/bin/nix-software-cli
 ```
 
 # Usage
+
+New to Nix? The [user guide](docs/user-guide.md) explains how it all works, in plain words. The app also opens a welcome tour on first launch.
 
 Open Nix Software from your app grid, or run nix-software.
 

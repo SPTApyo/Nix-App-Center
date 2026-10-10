@@ -1,27 +1,17 @@
-//! License tile, a copy of `gs-license-tile.ui`.
-//!
-//! `GtkListBox .boxed-list` with two rows:
-//!  1. non activatable, non focusable `GtkListBoxRow` holding a vertical `GtkBox`
-//!     (spacing 8, margins 14): three round green lozenges, bold title, description.
-//!  2. `AdwButtonRow` "How to Contribute", `end-icon-name external-link-symbolic`.
-//!
-//! GNOME only shows this "Community Built" card for free licenses, and a
-//! "proprietary" variant otherwise. Nix Software follows the same rule through
-//! `AppMeta::is_free_license`.
+//! License card: "Community Built" for free licenses, else proprietary.
 
 use crate::i18n::t;
 use adw::prelude::*;
 
 use super::lozenge::{circular, Content};
 
-/// The three badges of the community card (`.ui`: lozenge0/1/2).
 const COMMUNITY_ICONS: [&str; 3] = [
     "community-supported-symbolic",
     "community-symbolic",
     "community-approved-symbolic",
 ];
 
-/// "Community Built" card (free license).
+/// The "Community Built" card.
 pub fn community(license: Option<&str>, get_involved_url: Option<String>) -> gtk::ListBox {
     let description = match license {
         Some(l) => t(
@@ -46,7 +36,7 @@ pub fn community(license: Option<&str>, get_involved_url: Option<String>) -> gtk
     list
 }
 
-/// Proprietary / unknown license variant: one lozenge, no "contribute".
+/// The proprietary or unknown license card.
 pub fn proprietary(license: Option<&str>, is_free: Option<bool>) -> gtk::ListBox {
     let (icon, color, title) = match is_free {
         Some(false) => (
@@ -56,7 +46,7 @@ pub fn proprietary(license: Option<&str>, is_free: Option<bool>) -> gtk::ListBox
         ),
         _ => ("app-safety-unknown-symbolic", "grey", t("Unknown License")),
     };
-    // AppStream placeholders like LicenseRef-proprietary say nothing.
+    // LicenseRef placeholders say nothing.
     let license = license.filter(|l| !l.starts_with("LicenseRef-"));
     let description = match (is_free, license) {
         (Some(false), Some(l)) => t("The source code of this app is not public. It is released \

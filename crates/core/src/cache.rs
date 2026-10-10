@@ -13,8 +13,7 @@ pub(crate) fn cache_dir() -> PathBuf {
         .join("nix-software")
 }
 
-/// 64-bit FNV-1a hash, stable across Rust versions (unlike `DefaultHasher`):
-/// the cache key must stay identical from one build to the next.
+/// FNV-1a hash, stable across builds unlike `DefaultHasher`.
 fn fnv1a(s: &str) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in s.bytes() {
@@ -25,11 +24,7 @@ fn fnv1a(s: &str) -> u64 {
 }
 
 fn key_path(key: &str) -> PathBuf {
-    // Readable prefix (debugging) capped at 40 chars + hash of the FULL key:
-    // category alternation patterns (hundreds of characters) exceeded the
-    // file name limit (silent ENAMETOOLONG, inert cache on the home/category
-    // path, the most expensive one); and two distinct keys could sanitize the
-    // same way ("c++"/"c--" → "c__").
+    // Short readable prefix, hash keeps keys unique.
     let safe: String = key
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '_' })
@@ -48,8 +43,8 @@ struct Entry {
     results: Vec<Package>,
 }
 
-/// Serves `key` from the cache when fresh (< ttl_secs), else calls `compute`,
-/// stores and returns. ttl_secs = 0 → always recompute.
+/// Returns the cached result of `key` when younger than `ttl_secs`, else
+/// computes and stores it.
 pub fn cached_search<F: FnOnce() -> Vec<Package>>(
     key: &str,
     ttl_secs: u64,
@@ -112,8 +107,7 @@ mod tests {
 
     #[test]
     fn key_path_bounded_and_collision_free() {
-        // ENAMETOOLONG: category alternation patterns exceed 255 bytes, so the
-        // file name must be bounded whatever the key.
+        // File names stay short for any key.
         let long_key = "x".repeat(5000);
         let fname = key_path(&long_key)
             .file_name()
@@ -123,14 +117,12 @@ mod tests {
         assert!(fname.len() < 100, "bounded file name, got {}", fname.len());
         // Sanitizing alone collided: "c++" and "c--" → "c__".
         assert_ne!(key_path("c++"), key_path("c--"));
-        // Determinism (the cache must be found again from one call to the next).
         assert_eq!(key_path("gimp"), key_path("gimp"));
     }
 
     #[test]
     fn caches_long_pattern_keys() {
-        // Regression: with a long key, read/write failed with ENAMETOOLONG
-        // (ignored), so the second call recomputed instead of serving.
+        // Long keys are cached too.
         let _g = iso();
         let key = format!(
             "^({})$",

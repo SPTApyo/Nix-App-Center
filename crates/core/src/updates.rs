@@ -1,11 +1,5 @@
-//! Updates, the Nix way: every package follows one nixpkgs revision pinned
-//! by the config (a flake.lock node or a channel). Updating means moving that
-//! pin to the head of its branch, then applying the config.
-//!
-//! The running revision comes from `nixos-version --json`, the branch from the
-//! flake.lock node holding that revision, the branch head from
-//! `nix flake metadata`, and the app changes from the versions in the new
-//! revision compared with the store paths of the installed apps.
+//! Updates: every package follows one nixpkgs revision the config pins.
+//! Updating moves that pin to the head of its branch, then applies.
 
 use crate::config_layout::{detect, Layout, LayoutKind};
 use crate::profiles::ProfileApp;
@@ -24,7 +18,9 @@ pub enum UpdateMethod {
     HmChannel,
     /// nixpkgs comes through another flake input, updated there.
     Pinned { by: String },
-    /// Nix Software cannot tell.
+    /// No managed configuration, apps in the user profile: `nix profile upgrade`.
+    Profile,
+    /// Unknown.
     Unknown,
 }
 
@@ -54,15 +50,14 @@ pub struct AppUpdate {
 }
 
 /// The nixpkgs revision the config is pinned to, computed once.
-pub(crate) fn pinned_rev() -> Option<&'static str> {
+pub fn pinned_rev() -> Option<&'static str> {
     static REV: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     REV.get_or_init(|| current_source().rev).as_deref()
 }
 
-/// Flake reference of the nixpkgs the config is pinned to, so what Nix Software
-/// shows and runs matches what Keep installs. The registry `nixpkgs` when
-/// NixOS pins it to the system (local, no download), else the pinned GitHub
-/// revision, else the registry as is. Computed once per process.
+/// Flake reference of the pinned nixpkgs, so runs match what Keep
+/// installs: the system registry when it pins nixpkgs, else the pinned
+/// revision on GitHub. Computed once.
 pub fn nixpkgs_ref() -> &'static str {
     static REF: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     REF.get_or_init(|| {
@@ -79,6 +74,22 @@ pub fn nixpkgs_ref() -> &'static str {
             _ => "nixpkgs".to_string(),
         }
     })
+}
+
+/// The flake reference running `pkg`: its flake input when it has one,
+/// else the configuration's nixpkgs.
+pub fn installable(pkg: &crate::Package) -> String {
+    let flake = pkg
+        .source
+        .as_ref()
+        .and_then(|name| {
+            crate::config_layout::flake_sources()
+                .into_iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, r)| r)
+        })
+        .unwrap_or_else(|| nixpkgs_ref().to_string());
+    format!("{flake}#{}", pkg.attr)
 }
 
 /// Finds the nixpkgs source of the detected config.
@@ -126,8 +137,39 @@ pub fn current_source() -> Source {
             last_modified: None,
             method: UpdateMethod::HmChannel,
         },
+        // Another distribution: apps live in the user profile.
+        LayoutKind::Unknown if system.is_none() => Source {
+            branch: Some(
+                registry_branch(&registry_list()).unwrap_or_else(|| "nixpkgs-unstable".into()),
+            ),
+            rev: None,
+            last_modified: None,
+            method: UpdateMethod::Profile,
+        },
         LayoutKind::Unknown => from_version(UpdateMethod::Unknown),
     }
+}
+
+fn registry_list() -> String {
+    crate::util::nix()
+        .args(["registry", "list"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default()
+}
+
+/// The branch the registry points `nixpkgs` to, user entry first.
+fn registry_branch(list: &str) -> Option<String> {
+    let url = ["user", "system", "global"].iter().find_map(|kind| {
+        list.lines()
+            .find_map(|l| l.strip_prefix(&format!("{kind} flake:nixpkgs ")))
+    })?;
+    let url = url.split('?').next().unwrap_or(url);
+    let branch = url.strip_prefix("github:NixOS/nixpkgs/").or_else(|| {
+        url.strip_prefix("https://channels.nixos.org/")
+            .and_then(|r| r.split('/').next())
+    })?;
+    (!branch.is_empty() && !branch.contains('/')).then(|| branch.to_string())
 }
 
 /// `(nixpkgsRevision, nixosVersion)` of the running NixOS system.
@@ -179,9 +221,8 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> u64 {
     (era * 146_097 + doe - 719_468) as u64
 }
 
-/// Reads the nixpkgs node of a flake.lock. With `rev`, the node locked to
-/// that revision (the system may reach nixpkgs through other inputs);
-/// without, the root input named `nixpkgs`. Pure.
+/// The nixpkgs node of a flake.lock: the one locked to `rev` when given,
+/// else the root's `nixpkgs` input.
 fn source_from_lock(lock: &Value, rev: Option<&str>, dir: &Path) -> Option<Source> {
     let nodes = lock["nodes"].as_object()?;
     let root_name = lock["root"].as_str().unwrap_or("root");
@@ -192,7 +233,7 @@ fn source_from_lock(lock: &Value, rev: Option<&str>, dir: &Path) -> Option<Sourc
             .find(|(_, n)| n["locked"]["rev"].as_str() == Some(rev))
             .map(|(k, _)| k.clone())
     });
-    // A stale lock may not hold the running revision: take the nixpkgs input.
+    // Stale lock: take the nixpkgs input.
     let name = by_rev.or_else(|| {
         std::iter::once(&nodes[root_name])
             .chain(root_inputs.values().filter_map(|v| nodes.get(v.as_str()?)))
@@ -227,7 +268,7 @@ fn source_from_lock(lock: &Value, rev: Option<&str>, dir: &Path) -> Option<Sourc
     })
 }
 
-/// True when the lock node `from` depends on `target`, directly or not.
+/// True when lock node `from` depends on `target`.
 fn reaches(nodes: &serde_json::Map<String, Value>, from: &str, target: &str) -> bool {
     let mut stack = vec![from.to_string()];
     let mut seen = std::collections::HashSet::new();
@@ -249,8 +290,7 @@ fn reaches(nodes: &serde_json::Map<String, Value>, from: &str, target: &str) -> 
     false
 }
 
-/// Head of `branch` on GitHub. Downloads nixpkgs when it moved (cached by Nix
-/// for an hour), which the update needs anyway.
+/// Head of `branch` on GitHub. Fetches nixpkgs when it moved.
 pub fn latest(branch: &str) -> Option<Latest> {
     let out = crate::util::nix()
         .args([
@@ -268,14 +308,11 @@ pub fn latest(branch: &str) -> Option<Latest> {
     })
 }
 
-/// The NixOS release after a stable `branch` (`nixos-26.05` gives `26.11`),
-/// when its channel exists already.
+/// The NixOS release after a stable `branch`, once its channel exists.
 pub fn newer_release(branch: &str) -> Option<String> {
     let next = next_release(branch)?;
     let url = format!("https://channels.nixos.org/nixos-{next}/git-revision");
-    ureq::get(&url)
-        .timeout(crate::http::TIMEOUT)
-        .call()
+    crate::http::get(&url, crate::http::TIMEOUT)
         .ok()
         .map(|_| next)
 }
@@ -290,15 +327,72 @@ fn next_release(branch: &str) -> Option<String> {
     }
 }
 
-/// Installed apps that `rev` ships in a newer version. One evaluation for all
-/// apps; the pname stands for the attribute, apps without a match are skipped.
-pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
+/// The installed apps an update of `source` changes.
+pub fn updatable_apps(source: &Source) -> Vec<ProfileApp> {
+    let mut apps = crate::profiles::profile_apps();
+    if source.method == UpdateMethod::Profile {
+        let profile = crate::util::home().join(".nix-profile");
+        apps.retain(|a| a.desktop_file.starts_with(&profile));
+    }
+    let held = held_pnames(&crate::manifest::load_manifest());
+    apps.retain(|a| !held.contains(&a.pname));
+    apps
+}
+
+/// pnames of the held packages: their updates are refused on purpose.
+fn held_pnames(m: &crate::manifest::Manifest) -> Vec<String> {
+    m.kept
+        .iter()
+        .filter(|e| e.pin.is_some())
+        .map(|e| {
+            let attr = &e.package.attr;
+            attr.rsplit('.').next().unwrap_or(attr).to_string()
+        })
+        .collect()
+}
+
+/// Installed apps `rev` ships in a newer version. Apps whose installed
+/// version differs from the one of `current` were changed by the
+/// configuration (an overlay): updating nixpkgs may not move them, skipped.
+pub fn app_updates(rev: &str, current: Option<&str>, apps: &[ProfileApp]) -> Vec<AppUpdate> {
     let mut names: Vec<&str> = apps.iter().map(|a| a.pname.as_str()).collect();
     names.sort_unstable();
     names.dedup();
     if names.is_empty() {
         return Vec::new();
     }
+    let changed = current.map(|c| versions_at(c, &names)).unwrap_or_default();
+    let plain: Vec<ProfileApp> = apps
+        .iter()
+        .filter(|a| {
+            changed
+                .get(&a.pname)
+                .and_then(Value::as_str)
+                .is_none_or(|v| v == a.version)
+        })
+        .cloned()
+        .collect();
+    newer_apps(&plain, &versions_at(rev, &names))
+}
+
+/// `attr` in nixos-unstable, when its version there is newer than
+/// `current`. Blocking: one metadata query, one evaluation.
+pub fn newer_in_unstable(attr: &str, current: &str) -> Option<crate::versions::VersionChoice> {
+    let head = latest("nixos-unstable")?;
+    let version = versions_at(&head.rev, &[attr])
+        .get(attr)?
+        .as_str()?
+        .to_string();
+    version_newer(&version, current).then(|| crate::versions::VersionChoice {
+        version,
+        rev: head.rev,
+        date: String::new(),
+        cached: true,
+    })
+}
+
+/// Versions of `names` in nixpkgs `rev`, in one evaluation.
+fn versions_at(rev: &str, names: &[&str]) -> serde_json::Map<String, Value> {
     let list = names
         .iter()
         .map(|n| serde_json::to_string(n).unwrap_or_default())
@@ -313,13 +407,13 @@ pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
     let out = crate::util::nix()
         .args(["eval", "--json", "--expr", &expr])
         .output();
-    let Ok(out) = out else { return Vec::new() };
-    let versions: serde_json::Map<String, Value> =
-        serde_json::from_slice(&out.stdout).unwrap_or_default();
-    newer_apps(apps, &versions)
+    let Ok(out) = out else {
+        return Default::default();
+    };
+    serde_json::from_slice(&out.stdout).unwrap_or_default()
 }
 
-/// Pure part of [`app_updates`]: one entry per pname with a newer version.
+/// The apps whose pname has a newer version in `versions`.
 fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) -> Vec<AppUpdate> {
     let mut out: Vec<AppUpdate> = Vec::new();
     for app in apps {
@@ -336,51 +430,61 @@ fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) ->
     out
 }
 
-/// The command that moves the pin and applies the config, when Nix Software can run it.
-pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<String>> {
-    let shell = |script: String, sudo: bool| -> Vec<String> {
-        let mut argv: Vec<String> = Vec::new();
-        if sudo {
-            argv.push("sudo".into());
-        }
-        argv.extend(["sh".into(), "-c".into(), script]);
-        argv
-    };
-    let (sudo, apply) = match layout.apply.split_first() {
-        Some((first, rest)) if first == "sudo" => (true, quote_all(rest)),
-        _ => (false, quote_all(&layout.apply)),
-    };
+/// The steps moving the pin and applying, when Nix Software can run them.
+/// The lock is updated as the user when the user owns it.
+pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<Vec<String>>> {
+    let apply = layout.apply.clone();
     match &source.method {
-        UpdateMethod::FlakeInput { dir, input } if !apply.is_empty() => Some(shell(
-            format!(
-                "nix --extra-experimental-features 'nix-command flakes' flake update {} --flake {} && {apply}",
-                quote(input),
-                quote(&dir.to_string_lossy())
-            ),
-            sudo,
-        )),
-        UpdateMethod::Channel => Some(
-            ["sudo", "nixos-rebuild", "switch", "--upgrade"]
-                .map(String::from)
-                .to_vec(),
-        ),
+        UpdateMethod::FlakeInput { dir, input } if !apply.is_empty() => {
+            let owned = std::fs::OpenOptions::new()
+                .append(true)
+                .open(dir.join("flake.lock"))
+                .is_ok();
+            let mut update: Vec<String> = if owned {
+                Vec::new()
+            } else {
+                vec!["sudo".into()]
+            };
+            update.extend(
+                [
+                    "nix",
+                    "--extra-experimental-features",
+                    "nix-command flakes",
+                    "flake",
+                    "update",
+                    input,
+                    "--flake",
+                    &dir.to_string_lossy(),
+                ]
+                .map(String::from),
+            );
+            Some(vec![update, apply])
+        }
+        UpdateMethod::Channel => Some(vec![["sudo", "nixos-rebuild", "switch", "--upgrade"]
+            .map(String::from)
+            .to_vec()]),
+        UpdateMethod::Profile => Some(vec![[
+            "env",
+            "NIXPKGS_ALLOW_UNFREE=1",
+            "nix",
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "profile",
+            "upgrade",
+            "--all",
+            "--impure",
+        ]
+        .map(String::from)
+        .to_vec()]),
         UpdateMethod::HmChannel if !apply.is_empty() => {
-            Some(shell(format!("nix-channel --update && {apply}"), sudo))
+            Some(vec![vec!["nix-channel".into(), "--update".into()], apply])
         }
         _ => None,
     }
 }
 
-fn quote(s: &str) -> String {
-    format!("'{}'", s.replace('\'', r"'\''"))
-}
-
-fn quote_all(argv: &[String]) -> String {
-    argv.iter().map(|a| quote(a)).collect::<Vec<_>>().join(" ")
-}
-
-/// Compares two versions "the Nix way" by numeric segments (dot/dash separated).
-fn version_newer(candidate: &str, current: &str) -> bool {
+/// True when `candidate` is newer than `current`, by numeric segments.
+pub fn version_newer(candidate: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u64> {
         v.split(['.', '-'])
             .map(|s| {
@@ -405,6 +509,64 @@ fn version_newer(candidate: &str, current: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn held_packages_leave_the_updates() {
+        let held = crate::manifest::KeptEntry {
+            pin: Some(crate::manifest::Pin {
+                rev: "abc".into(),
+                sha256: "x".into(),
+                since: 0,
+                version: None,
+            }),
+            ..crate::manifest::KeptEntry::simple(crate::Package::from_attr("vlc"))
+        };
+        let m = crate::manifest::Manifest {
+            kept: vec![
+                held,
+                crate::manifest::KeptEntry::simple(crate::Package::from_attr("gimp")),
+            ],
+        };
+        assert_eq!(held_pnames(&m), ["vlc"]);
+    }
+
+    #[test]
+    fn registry_branch_reads_github_and_channel_urls() {
+        let list = "system flake:nixpkgs path:/nix/store/abc-source\n\
+global flake:nixpkgs/nixos-26.05 https://channels.nixos.org/nixos-26.05/nixexprs.tar.zst\n\
+global flake:nixpkgs https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst\n";
+        assert_eq!(registry_branch(list), None, "a store path has no branch");
+        let global =
+            "global flake:nixpkgs https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst\n";
+        assert_eq!(registry_branch(global).as_deref(), Some("nixpkgs-unstable"));
+        let user = "user flake:nixpkgs github:NixOS/nixpkgs/nixos-26.05\n\
+global flake:nixpkgs github:NixOS/nixpkgs/nixpkgs-unstable\n";
+        assert_eq!(registry_branch(user).as_deref(), Some("nixos-26.05"));
+    }
+
+    #[test]
+    fn profile_update_upgrades_the_user_profile() {
+        let source = Source {
+            branch: Some("nixpkgs-unstable".into()),
+            rev: None,
+            last_modified: None,
+            method: UpdateMethod::Profile,
+        };
+        let layout = Layout {
+            kind: LayoutKind::Unknown,
+            home: None,
+            system: None,
+            apply: Vec::new(),
+            hm_user: None,
+        };
+        let steps = update_command(&source, &layout).unwrap();
+        let argv = &steps[0];
+        assert!(
+            argv.windows(2).any(|w| w == ["upgrade", "--all"]),
+            "{argv:?}"
+        );
+        assert!(!argv.contains(&"sudo".to_string()));
+    }
     use crate::profiles::Scope;
 
     #[test]
@@ -531,17 +693,17 @@ mod tests {
     }
 
     #[test]
-    fn flake_update_then_apply_under_one_sudo() {
+    fn flake_update_then_apply() {
         let source = Source {
             branch: None,
             rev: None,
             last_modified: None,
             method: UpdateMethod::FlakeInput {
-                dir: PathBuf::from("/etc/nixos"),
+                dir: PathBuf::from("/nonexistent/nixos"),
                 input: "nixpkgs".into(),
             },
         };
-        let argv = update_command(
+        let steps = update_command(
             &source,
             &layout(&[
                 "sudo",
@@ -552,8 +714,13 @@ mod tests {
             ]),
         )
         .unwrap();
-        assert_eq!(argv[..3], ["sudo", "sh", "-c"]);
-        assert!(argv[3].contains("flake update 'nixpkgs' --flake '/etc/nixos' && 'nixos-rebuild'"));
+        assert_eq!(steps.len(), 2);
+        assert_eq!(
+            steps[0][0], "sudo",
+            "a lock the user cannot write needs rights"
+        );
+        assert!(steps[0].windows(2).any(|w| w == ["update", "nixpkgs"]));
+        assert_eq!(steps[1][..2], ["sudo", "nixos-rebuild"]);
     }
 
     #[test]

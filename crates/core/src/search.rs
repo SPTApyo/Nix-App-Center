@@ -15,19 +15,28 @@ pub(crate) struct NixPkgEntry {
     pub(crate) description: Option<String>,
 }
 
-/// TTL of the disk cache of raw `nix search` results (`cache::cached_search`).
-/// `nix search` evaluates all of nixpkgs when cold (30 s to 2 min depending on
-/// the machine); nixpkgs does not change fast enough for second-level
-/// freshness to matter, so this cost is paid once an hour rather than on
-/// every app start.
+/// How long raw `nix search` results stay cached: a cold search takes minutes.
 pub(crate) const SEARCH_CACHE_TTL_SECS: u64 = 3600;
 
-/// Runs `nix search nixpkgs <patterns...> --json` and turns each entry into a
-/// `Package` (short attr, default fields when missing). `[]` when `nix` fails
-/// or is missing, or the JSON is invalid: never panics on a machine without
-/// `nix` or with unexpected output.
+/// Raw `nix search` results of nixpkgs and of the configuration's other
+/// flakes, searched side by side; empty when `nix` fails.
 pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
-    let mut args: Vec<String> = vec!["search".into(), crate::nixpkgs_ref().into()];
+    let flakes: Vec<_> = crate::config_layout::flake_sources()
+        .into_iter()
+        .map(|(name, flake)| {
+            let patterns = patterns.to_vec();
+            std::thread::spawn(move || raw_flake_search(&flake, Some(&name), &patterns))
+        })
+        .collect();
+    let mut out = raw_flake_search(crate::nixpkgs_ref(), None, patterns);
+    for h in flakes {
+        out.extend(h.join().unwrap_or_default());
+    }
+    out
+}
+
+fn raw_flake_search(flake: &str, source: Option<&str>, patterns: &[String]) -> Vec<Package> {
+    let mut args: Vec<String> = vec!["search".into(), flake.into()];
     args.extend(patterns.iter().cloned());
     args.push("--json".into());
 
@@ -41,7 +50,7 @@ pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
         Err(_) => return vec![],
     };
 
-    // The nix attr is "legacyPackages.x86_64-linux.<attrpath>"; keep <attrpath>.
+    // Keep the attr path after `legacyPackages.<system>.`.
     raw.into_iter()
         .map(|(attr, info)| {
             let short = attr.splitn(3, '.').nth(2).unwrap_or(&attr).to_string();
@@ -49,35 +58,85 @@ pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
                 name: info.pname.unwrap_or_else(|| short.clone()),
                 version: info.version.unwrap_or_default(),
                 description: info.description.unwrap_or_default(),
+                source: source.map(str::to_string),
                 attr: short,
             }
         })
         .collect()
 }
 
-/// nixpkgs' own test derivations (`tests.haskell.…`) are not installable apps.
+/// What a search result's meta says, read after the results show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResultMeta {
+    pub free: bool,
+    /// Builds for this machine's platform.
+    pub available: bool,
+}
+
+/// The license and platform of `attrs`, in one evaluation of nixpkgs.
+/// Packages that fail to evaluate are left out. Blocking.
+pub fn results_meta(attrs: &[String]) -> HashMap<String, ResultMeta> {
+    let safe = |a: &&String| {
+        !a.is_empty()
+            && a.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.'+".contains(c))
+    };
+    let list = attrs
+        .iter()
+        .filter(safe)
+        .map(|a| serde_json::to_string(a).unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if list.is_empty() {
+        return HashMap::new();
+    }
+    let system = format!("{}-linux", std::env::consts::ARCH);
+    let expr = format!(
+        "let f = builtins.getFlake \"{}\"; p = f.legacyPackages.{system}; lib = f.lib; \
+         meta = a: let r = builtins.tryEval (let x = lib.attrByPath (lib.splitString \".\" a) null p; \
+           l = x.meta.license or {{ }}; v = {{ \
+           free = if builtins.isList l then builtins.all (y: y.free or true) l else l.free or true; \
+           available = lib.meta.availableOn {{ system = \"{system}\"; }} x; }}; \
+           in if x == null then null else builtins.deepSeq v v); \
+         in if r.success then r.value else null; \
+         in builtins.listToAttrs (map (a: {{ name = a; value = meta a; }}) [ {list} ])",
+        crate::nixpkgs_ref()
+    );
+    let Ok(out) = crate::util::nix()
+        .args(["eval", "--json", "--impure", "--expr", &expr])
+        .output()
+    else {
+        return HashMap::new();
+    };
+    let v: HashMap<String, Option<serde_json::Value>> =
+        serde_json::from_slice(&out.stdout).unwrap_or_default();
+    v.into_iter()
+        .filter_map(|(k, m)| {
+            let m = m?;
+            Some((
+                k,
+                ResultMeta {
+                    free: m["free"].as_bool().unwrap_or(true),
+                    available: m["available"].as_bool().unwrap_or(true),
+                },
+            ))
+        })
+        .collect()
+}
+
+/// nixpkgs test derivations, not installable apps.
 fn is_internal(attr: &str) -> bool {
     attr.starts_with("tests.")
 }
 
-/// Searches nixpkgs packages, ranked by relevance like GNOME Software.
-///
-/// 1. **Every token must match** (each word passed separately to
-///    `nix search`, which ANDs them).
-/// 2. Results are **scored per field**: exact name/attr ≫ starts with ≫
-///    contains ≫ description, with a slight length penalty (favoring short,
-///    exact names). This brings the wanted package to the top.
-///
-/// The raw `nix search` call is disk cached (`cache::cached_search`, TTL
-/// [`SEARCH_CACHE_TTL_SECS`]): ranking and dedup below always rerun, only the
-/// nixpkgs evaluation cost is avoided.
+/// nixpkgs packages matching every word of `query`, best first: exact
+/// name, then prefix, then contains, then description.
 pub fn search(query: &str) -> Vec<Package> {
     let query = query.trim();
     if query.is_empty() {
         return vec![];
     }
 
-    // One argument per token (AND), each escaped for nix's regex engine.
     let tokens: Vec<String> = query.split_whitespace().map(regex_escape).collect();
 
     let packages: Vec<Package> =
@@ -86,21 +145,20 @@ pub fn search(query: &str) -> Vec<Package> {
             .filter(|p| !is_internal(&p.attr))
             .collect();
 
-    // nixpkgs exposes CASE aliases (`superTux` ↔ `supertux`, `superTuxKart` ↔
-    // `supertuxkart`): two attrs for the SAME package (same pname/version/
-    // description). `nix search` returns both, so duplicates show up. Attrs
-    // equal up to case are merged, keeping the canonical form (all lowercase,
-    // usually = pname).
+    // Merge case aliases such as `superTux` and `supertux`.
     let mut canon: HashMap<String, Package> = HashMap::new();
     for p in packages {
-        let key = p.attr.to_lowercase();
+        let key = format!(
+            "{}:{}",
+            p.source.as_deref().unwrap_or(""),
+            p.attr.to_lowercase()
+        );
         match canon.get_mut(&key) {
             None => {
                 canon.insert(key, p);
             }
             Some(existing) => {
-                // DISPLAYED name: prefer the attr variant WITH capitals
-                // (`superTux` → "SuperTux"); the bare `pname` is all lowercase.
+                // Display the capitalized variant.
                 let p_upper = p.attr.chars().any(char::is_uppercase);
                 let ex_upper = existing.attr.chars().any(char::is_uppercase);
                 if p_upper {
@@ -109,9 +167,8 @@ pub fn search(query: &str) -> Vec<Package> {
                     let a = existing.attr.clone();
                     existing.name = beautify_attr(&a);
                 }
-                // Attr to RUN: prefer the real lowercase form
-                // (`nix run nixpkgs#supertux`, the safest canonical alias).
-                if p.attr == key {
+                // Run the lowercase attr.
+                if p.attr == p.attr.to_lowercase() {
                     existing.attr = p.attr;
                 }
             }
@@ -119,7 +176,6 @@ pub fn search(query: &str) -> Vec<Package> {
     }
     let mut packages: Vec<Package> = canon.into_values().collect();
 
-    // Relevance ranking (decreasing score, then name).
     let qlow = query.to_lowercase();
     let toks: Vec<String> = query.split_whitespace().map(|t| t.to_lowercase()).collect();
     packages.sort_by(|a, b| {
@@ -131,10 +187,7 @@ pub fn search(query: &str) -> Vec<Package> {
     packages
 }
 
-/// A `search_apps` result: the nix package + optional AppStream dressing.
-/// `recognized` tells "matched to an AppStream entry" apart from "has an icon":
-/// a recognized app without icon is still an application (official name, ODRS
-/// rating) and must not fall into "Other Packages".
+/// A search result: the package and its AppStream identity, if any.
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub package: Package,
@@ -143,20 +196,13 @@ pub struct SearchResult {
     pub recognized: bool,
 }
 
-/// Enriched search: ranked nix results + **AppStream icon** when the app is
-/// recognized (local database when ready, else one Flathub `/search` call per
-/// query, mapped to nix packages by name/attr).
-///
-/// The local database may not know the WHOLE Flathub catalog (stale cache):
-/// results it does not recognize fall back, one by one, on the same REST call
-/// as when the database is not ready at all, without any network call when
-/// the local database already resolved every result (common case, free).
+/// `search` results with their AppStream icon and rating, from the local
+/// database, else from one Flathub query.
 pub fn search_apps(query: &str) -> Vec<SearchResult> {
     let rate_handle = std::thread::spawn(odrs_ratings);
     let db_ready = appstream_db::is_ready();
 
-    // Database not ready: the network is needed anyway, so start it in
-    // parallel with `search()`.
+    // Fetch Flathub while `nix search` runs.
     let icon_handle = (!db_ready).then(|| {
         let q = query.to_string();
         std::thread::spawn(move || flathub_icon_map(&q))
@@ -177,8 +223,7 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
 
     let _ = rate_handle.join();
 
-    // Variants (`gimp`, `gimp3`, `gimp-with-plugins`) share one AppStream entry:
-    // only the best ranked one takes the app identity, the rest stay packages.
+    // Variants share one entry; best ranked wins.
     let mut claimed = std::collections::HashSet::new();
     pkgs.into_iter()
         .map(|mut p| {
@@ -228,7 +273,7 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
         .collect()
 }
 
-/// A secondary package of an already listed app.
+/// A secondary package of an app already listed.
 fn variant(package: Package, icon_url: Option<String>) -> SearchResult {
     SearchResult {
         package: named_by_attr(package),
@@ -238,8 +283,7 @@ fn variant(package: Package, icon_url: Option<String>) -> SearchResult {
     }
 }
 
-/// Packages without app identity are named by attr: several attrs share one
-/// `pname` (`gimpPlugins.bimp`, `gimp3Plugins.bimp`), the attr is unique.
+/// Names a package by its attr, unique unlike `pname`.
 fn named_by_attr(mut p: Package) -> Package {
     if !p.name.eq_ignore_ascii_case(&p.attr) {
         p.name = p.attr.clone();
@@ -247,8 +291,7 @@ fn named_by_attr(mut p: Package) -> Package {
     p
 }
 
-/// Relevance score of a package for a query (weights inspired by GNOME's
-/// AppStream fields: name ≫ contains ≫ description).
+/// Relevance of `pkg` for the query `q` split into `toks`.
 fn search_score(pkg: &Package, q: &str, toks: &[String]) -> i64 {
     let attr = pkg.attr.to_lowercase();
     let name = pkg.name.to_lowercase();
@@ -258,36 +301,33 @@ fn search_score(pkg: &Package, q: &str, toks: &[String]) -> i64 {
     if attr == q {
         s += 1000; // exact match
     } else if name == q {
-        s += 800; // exact pname, but the attr says otherwise (a package set)
+        s += 800; // exact pname in a package set
     } else if attr.starts_with(q) || name.starts_with(q) {
         s += 600; // starts with
     } else if attr.contains(q) || name.contains(q) {
         s += 300; // contains (name)
     }
 
-    // Every token present in the name/attr (multi-word).
     if toks
         .iter()
         .all(|t| attr.contains(t.as_str()) || name.contains(t.as_str()))
     {
         s += 150;
     }
-    // Every token present in the description (low weight).
     if toks.iter().all(|t| desc.contains(t.as_str())) {
         s += 30;
     }
 
-    // Favor short names (closer to an exact match).
+    // Shorter names rank higher.
     s -= (attr.chars().count() as i64).min(60);
-    // Top-level packages before package sets (`haskellPackages.hello`).
+    // Top-level before package sets.
     if attr.contains('.') {
         s -= 40;
     }
     s
 }
 
-/// Prettifies a nixpkgs attr for display: capitalizes the first letter and
-/// keeps inner case (`superTux` → "SuperTux", `superTuxKart` → "SuperTuxKart").
+/// Display name of an attr: first letter capitalized (`SuperTux`).
 fn beautify_attr(attr: &str) -> String {
     let mut chars = attr.chars();
     match chars.next() {
@@ -324,8 +364,7 @@ mod tests {
 
     #[test]
     fn search_score_length_penalty_breaks_ties() {
-        // Two attrs that "contain" the query without starting with it:
-        // the shorter must win (length penalty).
+        // The shorter contained match wins.
         let short = Package::from_attr("xfirefox");
         let long = Package::from_attr("xfirefoxlong");
         let t = toks("firefox");

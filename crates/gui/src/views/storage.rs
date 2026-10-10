@@ -1,9 +1,6 @@
-//! "Storage" tab: where the Nix store space goes, as a pie chart over
-//! categories that never double count, the generations with what each one
-//! alone keeps, the apps by size, and the two clean-ups Nix Software can run.
-//!
-//! The report reads the whole store database (seconds): it runs when the tab
-//! is entered and the last one is older than a minute, or after a clean-up.
+//! Storage tab: a pie chart of the store by category, the generations, the
+//! apps by size, home folders, and the clean-ups. Refreshed at most once a
+//! minute.
 
 use std::time::{Duration, Instant};
 
@@ -18,7 +15,7 @@ const RELOAD_AFTER: Duration = Duration::from_secs(60);
 
 pub struct StorageModel {
     report: Option<Result<StorageReport, String>>,
-    /// Folders apps keep in the home, measured apart (slower).
+    /// Home folders, measured separately.
     home: Option<Vec<HomeDir>>,
     /// Outcome of the last cache clean-up.
     status: Option<String>,
@@ -34,11 +31,11 @@ pub enum StorageMsg {
     Reload,
     Refresh,
     Loaded(Result<StorageReport, String>),
-    /// Run a clean-up command in the build log dialog.
+    /// Runs a clean-up command in the build log dialog.
     Clean(Vec<String>),
     Cleaned,
     HomeLoaded(Vec<HomeDir>),
-    /// Confirmed: delete this cache folder.
+    /// Deletes this cache folder, once confirmed.
     ClearCache(HomeDir),
     CacheCleared(Result<(), String>),
 }
@@ -137,6 +134,9 @@ impl SimpleComponent for StorageModel {
             StorageMsg::Loaded(res) => {
                 self.loading = false;
                 self.loaded_at = Some(Instant::now());
+                if self.report.is_some() {
+                    self.content.add_css_class("settled");
+                }
                 self.report = Some(res);
                 self.rebuild(&sender);
             }
@@ -145,7 +145,7 @@ impl SimpleComponent for StorageModel {
                 crate::components::apply_dialog::present(
                     &self.content,
                     &t("Cleaning Up"),
-                    argv,
+                    vec![argv],
                     move |_| {
                         let _ = s.send(StorageMsg::Cleaned);
                     },
@@ -185,7 +185,7 @@ fn category_info(c: Category) -> (&'static str, String, String) {
         Category::Development => (
             "#f6d32d",
             t("Development"),
-            t("Dev shells, build results and other roots"),
+            t("Dev shells, build results, and build inputs Nix keeps"),
         ),
         Category::TriedApps => (
             "#33c7de",
@@ -196,8 +196,7 @@ fn category_info(c: Category) -> (&'static str, String, String) {
     }
 }
 
-/// Loading placeholder shaped like the page: title, chart card with its
-/// disc and legend, then the clean-up and generation lists.
+/// Loading placeholder shaped like the page.
 fn storage_skeleton() -> gtk::Box {
     let bar = |w: i32, h: i32| {
         let b = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -290,8 +289,7 @@ impl StorageModel {
         self.fill_home(sender);
     }
 
-    /// The home folder section arrives later: filled alone, so the rest of
-    /// the page (and its animations) stays as it is.
+    /// Fills the home section alone, so the rest keeps its animations.
     fn fill_home(&self, sender: &ComponentSender<Self>) {
         while let Some(child) = self.home_slot.first_child() {
             self.home_slot.remove(&child);
@@ -320,6 +318,9 @@ impl StorageModel {
                     &size(of(Category::Garbage) + of(Category::TriedApps)),
                 )))
             .build();
+        garbage.set_tooltip_text(Some(&t(
+            "Runs the Nix garbage collector: deletes store paths nothing uses.",
+        )));
         garbage.add_suffix(&button(&t("Clean"), false, {
             let s = sender.input_sender().clone();
             move || {
@@ -332,6 +333,9 @@ impl StorageModel {
             .title(t("Delete Old Generations"))
             .subtitle(esc(&t("About {}, and you can no longer roll back to them. The boot menu follows at the next rebuild.").replace("{}", &size(of(Category::OldGenerations)))))
             .build();
+        old.set_tooltip_text(Some(&t(
+            "Deletes the old generations: you can no longer boot or roll back to them.",
+        )));
         old.add_suffix(&button(&t("Delete…"), true, {
             let s = sender.input_sender().clone();
             let parent = self.content.clone();
@@ -357,7 +361,7 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
     pie.set_content_height(200);
     pie.set_valign(gtk::Align::Center);
     let parts = slices.clone();
-    // Share of the circle drawn so far, animated from 0 to 1 on first show.
+    // Share of the circle drawn, animated once.
     let progress = std::rc::Rc::new(std::cell::Cell::new(0.0_f64));
     let drawn = progress.clone();
     pie.set_draw_func(move |_, cr, w, h| {
@@ -374,7 +378,6 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
             let _ = cr.fill();
             angle += sweep;
         }
-        // Donut hole, in the window color.
         cr.set_operator(gtk::cairo::Operator::Clear);
         cr.arc(cx, cy, radius * 0.55, 0.0, std::f64::consts::TAU);
         let _ = cr.fill();
@@ -389,7 +392,7 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
     });
     let sweep = adw::TimedAnimation::new(&pie, 0.0, 1.0, 900, target);
     sweep.set_easing(adw::Easing::EaseOutCubic);
-    // Animations of an unmapped widget are skipped: start once shown.
+    // Unmapped widgets skip animations.
     pie.connect_map(move |_| sweep.play());
 
     let legend = gtk::Box::new(gtk::Orientation::Vertical, 8);
@@ -596,7 +599,7 @@ fn apps(r: &StorageReport) -> gtk::Box {
     )
 }
 
-/// The biggest folders apps keep in the home. Caches can be cleared.
+/// The biggest home folders; caches can be cleared.
 fn home_files(
     dirs: &[HomeDir],
     report: &StorageReport,
@@ -610,7 +613,6 @@ fn home_files(
             HomeKind::Data => t("Data"),
             HomeKind::Config => t("Settings"),
         };
-        // Name the app when the folder is obviously its own.
         let owner = report
             .apps
             .iter()
@@ -669,7 +671,7 @@ fn confirm_delete_generations(parent: &gtk::Box, s: relm4::Sender<StorageMsg>) {
     dialog.set_default_response(Some("cancel"));
     dialog.connect_response(None, move |_, response| {
         if response == "delete" {
-            // As root: the system profile is root's.
+            // The system profile is root's.
             let _ = s.send(StorageMsg::Clean(vec![
                 "sudo".into(),
                 "nix-collect-garbage".into(),

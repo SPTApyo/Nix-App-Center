@@ -1,5 +1,4 @@
-//! `AppTile`: an app tile in category grids (child of a `gtk::FlowBox`, like
-//! GNOME Software). Click opens the details page.
+//! An app tile of the category grids; a click opens its page.
 
 use adw::prelude::*;
 use nix_software_core::Package;
@@ -28,104 +27,118 @@ impl FactoryComponent for AppTile {
     type ParentWidget = gtk::FlowBox;
 
     view! {
-        // Dimensions copied from GsSummaryTile (GNOME Software):
-        // preferred-width 270, padding 17, 64 px icon, gap 14.
+        // Sized like GNOME Software's GsSummaryTile.
         #[root]
         gtk::Button {
             add_css_class: "card",
             set_width_request: 190,
             set_hexpand: true,
             set_halign: gtk::Align::Fill,
-            set_valign: gtk::Align::Start,
+            set_valign: gtk::Align::Fill,
+            add_css_class: "app-tile",
             connect_clicked => TileMsg::Open,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 14,
-                set_margin_top: 17,
-                set_margin_bottom: 17,
-                set_margin_start: 17,
-                set_margin_end: 17,
+            gtk::Overlay {
 
-                gtk::Box {
-                    set_width_request: 64,
-                    set_height_request: 64,
-                    set_valign: gtk::Align::Center,
-
-                    gtk::Box {
-                        #[watch]
-                        set_visible: self.icon_state == IconState::Loading,
-                        set_width_request: 64,
-                        set_height_request: 64,
-                        add_css_class: "icon-shimmer",
-                    },
-                    gtk::Box {
-                        #[watch]
-                        set_visible: self.icon_state == IconState::Generic,
-                        set_width_request: 64,
-                        set_height_request: 64,
-                        set_halign: gtk::Align::Center,
-                        set_valign: gtk::Align::Center,
-                        // Stops the inner image hexpand from propagating (else the
-                        // tile stretches and misaligns the grid).
-                        set_hexpand: false,
-                        set_vexpand: false,
-                        add_css_class: "fallback-tile",
-                        add_css_class: fallback_icon(&self.package).1,
-
-                        gtk::Image {
-                            set_icon_name: Some(fallback_icon(&self.package).0),
-                            set_pixel_size: 48,
-                            // hexpand/vexpand are required: in a Box, halign Center
-                            // only acts on the main axis when the child takes all
-                            // the space, else the glyph sticks to the left.
-                            set_hexpand: true,
-                            set_vexpand: true,
-                            set_halign: gtk::Align::Center,
-                            set_valign: gtk::Align::Center,
-                            add_css_class: "fallback-glyph",
-                        },
-                    },
-                    // gtk::Image (not Picture): `pixel_size` bounds the layout
-                    // size to 64 (no FlowBox overflow) while rendering the 128
-                    // texture at full resolution, sharp on HiDPI.
-                    gtk::Image {
-                        #[watch]
-                        set_visible: self.icon_state == IconState::Real,
-                        #[watch]
-                        set_paintable: self.icon_tex.as_ref(),
-                        set_pixel_size: 64,
-                    },
-                },
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_valign: gtk::Align::Center,
-                    set_hexpand: true,
-                    set_spacing: 6,
+                    set_spacing: 12,
+                    set_margin_top: 17,
+                    set_margin_bottom: 17,
+                    set_margin_start: 17,
+                    set_margin_end: 17,
 
-                    gtk::Label {
-                        set_label: &self.package.name,
-                        set_xalign: 0.0,
-                        // Bounded natural width: 3 columns in the 1000 clamp.
-                        set_max_width_chars: 12,
-                        set_width_chars: 0,
-                        set_ellipsize: gtk::pango::EllipsizeMode::End,
-                        add_css_class: "app-tile-name",
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 14,
+
+                        gtk::Box {
+                            set_width_request: 64,
+                            set_height_request: 64,
+                            set_valign: gtk::Align::Center,
+
+                            gtk::Box {
+                                #[watch]
+                                set_visible: self.icon_state == IconState::Loading,
+                                set_width_request: 64,
+                                set_height_request: 64,
+                                add_css_class: "icon-shimmer",
+                            },
+                            gtk::Box {
+                                #[watch]
+                                set_visible: self.icon_state == IconState::Generic,
+                                set_width_request: 64,
+                                set_height_request: 64,
+                                set_halign: gtk::Align::Center,
+                                set_valign: gtk::Align::Center,
+                                // Keep the image from stretching the tile.
+                                set_hexpand: false,
+                                set_vexpand: false,
+                                add_css_class: "fallback-tile",
+                                add_css_class: fallback_icon(&self.package).1,
+
+                                gtk::Image {
+                                    set_icon_name: Some(fallback_icon(&self.package).0),
+                                    set_pixel_size: 48,
+                                    // Needed to center the glyph.
+                                    set_hexpand: true,
+                                    set_vexpand: true,
+                                    set_halign: gtk::Align::Center,
+                                    set_valign: gtk::Align::Center,
+                                    add_css_class: "fallback-glyph",
+                                },
+                            },
+                            // Image: 64 px layout, full resolution texture.
+                            gtk::Image {
+                                #[watch]
+                                set_visible: self.icon_state == IconState::Real,
+                                #[watch]
+                                set_paintable: self.icon_tex.as_ref(),
+                                set_pixel_size: 64,
+                            },
+                        },
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Center,
+                            set_hexpand: true,
+                            set_spacing: 6,
+
+                            gtk::Box {
+                                set_spacing: 6,
+
+                                gtk::Label {
+                                    set_label: &self.package.name,
+                                    set_xalign: 0.0,
+                                    // Three columns fit the clamp.
+                                    set_max_width_chars: 12,
+                                    set_width_chars: 0,
+                                    set_ellipsize: gtk::pango::EllipsizeMode::End,
+                                    add_css_class: "app-tile-name",
+                                },
+                            },
+                            gtk::Label {
+                                set_label: &truncate_desc(&self.package.description),
+                                set_xalign: 0.0,
+                                set_yalign: 0.0,
+                                set_wrap: true,
+                                // Long words must not widen the tile.
+                                set_wrap_mode: gtk::pango::WrapMode::WordChar,
+                                set_lines: 2,
+                                set_max_width_chars: 16,
+                                set_width_chars: 0,
+                                set_ellipsize: gtk::pango::EllipsizeMode::End,
+                                add_css_class: "app-tile-summary",
+                            },
+                        },
                     },
-                    gtk::Label {
-                        set_label: &truncate_desc(&self.package.description),
-                        set_xalign: 0.0,
-                        set_yalign: 0.0,
-                        set_wrap: true,
-                        // Wrap by character (not word) so a long word does not
-                        // inflate the tile minimum width.
-                        set_wrap_mode: gtk::pango::WrapMode::WordChar,
-                        set_lines: 2,
-                        set_max_width_chars: 16,
-                        set_width_chars: 0,
-                        set_ellipsize: gtk::pango::EllipsizeMode::End,
-                        add_css_class: "app-tile-summary",
-                    },
+                },
+
+                add_overlay = &crate::util::live_pill(&self.package, 14) -> gtk::Box {
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Start,
+                    set_margin_top: 6,
+                    set_margin_end: 6,
+                    add_css_class: "corner",
                 },
             },
         }
@@ -142,7 +155,7 @@ impl FactoryComponent for AppTile {
         };
         if let Some(url) = icon_url {
             nix_software_core::remember_icon_url(&package.attr, &url);
-            // send() (unlike input()) does not panic if the tile was destroyed.
+            // Safe after the tile is destroyed.
             let s = sender.input_sender().clone();
             std::thread::spawn(move || {
                 let _ = s.send(TileMsg::IconLoaded(nix_software_core::cached_fetch_bytes(
@@ -176,7 +189,7 @@ impl FactoryComponent for AppTile {
     }
 }
 
-/// Truncates the description to a number of characters, adding "…" when cut.
+/// `s` cut with "…" when too long.
 fn truncate_desc(s: &str) -> String {
     const MAX: usize = 64;
     let s = s.trim();

@@ -1,7 +1,5 @@
-//! GNOME Shell search provider (`org.gnome.Shell.SearchProvider2`), like
-//! GNOME Software's: the Shell overview lists Nix Software apps while the user types.
-//! Results come from the local AppStream database (instant, no network);
-//! activating one resolves it to nixpkgs and opens its page.
+//! GNOME Shell search provider: lists apps from the local AppStream
+//! database while the user types in the overview.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -40,10 +38,10 @@ const XML: &str = r#"<node>
   </interface>
 </node>"#;
 
-/// Where results go once the window exists (set by `AppModel::init`).
+/// Where activated results go, once the window exists.
 pub static APP_SENDER: OnceLock<relm4::Sender<AppMsg>> = OnceLock::new();
 
-/// Exports the provider on the application's bus. Call from `startup`.
+/// Exports the provider on the app's bus. Call from `startup`.
 pub fn register(app: &gtk::Application) {
     let Some(conn) = app.dbus_connection() else {
         return;
@@ -54,7 +52,6 @@ pub fn register(app: &gtk::Application) {
     else {
         return;
     };
-    // Searches need the database: start loading it now.
     nix_software_core::init_appstream_db();
     let app = app.clone();
     let _ = conn
@@ -125,7 +122,7 @@ fn meta(app_id: &str) -> HashMap<String, glib::Variant> {
     let (name, summary) = nix_software_core::local_app(app_id)
         .map(|h| (h.name, h.summary))
         .unwrap_or_default();
-    // The app's own icon when installed, else a generic one.
+    // The app's icon, else a generic one.
     let icon = gio::ThemedIcon::from_names(&[app_id, "package-x-generic"]);
     let mut m = HashMap::new();
     m.insert("id".to_string(), app_id.to_variant());

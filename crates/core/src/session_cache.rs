@@ -1,7 +1,4 @@
-//! In-session memoization (process lifetime, no TTL) of `AppMeta` metadata
-//! and icon/screenshot bytes: avoids repeating the same network/`nix eval`
-//! calls when the same app is seen again (search → details → installed…).
-//! Distinct from the TTL disk cache of `cache.rs` (raw search results).
+//! Session memory of app metadata and image bytes.
 
 use crate::app_meta::{app_meta, AppMeta};
 use crate::package::Package;
@@ -9,14 +6,10 @@ use std::collections::{HashMap, VecDeque};
 use std::io::Read;
 use std::sync::{LazyLock, Mutex};
 
-/// Memory cap of image bytes (128 MB decimal). Each fetch is already bounded
-/// to 20 MB; without a global cap, a browsing session piled up screenshots
-/// forever.
+/// Memory cap of cached image bytes.
 const BYTES_CACHE_CAP: usize = 128_000_000;
 
-/// Bounded byte cache: on insertion, evicts the oldest entries (FIFO) until
-/// back under `cap`. FIFO is enough (no LRU needed): close revisits reuse the
-/// entry long before it reaches the head.
+/// Byte cache dropping the oldest entries past `cap`.
 struct BoundedBytes {
     cap: usize,
     total: usize,
@@ -71,15 +64,12 @@ static BYTES_CACHE: LazyLock<Mutex<BoundedBytes>> =
 static ICON_URL_CACHE: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Downloads a file (image) into memory. `None` when the URL fails. Generous
-/// timeout (screenshots weigh several MB) but bounded: without it, a silent
-/// server hung the calling thread forever.
-/// Fetches `url`, else the smaller Flathub icons of the same app.
+/// Bytes at `url`, else at the smaller Flathub icon sizes.
 fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
     icon_fallbacks(url).iter().find_map(|u| fetch_one(u))
 }
 
-/// `…/icons/128x128@2/x.png`, then `128x128`, then `64x64`. Other URLs as is.
+/// `url`, then the smaller Flathub icon sizes of the same icon.
 fn icon_fallbacks(url: &str) -> Vec<String> {
     let mut out = vec![url.to_string()];
     for (from, to) in [("/128x128@2/", "/128x128/"), ("/128x128/", "/64x64/")] {
@@ -92,23 +82,17 @@ fn icon_fallbacks(url: &str) -> Vec<String> {
 }
 
 fn fetch_one(url: &str) -> Option<Vec<u8>> {
-    let resp = ureq::get(url)
-        .timeout(std::time::Duration::from_secs(30))
-        .call()
-        .ok()?;
     let mut buf = Vec::new();
-    resp.into_reader()
+    crate::http::get(url, std::time::Duration::from_secs(30))
+        .ok()?
         .take(20_000_000)
         .read_to_end(&mut buf)
         .ok()?;
     Some(buf)
 }
 
-/// Like `app_meta()` but memoized by `pkg.attr` for the whole session.
-/// Exception: a listing computed WHILE the AppStream database loads (bounded
-/// wait timed out) is not memoized, otherwise the poorer REST version
-/// (without add-ons or developer apps) stuck to the app for the whole session
-/// while the local database was about to become ready.
+/// `app_meta` memoized for the session, unless computed while the
+/// AppStream database was still loading.
 pub fn cached_app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     if let Ok(cache) = APP_META_CACHE.lock() {
         if let Some(m) = cache.get(&pkg.attr) {
@@ -124,14 +108,14 @@ pub fn cached_app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
     m
 }
 
-/// Drops the memoized metadata of `attr` (after a match correction).
+/// Forgets the metadata of `attr`.
 pub fn forget_app_meta(attr: &str) {
     if let Ok(mut cache) = APP_META_CACHE.lock() {
         cache.remove(attr);
     }
 }
 
-/// Like `fetch_bytes()` but memoized by URL for the session (bounded cache).
+/// `fetch_bytes` memoized for the session.
 pub fn cached_fetch_bytes(url: &str) -> Option<Vec<u8>> {
     if let Ok(cache) = BYTES_CACHE.lock() {
         if let Some(b) = cache.get(url) {
@@ -145,21 +129,19 @@ pub fn cached_fetch_bytes(url: &str) -> Option<Vec<u8>> {
     Some(b)
 }
 
-/// Bytes already cached for this URL, never triggering a request: safe to
-/// call from the main GTK thread.
+/// Bytes already cached for `url`, without any request.
 pub fn cached_bytes_if_present(url: &str) -> Option<Vec<u8>> {
     BYTES_CACHE.lock().ok()?.get(url)
 }
 
-/// Remembers the icon URL already resolved for an attr (list tile/row), so
-/// the details page can start from it instead of resolving from scratch.
+/// Remembers the icon URL found for `attr`.
 pub fn remember_icon_url(attr: &str, url: &str) {
     if let Ok(mut c) = ICON_URL_CACHE.lock() {
         c.insert(attr.to_string(), url.to_string());
     }
 }
 
-/// Icon URL already known for an attr, if a tile/row resolved it.
+/// The icon URL found for `attr`, if any.
 pub fn known_icon_url(attr: &str) -> Option<String> {
     ICON_URL_CACHE.lock().ok()?.get(attr).cloned()
 }
@@ -218,7 +200,7 @@ mod tests {
     fn bounded_bytes_evicts_oldest_when_over_cap() {
         let mut c = BoundedBytes::new(10);
         c.insert("a".into(), vec![0; 6]);
-        c.insert("b".into(), vec![0; 6]); // total 12 > 10, so "a" (oldest) is evicted
+        c.insert("b".into(), vec![0; 6]); // over the cap: "a" goes
         assert!(c.get("a").is_none(), "the oldest entry must be evicted");
         assert_eq!(c.get("b").map(|v| v.len()), Some(6));
         assert_eq!(c.total, 6, "accounting must follow eviction");

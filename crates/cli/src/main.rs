@@ -1,5 +1,4 @@
-//! Nix Software CLI: text front end of `core`, a test bench for the
-//! search → try → keep loop. No logic here: everything comes from `nix_software_core`.
+//! Nix Software CLI, a text front end over the core.
 //!
 //! Usage:
 //!   nix-software-cli search <query…>   list matching packages
@@ -9,6 +8,7 @@
 //!   nix-software-cli keep <attr>       add to the Nix Software manifest
 //!   nix-software-cli unkeep <attr>     remove from the manifest
 //!   nix-software-cli updates           nixpkgs pin vs its branch head, app changes
+//!   nix-software-cli versions <attr>   earlier versions and their nixpkgs revision
 //!   nix-software-cli locate <bin>      packages providing a binary (nix-locate)
 //!   nix-software-cli layout [--verify] what Nix Software detects of your config (read only)
 //!   nix-software-cli attach [--commit] consented attach (diff; --commit to write)
@@ -43,7 +43,7 @@ fn main() -> ExitCode {
         }
 
         Some("info") => match args.get(2) {
-            Some(attr) => match nix_software_core::detail(attr) {
+            Some(attr) => match nix_software_core::detail(&Package::from_attr(attr)) {
                 Some(d) => {
                     let kind = if d.is_runnable() {
                         "App (runnable)"
@@ -163,17 +163,38 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             println!("latest: {}", latest.rev);
-            for u in nix_software_core::app_updates(&latest.rev, &nix_software_core::profile_apps())
-            {
+            for u in nix_software_core::app_updates(
+                &latest.rev,
+                source.rev.as_deref(),
+                &nix_software_core::updatable_apps(&source),
+            ) {
                 println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);
             }
             match nix_software_core::update_command(&source, &nix_software_core::detect_layout()) {
-                Some(argv) => println!("update with: {}", argv.join(" ")),
+                Some(steps) => {
+                    let steps: Vec<String> = steps.iter().map(|a| a.join(" ")).collect();
+                    println!("update with: {}", steps.join(" && "));
+                }
                 None => println!("update the flake that pins nixpkgs, then apply"),
             }
             ExitCode::SUCCESS
         }
 
+        Some("versions") => match args.get(2) {
+            Some(attr) => {
+                let found = nix_software_core::versions(attr);
+                if found.is_empty() {
+                    eprintln!("no known versions of {attr}");
+                    return ExitCode::FAILURE;
+                }
+                for v in found {
+                    let cache = if v.cached { "cached" } else { "builds locally" };
+                    println!("{}\t{}\t{}\t{cache}", v.version, v.date, v.rev);
+                }
+                ExitCode::SUCCESS
+            }
+            None => usage(),
+        },
         Some("locate") => match args.get(2) {
             Some(cmd) => {
                 let pkgs = nix_software_core::locate_binary(cmd);
@@ -189,7 +210,6 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Diagnostic: what Nix Software believes about your config. Read only.
         Some("layout") => {
             let l = nix_software_core::detect_layout();
             println!("layout: {:?}", l.kind);
@@ -224,7 +244,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
 
-        // Consented attach: shows the diff, writes ONLY with `--commit`.
+        // Writes only with `--commit`.
         Some("attach") => {
             let layout = nix_software_core::detect_layout();
             let plan = nix_software_core::attach_plan(&layout);
@@ -287,8 +307,7 @@ fn main() -> ExitCode {
             }
         }
 
-        // Reads a home scope Nix block on stdin, parses it, saves it.
-        // Empty stdin turns the app back into a plain list entry.
+        // Empty stdin makes the app plain again.
         Some("edit") => match args.get(2) {
             Some(attr) => {
                 use std::io::Read;
@@ -317,7 +336,6 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        // Store garbage collection (frees unreferenced packages).
         Some("gc") => match nix_software_core::garbage_collect() {
             Ok(summary) => {
                 println!(
@@ -380,7 +398,7 @@ fn main() -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: nix-software-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: nix-software-cli <search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
     );
     ExitCode::FAILURE
 }

@@ -1,19 +1,15 @@
-//! Merges AppStream metadata (Flathub, local or REST) and Nix (`nix eval
-//! .meta`) for the details page: **AppStream first, Nix as fallback**.
+//! Details page metadata: AppStream first, Nix as fallback.
 
 use crate::appstream_db;
 use crate::detail::{detail, PackageDetail};
 use crate::flathub::{flathub_meta, meta_from_db, FlathubMeta, Release};
 use crate::package::Package;
 
-/// Merged metadata for the details page: **AppStream (Flathub) first, Nix
-/// (`meta`) as fallback**. Each empty field hides the matching section in the
-/// UI.
+/// Metadata of the details page; an empty field hides its section.
 #[derive(Debug, Clone, Default)]
 pub struct AppMeta {
     pub name: String,
-    /// Resolved AppStream/Flathub id (`io.github.…`), the reliable key for the
-    /// ODRS rating (the nixpkgs name alone causes wrong matches).
+    /// AppStream id, the key for ratings and reviews.
     pub app_id: Option<String>,
     pub developer: Option<String>,
     pub summary: Option<String>,
@@ -32,13 +28,14 @@ pub struct AppMeta {
     pub donation: Option<String>,
     pub translate: Option<String>,
     pub changelog: Option<String>,
-    /// nixpkgs maintainers, a Nix native trust signal (no AppStream
-    /// equivalent, never provided by `fh`).
+    /// nixpkgs maintainers.
     pub maintainers: Vec<String>,
-    /// Teams maintaining the package in nixpkgs.
+    /// nixpkgs teams.
     pub teams: Vec<String>,
-    /// The package recipe on GitHub, at the revision the config is pinned to.
+    /// The recipe on GitHub, at the pinned revision.
     pub source_url: Option<String>,
+    /// Boolean arguments of the recipe (`withQt5 ? true`).
+    pub build_flags: Vec<crate::BuildFlag>,
     pub download_page: Option<String>,
     /// Commands the app installs (AppStream `provides`, else `mainProgram`).
     pub binaries: Vec<String>,
@@ -49,44 +46,33 @@ pub struct AppMeta {
     /// Brand colors for light and dark backgrounds.
     pub brand_light: Option<String>,
     pub brand_dark: Option<String>,
-    /// The package is marked `meta.insecure` in nixpkgs.
+    /// `meta.insecure`.
     pub insecure: bool,
     pub known_vulnerabilities: Vec<String>,
-    /// The package is marked `meta.broken`: `nix run` will most likely fail.
+    /// `meta.broken`.
     pub broken: bool,
     /// Caption of each screenshot (parallel to `screenshot_urls`).
     pub screenshot_captions: Vec<Option<String>>,
-    /// OARS age rating ("12") + descriptions, from AppStream.
+    /// OARS age label and descriptions.
     pub age_label: Option<String>,
     pub age_descriptions: Vec<String>,
-    /// Extensions/add-ons (AppStream).
+    /// Add-ons.
     pub addons: Vec<crate::flathub::Addon>,
-    /// Other apps by the same developer (AppStream).
+    /// Other apps of the developer.
     pub developer_apps: Vec<crate::flathub::DevApp>,
 }
 
-/// Builds the merged metadata of a package (AppStream first, Nix fallback).
-/// Makes network/`nix eval` calls: run it in a thread. Both sources are
-/// independent and queried in parallel, so the details page latency is the
-/// max of the two, not their sum (AppStream may cost 2×6 s of network
-/// timeout, `nix eval` several seconds when cold).
+/// Metadata of `pkg`, AppStream and Nix fetched in parallel. Blocking.
 pub fn app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
-    let attr = pkg.attr.clone();
-    let nix_handle = std::thread::spawn(move || detail(&attr));
+    let owned = pkg.clone();
+    let nix_handle = std::thread::spawn(move || detail(&owned));
     let fh = flathub_meta_for(pkg, screenshot_target_w);
     let nix = nix_handle.join().ok().flatten();
     merge_app_meta(pkg, fh.as_ref(), nix.as_ref())
 }
 
-/// Like `flathub_meta(&pkg.name, …)` but first tries the local database by
-/// name THEN by nixpkgs attr (`appstream_db::lookup_package`) before falling
-/// back on `flathub_meta`, which only knows the name.
-///
-/// Waits (bounded) for a database load IN PROGRESS: the local database holds
-/// data REST lacks (add-ons, same developer apps), and the details page
-/// already shows a spinner while `nix eval` runs in parallel, so a few
-/// seconds beat a poorer listing. Without a load in progress (CLI), returns
-/// at once.
+/// Flathub metadata of `pkg`, by name then by attr. Waits for a
+/// database load in progress: it has add-ons and developer apps.
 fn flathub_meta_for(pkg: &Package, screenshot_target_w: u32) -> Option<FlathubMeta> {
     if crate::resolve::is_unmatched(&pkg.attr) {
         return None;
@@ -98,7 +84,7 @@ fn flathub_meta_for(pkg: &Package, screenshot_target_w: u32) -> Option<FlathubMe
     flathub_meta(&pkg.name, screenshot_target_w)
 }
 
-/// GitHub link of a `meta.position` (`/nix/store/…-source/pkgs/x.nix:42`).
+/// GitHub link of a `meta.position` at `rev`.
 fn source_url(position: &str, rev: &str) -> Option<String> {
     let (_, rest) = position.split_once("-source/")?;
     let (file, line) = rest.rsplit_once(':').unwrap_or((rest, ""));
@@ -112,19 +98,9 @@ fn source_url(position: &str, rev: &str) -> Option<String> {
     ))
 }
 
-/// Merges the AppStream metadata (Flathub, local or REST) and Nix (`nix eval
-/// .meta`) of a package. **Pure**, no I/O, so testable without network or `nix`.
-///
-/// General rule: **AppStream first, Nix fallback** for editorial fields
-/// (summary/description/license/homepage). Two deliberate exceptions to this
-/// rule, documented here so nobody "fixes" them by mistake later:
-/// - `version`: the NIX version (the one really installable/runnable through
-///   `nix run`) wins over the latest Flathub `Release`, which may match a
-///   Flatpak build different from nixpkgs.
-/// - `is_runnable`: decided only by `meta.mainProgram` (Nix); AppStream has
-///   no reliable equivalent for this notion.
+/// Merges AppStream and Nix metadata, AppStream first. Except the
+/// version and runnability, which come from Nix: that is what runs.
 fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageDetail>) -> AppMeta {
-    // a (AppStream) first, else b (Nix).
     let pick = |a: Option<String>, b: Option<String>| a.filter(|s| !s.trim().is_empty()).or(b);
 
     AppMeta {
@@ -179,6 +155,10 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
         source_url: nix
             .and_then(|n| n.position.as_deref())
             .and_then(|p| source_url(p, crate::updates::pinned_rev().unwrap_or("master"))),
+        build_flags: nix
+            .and_then(|n| n.position.as_deref())
+            .map(crate::build_flags::build_flags)
+            .unwrap_or_default(),
         download_page: nix.and_then(|n| n.download_page.clone()),
         binaries: fh
             .map(|f| f.binaries.clone())
@@ -204,14 +184,102 @@ fn merge_app_meta(pkg: &Package, fh: Option<&FlathubMeta>, nix: Option<&PackageD
     }
 }
 
-// ── Tests: AppStream ↔ Nix precedence ────────────────────────────────────────
-//
-// These tests pin the rule documented on `merge_app_meta`: AppStream first /
-// Nix fallback for editorial fields, except deliberately for `version` and
-// `is_runnable`.
+/// The releases matching what nixpkgs ships: Flathub's from the release
+/// equal to `nix_version` down. When Flathub has no such release, nixpkgs'
+/// own `history` from that version down, so the page never shows a version
+/// Nix cannot install.
+pub fn nix_releases(
+    releases: &[Release],
+    nix_version: &str,
+    history: &[crate::versions::VersionChoice],
+) -> Vec<Release> {
+    let norm = |v: &str| {
+        let v = v.trim().trim_start_matches(['v', 'V']);
+        let mut parts: Vec<&str> = v.split('.').collect();
+        while parts.len() > 1 && parts.last() == Some(&"0") {
+            parts.pop();
+        }
+        parts.join(".")
+    };
+    let want = norm(nix_version);
+    if let Some(i) = releases.iter().position(|r| norm(&r.version) == want) {
+        return releases[i..].to_vec();
+    }
+    let from_nix = |v: &crate::versions::VersionChoice| Release {
+        version: v.version.clone(),
+        timestamp: day_to_unix(&v.date).unwrap_or(0),
+        description: None,
+        url: None,
+    };
+    match history.iter().position(|v| norm(&v.version) == want) {
+        Some(i) => history[i..].iter().map(from_nix).collect(),
+        None => std::iter::once(Release {
+            version: nix_version.to_string(),
+            timestamp: 0,
+            description: None,
+            url: None,
+        })
+        .chain(
+            history
+                .iter()
+                .filter(|v| crate::updates::version_newer(nix_version, &v.version))
+                .map(from_nix),
+        )
+        .collect(),
+    }
+}
+
+/// Unix time of a `YYYY-MM-DD` day, midnight UTC.
+fn day_to_unix(day: &str) -> Option<i64> {
+    let mut it = day.splitn(3, '-').map(|p| p.parse::<i64>().ok());
+    let (y, m, d) = (it.next()??, it.next()??, it.next()??);
+    // Days from civil, Howard Hinnant's algorithm.
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * ((m + 9) % 12) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some((era * 146_097 + doe - 719_468) * 86_400)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn releases_follow_the_nixpkgs_version() {
+        let r = |v: &str| Release {
+            version: v.into(),
+            timestamp: 1,
+            description: None,
+            url: None,
+        };
+        let fh = vec![r("1.8.0"), r("v1.7.2"), r("1.7.1")];
+        let names = |list: Vec<Release>| list.into_iter().map(|r| r.version).collect::<Vec<_>>();
+        assert_eq!(names(nix_releases(&fh, "1.7.2", &[])), ["v1.7.2", "1.7.1"]);
+        assert_eq!(nix_releases(&fh, "1.8", &[]).len(), 3);
+        assert_eq!(names(nix_releases(&fh, "1.6.9", &[])), ["1.6.9"]);
+        let h = |v: &str, date: &str| crate::versions::VersionChoice {
+            version: v.into(),
+            rev: String::new(),
+            date: date.into(),
+            cached: true,
+        };
+        let history = [
+            h("1.7.0", "2026-02-01"),
+            h("1.6.9", "1970-01-02"),
+            h("1.6.0", "1970-01-01"),
+        ];
+        let nix: Vec<(String, i64)> = nix_releases(&fh, "1.6.9", &history)
+            .into_iter()
+            .map(|r| (r.version, r.timestamp))
+            .collect();
+        assert_eq!(
+            nix,
+            [("1.6.9".to_string(), 86_400), ("1.6.0".to_string(), 0)]
+        );
+        assert_eq!(day_to_unix("2026-10-10"), Some(1_791_590_400));
+    }
 
     fn sample_fh() -> FlathubMeta {
         FlathubMeta {
@@ -257,6 +325,7 @@ mod tests {
             name: "example".into(),
             version: "1.5".into(),
             description: "nix pname description".into(),
+            source: None,
         }
     }
 
@@ -288,8 +357,7 @@ mod tests {
 
     #[test]
     fn merge_is_free_license_falls_back_to_nix_when_appstream_lacks_it() {
-        // The local AppStream database never carries this boolean (unlike the
-        // Flathub REST API); nix.meta.license.free fills the gap.
+        // Local AppStream lacks it: Nix fills it.
         let pkg = sample_pkg();
         let mut fh = sample_fh();
         fh.is_free_license = None;
@@ -301,8 +369,7 @@ mod tests {
 
     #[test]
     fn merge_falls_back_to_nix_when_appstream_field_is_blank() {
-        // A present but empty/blank AppStream field must NOT win against an
-        // available Nix fallback (`!s.trim().is_empty()` filter).
+        // A blank AppStream field must not win.
         let pkg = sample_pkg();
         let mut fh = sample_fh();
         fh.license = Some("   ".into());
@@ -313,8 +380,7 @@ mod tests {
 
     #[test]
     fn merge_version_prefers_nix_over_appstream_release() {
-        // Documented exception: the runnable (nix) version wins over the latest
-        // Flathub release (possibly a different build).
+        // The Nix version wins: it is what runs.
         let pkg = sample_pkg(); // nix version = "1.5"
         let fh = sample_fh(); // releases[0].version = "2.0"
         let meta = merge_app_meta(&pkg, Some(&fh), None);
@@ -354,8 +420,7 @@ mod tests {
 
     #[test]
     fn merge_is_runnable_defaults_true_without_nix_detail() {
-        // No nix eval (failed/missing): assume runnable by default rather
-        // than wrongly hiding the "Run" action.
+        // Without Nix data, assume runnable.
         let meta = merge_app_meta(&sample_pkg(), None, None);
         assert!(meta.is_runnable);
     }

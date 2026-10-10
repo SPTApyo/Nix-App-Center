@@ -1,24 +1,16 @@
-//! Version history row, a copy of `gs-app-version-history-row.ui`.
-//!
-//! Non selectable `GtkListBoxRow` holding a vertical `GtkBox` (margins 15,
-//! valign start, hexpand):
-//!  - `GtkBox .history-row-header` header (margins 3 top/bottom): "Version X"
-//!    in `.heading`, an optional `.installed-badge`, the date on the right
-//!    (`hexpand`, `xalign 1`, `.dim-label`);
-//!  - the release notes (`margin-top 6`), or "No details" in `.dim-label`.
+//! A release row: version, date, notes, and a badge on the version Nix gives.
 
 use gtk::prelude::*;
 
 use crate::i18n::t;
 use crate::util::format_relative;
 
-/// Row body. `installed` adds the "In nixpkgs" badge (Nix signal: the release
-/// matches the version currently in nixpkgs).
+/// Row body; `badge` labels the version Nix gives ("Installed", "Available").
 fn body(
     version: &str,
     timestamp: i64,
     description: Option<&str>,
-    installed: bool,
+    badge: Option<&str>,
     url: Option<&str>,
 ) -> gtk::Box {
     let vb = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -40,8 +32,8 @@ fn body(
     vnum.add_css_class("heading");
     head.append(&vnum);
 
-    if installed {
-        let badge = gtk::Label::new(Some(&t("In nixpkgs")));
+    if let Some(text) = badge {
+        let badge = gtk::Label::new(Some(text));
         badge.set_valign(gtk::Align::Center);
         badge.add_css_class("installed-badge");
         head.append(&badge);
@@ -85,17 +77,17 @@ fn body(
     vb
 }
 
-/// The full row, non activatable (like `row_latest_version` in the `.ui`).
+/// The release row.
 pub fn row(
     version: &str,
     timestamp: i64,
     description: Option<&str>,
-    installed: bool,
+    badge: Option<&str>,
     url: Option<&str>,
 ) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();
     row.set_selectable(false);
     row.set_activatable(false);
-    row.set_child(Some(&body(version, timestamp, description, installed, url)));
+    row.set_child(Some(&body(version, timestamp, description, badge, url)));
     row
 }

@@ -1,6 +1,5 @@
-//! Home view, a copy of `gs-overview-page.ui`: featured carousel, category
-//! cards, "Editor's Choice", then "New & Updated". Tile grids share one
-//! scroll/clamp (max 1000, tightening 600).
+//! Home page: featured carousel, category cards, Editor's Choice, and
+//! New & Updated.
 
 use adw::prelude::*;
 use nix_software_core::Package;
@@ -15,11 +14,11 @@ struct CategoryInfo {
     label: &'static str,
     icon_name: &'static str,
     css_class: &'static str,
-    /// Union of freedesktop categories (see GNOME gs-desktop-data.c, "all" group).
+    /// Freedesktop categories merged into this card.
     cats: &'static [&'static str],
 }
 
-// Same scheme as GNOME Software (order, labels and unions).
+// GNOME Software's categories.
 const CATEGORIES: &[CategoryInfo] = &[
     CategoryInfo {
         label: n_("Create"),
@@ -112,7 +111,6 @@ impl SimpleComponent for HomeModel {
                     set_valign: gtk::Align::Start,
                     set_spacing: 6,
 
-                    // Featured carousel (skeleton until loaded)
                     #[local_ref]
                     carousel_skeleton -> gtk::Box {
                         #[watch]
@@ -124,7 +122,6 @@ impl SimpleComponent for HomeModel {
                         set_visible: model.editor_loaded,
                     },
 
-                    // Category cards (3 columns), filled in init
                     #[name(cat_grid)]
                     gtk::Grid {
                         set_margin_top: 21,
@@ -134,7 +131,6 @@ impl SimpleComponent for HomeModel {
                         set_column_homogeneous: true,
                     },
 
-                    // Editor's Choice
                     gtk::Label {
                         #[watch]
                         set_visible: !model.editor_loaded || model.has_editor,
@@ -163,7 +159,6 @@ impl SimpleComponent for HomeModel {
                         set_selection_mode: gtk::SelectionMode::None,
                     },
 
-                    // New & Updated
                     gtk::Label {
                         #[watch]
                         set_visible: !model.recent_loaded || model.has_recent,
@@ -224,8 +219,7 @@ impl SimpleComponent for HomeModel {
         let editor_flow: &gtk::FlowBox = model.editor.widget();
         let recent_flow: &gtk::FlowBox = model.recent.widget();
 
-        // Loading skeletons. The real carousel is Box(spacing 12, height 318)
-        // { vexpand .card, dots }; the placeholder mirrors that structure.
+        // Placeholder shaped like the carousel.
         let carousel_skeleton = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(12)
@@ -248,7 +242,6 @@ impl SimpleComponent for HomeModel {
         let widgets = view_output!();
         crate::util::smooth_scroll(&widgets.scroller);
 
-        // Category cards.
         for (i, cat) in CATEGORIES.iter().enumerate() {
             let btn = build_category_button(cat, &sender);
             widgets
@@ -256,7 +249,6 @@ impl SimpleComponent for HomeModel {
                 .attach(&btn, (i % 3) as i32, (i / 3) as i32, 1, 1);
         }
 
-        // Background loads.
         let s1 = sender.input_sender().clone();
         std::thread::spawn(move || {
             let _ = s1.send(HomeMsg::PopularLoaded(nix_software_core::popular_packages(
@@ -279,7 +271,7 @@ impl SimpleComponent for HomeModel {
                 let _ = sender.output(HomeOutput::Open(pkg));
             }
             HomeMsg::PopularLoaded(items) => {
-                // First 6 go to the carousel, next 12 to Editor's Choice.
+                // Six for the carousel, twelve for Editor's Choice.
                 let carousel_items: Vec<AppItem> = items
                     .iter()
                     .take(6)

@@ -1,35 +1,5 @@
-//! Details page, a copy of `gs-details-page.ui` (GNOME Software).
-//!
-//! This file is an **assembler**: it rebuilds the `.ui` tree and drives
-//! loading. Composite widgets live in `components::details`, one module per
-//! GNOME widget (see `docs/specs/details-page-design.md`).
-//!
-//! ```text
-//! GtkStack
-//! ├─ "spinner" → AdwStatusPage + AdwSpinnerPaintable
-//! ├─ "ready"   → GtkBox vertical
-//! │              ├─ AdwBanner (translation, never revealed: no Nix data)
-//! │              └─ GtkOverlay → GtkScrolledWindow → GtkBox .details-page (spacing 18)
-//! │                 ├─ Clamp → header (128 icon + title/dev/stars + actions)
-//! │                 ├─ GsScreenshotCarousel  (FULL WIDTH, outside the clamp)
-//! │                 ├─ Clamp → summary (title-2) + collapsible description
-//! │                 ├─ Clamp → add-ons
-//! │                 ├─ Clamp → context bar
-//! │                 ├─ Clamp → version history
-//! │                 ├─ Clamp → "problems" infobar
-//! │                 ├─ Clamp → license + links (side by side)
-//! │                 ├─ Clamp → reviews (histogram + featured review)
-//! │                 └─ Clamp → other apps by the developer
-//! └─ "failed"  → AdwStatusPage dialog-error-symbolic
-//! ```
-//!
-//! A horizontal `GtkSizeGroup` binds every section, like the `.ui`: it keeps
-//! them the same width whatever their content.
-//!
-//! **Nix Software semantics** under the GNOME layout: the primary action stays
-//! `nix run` ("Run"), keeping it permanently is secondary. Context bar tiles
-//! carry Nix signals (closure size, `broken`/`insecure`). Deliberate
-//! divergences.
+//! The details page, laid out like GNOME Software's. The sections are
+//! widgets from `components::details`; this file assembles and loads them.
 
 use adw::prelude::*;
 use nix_software_core::{AppMeta, Package, Rating, Review};
@@ -46,51 +16,62 @@ use crate::util::{
     esc, fallback_icon, stars_widget, texture_from_bytes, texture_from_bytes_sized, AppItem,
 };
 
-/// Section clamp, repeated identically for every child of the `.ui`.
+/// Section width.
 const CLAMP_MAX: i32 = 860;
-/// About ⅔ of `CLAMP_MAX`, as commented in the `.ui`.
 const CLAMP_TIGHTEN: i32 = 576;
 
-/// Icon of the package origin ("nixpkgs" button). Two variants ship in
-/// `data/icons/hicolor/scalable/apps`:
-/// - `nix-snowflake`: official two-tone logo, fixed colors (the one in use);
-/// - `nix-snowflake-symbolic`: monochrome, recolored by `.nix-packaging-color`.
+/// Icon of the origin button.
 const ORIGIN_ICON: &str = "nix-snowflake";
 
 pub struct DetailModel {
     package: Package,
     meta: Option<AppMeta>,
     loading: bool,
-    /// Desktop file when a Nix profile already holds the app.
+    /// The app as a Nix profile already holds it.
     installed: Option<nix_software_core::ProfileApp>,
-    /// Nix Software knows the config: keep edits it. Otherwise `nix profile`.
+    /// True when Nix Software writes the config; else `nix profile`.
     managed: bool,
-    /// `nix profile` element of this package (unmanaged machines).
+    /// The `nix profile` element of this package.
     profile_name: Option<String>,
     profile_busy: bool,
     kept: bool,
+    /// The NixOS module that sets the app up.
+    module: Option<nix_software_core::NixOption>,
+    /// File and line of the user's own configuration listing the app.
+    declared: Option<(std::path::PathBuf, usize)>,
+    /// A Flatpak, AppImage or nix-env install Nix Software can remove.
+    other: Option<nix_software_core::Installed>,
+    home_module: Option<nix_software_core::NixOption>,
+    /// nixpkgs versions of the app, newest first, for the history.
+    nix_versions: Option<Vec<nix_software_core::VersionChoice>>,
+    /// Choose a Version… was clicked before the versions arrived.
+    choose_pending: bool,
+    /// The newer version nixos-unstable has, if any.
+    unstable: Option<nix_software_core::VersionChoice>,
+    /// Module lookups still running.
+    lookups: u8,
+    /// Add to Configuration waits for them.
+    keep_pending: bool,
+    /// The revision the app is held at.
+    pin: Option<nix_software_core::Pin>,
+    holding: bool,
+    /// The app has its own user block, which a hold cannot rewrite.
+    custom_blocks: bool,
     icon_tex: Option<gtk::gdk::Texture>,
-    // Closure size (Storage tile) is slower
-    // than metadata and load separately. The `*_loaded` flags tell "not known
-    // yet" from "known to be unknown".
+    // Loaded apart; the flag tells pending from unknown.
     size_loaded: bool,
     closure_size: Option<u64>,
-    // Long description, collapsible like GsDescriptionBox.
     desc_expanded: bool,
     desc_needs_toggle: bool,
-    // Screen scale factor (HiDPI): caps image display at native resolution
-    // (no upscaling, never blurry).
+    // Screen scale, so images never upscale.
     scale: i32,
-    // The rating feeds the header stars AND the histogram; reviews feed the
-    // right column. Both arrive independently.
+    // Feeds the header stars and the histogram.
     rating: Option<Rating>,
-    // Screenshot lightbox (Nix Software addition).
     shots: Vec<gtk::gdk::Texture>,
     shot_widths: Vec<i32>,
     lightbox_tex: Option<gtk::gdk::Texture>,
     lightbox_clamp: adw::Clamp,
     lightbox_visible: bool,
-    // Containers filled while loading.
     stack: gtk::Stack,
     carousel: ScreenshotCarousel,
     star_box: gtk::Box,
@@ -100,12 +81,14 @@ pub struct DetailModel {
     version_box: gtk::Box,
     problems_box: gtk::Box,
     license_box: gtk::Box,
+    build_box: gtk::Box,
+    /// One switch per recipe flag, with the recipe default.
+    flag_rows: Vec<(String, bool, adw::SwitchRow)>,
     reviews_box: gtk::Box,
     dev_apps_box: gtk::Box,
-    // "Other Apps by X": navigable AppTiles (AppStream DevApps are resolved
-    // to nixpkgs in the background, see DevAppsResolved).
     dev_apps_heading: gtk::Label,
     dev_tiles: FactoryVecDeque<AppTile>,
+    addon_tiles: FactoryVecDeque<AppTile>,
     toast_overlay: adw::ToastOverlay,
 }
 
@@ -120,47 +103,72 @@ pub enum DetailMsg {
     ScreenshotLoaded(Vec<u8>, Option<String>),
     ShowShot(usize),
     DismissShot,
-    /// Split button main part: run a GUI app, open a shell for a CLI tool.
+    /// Main button: run an app, open a shell for a CLI tool.
     Primary,
-    /// Launch the copy a Nix profile already holds.
+    /// Launches the installed copy.
     Open,
     /// The Flathub app shown is not this package.
     ReportMatch,
     Unmatch,
-    /// Unmanaged machine: `nix profile add` / `remove`.
+    /// `nix profile` add or remove, without a managed config.
     ProfileToggle,
     ProfileDone(Result<Option<String>, String>),
-    /// Menu entry holding the launch mode the primary did not take.
+    /// The launch mode the primary button did not take.
     AltLaunch,
     Run,
-    /// Single menu entry: keep when not kept, remove otherwise.
+    /// Keeps, or stops keeping.
     ToggleKeep,
     Keep,
     Unkeep,
     /// `nix shell` in a terminal, the try-first path for CLI tools.
     Shell,
     CopyCommand,
-    /// Opens the advanced Nix editor (service options, port, override…).
+    /// Opens the Nix editor.
     AdvancedEdit,
-    /// Edited blocks saved (from the advanced editor): Ok = the app is kept.
+    /// Blocks saved; Ok means the app is kept.
     BlocksSaved(Result<(), String>),
-    /// Same developer apps resolved to nixpkgs (package + icon).
+    /// Developer apps found in nixpkgs.
     DevAppsResolved(Vec<(Package, Option<String>)>),
-    /// Click on an "Other Apps" tile, forwarded to AppModel.
+    /// An "Other Apps" tile clicked.
     OpenApp(Package),
-    /// `nix run` exited with an error (last stderr line).
+    /// Opens the nixpkgs package of an add-on, found by name.
+    OpenAddon(String),
+    AddonMissing(String),
+    /// `nix run` failed, with its last error line.
     RunFailed(String),
     SizeLoaded(Option<u64>),
+    ModuleLoaded(Option<nix_software_core::NixOption>),
+    DeclaredLoaded(Option<(std::path::PathBuf, usize)>),
+    OtherLoaded(Option<nix_software_core::Installed>),
+    HomeModuleLoaded(Option<nix_software_core::NixOption>),
+    RemoveOther,
+    TakeOver,
+    /// Keeps the app with the switched build options.
+    SaveBuildOptions,
+    /// Holds the app at the revision in use, or releases it.
+    ToggleHold,
+    /// Holds the app at an earlier version.
+    HoldAt(nix_software_core::VersionChoice),
+    ChooseVersion,
+    ChooseMode,
+    KeepAs(nix_software_core::InstallMode),
+    KeepNow,
+    CopyName,
+    Remove,
+    TriedRemoved(Result<u64, String>),
+    SetMode(nix_software_core::InstallMode),
+    VersionsLoaded(Vec<nix_software_core::VersionChoice>),
+    HistoryLoaded(Vec<nix_software_core::VersionChoice>),
+    UnstableLoaded(Option<nix_software_core::VersionChoice>),
+    Held(Result<Option<nix_software_core::Pin>, String>),
     ToggleDescription,
-    /// Applies the configuration (from the "Apply" toast action).
+    /// Applies the configuration.
     ApplyConfig,
     Applied(Result<nix_software_core::ApplyOutcome, String>),
 }
 
 impl DetailModel {
-    /// After keeping an app (or editing its blocks): when Nix Software is already
-    /// connected to the config, an "apply" toast is enough. Otherwise the generated
-    /// file is an orphan with no effect, so offer the consented attach (diff shown).
+    /// After keeping: an apply toast when attached, else the attach dialog.
     fn prompt_apply_or_attach(&self, sender: &ComponentSender<Self>) {
         let layout = nix_software_core::detect_layout();
         if nix_software_core::is_attached(&layout) {
@@ -191,7 +199,7 @@ impl DetailModel {
     }
 }
 
-/// A toast whose button applies the configuration.
+/// A toast with an Apply button.
 fn apply_toast(overlay: &adw::ToastOverlay, sender: &ComponentSender<DetailModel>, text: &str) {
     let toast = adw::Toast::new(text);
     toast.set_button_label(Some(&t("Apply")));
@@ -206,8 +214,7 @@ fn apply_toast(overlay: &adw::ToastOverlay, sender: &ComponentSender<DetailModel
 impl SimpleComponent for DetailModel {
     type Init = Package;
     type Input = DetailMsg;
-    /// Package to open as a details page ("Other Apps" tile clicked); AppModel
-    /// pushes a new page, as from any list.
+    /// A package to open in a new page.
     type Output = Package;
 
     view! {
@@ -218,14 +225,12 @@ impl SimpleComponent for DetailModel {
             set_child = &adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {},
 
-                // This Box becomes the "ready" page of the GtkStack, mounted in init().
                 #[wrap(Some)]
                 #[name(ready_page)]
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
-                    // GNOME offers translation help for poorly covered
-                    // locales. nixpkgs has nothing like it: never revealed.
+                    // Never revealed: nixpkgs has no translation data.
                     adw::Banner {
                         set_button_label: Some(&t("Help _Translate")),
                         set_revealed: false,
@@ -246,24 +251,19 @@ impl SimpleComponent for DetailModel {
                                 set_valign: gtk::Align::Start,
                                 set_vexpand: true,
 
-                                // ── 1. Header (clamped) ───────────────────────
+                                // 1. Header
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
                                     set_margin_start: 12,
                                     set_margin_end: 12,
 
-                                    // `box_details_header`: GNOME sets spacing at runtime
-                                    // (24 wide / 12 narrow); no narrow mode here.
                                     #[name(header_box)]
                                     gtk::Box {
                                         set_orientation: gtk::Orientation::Horizontal,
                                         set_spacing: 24,
 
-                                        // 128 icon. GNOME uses a plain GtkImage;
-                                        // Nix Software keeps its colored fallback thumbnail
-                                        // (deliberate: most nixpkgs packages have no
-                                        // AppStream icon).
+                                        // Colored fallback when there is no icon.
                                         gtk::Box {
                                             set_width_request: 128,
                                             set_height_request: 128,
@@ -275,7 +275,6 @@ impl SimpleComponent for DetailModel {
                                                 set_visible: model.icon_tex.is_none(),
                                                 set_width_request: 128,
                                                 set_height_request: 128,
-                                                // Stops the inner image hexpand from propagating.
                                                 set_hexpand: false,
                                                 set_vexpand: false,
                                                 add_css_class: "fallback-tile",
@@ -284,8 +283,7 @@ impl SimpleComponent for DetailModel {
                                                 gtk::Image {
                                                     set_icon_name: Some(fallback_icon(&model.package).0),
                                                     set_pixel_size: 96,
-                                                    // hexpand/vexpand: else halign Center is
-                                                    // ignored on the main axis.
+                                                    // Needed to center the glyph.
                                                     set_hexpand: true,
                                                     set_vexpand: true,
                                                     set_halign: gtk::Align::Center,
@@ -304,14 +302,12 @@ impl SimpleComponent for DetailModel {
                                             },
                                         },
 
-                                        // `box_details_header_not_icon`
                                         gtk::Box {
                                             set_orientation: gtk::Orientation::Horizontal,
                                             set_margin_top: 6,
                                             set_spacing: 6,
                                             set_hexpand: true,
 
-                                            // `box_details_header2`: title / dev / verified / stars
                                             gtk::Box {
                                                 set_orientation: gtk::Orientation::Vertical,
                                                 set_halign: gtk::Align::Fill,
@@ -319,20 +315,33 @@ impl SimpleComponent for DetailModel {
                                                 set_hexpand: true,
                                                 set_spacing: 6,
 
-                                                gtk::Label {
-                                                    #[watch]
-                                                    set_label: &meta_name(&model.meta, &model.package.name),
-                                                    set_halign: gtk::Align::Fill,
-                                                    set_valign: gtk::Align::Start,
-                                                    set_hexpand: true,
-                                                    set_xalign: 0.0,
-                                                    set_selectable: true,
-                                                    // Else it takes initial focus and opens fully selected.
-                                                    set_focusable: false,
-                                                    set_wrap: true,
-                                                    set_max_width_chars: 20,
-                                                    add_css_class: "app-title",
-                                                    add_css_class: "title-1",
+                                                gtk::Box {
+                                                    set_spacing: 6,
+
+                                                    gtk::Label {
+                                                        #[watch]
+                                                        set_label: &meta_name(&model.meta, &model.package.name),
+                                                        set_halign: gtk::Align::Fill,
+                                                        set_valign: gtk::Align::Start,
+                                                        set_hexpand: false,
+                                                        set_xalign: 0.0,
+                                                        set_selectable: true,
+                                                        // Else it takes the initial focus.
+                                                        set_focusable: false,
+                                                        set_wrap: true,
+                                                        set_max_width_chars: 20,
+                                                        add_css_class: "app-title",
+                                                        add_css_class: "title-1",
+                                                    },
+                                                    gtk::Button {
+                                                        set_icon_name: "edit-copy-symbolic",
+                                                        set_valign: gtk::Align::Center,
+                                                        #[watch]
+                                                        set_tooltip_text: Some(&t("Copy the package name to write in a configuration: pkgs.{}").replace("{}", &model.package.attr)),
+                                                        add_css_class: "flat",
+                                                        add_css_class: "circular",
+                                                        connect_clicked => DetailMsg::CopyName,
+                                                    },
                                                 },
 
                                                 gtk::Box {
@@ -358,9 +367,7 @@ impl SimpleComponent for DetailModel {
                                                     },
                                                 },
 
-                                                // "Verified" badge. GNOME tints it with the
-                                                // packaging color (@blue_4 for Flatpak);
-                                                // Nix Software does the same with @nix_packaging_color.
+                                                // Verified badge, in the Nix color.
                                                 gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_spacing: 3,
@@ -385,7 +392,6 @@ impl SimpleComponent for DetailModel {
                                                     },
                                                 },
 
-                                                // `star_box`, filled on RatingLoaded.
                                                 #[local_ref]
                                                 star_box -> gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
@@ -393,7 +399,6 @@ impl SimpleComponent for DetailModel {
                                                     set_visible: false,
                                                 },
 
-                                                // Flathub installs, filled on InstallsLoaded.
                                                 #[local_ref]
                                                 installs_label -> gtk::Label {
                                                     set_xalign: 0.0,
@@ -403,7 +408,6 @@ impl SimpleComponent for DetailModel {
                                                 },
                                             },
 
-                                            // `box_with_source`: actions + origin button.
                                             gtk::Box {
                                                 set_orientation: gtk::Orientation::Vertical,
                                                 set_halign: gtk::Align::End,
@@ -412,14 +416,15 @@ impl SimpleComponent for DetailModel {
                                                 set_margin_top: 6,
                                                 set_spacing: 6,
 
-                                                // The ONLY place to act on a package: primary
-                                                // = try-first (`nix run`), menu = everything else.
+                                                // Primary: try. Menu: everything else.
                                                 #[name(box_install_remove)]
                                                 gtk::Box {
+                                                    add_css_class: "linked",
+                                                    add_css_class: "action-group",
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_halign: gtk::Align::Center,
 
-                                                    adw::SplitButton {
+                                                    gtk::Button {
                                                         #[watch]
                                                         set_label: &if model.installed.is_some() {
                                                             t("_Open")
@@ -430,7 +435,9 @@ impl SimpleComponent for DetailModel {
                                                         },
                                                         set_use_underline: true,
                                                         #[watch]
-                                                        set_tooltip_text: Some(&if model.installed.is_some() {
+                                                        set_tooltip_text: Some(&if model.is_self() {
+                                                            t("This is the app you are using.")
+                                                        } else if model.installed.is_some() {
                                                             t("Open the installed app")
                                                         } else if model.cli_first() {
                                                             t("Open a terminal where this package can be used. Nothing is added to your system.")
@@ -440,6 +447,21 @@ impl SimpleComponent for DetailModel {
                                                         set_valign: gtk::Align::Center,
                                                         add_css_class: "suggested-action",
                                                         connect_clicked => DetailMsg::Primary,
+                                                    },
+                                                    gtk::Button {
+                                                        set_icon_name: "user-trash-symbolic",
+                                                        #[watch]
+                                                        set_visible: model.removable(),
+                                                        #[watch]
+                                                        set_tooltip_text: Some(&model.remove_tooltip()),
+                                                        add_css_class: "suggested-action",
+                                                        connect_clicked => DetailMsg::Remove,
+                                                    },
+                                                    gtk::MenuButton {
+                                                        set_icon_name: "pan-down-symbolic",
+                                                        set_tooltip_text: Some(&t("More Actions")),
+                                                        set_valign: gtk::Align::Center,
+                                                        add_css_class: "suggested-action",
 
                                                         #[wrap(Some)]
                                                         #[name(actions_popover)]
@@ -448,50 +470,52 @@ impl SimpleComponent for DetailModel {
                                                                 set_orientation: gtk::Orientation::Vertical,
                                                                 set_spacing: 4,
 
-                                                                // Keep / remove: one toggling entry
-                                                                // (replaces the old trash button).
                                                                 gtk::Button {
                                                                     #[watch]
                                                                     set_label: &model.keep_label(),
                                                                     #[watch]
                                                                     set_sensitive: !model.profile_busy && !model.installed_elsewhere(),
+                                                                    set_tooltip_text: Some(&model.keep_tooltip()),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ToggleKeep,
                                                                 },
                                                                 gtk::Button {
                                                                     #[watch]
                                                                     set_label: &if model.cli_first() { t("Try the App") } else { t("Try in a Shell") },
+                                                                    #[watch]
+                                                                    set_visible: model.installed.is_none() && !model.is_self(),
+                                                                    set_tooltip_text: Some(&if model.cli_first() { t("Start the app now, without installing it.") } else { t("Open a terminal where this package can be used, without installing it.") }),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AltLaunch,
                                                                 },
                                                                 gtk::Button {
                                                                     set_label: &t("Copy Command"),
+                                                                    set_tooltip_text: Some(&t("Copy the command that tries this package, to paste in a terminal.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::CopyCommand,
                                                                 },
-                                                                // The advanced path: edit the raw Nix of
-                                                                // the app (service options, port, override).
                                                                 gtk::Button {
                                                                     set_label: &t("Advanced Options…"),
                                                                     #[watch]
                                                                     set_sensitive: !model.installed_elsewhere(),
+                                                                    set_tooltip_text: Some(&t("Write your own Nix for this app: services, options, overrides.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Wrong App?"),
+                                                                    set_label: &t("Installation Options…"),
                                                                     #[watch]
-                                                                    set_visible: model.meta.as_ref().is_some_and(|m| m.app_id.is_some()),
+                                                                    set_visible: model.kept && model.mode().is_some(),
+                                                                    set_tooltip_text: Some(&t("Install this app another way: in your home, for every user, or through its module.")),
                                                                     add_css_class: "flat",
-                                                                    connect_clicked => DetailMsg::ReportMatch,
+                                                                    connect_clicked => DetailMsg::ChooseMode,
                                                                 },
                                                                 gtk::Separator {
                                                                     set_orientation: gtk::Orientation::Horizontal,
                                                                 },
-                                                                // Was only reachable from an ephemeral
-                                                                // toast button: missed it, lost it.
                                                                 gtk::Button {
                                                                     set_label: &t("Apply Configuration"),
+                                                                    set_tooltip_text: Some(&t("Rebuild your system now with the apps you added or removed.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ApplyConfig,
                                                                 },
@@ -500,7 +524,6 @@ impl SimpleComponent for DetailModel {
                                                     },
                                                 },
 
-                                                // `origin_box`
                                                 gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_spacing: 4,
@@ -528,7 +551,7 @@ impl SimpleComponent for DetailModel {
                                                             },
                                                             #[name(origin_label)]
                                                             gtk::Label {
-                                                                set_label: "nixpkgs",
+                                                                set_label: &origin_name(model.package.source.as_deref()),
                                                                 set_valign: gtk::Align::Center,
                                                                 set_max_width_chars: 12,
                                                                 set_ellipsize: gtk::pango::EllipsizeMode::End,
@@ -553,11 +576,11 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 2. Screenshots (FULL WIDTH, outside clamp) ─
+                                // 2. Screenshots, full width
                                 #[local_ref]
                                 carousel_widget -> gtk::Stack {},
 
-                                // ── 3. Summary + description (clamped) ─────────
+                                // 3. Summary and description
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -586,7 +609,6 @@ impl SimpleComponent for DetailModel {
                                             add_css_class: "title-2",
                                         },
 
-                                        // Skeleton while the description loads.
                                         gtk::Box {
                                             #[watch]
                                             set_visible: model.loading,
@@ -597,16 +619,33 @@ impl SimpleComponent for DetailModel {
                                             gtk::Box { add_css_class: "skeleton", set_height_request: 13, set_hexpand: true },
                                             gtk::Box { add_css_class: "skeleton", set_height_request: 13, set_width_request: 320, set_halign: gtk::Align::Start },
                                         },
-                                        gtk::Label {
+                                        gtk::Stack {
                                             #[watch]
                                             set_visible: !model.loading,
-                                            #[watch]
-                                            set_label: &desc_display(&model.meta, &model.package.description, model.desc_expanded),
-                                            set_halign: gtk::Align::Fill,
+                                            set_transition_type: gtk::StackTransitionType::Crossfade,
+                                            set_transition_duration: 280,
+                                            set_interpolate_size: true,
+                                            set_vhomogeneous: false,
                                             set_hexpand: true,
-                                            set_valign: gtk::Align::Start,
-                                            set_wrap: true,
-                                            set_xalign: 0.0,
+
+                                            add_named[Some("short")] = &gtk::Label {
+                                                #[watch]
+                                                set_label: &desc_display(&model.meta, &model.package.description, false),
+                                                set_halign: gtk::Align::Fill,
+                                                set_valign: gtk::Align::Start,
+                                                set_wrap: true,
+                                                set_xalign: 0.0,
+                                            },
+                                            add_named[Some("full")] = &gtk::Label {
+                                                #[watch]
+                                                set_label: &desc_display(&model.meta, &model.package.description, true),
+                                                set_halign: gtk::Align::Fill,
+                                                set_valign: gtk::Align::Start,
+                                                set_wrap: true,
+                                                set_xalign: 0.0,
+                                            },
+                                            #[watch]
+                                            set_visible_child_name: if model.desc_expanded { "full" } else { "short" },
                                         },
                                         gtk::Button {
                                             #[watch]
@@ -621,7 +660,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 4. Add-ons (hidden when none) ──────────────
+                                // 4. Add-ons
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -635,7 +674,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 5. Context bar ─────────────────────────────
+                                // 5. Context tiles
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -646,7 +685,7 @@ impl SimpleComponent for DetailModel {
                                     ctx_bar -> gtk::Box {},
                                 },
 
-                                // ── 6. Version history ─────────────────────────
+                                // 6. Version history
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -660,7 +699,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 7. "Problems" infobar (broken/insecure) ────
+                                // 7. Infobars
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -674,7 +713,21 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 8. License + links side by side ────────────
+                                // 8. Build options
+                                adw::Clamp {
+                                    set_maximum_size: CLAMP_MAX,
+                                    set_tightening_threshold: CLAMP_TIGHTEN,
+                                    set_margin_start: 12,
+                                    set_margin_end: 12,
+
+                                    #[local_ref]
+                                    build_box -> gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_visible: false,
+                                    },
+                                },
+
+                                // 9. License and links
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -685,7 +738,7 @@ impl SimpleComponent for DetailModel {
                                     license_box -> gtk::Box {},
                                 },
 
-                                // ── 9. Ratings (ODRS) ──────────────────────────
+                                // 10. Ratings and reviews
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -700,7 +753,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // ── 10. Other apps by the developer ────────────
+                                // 11. Other apps by the developer
                                 adw::Clamp {
                                     set_maximum_size: CLAMP_MAX,
                                     set_tightening_threshold: CLAMP_TIGHTEN,
@@ -717,7 +770,7 @@ impl SimpleComponent for DetailModel {
                             }
                         },
 
-                        // Lightbox (Nix Software addition): fade in/out.
+                        // Screenshot lightbox
                         add_overlay = &gtk::Revealer {
                             #[watch]
                             set_reveal_child: model.lightbox_visible,
@@ -745,10 +798,7 @@ impl SimpleComponent for DetailModel {
                                     },
                                 },
 
-                                // Anti-upscale clamp: maximum_size = native width /
-                                // scale, so an image below the expected resolution is
-                                // shown centered at native size (sharp) rather than
-                                // stretched full screen (blurry).
+                                // Caps the image at its native width.
                                 #[local_ref]
                                 lightbox_clamp -> adw::Clamp {
                                     set_margin_top: 48,
@@ -774,9 +824,10 @@ impl SimpleComponent for DetailModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let kept = nix_software_core::load_manifest()
-            .entry(&pkg.attr)
-            .is_some();
+        let entry = nix_software_core::load_manifest().entry(&pkg.attr).cloned();
+        let kept = entry.is_some();
+        let pin = entry.as_ref().and_then(|e| e.pin.clone());
+        let custom_blocks = entry.as_ref().is_some_and(|e| e.home_nix.is_some());
 
         let toast_overlay = adw::ToastOverlay::new();
         let stack = gtk::Stack::new();
@@ -789,17 +840,27 @@ impl SimpleComponent for DetailModel {
         let version_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let problems_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let license_box = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        let build_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let reviews_box = gtk::Box::new(gtk::Orientation::Vertical, 18);
         let dev_apps_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
 
-        // "Other Apps" section: title + AppTile grid (same clickable tiles as
-        // home and categories). Filled on DevAppsResolved; the box stays
-        // hidden until something resolves.
+        // Shown once a developer app is found.
         let dev_apps_heading = gtk::Label::new(None);
         dev_apps_heading.set_xalign(0.0);
         dev_apps_heading.set_margin_top(21);
         dev_apps_heading.set_margin_bottom(6);
         dev_apps_heading.add_css_class("heading");
+        let addon_tiles: FactoryVecDeque<AppTile> = FactoryVecDeque::builder()
+            .launch(tile_grid())
+            .forward(sender.input_sender(), |p: Package| {
+                DetailMsg::OpenAddon(p.name)
+            });
+        let addons_heading = gtk::Label::new(Some(&t("Add-ons")));
+        addons_heading.set_xalign(0.0);
+        addons_heading.set_margin_bottom(6);
+        addons_heading.add_css_class("heading");
+        addons_box.append(&addons_heading);
+        addons_box.append(addon_tiles.widget());
         let dev_tiles: FactoryVecDeque<AppTile> = FactoryVecDeque::builder()
             .launch(tile_grid())
             .forward(sender.input_sender(), DetailMsg::OpenApp);
@@ -809,13 +870,11 @@ impl SimpleComponent for DetailModel {
         let lightbox_clamp = adw::Clamp::new();
         lightbox_clamp.set_maximum_size(i32::MAX);
 
-        // Target screenshot resolution = screen width × scale (physical px),
-        // bounded to [1280, 3840]: enough for a sharp full screen zoom, no more.
+        // Screenshot width: physical screen width, bounded.
         let (target_dev_w, scale) = crate::util::screen_metrics();
         let target_w = target_dev_w.clamp(1280, 3840) as u32;
 
-        // The clicked tile/row already downloaded this icon: reuse it rather
-        // than showing the generic glyph while everything resolves again.
+        // Reuse the icon the list already loaded.
         let icon_tex = nix_software_core::known_icon_url(&pkg.attr)
             .and_then(|url| nix_software_core::cached_bytes_if_present(&url))
             .and_then(|bytes| texture_from_bytes_sized(&bytes, 128));
@@ -837,6 +896,18 @@ impl SimpleComponent for DetailModel {
             },
             profile_busy: false,
             kept,
+            pin,
+            holding: false,
+            custom_blocks,
+            module: None,
+            declared: None,
+            other: None,
+            home_module: None,
+            nix_versions: None,
+            choose_pending: false,
+            unstable: None,
+            lookups: 0,
+            keep_pending: false,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -858,22 +929,23 @@ impl SimpleComponent for DetailModel {
             version_box: version_box.clone(),
             problems_box: problems_box.clone(),
             license_box: license_box.clone(),
+            build_box: build_box.clone(),
+            flag_rows: Vec::new(),
             reviews_box: reviews_box.clone(),
             dev_apps_box: dev_apps_box.clone(),
             dev_apps_heading: dev_apps_heading.clone(),
             dev_tiles,
+            addon_tiles,
             toast_overlay: toast_overlay.clone(),
         };
         let widgets = view_output!();
 
-        // A menu entry closes the menu, like a model-based menu would.
         let mut entry = widgets
             .actions_popover
             .child()
             .and_then(|b| b.first_child());
         while let Some(w) = entry {
             if let Some(btn) = w.downcast_ref::<gtk::Button>() {
-                // Menu entries read left aligned, like GNOME menus.
                 if let Some(label) = btn.child().and_downcast::<gtk::Label>() {
                     label.set_xalign(0.0);
                 }
@@ -885,7 +957,7 @@ impl SimpleComponent for DetailModel {
 
         crate::util::smooth_scroll(&widgets.scroller);
 
-        // The terminal SizeGroup of the `.ui`: all sections share one width.
+        // One width for every section.
         let sg = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         for w in [
             widgets.header_box.clone().upcast::<gtk::Widget>(),
@@ -900,19 +972,31 @@ impl SimpleComponent for DetailModel {
         ] {
             sg.add_widget(&w);
         }
-        // `sizegroup_origin_button`: the origin button aligns with the actions.
+        // A hidden section hides its clamp, so no spacing is left behind.
+        for section in [
+            &addons_box,
+            &version_box,
+            &problems_box,
+            &build_box,
+            &dev_apps_box,
+        ] {
+            if let Some(clamp) = section.parent() {
+                section
+                    .bind_property("visible", &clamp, "visible")
+                    .sync_create()
+                    .build();
+            }
+        }
         let sg_origin = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         sg_origin.add_widget(&widgets.box_install_remove);
         sg_origin.add_widget(&widgets.origin_btn);
 
-        // The origin label carries the `.ui` Pango attributes (scale .85, weight normal).
         let attrs = gtk::pango::AttrList::new();
         attrs.insert(gtk::pango::AttrFloat::new_scale(0.85));
         attrs.insert(gtk::pango::AttrInt::new_weight(gtk::pango::Weight::Normal));
         widgets.origin_label.set_attributes(Some(&attrs));
 
-        // The "ready" Box produced by `view!` becomes a GtkStack page, which
-        // takes its place as the ToolbarView content.
+        // The ready box becomes a stack page.
         let toolbar = root.child().and_downcast::<adw::ToolbarView>();
         if let Some(toolbar) = &toolbar {
             toolbar.set_content(None::<&gtk::Widget>);
@@ -920,15 +1004,13 @@ impl SimpleComponent for DetailModel {
             toolbar.set_content(Some(&stack));
         }
 
-        // NavigationPage has no container_add: the toast_overlay is inserted
-        // between it and the ToolbarView.
+        // Toast overlay between the page and its content.
         if let Some(toolbar) = root.child() {
             root.set_child(None::<&gtk::Widget>);
             model.toast_overlay.set_child(Some(&toolbar));
             root.set_child(Some(&model.toast_overlay));
         }
 
-        // Merged metadata (AppStream + Nix) in the background.
         let s = sender.input_sender().clone();
         let pkg_meta = pkg.clone();
         std::thread::spawn(move || {
@@ -958,30 +1040,94 @@ impl SimpleComponent for DetailModel {
                     self.installed =
                         nix_software_core::installed_app(&self.package.attr, desktop_id);
                 }
-                // Without an AppStream id there are no permissions to wait for.
 
                 self.rebuild_context_bar(&meta);
-                self.rebuild_problems(&meta);
-                build_addons(&self.addons_box, &meta);
-                build_version_history(
-                    &self.version_box,
-                    &meta,
-                    meta.version.as_deref(),
-                    self.toast_overlay.clone().upcast(),
-                );
-                build_license_box(&self.license_box, &meta);
+                self.rebuild_problems(&meta, &sender);
+                if std::path::Path::new("/etc/NIXOS").exists() {
+                    self.lookups += 1;
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::ModuleLoaded(nix_software_core::module_for(
+                            &attr,
+                        )));
+                    });
+                }
+                if nix_software_core::detect_layout().home.is_some() {
+                    self.lookups += 1;
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::HomeModuleLoaded(
+                            nix_software_core::hm_module_for(&attr),
+                        ));
+                    });
+                }
+                {
+                    let (attr, version) = (self.package.attr.clone(), self.package.version.clone());
+                    let app_id = meta.app_id.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::OtherLoaded(other_install(
+                            &attr,
+                            &version,
+                            app_id.as_deref(),
+                        )));
+                    });
+                }
+                if self.installed_elsewhere() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::DeclaredLoaded(nix_software_core::declared_in(
+                            &attr,
+                        )));
+                    });
+                }
+                let mut g = self.addon_tiles.guard();
+                g.clear();
+                for a in meta.addons.iter().take(12) {
+                    // No attribute: an add-on is no package until opened.
+                    let pkg = Package {
+                        name: a.name.clone(),
+                        description: a.summary.clone().unwrap_or_default(),
+                        ..Package::default()
+                    };
+                    g.push_back(AppItem::new(pkg, a.icon_url.clone()));
+                }
+                drop(g);
+                self.addons_box.set_visible(!meta.addons.is_empty());
+                self.rebuild_versions(&meta, &sender);
+                if let Some(current) = meta.version.clone() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::UnstableLoaded(
+                            nix_software_core::newer_in_unstable(&attr, &current),
+                        ));
+                    });
+                }
+                if self.nix_versions.is_none() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ =
+                            s.send(DetailMsg::HistoryLoaded(nix_software_core::versions(&attr)));
+                    });
+                }
+                let s = sender.input_sender().clone();
+                build_license_box(&self.license_box, &meta, &self.package, move || {
+                    let _ = s.send(DetailMsg::ReportMatch);
+                });
+                self.rebuild_build_options(&meta, &sender);
 
-                // Same developer apps: AppStream to nixpkgs resolution in the
-                // background (one cached `nix search`); the section only shows
-                // when at least one app exists in nixpkgs (a dead tile is worse
-                // than no section).
+                // Shown only when nixpkgs has one of them.
                 if !meta.developer_apps.is_empty() {
                     let apps = meta.developer_apps.clone();
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        // Exclude the current attr: "Steam Link" falls back on
-                        // attr `steam` and showed Steam on its own page.
+                        // Fuzzy matches may land on this attr.
                         let resolved = nix_software_core::resolve_dev_apps(&apps, &attr);
                         if !resolved.is_empty() {
                             let _ = s.send(DetailMsg::DevAppsResolved(resolved));
@@ -992,20 +1138,15 @@ impl SimpleComponent for DetailModel {
                 if meta.screenshot_urls.is_empty() {
                     self.carousel.show_fallback();
                 }
-                // Most nixpkgs packages are not AppStream apps: no empty placeholder.
                 self.carousel.widget().set_visible(meta.app_id.is_some());
 
-                // Closure size (`nix path-info`): slower than the rest.
-                let attr = self.package.attr.clone();
+                let pkg = self.package.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(DetailMsg::SizeLoaded(nix_software_core::closure_size(
-                        &attr,
-                    )));
+                    let _ = s.send(DetailMsg::SizeLoaded(nix_software_core::closure_size(&pkg)));
                 });
 
                 if let Some(app_id) = meta.app_id.clone() {
-                    // ODRS rating through the resolved app_id (reliable, unlike the nixpkgs name).
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
@@ -1021,7 +1162,6 @@ impl SimpleComponent for DetailModel {
                             let _ = s.send(DetailMsg::InstallsLoaded(n));
                         }
                     });
-                    // Review texts (right column of "Ratings & Reviews").
                     let s = sender.input_sender().clone();
                     let version = meta.version.clone().unwrap_or_default();
                     std::thread::spawn(move || {
@@ -1082,11 +1222,219 @@ impl SimpleComponent for DetailModel {
             DetailMsg::OpenApp(pkg) => {
                 let _ = sender.output(pkg);
             }
+            DetailMsg::OpenAddon(name) => {
+                let parent = self.package.attr.to_lowercase();
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let found = addon_package(&name, &parent);
+                    let _ = s.send(match found {
+                        Some(pkg) => DetailMsg::OpenApp(pkg),
+                        None => DetailMsg::AddonMissing(name),
+                    });
+                });
+            }
+            DetailMsg::AddonMissing(name) => crate::util::toast(
+                &self.toast_overlay,
+                &t("{} is not in nixpkgs.").replace("{}", &name),
+            ),
             DetailMsg::SizeLoaded(size) => {
                 self.size_loaded = true;
                 self.closure_size = size;
                 if let Some(meta) = self.meta.clone() {
                     self.rebuild_context_bar(&meta);
+                }
+            }
+            DetailMsg::DeclaredLoaded(declared) => {
+                self.declared = declared;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_problems(&meta, &sender);
+                }
+            }
+            DetailMsg::TakeOver => {
+                let Some((file, line)) = self.declared.take() else {
+                    return;
+                };
+                match nix_software_core::keep(&self.package) {
+                    Ok(()) => {
+                        self.kept = true;
+                        crate::util::toast(
+                            &self.toast_overlay,
+                            &t("Taken over. Delete line {line} of {file}, then apply.")
+                                .replace("{line}", &line.to_string())
+                                .replace("{file}", &file.display().to_string()),
+                        );
+                    }
+                    Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
+                }
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_problems(&meta, &sender);
+                }
+            }
+            DetailMsg::ModuleLoaded(module) => {
+                self.module = module;
+                self.lookup_done(&sender);
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_problems(&meta, &sender);
+                }
+            }
+            DetailMsg::SaveBuildOptions => {
+                let changes: Vec<(String, bool)> = self
+                    .flag_rows
+                    .iter()
+                    .filter(|(_, default, row)| row.is_active() != *default)
+                    .map(|(name, _, row)| (name.clone(), row.is_active()))
+                    .collect();
+                let res =
+                    nix_software_core::set_flags(&self.package, changes).map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
+            }
+            DetailMsg::ToggleHold => {
+                if self.pin.is_some() {
+                    let res = nix_software_core::set_pin(&self.package, None)
+                        .map(|()| None)
+                        .map_err(|e| e.to_string());
+                    sender.input(DetailMsg::Held(res));
+                    return;
+                }
+                self.start_hold(None, &sender);
+            }
+            DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
+            DetailMsg::OtherLoaded(other) => self.other = other,
+            DetailMsg::HomeModuleLoaded(module) => {
+                self.home_module = module;
+                self.lookup_done(&sender);
+            }
+            DetailMsg::RemoveOther => {
+                let Some(item) = self.other.clone() else {
+                    return;
+                };
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = match item.handle.strip_prefix("nix-env:") {
+                        Some(pname) => nix_software_core::nix_env_remove(pname),
+                        None => nix_software_core::remove_foreign(&item),
+                    };
+                    let _ = s.send(DetailMsg::TriedRemoved(
+                        res.map(|_| 0).map_err(|e| e.to_string()),
+                    ));
+                });
+                self.other = None;
+            }
+            DetailMsg::Remove => {
+                if self.kept || self.profile_name.is_some() {
+                    sender.input(DetailMsg::ToggleKeep);
+                    return;
+                }
+                if let Some(item) = &self.other {
+                    if item.origin == nix_software_core::Origin::AppImage {
+                        let files: Vec<String> =
+                            nix_software_core::appimage_files(std::path::Path::new(&item.handle))
+                                .iter()
+                                .map(|f| f.display().to_string())
+                                .collect();
+                        let dialog = adw::AlertDialog::new(
+                            Some(&t("Delete the AppImage?")),
+                            Some(
+                                &t("These files are deleted:\n{}").replace("{}", &files.join("\n")),
+                            ),
+                        );
+                        dialog.add_response("cancel", &t("_Cancel"));
+                        dialog.add_response("delete", &t("_Delete"));
+                        dialog.set_response_appearance(
+                            "delete",
+                            adw::ResponseAppearance::Destructive,
+                        );
+                        let s = sender.input_sender().clone();
+                        dialog.connect_response(Some("delete"), move |_, _| {
+                            let _ = s.send(DetailMsg::RemoveOther);
+                        });
+                        dialog.present(Some(&self.toast_overlay));
+                    } else {
+                        sender.input(DetailMsg::RemoveOther);
+                    }
+                    return;
+                }
+                let attr = self.package.attr.clone();
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = nix_software_core::remove_tried(&attr).map_err(|e| e.to_string());
+                    let _ = s.send(DetailMsg::TriedRemoved(res));
+                });
+            }
+            DetailMsg::TriedRemoved(res) => {
+                let text = match res {
+                    Ok(_) => t("{} removed.").replace("{}", &self.package.name),
+                    Err(e) => crate::util::failed(&e),
+                };
+                crate::util::toast(&self.toast_overlay, &text);
+            }
+            DetailMsg::ChooseMode => {
+                let offer = self.mode_offer();
+                let s = sender.input_sender().clone();
+                crate::components::install_options::present(
+                    &self.toast_overlay,
+                    offer,
+                    self.mode(),
+                    move |mode| {
+                        let _ = s.send(DetailMsg::SetMode(mode));
+                    },
+                );
+            }
+            DetailMsg::SetMode(mode) => {
+                let res =
+                    nix_software_core::set_mode(&self.package, &mode).map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
+            }
+            DetailMsg::UnstableLoaded(unstable) => {
+                self.unstable = unstable;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_versions(&meta, &sender);
+                }
+            }
+            DetailMsg::HistoryLoaded(choices) => {
+                if std::mem::take(&mut self.choose_pending) {
+                    sender.input(DetailMsg::VersionsLoaded(choices.clone()));
+                }
+                self.nix_versions = Some(choices);
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_versions(&meta, &sender);
+                }
+            }
+            DetailMsg::ChooseVersion => match self.nix_versions.clone() {
+                Some(choices) => sender.input(DetailMsg::VersionsLoaded(choices)),
+                None => {
+                    self.choose_pending = true;
+                    crate::util::toast(&self.toast_overlay, &t("Looking for versions…"));
+                }
+            },
+            DetailMsg::VersionsLoaded(choices) => {
+                let s = sender.input_sender().clone();
+                crate::components::version_dialog::present(
+                    &self.toast_overlay,
+                    choices,
+                    self.pin.as_ref().map(|p| p.rev.clone()),
+                    self.installed.as_ref().map(|a| a.version.clone()),
+                    move |pick| {
+                        let _ = s.send(match pick {
+                            crate::components::version_dialog::Pick::Version(c) => {
+                                DetailMsg::HoldAt(c)
+                            }
+                            crate::components::version_dialog::Pick::Follow
+                            | crate::components::version_dialog::Pick::Installed => {
+                                DetailMsg::ToggleHold
+                            }
+                        });
+                    },
+                );
+            }
+            DetailMsg::Held(res) => {
+                self.holding = false;
+                match res {
+                    Ok(pin) => {
+                        self.pin = pin;
+                        sender.input(DetailMsg::BlocksSaved(Ok(())));
+                    }
+                    Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
                 }
             }
             DetailMsg::ToggleDescription => {
@@ -1117,15 +1465,11 @@ impl SimpleComponent for DetailModel {
             DetailMsg::ScreenshotLoaded(bytes, caption) => {
                 if let Some(tex) = texture_from_bytes(&bytes) {
                     let idx = self.shots.len();
-                    // Anti-upscale: max logical width = native px / screen scale.
                     let max_logical = (tex.width() / self.scale).max(1);
                     self.shots.push(tex.clone());
                     self.shot_widths.push(max_logical);
 
-                    // The `Picture` keeps its ratio and centers itself: a gutter
-                    // appears once the page is wider than the image and grows with
-                    // the window. Margins guarantee a minimal gap; the clamp caps
-                    // the width at native resolution (sharp).
+                    // Margins keep a gap; the clamp caps width.
                     let pic = gtk::Picture::for_paintable(&tex);
                     let clamp = adw::Clamp::new();
                     clamp.set_maximum_size(max_logical);
@@ -1136,7 +1480,6 @@ impl SimpleComponent for DetailModel {
                     btn.set_margin_start(18);
                     btn.set_margin_end(18);
                     btn.set_margin_top(18);
-                    // AppStream caption as tooltip (like GNOME), else "Enlarge".
                     btn.set_tooltip_text(Some(&caption.unwrap_or_else(|| t("Enlarge"))));
                     let s = sender.clone();
                     btn.connect_clicked(move |_| s.input(DetailMsg::ShowShot(idx)));
@@ -1145,8 +1488,7 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::ShowShot(idx) => {
                 self.lightbox_tex = self.shots.get(idx).cloned();
-                // Zoom: ×2 the native width of THIS image (window and margins
-                // bound the real enlargement anyway).
+                // Zoom to twice the native width.
                 if let Some(w) = self.shot_widths.get(idx) {
                     self.lightbox_clamp.set_maximum_size(w.saturating_mul(2));
                 }
@@ -1201,6 +1543,9 @@ impl SimpleComponent for DetailModel {
                     crate::util::toast(&self.toast_overlay, &t("Could not open the app."));
                 }
             }
+            DetailMsg::Primary if self.is_self() => {
+                crate::util::toast(&self.toast_overlay, &t("This is the app you are using."));
+            }
             DetailMsg::Primary => {
                 sender.input(if self.installed.is_some() {
                     DetailMsg::Open
@@ -1220,7 +1565,6 @@ impl SimpleComponent for DetailModel {
             DetailMsg::Run => {
                 let name = meta_name(&self.meta, &self.package.name);
                 if self.meta.as_ref().map(|m| m.broken).unwrap_or(false) {
-                    // Warn but let the user try anyway.
                     crate::util::toast(
                         &self.toast_overlay,
                         &t("{} is marked broken in nixpkgs. Trying anyway…").replace("{}", &name),
@@ -1319,7 +1663,6 @@ impl SimpleComponent for DetailModel {
                     &self.toast_overlay,
                     &t("{} opened in a terminal…").replace("{}", &self.package.name),
                 ),
-                // The front end owns the clipboard fallback.
                 Ok(nix_software_core::ShellOutcome::NoTerminal) => {
                     if let Some(display) = gtk::gdk::Display::default() {
                         display
@@ -1339,6 +1682,48 @@ impl SimpleComponent for DetailModel {
                     &t("Could not open a shell: {}").replace("{}", &crate::util::tr_err(&e)),
                 ),
             },
+            DetailMsg::Keep if self.managed && self.lookups > 0 => {
+                self.keep_pending = true;
+                // Never wait more than a few seconds.
+                let s = sender.input_sender().clone();
+                gtk::glib::timeout_add_seconds_local_once(4, move || {
+                    let _ = s.send(DetailMsg::KeepNow);
+                });
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &t("Checking how this app can be installed…"),
+                );
+            }
+            DetailMsg::Keep if self.managed && self.mode_offer().has_choice() => {
+                let s = sender.input_sender().clone();
+                let everyone = nix_software_core::load_settings().install_for_everyone
+                    && nix_software_core::detect_layout().system.is_some();
+                let default = if everyone {
+                    nix_software_core::InstallMode::System
+                } else {
+                    nix_software_core::InstallMode::Home
+                };
+                crate::components::install_options::present_new(
+                    &self.toast_overlay,
+                    self.mode_offer(),
+                    default,
+                    move |mode| {
+                        let _ = s.send(DetailMsg::KeepAs(mode));
+                    },
+                );
+            }
+            DetailMsg::KeepNow => {
+                if std::mem::take(&mut self.keep_pending) {
+                    self.lookups = 0;
+                    sender.input(DetailMsg::Keep);
+                }
+            }
+            DetailMsg::KeepAs(mode) => {
+                let res = nix_software_core::keep(&self.package)
+                    .and_then(|()| nix_software_core::set_mode(&self.package, &mode))
+                    .map_err(|e| e.to_string());
+                sender.input(DetailMsg::BlocksSaved(res));
+            }
             DetailMsg::Keep => match nix_software_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
@@ -1349,6 +1734,7 @@ impl SimpleComponent for DetailModel {
             DetailMsg::Unkeep => match nix_software_core::unkeep(&self.package.attr) {
                 Ok(()) => {
                     self.kept = false;
+                    self.pin = None;
                     apply_toast(
                         &self.toast_overlay,
                         &sender,
@@ -1359,7 +1745,6 @@ impl SimpleComponent for DetailModel {
             },
             DetailMsg::AdvancedEdit if self.installed_elsewhere() => {}
             DetailMsg::AdvancedEdit => {
-                // Current Nix blocks of the app, if any, to prefill the editor.
                 let m = nix_software_core::load_manifest();
                 let (home, system) = m
                     .kept
@@ -1369,7 +1754,7 @@ impl SimpleComponent for DetailModel {
                     .unwrap_or((None, None));
                 let layout = nix_software_core::detect_layout();
                 let system_available = layout.system.is_some();
-                // Without a block, start from the plain entry equivalent.
+                // Start from the plain entry.
                 let home = home.or_else(|| {
                     Some(nix_software_core::default_home_block(
                         &layout,
@@ -1393,8 +1778,15 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::BlocksSaved(res) => match res {
                 Ok(()) => {
-                    // set_blocks keeps the app: editing it means wanting it.
+                    // Editing an app keeps it.
                     self.kept = true;
+                    self.custom_blocks = nix_software_core::load_manifest()
+                        .entry(&self.package.attr)
+                        .is_some_and(|e| e.home_nix.is_some());
+                    if let Some(meta) = self.meta.clone() {
+                        self.rebuild_problems(&meta, &sender);
+                        self.rebuild_build_options(&meta, &sender);
+                    }
                     self.prompt_apply_or_attach(&sender);
                 }
                 Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
@@ -1405,7 +1797,7 @@ impl SimpleComponent for DetailModel {
                     crate::components::apply_dialog::present(
                         &self.toast_overlay,
                         &t("Applying Configuration"),
-                        argv,
+                        vec![argv],
                         move |res| {
                             let _ = s.send(DetailMsg::Applied(res));
                         },
@@ -1417,6 +1809,15 @@ impl SimpleComponent for DetailModel {
             },
             DetailMsg::Applied(res) => {
                 crate::util::toast(&self.toast_overlay, &crate::util::describe_apply(res));
+            }
+            DetailMsg::CopyName => {
+                if let Some(display) = gtk::gdk::Display::default() {
+                    display.clipboard().set_text(&self.package.attr);
+                }
+                crate::util::toast(
+                    &self.toast_overlay,
+                    &t("{} copied.").replace("{}", &self.package.attr),
+                );
             }
             DetailMsg::CopyCommand => {
                 if let Some(display) = gtk::gdk::Display::default() {
@@ -1434,12 +1835,88 @@ impl SimpleComponent for DetailModel {
 }
 
 impl DetailModel {
-    /// A package without AppStream identity is treated as a CLI tool: `nix run`
-    /// would start and exit at once, a shell is the useful way to try it.
-    /// Installed by the user's own configuration, not by Nix Software: adding it again
-    /// would declare it twice.
+    /// True when the user's own configuration installs it.
     fn installed_elsewhere(&self) -> bool {
         !self.kept && self.profile_name.is_none() && self.installed.is_some()
+    }
+
+    /// Holds the app at `choice`, else at the revision in use. Downloads in
+    /// a thread.
+    fn start_hold(
+        &mut self,
+        choice: Option<nix_software_core::VersionChoice>,
+        sender: &ComponentSender<Self>,
+    ) {
+        self.holding = true;
+        crate::util::toast(
+            &self.toast_overlay,
+            &t("Downloading nixpkgs to hold this version…"),
+        );
+        let pkg = self.package.clone();
+        let version = self.meta.as_ref().and_then(|m| m.version.clone());
+        let s = sender.input_sender().clone();
+        std::thread::spawn(move || {
+            let pin = match choice {
+                Some(c) => nix_software_core::pin_at(&c.rev, Some(c.version)),
+                None => nix_software_core::pin_current(version),
+            };
+            let res = pin
+                .and_then(|p| nix_software_core::set_pin(&pkg, Some(p.clone())).map(|()| Some(p)))
+                .map_err(|e| e.to_string());
+            let _ = s.send(DetailMsg::Held(res));
+        });
+    }
+
+    /// True when the menu offers to hold or release the app.
+    fn can_hold(&self) -> bool {
+        self.managed
+            && !self.installed_elsewhere()
+            && !self.custom_blocks
+            && (self.pin.is_some() || nix_software_core::pinned_rev().is_some())
+    }
+
+    /// True when the app can be taken off: kept, installed with nix
+    /// profile, or tried.
+    fn removable(&self) -> bool {
+        self.kept || self.profile_name.is_some() || self.other.is_some() || self.tried()
+    }
+
+    fn tried(&self) -> bool {
+        nix_software_core::load_tried()
+            .tried
+            .iter()
+            .any(|e| e.package.attr == self.package.attr)
+    }
+
+    fn remove_tooltip(&self) -> String {
+        if self.kept {
+            t("Take the app out of your configuration. It is uninstalled when you apply.")
+        } else if self.profile_name.is_some() {
+            t("Uninstall the app from your user profile.")
+        } else if let Some(item) = &self.other {
+            match item.origin {
+                nix_software_core::Origin::Flatpak => t("Uninstall the Flatpak."),
+                nix_software_core::Origin::AppImage => t("Delete the AppImage and its menu entry."),
+                _ => t("Uninstall the app from your nix-env profile."),
+            }
+        } else {
+            t("Delete the tried app from the store.")
+        }
+    }
+
+    fn keep_tooltip(&self) -> String {
+        if self.installed_elsewhere() {
+            return t("Your own configuration installs this app; Nix Software leaves it alone.");
+        }
+        match (self.managed, self.kept, self.profile_name.is_some()) {
+            (true, true, _) => {
+                t("Take the app out of your configuration. It is uninstalled when you apply.")
+            }
+            (true, false, _) => {
+                t("Add the app to your configuration. It is installed when you apply.")
+            }
+            (false, _, _) => t("Install or remove the app for your user only, with nix profile."),
+        }
     }
 
     fn keep_label(&self) -> String {
@@ -1462,11 +1939,52 @@ impl DetailModel {
         self.meta.as_ref().and_then(|m| m.is_free_license) == Some(false)
     }
 
+    /// True on the page of Nix Software itself: running it only
+    /// raises this window.
+    fn is_self(&self) -> bool {
+        self.package.attr == crate::util::SELF_ATTR
+    }
+
+    /// How Nix Software installs this app; `None` when custom blocks
+    /// say more.
+    fn mode(&self) -> Option<nix_software_core::InstallMode> {
+        nix_software_core::load_manifest()
+            .entry(&self.package.attr)
+            .and_then(|e| e.mode())
+    }
+
+    /// One module lookup answered; a waiting add goes on once all did.
+    fn lookup_done(&mut self, sender: &ComponentSender<Self>) {
+        self.lookups = self.lookups.saturating_sub(1);
+        if self.lookups == 0 && std::mem::take(&mut self.keep_pending) {
+            sender.input(DetailMsg::Keep);
+        }
+    }
+
+    /// Where and how this app can be installed here.
+    fn mode_offer(&self) -> crate::components::install_options::Offer {
+        let layout = nix_software_core::detect_layout();
+        crate::components::install_options::Offer {
+            home: layout.home.is_some(),
+            system: layout.system.is_some(),
+            module: self
+                .module
+                .as_ref()
+                .filter(|_| layout.system.is_some())
+                .map(|o| o.name.clone()),
+            home_module: self
+                .home_module
+                .as_ref()
+                .filter(|_| layout.home.is_some())
+                .map(|o| o.name.clone()),
+        }
+    }
+
     fn cli_first(&self) -> bool {
         self.meta.as_ref().is_some_and(|m| m.app_id.is_none())
     }
 
-    /// Mounts the three `GtkStack` pages: spinner / ready / failed.
+    /// Mounts the spinner, ready and failed pages.
     fn build_stack(&self, ready: &gtk::Box) {
         let spinner = adw::StatusPage::new();
         spinner.set_paintable(Some(&adw::SpinnerPaintable::new(Some(&self.stack))));
@@ -1491,21 +2009,144 @@ impl DetailModel {
         );
     }
 
-    fn rebuild_problems(&self, meta: &AppMeta) {
+    /// The version section, with its version choice when the app can be held.
+    fn rebuild_versions(&self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        let on_choose = (self.can_hold() && !self.holding).then(|| {
+            let s = sender.input_sender().clone();
+            Box::new(move || {
+                let _ = s.send(DetailMsg::ChooseVersion);
+            }) as Box<dyn Fn()>
+        });
+        let unstable = self
+            .unstable
+            .clone()
+            .filter(|_| self.can_hold() && !self.holding)
+            .map(|choice| {
+                let s = sender.input_sender().clone();
+                let version = choice.version.clone();
+                (
+                    version,
+                    Box::new(move || {
+                        let _ = s.send(DetailMsg::HoldAt(choice.clone()));
+                    }) as Box<dyn Fn()>,
+                )
+            });
+        build_version_history(
+            &self.version_box,
+            meta,
+            meta.version.as_deref(),
+            self.nix_versions.as_deref().unwrap_or_default(),
+            self.installed.as_ref().map(|a| a.version.as_str()) == meta.version.as_deref(),
+            VersionActions {
+                choose: on_choose,
+                unstable,
+            },
+            self.toast_overlay.clone().upcast(),
+        );
+    }
+
+    fn rebuild_problems(&self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        self.rebuild_versions(meta, sender);
         while let Some(c) = self.problems_box.first_child() {
             self.problems_box.remove(&c);
         }
-        match infobox::problems(meta.broken, meta.insecure, &meta.known_vulnerabilities) {
-            Some(bar) => {
-                self.problems_box.append(&bar);
-                self.problems_box.set_visible(true);
-            }
-            None => self.problems_box.set_visible(false),
+        if let Some(bar) =
+            infobox::problems(meta.broken, meta.insecure, &meta.known_vulnerabilities)
+        {
+            self.problems_box.append(&bar);
         }
+        if let Some(pin) = &self.pin {
+            let s = sender.input_sender().clone();
+            self.problems_box.append(&infobox::held(pin, move || {
+                let _ = s.send(DetailMsg::ToggleHold);
+            }));
+        }
+        if let (Some(app), Some(nixpkgs), None) =
+            (&self.installed, meta.version.as_deref(), &self.pin)
+        {
+            // An older one only waits for an apply.
+            if !app.version.is_empty()
+                && app.version != nixpkgs
+                && !nix_software_core::version_newer(nixpkgs, &app.version)
+            {
+                self.problems_box
+                    .append(&infobox::changed(&app.version, nixpkgs));
+            }
+        }
+        if let Some((file, line)) = self.declared.as_ref().filter(|_| !self.kept) {
+            let s = sender.input_sender().clone();
+            self.problems_box
+                .append(&infobox::declared(file, *line, move || {
+                    let _ = s.send(DetailMsg::TakeOver);
+                }));
+        }
+        self.problems_box
+            .set_visible(self.problems_box.first_child().is_some());
     }
 
-    /// "Ratings & Reviews" section. Rating and reviews arrive independently: the
-    /// left column shows with the rating, the right one fills when reviews arrive.
+    /// The build options section: a switch per recipe flag. Only where Nix
+    /// Software writes the configuration.
+    fn rebuild_build_options(&mut self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        while let Some(c) = self.build_box.first_child() {
+            self.build_box.remove(&c);
+        }
+        self.flag_rows.clear();
+        let entry = nix_software_core::load_manifest()
+            .kept
+            .into_iter()
+            .find(|e| e.package.attr == self.package.attr);
+        let editable = self.managed
+            && !self.installed_elsewhere()
+            && entry.as_ref().is_none_or(|e| e.home_nix.is_none());
+        if meta.build_flags.is_empty() || !editable {
+            self.build_box.set_visible(false);
+            return;
+        }
+        let saved = entry.map(|e| e.flags).unwrap_or_default();
+
+        let expander = adw::ExpanderRow::builder()
+            .title(esc(&t("Build Options")))
+            .subtitle(esc(&t(
+                "Changing an option builds the app on your computer, which can take a long time.",
+            )))
+            .build();
+        expander.add_prefix(&gtk::Image::from_icon_name("emblem-system-symbolic"));
+        for flag in &meta.build_flags {
+            let active = saved
+                .iter()
+                .find(|(n, _)| *n == flag.name)
+                .map_or(flag.default, |(_, v)| *v);
+            let row = adw::SwitchRow::builder()
+                .title(esc(&flag.name))
+                .subtitle(esc(&if flag.default {
+                    t("On by default")
+                } else {
+                    t("Off by default")
+                }))
+                .active(active)
+                .build();
+            expander.add_row(&row);
+            self.flag_rows.push((flag.name.clone(), flag.default, row));
+        }
+        let save = adw::ButtonRow::builder()
+            .title(t("_Save Build Options"))
+            .use_underline(true)
+            .build();
+        save.connect_activated({
+            let s = sender.input_sender().clone();
+            move |_| {
+                let _ = s.send(DetailMsg::SaveBuildOptions);
+            }
+        });
+        expander.add_row(&save);
+
+        let list = crate::util::boxed_list();
+        list.append(&expander);
+        self.build_box.append(&list);
+        self.build_box.set_visible(true);
+    }
+
+    /// The ratings section; the rating and the reviews arrive apart.
     fn rebuild_reviews(&self, reviews: Option<&[Review]>) {
         match self.rating.filter(|r| r.total > 0) {
             Some(rating) => build_reviews(
@@ -1522,8 +2163,7 @@ impl DetailModel {
     }
 }
 
-// ── Sections ──────────────────────────────────────────────────────────────────
-/// Header rating: five stars + review count (`label_review_count`).
+/// Header stars and review count.
 fn build_stars(container: &gtk::Box, rating: &Rating) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
@@ -1543,8 +2183,8 @@ fn build_stars(container: &gtk::Box, rating: &Rating) {
     container.set_visible(true);
 }
 
-/// `box_reviews`: `.title-2` title then two `boxed-list`s side by side
-/// (`spacing 12`, homogeneous).
+/// The ratings section: histogram and write button, featured review and
+/// the full list.
 fn build_reviews(
     container: &gtk::Box,
     rating: &Rating,
@@ -1567,7 +2207,6 @@ fn build_reviews(
     let inner = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     inner.set_homogeneous(true);
 
-    // Left column: histogram + "Write a Review".
     let left = crate::util::boxed_list();
     let hist_row = gtk::ListBoxRow::new();
     hist_row.set_activatable(false);
@@ -1609,7 +2248,6 @@ fn build_reviews(
     left.append(&write);
     inner.append(&left);
 
-    // Right column: featured review + "All Reviews".
     let right = crate::util::boxed_list();
     if let Some(featured) = reviews.and_then(nix_software_core::featured_review) {
         right.append(&review_row::row(featured));
@@ -1632,7 +2270,7 @@ fn build_reviews(
     container.set_visible(true);
 }
 
-/// "All Reviews" dialog: one `GsReviewRow` per review, best ranked first.
+/// Dialog listing every review, best first.
 fn show_reviews_dialog(reviews: &[Review], parent: &impl IsA<gtk::Widget>) {
     let list = crate::util::boxed_list();
     let mut sorted: Vec<&Review> = reviews.iter().collect();
@@ -1643,7 +2281,7 @@ fn show_reviews_dialog(reviews: &[Review], parent: &impl IsA<gtk::Widget>) {
     present_dialog(&t("All Reviews"), &list, 560, 640, parent);
 }
 
-/// A full dialog: clamped list in a scroll, under a HeaderBar.
+/// A dialog with a header bar and a scrolled, clamped `content`.
 fn present_dialog(
     title: &str,
     child: &impl IsA<gtk::Widget>,
@@ -1674,14 +2312,8 @@ fn present_dialog(
     dialog.present(Some(parent));
 }
 
-/// The four context bar tiles, in `.ui` order.
-///
-/// - **Storage**: closure download size (`closure_size`).
-/// - **Safety**: nix `broken`/`insecure` first. Otherwise "Not Sandboxed":
-///   a Nix app runs with the user's full rights, whatever the Flatpak build
-///   of the same app may declare, and the license nuances it.
-/// - **Hardware**: generic desktop (no usable `<relations>`).
-/// - **Age**: OARS rating, like GNOME.
+/// The four context tiles: download size, safety (nixpkgs problems, else
+/// not sandboxed), hardware, age rating.
 fn build_context_tiles(
     meta: &AppMeta,
     size_loaded: bool,
@@ -1774,7 +2406,7 @@ fn build_context_tiles(
     [storage, safety_tile, hardware, age]
 }
 
-/// Age lozenge tint class, the `details-rating-N` aliases of the GNOME CSS.
+/// CSS tint of an age lozenge.
 fn age_color(label: &str) -> &'static str {
     let n: u32 = label.trim_end_matches('+').parse().unwrap_or(0);
     if n >= 18 {
@@ -1790,82 +2422,68 @@ fn age_color(label: &str) -> &'static str {
     }
 }
 
-/// `box_addons`: `.title-2` title (`margin-bottom 12`) + tile grid.
-/// Informative only: Flatpak add-ons have no nixpkgs equivalent to open, so
-/// the tiles are not navigable (`info_tile`).
-fn build_addons(container: &gtk::Box, meta: &AppMeta) {
-    while let Some(c) = container.first_child() {
-        container.remove(&c);
-    }
-    if meta.addons.is_empty() {
-        container.set_visible(false);
-        return;
-    }
-
-    let title = gtk::Label::new(Some(&t("Add-ons")));
-    title.set_xalign(0.0);
-    title.set_halign(gtk::Align::Start);
-    title.set_valign(gtk::Align::Start);
-    title.set_hexpand(true);
-    title.set_margin_bottom(12);
-    title.add_css_class("title-2");
-    container.append(&title);
-
-    let flow = tile_grid();
-    for a in meta.addons.iter().take(12) {
-        flow.append(&info_tile(
-            &a.name,
-            a.summary.as_deref().filter(|s| !s.trim().is_empty()),
-            a.icon_url.clone(),
-        ));
-    }
-    container.append(&flow);
-    container.set_visible(true);
+/// What the version section offers besides the history.
+struct VersionActions {
+    /// Opens the version choice.
+    choose: Option<Box<dyn Fn()>>,
+    /// A newer version in unstable, and installing it.
+    unstable: Option<(String, Box<dyn Fn()>)>,
 }
 
-/// `list_box_version_history`: the nixpkgs release (else the latest), then an
-/// `AdwButtonRow` opening the full history dialog (`GsAppVersionHistoryDialog`).
+/// The nixpkgs release (else the latest) and the full history button.
 fn build_version_history(
     container: &gtk::Box,
     meta: &AppMeta,
-    installed_version: Option<&str>,
+    nix_version: Option<&str>,
+    history: &[nix_software_core::VersionChoice],
+    installed: bool,
+    actions: VersionActions,
     parent: gtk::Widget,
 ) {
+    let VersionActions {
+        choose: on_choose,
+        unstable,
+    } = actions;
+    let badge = nix_version.map(|_| {
+        if installed {
+            crate::i18n::pgettext("version badge", "Installed")
+        } else {
+            t("Available")
+        }
+    });
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
-    if meta.releases.is_empty() {
+    let releases = match nix_version {
+        Some(v) => nix_software_core::nix_releases(&meta.releases, v, history),
+        None => meta.releases.clone(),
+    };
+    let Some(latest) = releases.first() else {
         container.set_visible(false);
         return;
-    }
-    let latest = meta
-        .releases
-        .iter()
-        .find(|r| installed_version == Some(r.version.as_str()))
-        .unwrap_or(&meta.releases[0]);
+    };
     let list = crate::util::boxed_list();
     list.append(&version_history_row::row(
         &latest.version,
         latest.timestamp,
         latest.description.as_deref(),
-        installed_version == Some(latest.version.as_str()),
+        badge.as_deref(),
         latest.url.as_deref(),
     ));
 
-    if meta.releases.len() > 1 {
+    if releases.len() > 1 {
         let more = adw::ButtonRow::new();
         more.set_title(&t("Version History"));
         more.set_end_icon_name(Some("go-next-symbolic"));
-        let releases = meta.releases.clone();
-        let installed = installed_version.map(str::to_string);
+
         more.connect_activated(move |_| {
             let list = crate::util::boxed_list();
-            for r in &releases {
+            for (i, r) in releases.iter().enumerate() {
                 list.append(&version_history_row::row(
                     &r.version,
                     r.timestamp,
                     r.description.as_deref(),
-                    installed.as_deref() == Some(r.version.as_str()),
+                    badge.as_deref().filter(|_| i == 0),
                     r.url.as_deref(),
                 ));
             }
@@ -1873,13 +2491,40 @@ fn build_version_history(
         });
         list.append(&more);
     }
+    if let Some((version, on_install)) = unstable {
+        let row = adw::ActionRow::builder()
+            .title(esc(&t("Version {} in Unstable").replace("{}", &version)))
+            .subtitle(esc(&t("Newer than your configuration's nixpkgs. Installing it holds the app at that revision.")))
+            .build();
+        let install = gtk::Button::with_label(&t("Install"));
+        install.set_valign(gtk::Align::Center);
+        install.add_css_class("pill");
+        install.connect_clicked(move |_| on_install());
+        row.add_suffix(&install);
+        list.append(&row);
+    }
+    if let Some(on_choose) = on_choose {
+        let choose = adw::ButtonRow::new();
+        choose.set_title(&t("Choose a Version…"));
+        choose.set_end_icon_name(Some("go-next-symbolic"));
+        choose.set_tooltip_text(Some(&t(
+            "Keep the installed version, or pick an earlier one.",
+        )));
+        choose.connect_activated(move |_| on_choose());
+        list.append(&choose);
+    }
 
     container.append(&list);
     container.set_visible(true);
 }
 
-/// `box_license`: license tile on the left, `links_stack` on the right.
-fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
+/// License card and links, side by side.
+fn build_license_box(
+    container: &gtk::Box,
+    meta: &AppMeta,
+    pkg: &Package,
+    on_wrong_app: impl Fn() + 'static,
+) {
     while let Some(c) = container.first_child() {
         container.remove(&c);
     }
@@ -1893,7 +2538,6 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
     };
     container.append(&tile);
 
-    // Order and icons of `gs-details-page.ui`; no "Contact" source exists.
     let links = [
         (
             t("_Project Website"),
@@ -1931,22 +2575,33 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
         })
         .collect();
 
-    // The `.ui` GtkStack: "links" page or "empty" page.
     let stack = gtk::Stack::new();
     stack.set_hhomogeneous(false);
     stack.set_vhomogeneous(false);
-    if present.is_empty() {
-        stack.add_named(&no_metadata_card(), Some("empty"));
-    } else {
+    {
         let list = crate::util::boxed_list();
         for (label, icon, url) in present {
             list.append(&link_row(&label, icon, &url));
         }
-        // A position means nixpkgs answered: maintainers are then known.
+        // A recipe position means maintainers are known.
         if meta.source_url.is_some() {
             list.append(&maintainers_row(meta));
         }
         for row in [commands_row(meta), opens_row(meta)].into_iter().flatten() {
+            list.append(&row);
+        }
+        list.append(&by_hand_row(pkg));
+        wiki_row(&list, meta, pkg);
+        if meta.app_id.is_some() {
+            let row = adw::ActionRow::builder()
+                .title(esc(&t("Wrong App?")))
+                .subtitle(esc(&t(
+                    "This page shows another app's name, icon or pictures",
+                )))
+                .activatable(true)
+                .build();
+            row.add_prefix(&gtk::Image::from_icon_name("dialog-question-symbolic"));
+            row.connect_activated(move |_| on_wrong_app());
             list.append(&row);
         }
         stack.add_named(&list, Some("links"));
@@ -1954,43 +2609,7 @@ fn build_license_box(container: &gtk::Box, meta: &AppMeta) {
     container.append(&stack);
 }
 
-/// "empty" page of `links_stack`: big `?` icon and centered explanation.
-fn no_metadata_card() -> gtk::Box {
-    let card = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    card.set_hexpand_set(true);
-    card.add_css_class("card");
-
-    let inner = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    inner.set_margin_top(14);
-    inner.set_margin_bottom(14);
-    inner.set_margin_start(14);
-    inner.set_margin_end(14);
-    inner.set_valign(gtk::Align::Center);
-    inner.set_hexpand(true);
-    inner.add_css_class("dim-label");
-
-    let img = gtk::Image::from_icon_name("dialog-question-symbolic");
-    img.set_pixel_size(96);
-    img.set_margin_bottom(8);
-    inner.append(&img);
-
-    let title = gtk::Label::new(Some(&t("No Metadata")));
-    title.add_css_class("heading");
-    inner.append(&title);
-
-    let desc = gtk::Label::new(Some(&t(
-        "This package provides no link to a website, code repository or issue tracker.",
-    )));
-    desc.set_justify(gtk::Justification::Center);
-    desc.set_wrap(true);
-    desc.set_xalign(0.5);
-    inner.append(&desc);
-
-    card.append(&inner);
-    card
-}
-
-/// `105082` gives `105K`, readable at a glance.
+/// `105082` as `105K`.
 fn compact(n: u64) -> String {
     match n {
         0..=9_999 => n.to_string(),
@@ -2009,7 +2628,7 @@ fn info_row(title: &str, subtitle: &str, icon: &str) -> adw::ActionRow {
     row
 }
 
-/// Commands the package puts in your PATH.
+/// The commands the package puts in `PATH`.
 fn commands_row(meta: &AppMeta) -> Option<adw::ActionRow> {
     (!meta.binaries.is_empty()).then(|| {
         info_row(
@@ -2020,8 +2639,7 @@ fn commands_row(meta: &AppMeta) -> Option<adw::ActionRow> {
     })
 }
 
-/// File types the app opens: their names when few (`MPEG-4 video`), else
-/// the families they belong to.
+/// File types the app opens: names when few, else families.
 fn opens_row(meta: &AppMeta) -> Option<adw::ActionRow> {
     let types = &meta.mediatypes;
     if types.is_empty() {
@@ -2056,7 +2674,7 @@ fn opens_row(meta: &AppMeta) -> Option<adw::ActionRow> {
     Some(info_row(&t("Opens"), &text, "document-open-symbolic"))
 }
 
-/// Who looks after the package in nixpkgs. An orphan is a trust signal too.
+/// The package's nixpkgs maintainers; an orphan is shown as such.
 fn maintainers_row(meta: &AppMeta) -> adw::ActionRow {
     let people: Vec<String> = meta
         .maintainers
@@ -2098,111 +2716,7 @@ fn link_row(label: &str, icon: &str, url: &str) -> adw::ActionRow {
     row
 }
 
-/// Informative card tile: same look as `AppTile` (64 icon loaded async,
-/// colored fallback thumbnail, name + 2 line summary) but not navigable:
-/// add-ons have no nixpkgs equivalent to open a details page for.
-fn info_tile(name: &str, summary: Option<&str>, icon_url: Option<String>) -> gtk::Widget {
-    let icon_slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    icon_slot.set_width_request(64);
-    icon_slot.set_height_request(64);
-    icon_slot.set_valign(gtk::Align::Center);
-
-    let fallback = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    fallback.set_width_request(64);
-    fallback.set_height_request(64);
-    fallback.set_halign(gtk::Align::Center);
-    fallback.set_valign(gtk::Align::Center);
-    fallback.set_hexpand(false);
-    fallback.set_vexpand(false);
-    fallback.add_css_class("fallback-tile");
-    let (icon, class) = fallback_icon(&Package {
-        description: summary.unwrap_or_default().to_string(),
-        ..Package::from_attr(name)
-    });
-    fallback.add_css_class(class);
-    let glyph = gtk::Image::from_icon_name(icon);
-    glyph.set_pixel_size(48);
-    glyph.set_hexpand(true);
-    glyph.set_vexpand(true);
-    glyph.set_halign(gtk::Align::Center);
-    glyph.set_valign(gtk::Align::Center);
-    glyph.add_css_class("fallback-glyph");
-    fallback.append(&glyph);
-    icon_slot.append(&fallback);
-
-    // gtk::Image (not Picture): `pixel_size` bounds the layout to 64 while
-    // rendering the 128 texture at full resolution, sharp on HiDPI (see AppTile).
-    let img = gtk::Image::new();
-    img.set_pixel_size(64);
-    img.set_visible(false);
-    icon_slot.append(&img);
-
-    if let Some(url) = icon_url {
-        let img = img.clone();
-        let fallback = fallback.clone();
-        gtk::glib::spawn_future_local(async move {
-            let bytes =
-                gtk::gio::spawn_blocking(move || nix_software_core::cached_fetch_bytes(&url))
-                    .await
-                    .ok()
-                    .flatten();
-            if let Some(tex) = bytes
-                .as_deref()
-                .and_then(|b| texture_from_bytes_sized(b, 128))
-            {
-                img.set_paintable(Some(&tex));
-                img.set_visible(true);
-                fallback.set_visible(false);
-            }
-        });
-    }
-
-    let text = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    text.set_valign(gtk::Align::Center);
-    text.set_hexpand(true);
-
-    let name_label = gtk::Label::new(Some(name));
-    name_label.set_xalign(0.0);
-    name_label.set_max_width_chars(12);
-    name_label.set_width_chars(0);
-    name_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
-    name_label.add_css_class("app-tile-name");
-    text.append(&name_label);
-
-    if let Some(summary) = summary {
-        let s = gtk::Label::new(Some(summary));
-        s.set_xalign(0.0);
-        s.set_yalign(0.0);
-        s.set_wrap(true);
-        s.set_wrap_mode(gtk::pango::WrapMode::WordChar);
-        s.set_lines(2);
-        s.set_max_width_chars(16);
-        s.set_width_chars(0);
-        s.set_ellipsize(gtk::pango::EllipsizeMode::End);
-        s.add_css_class("app-tile-summary");
-        text.append(&s);
-    }
-
-    let inner = gtk::Box::new(gtk::Orientation::Horizontal, 14);
-    inner.set_margin_top(17);
-    inner.set_margin_bottom(17);
-    inner.set_margin_start(17);
-    inner.set_margin_end(17);
-    inner.append(&icon_slot);
-    inner.append(&text);
-
-    let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    card.add_css_class("card");
-    card.set_width_request(190);
-    card.set_hexpand(true);
-    card.set_halign(gtk::Align::Fill);
-    card.set_valign(gtk::Align::Start);
-    card.append(&inner);
-    card.upcast()
-}
-
-/// Grid of the Add-ons / Other Apps sections: same `FlowBox` config as the
-/// home grids (3 columns max, spacing 14).
+/// The grid of the add-ons and other apps sections.
 fn tile_grid() -> gtk::FlowBox {
     let flow = gtk::FlowBox::new();
     flow.set_homogeneous(true);
@@ -2215,8 +2729,6 @@ fn tile_grid() -> gtk::FlowBox {
     flow.set_selection_mode(gtk::SelectionMode::None);
     flow
 }
-
-// ── Text helpers ──────────────────────────────────────────────────────────────
 
 fn meta_name(meta: &Option<AppMeta>, fallback: &str) -> String {
     meta.as_ref()
@@ -2238,16 +2750,14 @@ fn meta_description(meta: &Option<AppMeta>, fallback: &str) -> String {
         })
 }
 
-/// Length beyond which the description collapses (about 4 lines, like
-/// `GsDescriptionBox::MAX_COLLAPSED_LINES`).
+/// Length past which the description collapses.
 const DESC_COLLAPSE_CHARS: usize = 300;
 
 fn desc_needs_toggle(meta: &Option<AppMeta>, fallback: &str) -> bool {
     meta_description(meta, fallback).chars().count() > DESC_COLLAPSE_CHARS
 }
 
-/// Description to display: cut on a word boundary (+ "…") when collapsed
-/// and too long, complete otherwise.
+/// The description, cut on a word when collapsed.
 fn desc_display(meta: &Option<AppMeta>, fallback: &str, expanded: bool) -> String {
     let full = meta_description(meta, fallback);
     if expanded || full.chars().count() <= DESC_COLLAPSE_CHARS {
@@ -2264,9 +2774,122 @@ fn desc_display(meta: &Option<AppMeta>, fallback: &str, expanded: bool) -> Strin
     format!("{}…", full[..end].trim_end())
 }
 
-/// A listing without any usable content goes to the "failed" page, like GNOME.
+/// True when the listing has nothing to show.
 fn is_empty_meta(meta: &AppMeta) -> bool {
     meta.summary.is_none() && meta.description.is_none() && meta.version.is_none()
+}
+
+/// A Flatpak, AppImage or nix-env install of the package. Blocking.
+fn other_install(
+    attr: &str,
+    version: &str,
+    app_id: Option<&str>,
+) -> Option<nix_software_core::Installed> {
+    let pname = attr.rsplit('.').next().unwrap_or(attr);
+    if nix_software_core::nix_env_names()
+        .iter()
+        .any(|n| n == pname)
+    {
+        return Some(nix_software_core::Installed {
+            names: vec![pname.to_lowercase()],
+            version: String::new(),
+            origin: nix_software_core::Origin::Home,
+            module: false,
+            handle: format!("nix-env:{pname}"),
+        });
+    }
+    let index: Vec<_> = nix_software_core::installed_index()
+        .into_iter()
+        .filter(|e| {
+            matches!(
+                e.origin,
+                nix_software_core::Origin::Flatpak | nix_software_core::Origin::AppImage
+            )
+        })
+        .collect();
+    nix_software_core::find_installed(&index, attr, version, app_id).cloned()
+}
+
+/// The nixpkgs package of an add-on of `parent`: a search on its name,
+/// preferring packages of the parent's set (gimpPlugins for gimp). Blocking.
+fn addon_package(name: &str, parent: &str) -> Option<Package> {
+    let found = nix_software_core::search(name);
+    let of_parent =
+        |p: &&Package| p.attr.to_lowercase().starts_with(parent) && p.attr.contains('.');
+    found.iter().find(of_parent).or(found.first()).cloned()
+}
+
+/// The commands installing the package without Nix Software.
+fn by_hand_row(pkg: &Package) -> adw::ActionRow {
+    let row = adw::ActionRow::builder()
+        .title(esc(&t("Install by Hand")))
+        .subtitle(esc(&t("The lines to write yourself")))
+        .activatable(true)
+        .build();
+    row.add_prefix(&gtk::Image::from_icon_name("utilities-terminal-symbolic"));
+    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+    let pkg = pkg.clone();
+    row.connect_activated(move |row| {
+        let installable = nix_software_core::installable(&pkg);
+        let attr = &pkg.attr;
+        let list = crate::util::boxed_list();
+        for (title, line) in [
+            (
+                t("NixOS Configuration"),
+                format!("environment.systemPackages = [ pkgs.{attr} ];"),
+            ),
+            (
+                t("Home Manager"),
+                format!("home.packages = [ pkgs.{attr} ];"),
+            ),
+            (t("nix profile"), format!("nix profile add {installable}")),
+            (t("Temporary Shell"), format!("nix shell {installable}")),
+        ] {
+            let r = adw::ActionRow::builder()
+                .title(esc(&title))
+                .subtitle(esc(&line))
+                .subtitle_selectable(true)
+                .build();
+            r.add_css_class("property");
+            let copy = gtk::Button::from_icon_name("edit-copy-symbolic");
+            copy.add_css_class("flat");
+            copy.set_valign(gtk::Align::Center);
+            copy.set_tooltip_text(Some(&t("Copy")));
+            copy.connect_clicked(move |_| crate::util::copy_to_clipboard(&line));
+            r.add_suffix(&copy);
+            list.append(&r);
+        }
+        present_dialog(&t("Install by Hand"), &list, 560, 420, row);
+    });
+    row
+}
+
+/// A NixOS Wiki link, appended once the wiki confirms the page exists.
+fn wiki_row(list: &gtk::ListBox, meta: &AppMeta, pkg: &Package) {
+    let title = meta_name(&Some(meta.clone()), &pkg.name).replace(' ', "_");
+    let url = format!("https://wiki.nixos.org/wiki/{title}");
+    let list = list.clone();
+    gtk::glib::spawn_future_local(async move {
+        let check = url.clone();
+        let found = gtk::gio::spawn_blocking(move || nix_software_core::url_exists(&check))
+            .await
+            .unwrap_or(false);
+        if found {
+            list.append(&link_row(&t("NixOS _Wiki"), "help-link-symbolic", &url));
+        }
+    });
+}
+
+/// The origin as shown: nixpkgs, a flake input, or owner/repo of a flake
+/// added in Preferences.
+fn origin_name(source: Option<&str>) -> String {
+    match source {
+        None => "nixpkgs".into(),
+        Some(s) => match s.split_once(':') {
+            Some((_, rest)) => rest.split('/').take(2).collect::<Vec<_>>().join("/"),
+            None => s.to_string(),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -2313,8 +2936,7 @@ mod tests {
         ));
     }
 
-    /// Checks the real GTK tree against `gs-details-page.ui`. Needs a display,
-    /// hence `#[ignore]`: `cargo test -p nix-software-gui -- --ignored`.
+    /// Checks the page's widget tree. Needs a display: run with `--ignored`.
     #[test]
     #[ignore = "needs a GTK display"]
     fn widget_tree_matches_gnome_ui() {
@@ -2325,20 +2947,19 @@ mod tests {
             name: "hello".into(),
             version: "2.12".into(),
             description: "Demo program".into(),
+            source: None,
         };
         let ctrl = <DetailModel as relm4::Component>::builder().launch(pkg);
         let widgets = ctrl.widgets();
 
-        // `box_details_header` has NO spacing in the `.ui`:
-        // `box_details_header_not_icon` (spacing 6) does the spacing.
-        assert_eq!(widgets.header_box.spacing(), 0, "box_details_header");
+        // GNOME's wide header spacing.
+        assert_eq!(widgets.header_box.spacing(), 24, "box_details_header");
         // `application_details`: summary ↔ description.
         assert_eq!(widgets.application_details.spacing(), 12);
-        // `box_install_remove`: spacing 9, centered.
-        assert_eq!(widgets.box_install_remove.spacing(), 9);
+        // The split button, centered.
         assert_eq!(widgets.box_install_remove.halign(), gtk::Align::Center);
 
-        // The GtkStack holds the three `.ui` states and starts on "spinner".
+        // Starts on the spinner page.
         let stack = &ctrl.model().stack;
         for name in ["spinner", "ready", "failed"] {
             assert!(
@@ -2348,7 +2969,7 @@ mod tests {
         }
         assert_eq!(stack.visible_child_name().as_deref(), Some("spinner"));
 
-        // The carousel starts on its fallback page (no screenshot loaded).
+        // No screenshot yet: fallback page.
         assert_eq!(
             ctrl.model()
                 .carousel
@@ -2370,8 +2991,7 @@ mod tests {
         assert_eq!(body.spacing(), 18);
         assert_eq!(body.valign(), gtk::Align::Start);
 
-        // Every section is clamped 860/576 with margins 12, except the
-        // carousel, which overflows full width (so outside any clamp).
+        // Every section is clamped except the carousel.
         let mut clamps = 0;
         let mut child = body.first_child();
         while let Some(w) = child {
@@ -2384,45 +3004,6 @@ mod tests {
             }
             child = w.next_sibling();
         }
-        // header, summary, add-ons, context bar, versions, infobar, license,
-        // reviews, other apps: the carousel is the only unclamped child.
-        assert_eq!(clamps, 9, "9 clamped sections expected");
-
-        // ONE GTK #[test] only: the GLib main context stays owned by the
-        // first GTK test thread, even with --test-threads=1, so a second
-        // #[test] would fail with "Failed to acquire default main context".
-        // Extra assertions therefore live in helpers called from here.
-        assert_addons_render_as_tile_grid();
-    }
-
-    /// Add-ons render as a **grid of card tiles** (`info_tile`), same look as
-    /// `AppTile` but not navigable (Flatpak add-ons have no nixpkgs
-    /// equivalent to open).
-    fn assert_addons_render_as_tile_grid() {
-        let meta = AppMeta {
-            addons: vec![nix_software_core::Addon {
-                name: "Highlighter".into(),
-                summary: Some("Syntax highlighting".into()),
-                icon_url: None,
-            }],
-            ..Default::default()
-        };
-
-        let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        build_addons(&container, &meta);
-        assert!(container.is_visible());
-
-        let flow = container
-            .last_child()
-            .and_downcast::<gtk::FlowBox>()
-            .expect("the section must end with a FlowBox grid");
-        assert_eq!(flow.max_children_per_line(), 3);
-
-        let tile = flow
-            .first_child()
-            .and_downcast::<gtk::FlowBoxChild>()
-            .and_then(|c| c.child())
-            .expect("a tile");
-        assert!(tile.has_css_class("card"), "the tile must be a card");
+        assert_eq!(clamps, 10, "10 clamped sections expected");
     }
 }

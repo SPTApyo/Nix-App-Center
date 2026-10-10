@@ -1,7 +1,5 @@
-//! Compiles `po/<lang>.po` catalogs into `.mo` files under `OUT_DIR/locale/…` so that
-//! `cargo run` / `cargo test` find translations without a system install, and
-//! exposes that folder through `NIX_SOFTWARE_DEV_LOCALEDIR`. The Nix package installs the `.mo`
-//! files in `share/locale` and points `NIX_SOFTWARE_LOCALEDIR` there (preferred at runtime).
+//! Compiles `po/*.po` for `cargo run` and `cargo test`, and points
+//! `NIX_SOFTWARE_DEV_LOCALEDIR` at them.
 
 use std::path::Path;
 use std::process::Command;

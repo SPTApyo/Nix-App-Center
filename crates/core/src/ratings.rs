@@ -1,11 +1,9 @@
-//! ODRS ratings (odrs.gnome.org), the same community review source as GNOME
-//! Software, indexed by app id (AppStream/desktop). Purely cosmetic.
+//! ODRS ratings, the review source GNOME Software uses.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/// An app rating: average stars (0–5) + total review count + per-star
-/// histogram (for the "Ratings & Reviews" block, like GsReviewHistogram).
+/// Average stars, review count and per-star counts of an app.
 #[derive(Debug, Clone, Copy)]
 pub struct Rating {
     pub stars: f32,
@@ -19,8 +17,7 @@ pub struct Rating {
 
 static ODRS: OnceLock<HashMap<String, Rating>> = OnceLock::new();
 
-/// Full ODRS ratings table, fetched once (bulk) then cached for the whole
-/// session.
+/// All ODRS ratings, fetched once per session.
 pub(crate) fn odrs_ratings() -> &'static HashMap<String, Rating> {
     ODRS.get_or_init(|| fetch_odrs_ratings().unwrap_or_default())
 }
@@ -53,10 +50,7 @@ fn fetch_odrs_ratings() -> Option<HashMap<String, Rating>> {
             star4: s4,
             star5: s5,
         };
-        // ODRS keys are desktop ids, sometimes cased differently from Flathub
-        // (`org.mozilla.Firefox` vs `org.mozilla.firefox`). So they are indexed
-        // lowercase, without the `.desktop` suffix, keeping the most rated
-        // entry on collision.
+        // Index lowercase; the most rated wins.
         let key = id.strip_suffix(".desktop").unwrap_or(id).to_lowercase();
         map.entry(key)
             .and_modify(|e: &mut Rating| {
@@ -69,7 +63,7 @@ fn fetch_odrs_ratings() -> Option<HashMap<String, Rating>> {
     Some(map)
 }
 
-/// ODRS rating for a Flathub `app_id` (case-insensitive match).
+/// The rating of `app_id`, ignoring case.
 pub fn rating_for(app_id: &str) -> Option<Rating> {
     if app_id.is_empty() {
         return None;

@@ -1,50 +1,36 @@
-//! Attach: connect the Nix Software files to the user's configuration.
-//!
-//! This is the only place where Nix Software touches a file it did not write. Hard
-//! rule, and the sole reason this module exists:
-//!
-//! > **No write without a displayed plan and explicit approval.**
-//!
-//! [`plan`] only *computes*, it writes nothing. It returns an [`AttachPlan`]
-//! holding the exact diff, the backup path and the resulting content. The front
-//! end shows all of it and asks for consent. Only [`commit`] writes.
-//!
-//! The attach is **one line** in the top-level `imports` list (or, for a
-//! flake without `configuration.nix`, in its `modules` list). No nested Nix is
-//! parsed and no file is ever rebuilt from an AST: the user's formatting,
-//! comments and logic survive untouched.
-//!
-//! When the file has no top-level `imports` list, Nix Software **does not guess**: it
-//! returns a "manual" plan (the snippet to paste) and writes nothing.
+//! Connects the Nix Software files to the user's configuration with one line
+//! in its `imports` (or flake `modules`) list. [`plan`] computes the diff,
+//! [`commit`] writes it after the user approves. Never guesses.
 
 use crate::config_layout::Layout;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AttachPlan {
-    /// Already attached: nothing to do.
     AlreadyAttached,
-    /// Nix Software can patch. Everything is computed, nothing is written.
+    /// The patch, computed but not written.
     Patch {
         /// The user's file to modify.
         site: PathBuf,
         /// The backup written before any modification.
         backup: PathBuf,
-        /// The added import lines (`./nix-software-home.nix`…).
+        /// The import lines added.
         added: Vec<String>,
-        /// Unified diff, shown as is to the user.
+        /// Unified diff shown to the user.
         diff: String,
-        /// The resulting content, already computed.
+        /// The patched content.
         patched: String,
     },
-    /// Nix Software cannot find a top-level `imports` list: it refuses to guess. The
-    /// user pastes these lines wherever they want.
-    Manual { site: PathBuf, snippet: String },
+    /// No top-level `imports` list: lines for the user to paste.
+    Manual {
+        site: PathBuf,
+        snippet: String,
+    },
     /// Unknown layout: there is nothing to attach to.
     NoLayout,
 }
 
-/// Import path relative to the attached file (`./nix-software-home.nix`).
+/// The import path relative to the importing file.
 fn import_line(nix_software_file: &Path) -> String {
     let name = nix_software_file
         .file_name()
@@ -53,8 +39,7 @@ fn import_line(nix_software_file: &Path) -> String {
     format!("./{name}")
 }
 
-/// The import lines this layout needs, without duplicates (both scopes share
-/// the same `imports` on NixOS).
+/// The import lines the layout needs, without duplicates.
 fn required_imports(layout: &Layout) -> Vec<(PathBuf, String)> {
     let mut out: Vec<(PathBuf, String)> = Vec::new();
     for scope in [&layout.home, &layout.system].into_iter().flatten() {
@@ -82,7 +67,7 @@ pub fn is_attached(layout: &Layout) -> bool {
     })
 }
 
-/// Computes the attach plan. **Writes nothing.**
+/// The attach plan. Writes nothing.
 pub fn plan(layout: &Layout) -> AttachPlan {
     if !layout.is_usable() {
         return AttachPlan::NoLayout;
@@ -96,7 +81,6 @@ pub fn plan(layout: &Layout) -> AttachPlan {
         return AttachPlan::NoLayout;
     };
 
-    // On NixOS both scopes attach at the same place: one file to patch.
     let lines: Vec<String> = needed
         .iter()
         .filter(|(s, _)| *s == site)
@@ -136,8 +120,7 @@ pub fn plan(layout: &Layout) -> AttachPlan {
     }
 }
 
-/// Writes the plan: backup first, then an atomic patch. Only call after the
-/// user's explicit consent.
+/// Writes the plan, backup first. Only after the user approves.
 pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
     match p {
         AttachPlan::Patch {
@@ -146,8 +129,7 @@ pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
             patched,
             ..
         } => {
-            // The backup comes before any change: if the write fails
-            // midway, the user still has their original file.
+            // Backup first: a failed write keeps the original.
             let original = std::fs::read(site)?;
             crate::paths::write_files(&[
                 (backup.clone(), original),
@@ -158,7 +140,7 @@ pub fn commit(p: &AttachPlan) -> std::io::Result<()> {
     }
 }
 
-/// Removes Nix Software's import lines. The Nix Software files stay on disk, inert.
+/// Removes the import lines; the generated files stay, inert.
 pub fn detach(layout: &Layout) -> std::io::Result<()> {
     for (site, line) in required_imports(layout) {
         let Ok(src) = std::fs::read_to_string(&site) else {
@@ -185,19 +167,13 @@ fn backup_path(site: &Path) -> PathBuf {
     site.with_file_name(name)
 }
 
-// ── Text splice ───────────────────────────────────────────────────────────────
-
-/// Inserts `lines` right before the `]` of the top-level `imports` list, or
-/// of the `modules` list of a flake (`nixosConfigurations.x = … { modules = [ … ]; }`).
-/// Returns the patched content and the index of the insertion line.
-///
-/// `None` without a usable `imports` list: Nix Software would rather do nothing than
-/// guess where to write in someone else's file.
+/// `src` with `lines` inserted before the `]` of its `imports` (or flake
+/// `modules`) list, and the insertion line index. `None` without one.
 fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
     let open = find_list_bracket(src, "imports").or_else(|| find_list_bracket(src, "modules"))?;
     let close = matching_bracket(src, open)?;
 
-    // Indentation: that of the last list entry, else two spaces.
+    // Indent like the last entry.
     let inner = &src[open + 1..close];
     let pad = inner
         .lines()
@@ -208,7 +184,6 @@ fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
 
     let insert: String = lines.iter().map(|l| format!("{pad}{l}\n")).collect();
 
-    // Insert at the start of the line holding `]`, keeping its layout.
     let line_start = src[..close].rfind('\n').map(|i| i + 1).unwrap_or(close);
     let mut patched = String::with_capacity(src.len() + insert.len());
     patched.push_str(&src[..line_start]);
@@ -229,7 +204,7 @@ fn find_list_bracket(src: &str, key: &str) -> Option<usize> {
         if is_in_comment(src, idx) {
             continue;
         }
-        // A longer identifier ending in the key is not our list.
+        // Skip longer identifiers ending in the key.
         let prev_ok = src[..idx]
             .chars()
             .next_back()
@@ -258,8 +233,7 @@ fn is_in_comment(src: &str, idx: usize) -> bool {
     src[line_start..idx].contains('#')
 }
 
-/// The `]` matching the `[` at `open`, accounting for nesting, strings and
-/// comments.
+/// The `]` matching the `[` at `open`, skipping strings and comments.
 fn matching_bracket(src: &str, open: usize) -> Option<usize> {
     let bytes = src.as_bytes();
     let mut depth = 0i32;
@@ -298,8 +272,7 @@ fn matching_bracket(src: &str, open: usize) -> Option<usize> {
     None
 }
 
-/// Unified diff of a pure insertion: no diff algorithm needed, the exact
-/// place and content of the insertion are known.
+/// Unified diff of inserting `added` lines at line `at`.
 fn unified_insert_diff(site: &Path, src: &str, patched: &str, added: usize, at: usize) -> String {
     let lines: Vec<&str> = src.lines().collect();
     let inserted: Vec<&str> = patched.lines().skip(at).take(added).collect();
@@ -405,7 +378,7 @@ mod tests {
         assert!(diff.contains("+    ./nix-software-home.nix"));
         assert!(patched.contains("./hardware-configuration.nix"));
 
-        // The file on disk is UNTOUCHED until commit() is called.
+        // Nothing written before commit.
         let on_disk = std::fs::read_to_string(dir.join("configuration.nix")).unwrap();
         assert_eq!(on_disk, CONFIG, "plan() must write nothing");
     }
@@ -488,7 +461,7 @@ mod tests {
         let open = find_list_bracket(src, "imports").unwrap();
         let close = matching_bracket(src, open).unwrap();
         assert_eq!(&src[close..close + 1], "]");
-        // The `]` kept is the list's, not the sub-array's.
+        // The list's `]`, not the inner one.
         assert!(src[close..].starts_with("]; }"));
     }
 

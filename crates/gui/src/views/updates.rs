@@ -1,10 +1,5 @@
-//! "Updates" tab. Every package follows the nixpkgs revision the config pins,
-//! so an update is that pin moving to the head of its branch. The tab shows
-//! the current pin, the branch head, the installed apps that change, and runs
-//! the update (move the pin, then apply) when Nix Software knows how.
-//!
-//! The check downloads nixpkgs once per hour at most: it only runs when the
-//! tab is entered and the last check is older than ten minutes.
+//! Updates tab: the pinned nixpkgs, its branch head, the apps that change,
+//! and the update. Checks at most every ten minutes.
 
 use std::time::{Duration, Instant};
 
@@ -22,15 +17,23 @@ pub struct Check {
     source: Source,
     latest: Option<Latest>,
     apps: Vec<AppUpdate>,
-    command: Option<Vec<String>>,
+    command: Option<Vec<Vec<String>>>,
     new_release: Option<String>,
 }
 
 impl Check {
-    /// Number shown on the tab badge: 0 when up to date.
+    /// True when nothing would change; for a profile, when no app changes.
+    fn up_to_date(&self, latest: &Latest) -> bool {
+        match self.source.method {
+            UpdateMethod::Profile => self.apps.is_empty(),
+            _ => self.source.rev.as_deref() == Some(latest.rev.as_str()),
+        }
+    }
+
+    /// Tab badge count; 0 when up to date.
     fn pending(&self) -> usize {
         match &self.latest {
-            Some(l) if self.source.rev.as_deref() != Some(l.rev.as_str()) => self.apps.len().max(1),
+            Some(l) if !self.up_to_date(l) => self.apps.len().max(1),
             _ => 0,
         }
     }
@@ -58,11 +61,13 @@ pub enum UpdatesMsg {
     Reload,
     /// "Check Again".
     Refresh,
-    /// Daily check started by the app, notifies when updates are pending.
+    /// Daily check; notifies when updates are pending.
     Background,
-    Checked(Check),
+    Checked(Box<Check>),
     Update,
     Updated(Result<nix_software_core::ApplyOutcome, String>),
+    /// Releases the hold of an attr.
+    Release(String),
 }
 
 #[relm4::component(pub)]
@@ -121,6 +126,9 @@ impl SimpleComponent for UpdatesModel {
                     .is_none_or(|at| at.elapsed() > RECHECK_AFTER)
                 {
                     sender.input(UpdatesMsg::Refresh);
+                } else {
+                    self.content.add_css_class("settled");
+                    self.rebuild(&sender);
                 }
             }
             UpdatesMsg::Refresh => {
@@ -131,7 +139,7 @@ impl SimpleComponent for UpdatesModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(UpdatesMsg::Checked(check()));
+                    let _ = s.send(UpdatesMsg::Checked(Box::new(check())));
                 });
             }
             UpdatesMsg::Background => {
@@ -139,6 +147,9 @@ impl SimpleComponent for UpdatesModel {
                 sender.input(UpdatesMsg::Refresh);
             }
             UpdatesMsg::Checked(c) => {
+                if self.checked_at.is_some() {
+                    self.content.add_css_class("settled");
+                }
                 self.checking = false;
                 self.checked_at = Some(Instant::now());
                 let notify = std::mem::take(&mut self.background);
@@ -146,7 +157,7 @@ impl SimpleComponent for UpdatesModel {
                     count: c.pending(),
                     notify,
                 });
-                self.check = Some(c);
+                self.check = Some(*c);
                 self.rebuild(&sender);
             }
             UpdatesMsg::Update => {
@@ -168,6 +179,14 @@ impl SimpleComponent for UpdatesModel {
                     },
                 );
             }
+            UpdatesMsg::Release(attr) => {
+                let pkg = nix_software_core::Package::from_attr(attr);
+                self.status = Some(match nix_software_core::set_pin(&pkg, None) {
+                    Ok(()) => t("Released. Update or apply your configuration to move it forward."),
+                    Err(e) => util::failed(&e),
+                });
+                sender.input(UpdatesMsg::Refresh);
+            }
             UpdatesMsg::Updated(res) => {
                 self.updating = false;
                 let ok = res.is_ok();
@@ -182,14 +201,16 @@ impl SimpleComponent for UpdatesModel {
     }
 }
 
-/// Blocking: reads the pin, asks for the branch head, compares the apps.
+/// Reads the pin, the branch head and the app changes. Blocking.
 fn check() -> Check {
     let source = nix_software_core::current_source();
     let latest = source.branch.as_deref().and_then(nix_software_core::latest);
     let apps = match &latest {
-        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => {
-            nix_software_core::app_updates(&l.rev, &nix_software_core::profile_apps())
-        }
+        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => nix_software_core::app_updates(
+            &l.rev,
+            source.rev.as_deref(),
+            &nix_software_core::updatable_apps(&source),
+        ),
         _ => Vec::new(),
     };
     let command = nix_software_core::update_command(&source, &nix_software_core::detect_layout());
@@ -204,6 +225,24 @@ fn check() -> Check {
         command,
         new_release,
     }
+}
+
+/// Held apps, with their installed copy when found.
+fn held_apps() -> Vec<(
+    nix_software_core::KeptEntry,
+    Option<nix_software_core::ProfileApp>,
+)> {
+    let profile = nix_software_core::profile_apps();
+    nix_software_core::load_manifest()
+        .kept
+        .into_iter()
+        .filter(|e| e.pin.is_some())
+        .map(|e| {
+            let pname = e.package.attr.rsplit('.').next().unwrap_or(&e.package.attr);
+            let app = profile.iter().find(|a| a.pname == pname).cloned();
+            (e, app)
+        })
+        .collect()
 }
 
 fn short(rev: &str) -> &str {
@@ -239,6 +278,10 @@ impl UpdatesModel {
             self.content.append(&release_banner(release));
         }
         self.content.append(&self.source_list(c, sender));
+        let held = held_apps();
+        if !held.is_empty() {
+            self.content.append(&held_list(&held, sender));
+        }
 
         let Some(latest) = &c.latest else {
             let text = if c.source.branch.is_none() {
@@ -249,7 +292,7 @@ impl UpdatesModel {
             self.content.append(&util::dim_label(&text));
             return;
         };
-        if c.source.rev.as_deref() == Some(latest.rev.as_str()) {
+        if c.up_to_date(latest) {
             self.content.append(&up_to_date_view());
             return;
         }
@@ -271,6 +314,9 @@ impl UpdatesModel {
                 list.append(&row);
             }
             self.content.append(&list);
+            self.content.append(&util::dim_label(&t(
+                "Apps update together: they all come from the same nixpkgs revision. To keep one app as it is, hold its version from its page.",
+            )));
         }
     }
 
@@ -280,10 +326,14 @@ impl UpdatesModel {
                 Some(b) => t("nixpkgs {}").replace("{}", b),
                 None => "nixpkgs".to_string(),
             }))
-            .subtitle(esc(&t("Installed: {}").replace(
-                "{}",
-                &revision_line(c.source.rev.as_deref(), c.source.last_modified),
-            )))
+            .subtitle(esc(&if c.source.method == UpdateMethod::Profile {
+                t("Apps in your user profile, updated with nix profile")
+            } else {
+                t("Installed: {}").replace(
+                    "{}",
+                    &revision_line(c.source.rev.as_deref(), c.source.last_modified),
+                )
+            }))
             .build();
         row.add_prefix(&gtk::Image::from_icon_name("nix-snowflake-symbolic"));
         let again = gtk::Button::from_icon_name("view-refresh-symbolic");
@@ -327,7 +377,18 @@ impl UpdatesModel {
             btn.add_css_class("suggested-action");
             btn.set_valign(gtk::Align::Center);
             btn.set_sensitive(!self.updating);
-            btn.set_tooltip_text(c.command.as_ref().map(|a| a.join(" ")).as_deref());
+            btn.set_tooltip_text(
+                c.command
+                    .as_ref()
+                    .map(|steps| {
+                        steps
+                            .iter()
+                            .map(|a| a.join(" "))
+                            .collect::<Vec<_>>()
+                            .join(" && ")
+                    })
+                    .as_deref(),
+            );
             btn.connect_clicked({
                 let s = sender.input_sender().clone();
                 move |_| {
@@ -340,7 +401,48 @@ impl UpdatesModel {
     }
 }
 
-/// Why Nix Software cannot run the update itself.
+/// The held apps, each with a Release button.
+fn held_list(
+    held: &[(
+        nix_software_core::KeptEntry,
+        Option<nix_software_core::ProfileApp>,
+    )],
+    sender: &ComponentSender<UpdatesModel>,
+) -> gtk::Box {
+    let list = util::boxed_list();
+    for (entry, app) in held {
+        let since = entry.pin.as_ref().map_or(0, |p| p.since);
+        let mut subtitle = t("Held {age}, gets no security updates")
+            .replace("{age}", &util::format_relative(since as i64).to_lowercase());
+        if let Some(app) = app {
+            subtitle = format!("{} · {subtitle}", app.version);
+        }
+        let row = app
+            .as_ref()
+            .and_then(|a| util::desktop_row(&a.desktop_file, &subtitle))
+            .unwrap_or_else(|| {
+                adw::ActionRow::builder()
+                    .title(esc(&entry.package.attr))
+                    .subtitle(esc(&subtitle))
+                    .build()
+            });
+        let release = gtk::Button::with_mnemonic(&t("_Release"));
+        release.set_valign(gtk::Align::Center);
+        release.set_tooltip_text(Some(&t("Let the app follow your configuration again.")));
+        release.connect_clicked({
+            let s = sender.input_sender().clone();
+            let attr = entry.package.attr.clone();
+            move |_| {
+                let _ = s.send(UpdatesMsg::Release(attr.clone()));
+            }
+        });
+        row.add_suffix(&release);
+        list.append(&row);
+    }
+    util::section(&t("Held Apps"), None, &list)
+}
+
+/// Why Nix Software cannot update by itself.
 fn method_note(method: &UpdateMethod) -> Option<String> {
     match method {
         UpdateMethod::Pinned { by } => Some(
@@ -352,8 +454,7 @@ fn method_note(method: &UpdateMethod) -> Option<String> {
     }
 }
 
-/// A newer NixOS release: moving to it means editing the branch in the
-/// config (flake input or channel), which the user does on purpose.
+/// Banner for a newer NixOS release, which the user moves to on purpose.
 fn release_banner(release: &str) -> adw::Banner {
     let banner = adw::Banner::new(
         &t("NixOS {0} is available. Switch your configuration to nixos-{0} when you are ready.")
@@ -366,9 +467,8 @@ fn release_banner(release: &str) -> adw::Banner {
     });
     banner
 }
-/// "Everything is up to date" illustration (borrowed from GNOME Software), centered.
+/// "Everything is up to date" view.
 fn up_to_date_view() -> gtk::Box {
-    // Embedded: the source tree does not exist once installed.
     const SVG: &[u8] = include_bytes!("../../data/assets/up-to-date.svg");
     let pic = gtk::Picture::new();
     if let Ok(tex) = gtk::gdk::Texture::from_bytes(&gtk::glib::Bytes::from_static(SVG)) {

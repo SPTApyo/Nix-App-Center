@@ -1,7 +1,4 @@
-//! "Tried" history (try-first). Nix keeps NO record of past `nix run`s (the
-//! store holds thousands of paths, unrelated to "what the user tried"). So
-//! Nix Software logs every launch, which materializes the try → keep funnel. The log
-//! lists packages from most to least recent (deduplicated by `attr`).
+//! History of the apps tried with `nix run`, newest first. Nix keeps none.
 
 use crate::package::Package;
 use crate::paths::data_dir;
@@ -14,9 +11,9 @@ use std::process::{Command, Stdio};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriedEntry {
     pub package: Package,
-    /// Last launch (Unix seconds), for ordering and display.
+    /// Last launch, Unix seconds.
     pub last_tried: u64,
-    /// Store paths the launch fetched, to remove them later.
+    /// Store paths the launch fetched.
     #[serde(default)]
     pub out_paths: Vec<String>,
 }
@@ -30,7 +27,7 @@ fn tried_path() -> PathBuf {
     data_dir().join("tried.json")
 }
 
-/// Loads the history; empty when missing or unreadable.
+/// The history; empty when missing or unreadable.
 pub fn load_tried() -> TriedLog {
     match std::fs::read(tried_path()) {
         Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
@@ -43,7 +40,7 @@ fn save_tried(log: &TriedLog) -> std::io::Result<()> {
     crate::paths::write_atomic(&tried_path(), &json)
 }
 
-/// Records (or moves to the top) a package in the tried history.
+/// Records `pkg` at the top of the history.
 pub fn record_tried(pkg: &Package) -> std::io::Result<()> {
     let mut log = load_tried();
     log.tried.retain(|e| e.package.attr != pkg.attr);
@@ -58,7 +55,7 @@ pub fn record_tried(pkg: &Package) -> std::io::Result<()> {
     save_tried(&log)
 }
 
-/// Stores the outputs `nix run` fetched for `attr`. Blocks on `nix eval`.
+/// Stores the paths `nix run` fetched for `attr`. Blocking.
 pub(crate) fn record_out_paths(attr: &str) {
     let paths = out_paths(attr);
     if paths.is_empty() {
@@ -71,7 +68,7 @@ pub(crate) fn record_out_paths(attr: &str) {
     }
 }
 
-/// Outputs `nix run nixpkgs#<attr>` installs, as store paths.
+/// Store paths `nix run nixpkgs#<attr>` installs.
 fn out_paths(attr: &str) -> Vec<String> {
     let out = Command::new("env")
         .args([
@@ -94,10 +91,8 @@ fn out_paths(attr: &str) -> Vec<String> {
     }
 }
 
-/// Removes one tried app from the store and from the history. Only paths no
-/// GC root reaches and no other tried app needs are deleted, so the system
-/// and the other apps stay intact. Returns the bytes freed. Slow (scans the
-/// GC roots): call it from a thread.
+/// Removes a tried app from the store and the history, deleting only paths
+/// no GC root and no other tried app needs. Returns bytes freed. Blocking.
 pub fn remove_tried(attr: &str) -> std::io::Result<u64> {
     let mut log = load_tried();
     let Some(entry) = log.tried.iter().find(|e| e.package.attr == attr) else {
@@ -126,7 +121,7 @@ pub fn remove_tried(attr: &str) -> std::io::Result<u64> {
     Ok(freed)
 }
 
-/// What the store says about a dead path.
+/// Store facts about a dead path.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct PathInfo {
     pub references: Vec<String>,
@@ -134,7 +129,7 @@ pub(crate) struct PathInfo {
     pub nar_size: u64,
 }
 
-/// Every dead store path with its references, deriver and size.
+/// Every dead store path.
 fn dead_paths() -> std::io::Result<HashMap<String, PathInfo>> {
     let out = Command::new("nix-store")
         .args(["--gc", "--print-dead"])
@@ -159,8 +154,7 @@ fn dead_paths() -> std::io::Result<HashMap<String, PathInfo>> {
     Ok(parse_path_info(&v))
 }
 
-/// Reads `nix path-info --json`: an object keyed by path (Nix 2.19+) or an
-/// array of objects with a `path` field (older Nix).
+/// `nix path-info --json` output, as an object or an older array.
 pub(crate) fn parse_path_info(v: &serde_json::Value) -> HashMap<String, PathInfo> {
     let one = |o: &serde_json::Value| PathInfo {
         references: o["references"]
@@ -188,12 +182,9 @@ pub(crate) fn parse_path_info(v: &serde_json::Value) -> HashMap<String, PathInfo
     }
 }
 
-/// Paths to delete for `targets`, and their total size. Pure.
-///
-/// Takes the dead closure of the targets (and their derivers, which
-/// keep-outputs ties to them), minus what `keep` needs, then drops every path
-/// still referred to by a dead path outside the set: `nix store delete`
-/// refuses those, and would abort the whole batch.
+/// Paths to delete for `targets` and their total size: their dead closure
+/// and derivers, minus what `keep` needs, minus paths other dead paths still
+/// refer to.
 pub(crate) fn plan_removal(
     targets: &[String],
     keep: &[String],
@@ -226,7 +217,6 @@ pub(crate) fn plan_removal(
         .filter(|d| dead.contains_key(d))
         .collect();
     set.extend(derivers);
-    // Sibling outputs of those derivers go with them.
     let siblings: Vec<String> = dead
         .iter()
         .filter(|(_, i)| i.deriver.as_ref().is_some_and(|d| set.contains(d)))
@@ -235,7 +225,7 @@ pub(crate) fn plan_removal(
     set.extend(siblings);
     set.retain(|p| !kept.contains(p));
 
-    // Referrers among dead paths, deriver links counted both ways.
+    // Deriver links count both ways.
     let mut referrers: HashMap<&str, Vec<&str>> = HashMap::new();
     for (p, info) in dead {
         for r in &info.references {
@@ -291,10 +281,7 @@ fn delete_paths(paths: &[String]) -> std::io::Result<()> {
     }
 }
 
-/// Runs the Nix garbage collector (`nix-collect-garbage`): removes every
-/// unreferenced path from the store (so apps that were only "tried"). This is
-/// a SYSTEM operation (not limited to Nix Software). Returns the last output line
-/// (typically "… freed").
+/// Runs `nix-collect-garbage` on the whole store. Returns its last line.
 pub fn garbage_collect() -> std::io::Result<String> {
     let out = Command::new("nix-collect-garbage").output()?;
     let text = if out.stderr.is_empty() {
@@ -350,7 +337,7 @@ mod tests {
 
     #[test]
     fn skips_paths_used_by_unrelated_dead_paths() {
-        // "old" is dead garbage that also uses qt: deleting qt would fail.
+        // Other dead paths use qt: keep it.
         let dead = HashMap::from([
             ("vlc".to_string(), info(&["qt"], None, 10)),
             ("old".to_string(), info(&["qt"], None, 3)),

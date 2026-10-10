@@ -1,30 +1,27 @@
-//! Helpers shared by views and components (icons, textures, row setup).
+//! Helpers shared by views and components.
 
 use crate::i18n::t;
 use gettextrs::ngettext;
 use nix_software_core::Package;
 
-/// Shows a simple toast on an `AdwToastOverlay`.
+/// Shows `text` as a toast.
 pub fn toast(overlay: &adw::ToastOverlay, text: &str) {
     overlay.add_toast(adw::Toast::new(text));
 }
 
-/// Opens `uri` in the default app (browser for web links).
+/// Opens `uri` in the default app.
 pub fn open_uri(uri: &str) {
     let _ = gtk::gio::AppInfo::launch_default_for_uri(uri, None::<&gtk::gio::AppLaunchContext>);
 }
 
-/// Puts `text` on the clipboard. The core never touches it (it knows nothing of
-/// GTK): the front end decides what to do when an action cannot complete alone.
+/// Puts `text` on the clipboard.
 pub fn copy_to_clipboard(text: &str) {
     if let Some(display) = gtk::gdk::Display::default() {
         display.clipboard().set_text(text);
     }
 }
 
-/// Turns a config apply result into a displayable message, and performs the side
-/// effect owned by the front end (copying the command when Nix Software could not run it
-/// itself). Shared by the details page and the updates view.
+/// The message for an apply result. Copies the command when it could not run.
 pub fn describe_apply(res: Result<nix_software_core::ApplyOutcome, String>) -> String {
     use nix_software_core::ApplyOutcome::*;
     match res {
@@ -42,7 +39,7 @@ pub fn describe_apply(res: Result<nix_software_core::ApplyOutcome, String>) -> S
     }
 }
 
-/// An error for display, translated when the core marked it with n_().
+/// `e` for display, translated when the core marked it.
 pub fn tr_err(e: impl std::fmt::Display) -> String {
     let s = e.to_string();
     // gettext("") returns the catalog header.
@@ -58,17 +55,13 @@ pub fn failed(e: impl std::fmt::Display) -> String {
     t("Failed: {}").replace("{}", &tr_err(e))
 }
 
-/// Decodes image bytes (PNG/JPEG…) into a GTK texture. Call on the main thread
-/// (texture creation). `None` when decoding fails.
+/// A texture from image bytes. Main thread only.
 pub fn texture_from_bytes(data: &[u8]) -> Option<gtk::gdk::Texture> {
     let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
     Some(gtk::gdk::Texture::for_pixbuf(&pixbuf))
 }
 
-/// Same, resized to `px`×`px`. Required for tile icons: a `gtk::Picture`
-/// requests the image intrinsic size (128/256px), which would widen the tiles
-/// (and, in a homogeneous FlowBox, every tile), so the texture is bounded to
-/// the wanted size.
+/// A texture scaled to `px`×`px`, so tiles keep their size.
 pub fn texture_from_bytes_sized(data: &[u8], px: i32) -> Option<gtk::gdk::Texture> {
     let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_read(std::io::Cursor::new(data.to_vec())).ok()?;
     let scaled = pixbuf
@@ -81,22 +74,15 @@ use adw::prelude::*;
 use std::cell::Cell;
 use std::rc::Rc;
 
-// ── Smooth wheel scrolling ────────────────────────────────────────────────────
-
-/// GTK4 scrolls the mouse wheel in **discrete steps** (no animation), which
-/// looks jarring. Wheel events are intercepted and the vertical adjustment is
-/// animated with a libadwaita `SpringAnimation` for smooth inertial scrolling.
-/// Touchpads and touch screens (already smooth natively) keep the default
-/// behavior.
+/// Animates mouse wheel scrolling with a spring; touchpads keep theirs.
 pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
     let vadj = scroller.vadjustment();
 
-    // Animation target: push the value into the adjustment every frame.
     let cb = adw::CallbackAnimationTarget::new({
         let vadj = vadj.clone();
         move |v| vadj.set_value(v)
     });
-    // damping_ratio=1.0 (critically damped, no bounce), mass=1, stiffness=400.
+    // Critically damped: no bounce.
     let params = adw::SpringParams::new(1.0, 1.0, 400.0);
     let anim = adw::SpringAnimation::new(scroller, 0.0, 0.0, params, cb);
     anim.set_clamp(true); // never overshoot the bounds
@@ -105,7 +91,6 @@ pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
     let target = Rc::new(Cell::new(0f64));
     let ctrl = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
     ctrl.connect_scroll(move |c, _dx, dy| {
-        // Touchpads and touch screens keep native scrolling.
         if let Some(ev) = c.current_event() {
             if let Some(dev) = ev.device() {
                 if dev.source() != gtk::gdk::InputSource::Mouse {
@@ -116,8 +101,7 @@ pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
 
         let page = vadj.page_size();
         let max = (vadj.upper() - page).max(vadj.lower());
-        // While animating, chain from its target (steps add up);
-        // otherwise start from the real position.
+        // Chain from the target while animating.
         let playing = anim.state() == adw::AnimationState::Playing;
         let base = if playing { target.get() } else { vadj.value() };
         let step = (page * 0.16).clamp(48.0, 180.0); // a few lines per step
@@ -132,8 +116,6 @@ pub fn smooth_scroll(scroller: &gtk::ScrolledWindow) {
     scroller.add_controller(ctrl);
 }
 
-// ── Skeletons (animated placeholders while loading) ───────────────────────────
-
 fn skeleton_box(w: i32, h: i32) -> gtk::Box {
     let b = gtk::Box::builder()
         .width_request(w)
@@ -143,8 +125,7 @@ fn skeleton_box(w: i32, h: i32) -> gtk::Box {
     b
 }
 
-/// Skeleton row content, mirroring `PackageRow` EXACTLY
-/// (64 px icon, same margins and spacing) so the layout never jumps.
+/// Placeholder row with the exact layout of `PackageRow`.
 fn skeleton_row() -> gtk::Box {
     let text = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -168,8 +149,7 @@ fn skeleton_row() -> gtk::Box {
     row
 }
 
-/// A skeleton tile, mirroring `AppTile` EXACTLY
-/// (card, width 190, padding 17, gap 14, 64 px icon).
+/// Placeholder tile with the exact layout of `AppTile`.
 pub fn skeleton_tile() -> gtk::Box {
     let text = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -203,7 +183,7 @@ pub fn skeleton_tile() -> gtk::Box {
     tile
 }
 
-/// Skeleton list in a `boxed-list` (same container as the real lists).
+/// `n` placeholder rows.
 pub fn skeleton_list(n: usize) -> gtk::ListBox {
     let lb = boxed_list();
     for _ in 0..n {
@@ -212,7 +192,7 @@ pub fn skeleton_list(n: usize) -> gtk::ListBox {
     lb
 }
 
-/// Skeleton grid, same FlowBox config as the real grids (3 columns).
+/// `n` placeholder tiles.
 pub fn skeleton_grid(n: usize) -> gtk::FlowBox {
     let f = gtk::FlowBox::builder()
         .homogeneous(true)
@@ -230,19 +210,15 @@ pub fn skeleton_grid(n: usize) -> gtk::FlowBox {
     f
 }
 
-/// Icon display state (shimmer placeholder, then real or generic icon).
+/// Icon state: loading, generic or real.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IconState {
-    /// Download in progress: show the animated shimmer.
     Loading,
-    /// No AppStream icon: generic theme icon.
     Generic,
-    /// Real icon loaded.
     Real,
 }
 
-/// Primary screen metrics: `(physical_width_px, scale_factor)`.
-/// Physical width = logical width × scale. Falls back to `(1920, 1)` without a screen.
+/// (physical width, scale) of the primary screen; (1920, 1) without one.
 pub(crate) fn screen_metrics() -> (i32, i32) {
     if let Some(display) = gtk::gdk::Display::default() {
         if let Some(obj) = display.monitors().item(0) {
@@ -256,14 +232,12 @@ pub(crate) fn screen_metrics() -> (i32, i32) {
     (1920, 1)
 }
 
-/// Escapes text for widgets that parse Pango markup (`adw::ActionRow`
-/// title/subtitle), otherwise a `&` breaks parsing.
+/// `s` escaped for Pango markup.
 pub fn esc(s: &str) -> String {
     gtk::glib::markup_escape_text(s).to_string()
 }
 
-/// Row for an app of a Nix profile, named and drawn from its desktop file.
-/// `None` for entries hidden from menus.
+/// A row for a profile app, from its desktop file; `None` when hidden.
 pub fn desktop_row(desktop_file: &std::path::Path, subtitle: &str) -> Option<adw::ActionRow> {
     use gtk::gio::prelude::AppInfoExt;
     let info = gtk::gio::DesktopAppInfo::from_filename(desktop_file)?;
@@ -278,7 +252,7 @@ pub fn desktop_row(desktop_file: &std::path::Path, subtitle: &str) -> Option<adw
     Some(row)
 }
 
-/// 32 px app icon for list rows, generic when `icon` is missing.
+/// 32 px row icon, generic without `icon`.
 pub fn row_icon(icon: Option<&gtk::gio::Icon>) -> gtk::Image {
     let img = match icon {
         Some(i) => gtk::Image::from_gicon(i),
@@ -288,8 +262,7 @@ pub fn row_icon(icon: Option<&gtk::gio::Icon>) -> gtk::Image {
     img
 }
 
-/// A row of 5 stars (copy of `GsStarWidget`): filled up to the rounded
-/// average, empty after.
+/// Five stars, filled up to the rounded `stars`.
 pub fn stars_widget(stars: f32, size: i32) -> gtk::Box {
     let b = gtk::Box::new(gtk::Orientation::Horizontal, 2);
     b.add_css_class("app-stars");
@@ -303,9 +276,7 @@ pub fn stars_widget(stars: f32, size: i32) -> gtk::Box {
     b
 }
 
-/// Relative date ("Today", "2 weeks ago"…), like GNOME which shows age
-/// rather than a bare date. `ts` is epoch seconds; 0 or negative gives an
-/// empty string.
+/// Age of `ts` ("Today", "2 weeks ago"); empty for 0.
 pub fn format_relative(ts: i64) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -314,7 +285,6 @@ pub fn format_relative(ts: i64) -> String {
     format_relative_from(ts, now)
 }
 
-/// Testable core of [`format_relative`]: "now" is a parameter.
 fn format_relative_from(ts: i64, now: i64) -> String {
     if ts <= 0 {
         return String::new();
@@ -368,14 +338,13 @@ mod tests {
 
     #[test]
     fn future_timestamp_is_today() {
-        // A release dated in the future must not give a negative count.
+        // Future dates do not go negative.
         assert_eq!(format_relative_from(1_900_000_000, 1_800_000_000), "Today");
     }
 
     #[test]
     fn app_item_from_search_preserves_recognized_without_icon() {
-        // An app recognized by AppStream but without icon must stay an
-        // "Application" (the search split reads `recognized`).
+        // Recognized apps without icon stay applications.
         let r = nix_software_core::SearchResult {
             package: nix_software_core::Package::from_attr("gedit"),
             icon_url: None,
@@ -388,9 +357,7 @@ mod tests {
     }
 }
 
-/// Fallback icon (no AppStream icon): a glyph and a color class per family
-/// of package, so lists of unknown packages stay tellable apart at a glance.
-/// Colors live in `style.css` (`.kind-*`).
+/// Glyph and color class of a package without AppStream icon, by family.
 pub fn fallback_icon(pkg: &Package) -> (&'static str, &'static str) {
     use nix_software_core::IconKind::*;
     match pkg.icon_kind() {
@@ -499,24 +466,19 @@ pub fn fallback_badge(pkg: &Package, px: i32) -> gtk::Widget {
     tile.upcast()
 }
 
-/// A displayable app: the nix package + an optional Flathub icon URL (set for
-/// category/popular, `None` for text search) + an optional ODRS rating (set
-/// only by search, like GNOME).
-/// Shared data unit of lists (`PackageRow`) and grids (`AppTile`).
+/// An app shown in a list or grid: package, Flathub icon and rating.
 #[derive(Debug, Clone)]
 pub struct AppItem {
     pub package: Package,
     pub icon_url: Option<String>,
     pub rating: Option<nix_software_core::Rating>,
-    /// Matched to an AppStream entry: the criterion of the search "Applications"
-    /// section (a recognized app without icon is still an application).
+    /// Matched to an AppStream entry, even without an icon.
     pub recognized: bool,
 }
 
 impl AppItem {
     pub fn new(package: Package, icon_url: Option<String>) -> Self {
-        // Home/category grids: everything comes from Flathub, so an icon
-        // means recognition (the search split does not apply here).
+        // Grid items come from Flathub: icon means recognized.
         let recognized = icon_url.is_some();
         Self {
             package,
@@ -534,4 +496,112 @@ impl AppItem {
             recognized: r.recognized,
         }
     }
+}
+
+/// The attribute of Nix Software itself in nixpkgs.
+pub const SELF_ATTR: &str = "nix-software";
+
+thread_local! {
+    static INSTALLED: std::cell::RefCell<Option<(std::time::Instant, Vec<nix_software_core::Installed>)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+thread_local! {
+    /// Live pills and what they show, refreshed after an apply.
+    static PILLS: std::cell::RefCell<Vec<(gtk::glib::WeakRef<gtk::Box>, Package, i32)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The installed pill of `pkg`, kept up to date by `refresh_installed`.
+pub fn live_pill(pkg: &Package, icon_size: i32) -> gtk::Box {
+    let slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    slot.set_valign(gtk::Align::Center);
+    slot.append(&installed_pill(installed(pkg).as_ref(), icon_size));
+    PILLS.with_borrow_mut(|p| p.push((slot.downgrade(), pkg.clone(), icon_size)));
+    slot
+}
+
+/// Reads the machine again and redraws every pill: after an apply.
+pub fn refresh_installed() {
+    INSTALLED.with_borrow_mut(|c| *c = None);
+    PILLS.with_borrow_mut(|pills| {
+        pills.retain(|(slot, pkg, size)| {
+            let Some(slot) = slot.upgrade() else {
+                return false;
+            };
+            while let Some(c) = slot.first_child() {
+                slot.remove(&c);
+            }
+            slot.append(&installed_pill(installed(pkg).as_ref(), *size));
+            true
+        });
+    });
+}
+
+/// How the package is installed, if it is; read every 5 s at most.
+pub fn installed(pkg: &Package) -> Option<nix_software_core::Installed> {
+    if pkg.attr.is_empty() {
+        return None;
+    }
+    INSTALLED.with_borrow_mut(|cache| {
+        if cache
+            .as_ref()
+            .is_none_or(|(at, _)| at.elapsed() > std::time::Duration::from_secs(5))
+        {
+            *cache = Some((
+                std::time::Instant::now(),
+                nix_software_core::installed_index(),
+            ));
+        }
+        let (_, index) = cache.as_ref()?;
+        nix_software_core::find_installed(index, &pkg.attr, &pkg.version, None).cloned()
+    })
+}
+
+/// The installed pill: a green check, then where the app is installed and
+/// how (package or module). Hidden when the app is not installed.
+pub fn installed_pill(item: Option<&nix_software_core::Installed>, icon_size: i32) -> gtk::Box {
+    use nix_software_core::Origin;
+    let pill = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    pill.add_css_class("installed-pill");
+    pill.set_valign(gtk::Align::Center);
+    pill.set_visible(item.is_some());
+    let Some(item) = item else {
+        return pill;
+    };
+    let (where_icon, where_text) = match item.origin {
+        Origin::System => (
+            "installed-system-symbolic",
+            t("Installed on the system, for every user"),
+        ),
+        Origin::Home => ("installed-home-symbolic", t("Installed in your home")),
+        Origin::Flatpak => ("installed-flatpak-symbolic", t("Installed with Flatpak")),
+        Origin::AppImage => ("installed-appimage-symbolic", t("Installed as an AppImage")),
+    };
+    let how = match item.origin {
+        Origin::Flatpak | Origin::AppImage => None,
+        _ if item.module => Some((
+            "installed-module-symbolic",
+            t("through a module, with what it sets up around the app"),
+        )),
+        _ => Some(("installed-package-symbolic", t("as a package"))),
+    };
+    let mut icons = vec![
+        ("installed-check-symbolic", "installed-check"),
+        (where_icon, "installed-kind"),
+    ];
+    if let Some((icon, _)) = how {
+        icons.push((icon, "installed-kind"));
+    }
+    for (icon, class) in icons {
+        let image = gtk::Image::from_icon_name(icon);
+        image.set_pixel_size(icon_size);
+        image.add_css_class(class);
+        pill.append(&image);
+    }
+    pill.set_tooltip_text(Some(&match how {
+        Some((_, how_text)) => format!("{where_text}, {how_text}"),
+        None => where_text,
+    }));
+    pill
 }

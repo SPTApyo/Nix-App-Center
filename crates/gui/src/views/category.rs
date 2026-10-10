@@ -1,6 +1,4 @@
-//! Category page with two sections, like GNOME Software: "New & Updated"
-//! (recently updated) and "Other Software". Two `FlowBox`es of `AppTile`s in
-//! one scroll/clamp. Pushed page.
+//! A category page: New & Updated, then Other Software.
 
 use adw::prelude::*;
 use nix_software_core::Package;
