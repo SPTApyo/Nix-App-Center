@@ -239,6 +239,10 @@ One index answers for tiles, rows and app pages
 - `flatpak list`, and desktop files in ~/.local/share/applications whose
   Exec runs a .AppImage (crates/core/src/foreign.rs).
 
+Tiles and rows register their pill; a successful apply reads the machine
+again and redraws every pill on screen, so the home page follows a change
+without a restart.
+
 An app matches by pname, desktop file name or Flathub app id. A nested
 attribute such as haskellPackages.Obsidian must match the version too, or
 every package named like an installed app would show the pill.

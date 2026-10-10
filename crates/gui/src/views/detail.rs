@@ -1737,6 +1737,7 @@ impl SimpleComponent for DetailModel {
                         .is_some_and(|e| e.home_nix.is_some());
                     if let Some(meta) = self.meta.clone() {
                         self.rebuild_problems(&meta, &sender);
+                        self.rebuild_build_options(&meta, &sender);
                     }
                     self.prompt_apply_or_attach(&sender);
                 }

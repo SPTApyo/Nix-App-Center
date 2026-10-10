@@ -506,6 +506,38 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
+thread_local! {
+    /// Live pills and what they show, refreshed after an apply.
+    static PILLS: std::cell::RefCell<Vec<(gtk::glib::WeakRef<gtk::Box>, Package, i32)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The installed pill of `pkg`, kept up to date by `refresh_installed`.
+pub fn live_pill(pkg: &Package, icon_size: i32) -> gtk::Box {
+    let slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    slot.set_valign(gtk::Align::Center);
+    slot.append(&installed_pill(installed(pkg).as_ref(), icon_size));
+    PILLS.with_borrow_mut(|p| p.push((slot.downgrade(), pkg.clone(), icon_size)));
+    slot
+}
+
+/// Reads the machine again and redraws every pill: after an apply.
+pub fn refresh_installed() {
+    INSTALLED.with_borrow_mut(|c| *c = None);
+    PILLS.with_borrow_mut(|pills| {
+        pills.retain(|(slot, pkg, size)| {
+            let Some(slot) = slot.upgrade() else {
+                return false;
+            };
+            while let Some(c) = slot.first_child() {
+                slot.remove(&c);
+            }
+            slot.append(&installed_pill(installed(pkg).as_ref(), *size));
+            true
+        });
+    });
+}
+
 /// How the package is installed, if it is; read every 5 s at most.
 pub fn installed(pkg: &Package) -> Option<nix_software_core::Installed> {
     if pkg.attr.is_empty() {

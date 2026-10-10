@@ -448,7 +448,7 @@ button.carousel-slide-5 { background: linear-gradient(135deg, #613583, #1b6ac9);
 	padding: 4px;
 }
 
-.installed-pill.large {
+.large > .installed-pill {
 	padding: 4px 14px 4px 4px;
 }
 

@@ -216,6 +216,7 @@ pub fn present(
                             if applies && matches!(outcome, ApplyOutcome::Done(_)) {
                                 nix_software_core::applied();
                             }
+                            crate::util::refresh_installed();
                             target.set(Some(1.0));
                             phase.set_label(&t("Done"));
                             detail.set_label(&format!("100 % · {}", t("finished")));

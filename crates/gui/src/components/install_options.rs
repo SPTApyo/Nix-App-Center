@@ -131,6 +131,12 @@ fn show(
                     t("{} also sets up what the app needs around it, such as services or groups.")
                         .replace("{}", o)
                 }
+                None if everyone && offer.home_module.is_some() => {
+                    t("Only in your home: this module is Home Manager's.")
+                }
+                None if !everyone && offer.module.is_some() => {
+                    t("Only for everyone: this module is a NixOS one.")
+                }
                 None => t("No module for this app here."),
             }));
             module_row.set_sensitive(option.is_some());
