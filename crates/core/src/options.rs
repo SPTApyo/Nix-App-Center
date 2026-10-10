@@ -31,10 +31,15 @@ impl NixOption {
                 .map(String::as_str)
                 .unwrap_or_default();
             let module = self.name.rsplit('.').next().unwrap_or_default();
-            return if flake.contains(':') {
-                format!("imports = [ (builtins.getFlake \"{flake}\").nixosModules.{module} ];")
+            let set = if self.home {
+                "homeManagerModules"
             } else {
-                format!("imports = [ inputs.{flake}.nixosModules.{module} ];")
+                "nixosModules"
+            };
+            return if flake.contains(':') {
+                format!("imports = [ (builtins.getFlake \"{flake}\").{set}.{module} ];")
+            } else {
+                format!("imports = [ inputs.{flake}.{set}.{module} ];")
             };
         }
         let value = self
@@ -132,36 +137,61 @@ pub fn search_options(query: &str, limit: usize) -> Vec<NixOption> {
 
 /// The NixOS modules flakes ship, as options of type `FLAKE_MODULE`: name
 /// `SOURCE.nixosModules.MODULE`, the flake reference in `declarations`.
-/// Blocking: one evaluation per flake, once per run.
-pub fn flake_modules() -> &'static [NixOption] {
-    static MODULES: OnceLock<Vec<NixOption>> = OnceLock::new();
-    MODULES.get_or_init(|| {
+/// Blocking: one evaluation per flake, again when the flakes change.
+pub fn flake_modules() -> Vec<NixOption> {
+    type Found = (Vec<(String, String)>, Vec<NixOption>);
+    static MODULES: std::sync::Mutex<Option<Found>> = std::sync::Mutex::new(None);
+    let sources = crate::config_layout::flake_sources();
+    let mut cache = MODULES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, found)) = cache.as_ref().filter(|(s, _)| *s == sources) {
+        return found.clone();
+    }
+    let found = {
         let mut out = Vec::new();
-        for (name, flake) in crate::config_layout::flake_sources() {
+        for (name, flake) in sources.clone() {
+            // One evaluation for both kinds; a flake may have neither.
+            let apply = "f: { nixos = builtins.attrNames (f.nixosModules or { }); \
+                         home = builtins.attrNames (f.homeManagerModules or f.homeModules or { }); }";
             let Ok(o) = crate::util::nix()
-                .args(["eval", "--json", &format!("{flake}#nixosModules")])
-                .args(["--apply", "builtins.attrNames"])
+                .args(["eval", "--json", &format!("{flake}#.")])
+                .args(["--apply", apply])
                 .output()
             else {
                 continue;
             };
-            let modules: Vec<String> = serde_json::from_slice(&o.stdout).unwrap_or_default();
+            let v: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap_or_default();
             let shown = name.split('/').nth(1).unwrap_or(&name).to_string();
-            for m in modules {
-                out.push(NixOption {
-                    name: format!("{shown}.nixosModules.{m}"),
-                    description: format!("NixOS module {m} of the {shown} flake."),
-                    type_: FLAKE_MODULE.into(),
-                    default: None,
-                    example: None,
-                    declarations: vec![name.clone()],
-                    home: false,
-                });
+            for (kind, set, home) in [
+                ("nixos", "nixosModules", false),
+                ("home", "homeManagerModules", true),
+            ] {
+                for m in v[kind]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|m| m.as_str())
+                {
+                    out.push(NixOption {
+                        name: format!("{shown}.{set}.{m}"),
+                        description: if home {
+                            format!("Home Manager module {m} of the {shown} flake.")
+                        } else {
+                            format!("NixOS module {m} of the {shown} flake.")
+                        },
+                        type_: FLAKE_MODULE.into(),
+                        default: None,
+                        example: None,
+                        declarations: vec![name.clone()],
+                        home,
+                    });
+                }
             }
         }
         out.sort_by(|a, b| a.name.cmp(&b.name));
         out
-    })
+    };
+    *cache = Some((sources, found.clone()));
+    found
 }
 
 /// The type of the entries `flake_modules` returns.
@@ -169,7 +199,7 @@ pub const FLAKE_MODULE: &str = "flake module";
 
 /// Flake modules matching `query`. Blocking at first.
 pub fn search_flake_modules(query: &str, limit: usize) -> Vec<NixOption> {
-    rank(flake_modules(), query, limit)
+    rank(&flake_modules(), query, limit)
 }
 
 /// Home Manager options matching `query`. Blocking at first.

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-10 21:16+0200\n"
+"POT-Creation-Date: 2026-10-10 21:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,15 +34,15 @@ msgstr ""
 msgid "Flatpak could not remove the app."
 msgstr ""
 
-#: crates/core/src/manifest.rs:222 crates/core/src/manifest.rs:252
+#: crates/core/src/manifest.rs:222 crates/core/src/manifest.rs:253
 msgid "This option cannot be set here."
 msgstr ""
 
-#: crates/core/src/manifest.rs:350
+#: crates/core/src/manifest.rs:357
 msgid "The nixpkgs revision in use is unknown."
 msgstr ""
 
-#: crates/core/src/manifest.rs:362
+#: crates/core/src/manifest.rs:369
 msgid "This is not a nixpkgs revision."
 msgstr ""
 
@@ -424,86 +424,96 @@ msgstr ""
 msgid "Storage"
 msgstr ""
 
-#: crates/gui/src/app.rs:488
+#: crates/gui/src/app.rs:504
 msgid "Updates Available"
 msgstr ""
 
-#: crates/gui/src/app.rs:490
+#: crates/gui/src/app.rs:506
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/app.rs:529
+#: crates/gui/src/app.rs:545
 msgid "Icon"
 msgstr ""
 
-#: crates/gui/src/app.rs:536
+#: crates/gui/src/app.rs:552
 msgid "translator-credits"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:89
+#: crates/gui/src/components/app_list.rs:94
 msgid "All"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:97
+#: crates/gui/src/components/app_list.rs:102
 msgid "Best Match"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:97
+#: crates/gui/src/components/app_list.rs:102
 msgid "Name"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:98
+#: crates/gui/src/components/app_list.rs:103
 msgid "Sort"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:107
+#: crates/gui/src/components/app_list.rs:112
 msgid "Applications"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:108
+#: crates/gui/src/components/app_list.rs:113
 msgid "Other Packages"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:120
+#: crates/gui/src/components/app_list.rs:125
 msgid "Options"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:179
+#: crates/gui/src/components/app_list.rs:184
 msgid "No Results"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:180
+#: crates/gui/src/components/app_list.rs:185
 msgid "Try different keywords"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:227
+#: crates/gui/src/components/app_list.rs:240
 #, rust-format
 msgid "Provides the “{}” command"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:237
+#: crates/gui/src/components/app_list.rs:250
 #, rust-format
 msgid "Opens “{}” files"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:292
+#: crates/gui/src/components/app_list.rs:305
 msgid "Set by Nix Software"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:370
+#: crates/gui/src/components/app_list.rs:383
 #, rust-format
 msgid "All ({})"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:373
+#: crates/gui/src/components/app_list.rs:386
 #, rust-format
 msgid "Installed ({})"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:384
+#: crates/gui/src/components/app_list.rs:392
+#, rust-format
+msgid "Free Software ({})"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:394
+#, rust-format
+msgid "Proprietary ({})"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:405
 #, rust-format
 msgid "No package set ({})"
 msgstr ""
@@ -1066,11 +1076,11 @@ msgstr ""
 msgid "Declared in"
 msgstr ""
 
-#: crates/gui/src/components/option_dialog.rs:59
+#: crates/gui/src/components/option_dialog.rs:63
 msgid "_Copy"
 msgstr ""
 
-#: crates/gui/src/components/option_dialog.rs:79
+#: crates/gui/src/components/option_dialog.rs:83
 msgid "Value"
 msgstr ""
 
@@ -1087,12 +1097,12 @@ msgid "_Stop Setting"
 msgstr ""
 
 #: crates/gui/src/components/option_dialog.rs:114
-#: crates/gui/src/components/option_dialog.rs:205
+#: crates/gui/src/components/option_dialog.rs:215
 msgid "Saved. Apply your configuration to use it."
 msgstr ""
 
 #: crates/gui/src/components/option_dialog.rs:127
-#: crates/gui/src/components/option_dialog.rs:219
+#: crates/gui/src/components/option_dialog.rs:229
 msgid "Removed. Apply your configuration to undo it."
 msgstr ""
 
@@ -1104,11 +1114,11 @@ msgstr ""
 msgid "NixOS Option"
 msgstr ""
 
-#: crates/gui/src/components/option_dialog.rs:183
+#: crates/gui/src/components/option_dialog.rs:193
 msgid "_Import in My Configuration"
 msgstr ""
 
-#: crates/gui/src/components/option_dialog.rs:186
+#: crates/gui/src/components/option_dialog.rs:196
 msgid "_Stop Importing"
 msgstr ""
 
@@ -2175,76 +2185,88 @@ msgstr ""
 msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:204
+#: crates/gui/src/views/preferences.rs:190
+msgid "Flakes Suggested by search.nixos.org"
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:191
+msgid "Search their packages too"
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:208
+msgid "The list could not be read."
+msgstr ""
+
+#: crates/gui/src/views/preferences.rs:251
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:208
+#: crates/gui/src/views/preferences.rs:255
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:211
+#: crates/gui/src/views/preferences.rs:258
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:214
+#: crates/gui/src/views/preferences.rs:261
 #, rust-format
 msgid "Home Manager in {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:216
+#: crates/gui/src/views/preferences.rs:263
 msgid "No configuration found."
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:220
+#: crates/gui/src/views/preferences.rs:267
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:223
+#: crates/gui/src/views/preferences.rs:270
 #, rust-format
 msgid "Applied with: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:231
+#: crates/gui/src/views/preferences.rs:278
 #, rust-format
 msgid "Configurations: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:235
+#: crates/gui/src/views/preferences.rs:282
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:237
+#: crates/gui/src/views/preferences.rs:284
 msgid "No Home Manager module."
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:238
+#: crates/gui/src/views/preferences.rs:285
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:245
+#: crates/gui/src/views/preferences.rs:292
 msgid "Check with Nix"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:247
+#: crates/gui/src/views/preferences.rs:294
 msgid "Nix says"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:248
+#: crates/gui/src/views/preferences.rs:295
 msgid "Not checked yet."
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:255
+#: crates/gui/src/views/preferences.rs:302
 msgid "Evaluating your configuration…"
 msgstr ""
 
-#: crates/gui/src/views/preferences.rs:265
+#: crates/gui/src/views/preferences.rs:312
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr ""

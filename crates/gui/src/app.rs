@@ -427,16 +427,32 @@ impl SimpleComponent for AppModel {
                         let mut found = Vec::new();
                         if system {
                             found.extend(nix_software_core::search_options(&query, 6));
-                            found.extend(nix_software_core::search_flake_modules(&query, 3));
                         }
+                        found.extend(nix_software_core::search_flake_modules(&query, 3));
                         if home {
                             found.extend(nix_software_core::search_hm_options(&query, 4));
                         }
+                        found.retain(|o| {
+                            o.type_ != nix_software_core::FLAKE_MODULE
+                                || (o.home && home)
+                                || (!o.home && system)
+                        });
                         let _ = s3.send(AppMsg::OptionsDone(found));
                     });
                 }
             }
             AppMsg::SearchDone(items) => {
+                let attrs: Vec<String> = items
+                    .iter()
+                    .filter(|r| r.package.source.is_none())
+                    .map(|r| r.package.attr.clone())
+                    .collect();
+                let list = self.results.sender().clone();
+                std::thread::spawn(move || {
+                    let _ = list.send(AppListInput::SetLicenses(nix_software_core::free_licenses(
+                        &attrs,
+                    )));
+                });
                 let items = items.into_iter().map(AppItem::from_search).collect();
                 self.results.emit(AppListInput::Set(items));
             }

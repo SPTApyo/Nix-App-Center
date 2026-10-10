@@ -186,8 +186,55 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         s.extra_flakes = list;
         let _ = nix_software_core::save_settings(&s);
     });
+    let suggested = adw::ExpanderRow::builder()
+        .title(t("Flakes Suggested by search.nixos.org"))
+        .subtitle(t("Search their packages too"))
+        .build();
+    suggested.connect_expanded_notify({
+        let loaded = std::cell::Cell::new(false);
+        let flakes = flakes.clone();
+        move |row| {
+            if !row.is_expanded() || loaded.replace(true) {
+                return;
+            }
+            let (row, flakes) = (row.clone(), flakes.clone());
+            gtk::glib::spawn_future_local(async move {
+                let list = gtk::gio::spawn_blocking(nix_software_core::suggested_flakes)
+                    .await
+                    .unwrap_or_default();
+                if list.is_empty() {
+                    row.add_row(
+                        &adw::ActionRow::builder()
+                            .title(t("The list could not be read."))
+                            .build(),
+                    );
+                }
+                for flake in list {
+                    let chosen = nix_software_core::load_settings()
+                        .extra_flakes
+                        .contains(&flake);
+                    let switch = adw::SwitchRow::builder()
+                        .title(esc(flake.trim_start_matches("github:")))
+                        .active(chosen)
+                        .build();
+                    let flakes = flakes.clone();
+                    switch.connect_active_notify(move |sw| {
+                        let mut s = nix_software_core::load_settings();
+                        s.extra_flakes.retain(|f| *f != flake);
+                        if sw.is_active() {
+                            s.extra_flakes.push(flake.clone());
+                        }
+                        flakes.set_text(&s.extra_flakes.join(", "));
+                        let _ = nix_software_core::save_settings(&s);
+                    });
+                    row.add_row(&switch);
+                }
+            });
+        }
+    });
     advanced.add(&command);
     advanced.add(&flakes);
+    advanced.add(&suggested);
     advanced.add(&warning);
 
     page.add(&config);

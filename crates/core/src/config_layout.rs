@@ -107,21 +107,72 @@ pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// The flakes the user added in Preferences, locked once per run, as
-/// (locked reference, locked reference): they are no input of the
+/// The flakes the user added in Preferences, locked when the list changes,
+/// as (locked reference, locked reference): they are no input of the
 /// configuration, so the reference is their name.
 fn extra_sources() -> Vec<(String, String)> {
-    static LOCKED: std::sync::OnceLock<Vec<(String, String)>> = std::sync::OnceLock::new();
-    LOCKED
-        .get_or_init(|| {
-            crate::settings::load_settings()
-                .extra_flakes
-                .iter()
-                .filter_map(|flake| lock_flake(flake))
-                .map(|r| (r.clone(), r))
-                .collect()
-        })
-        .clone()
+    type Locked = (Vec<String>, Vec<(String, String)>);
+    static LOCKED: std::sync::Mutex<Option<Locked>> = std::sync::Mutex::new(None);
+    let wanted = crate::settings::load_settings().extra_flakes;
+    let mut cache = LOCKED.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, locked)) = cache.as_ref().filter(|(list, _)| *list == wanted) {
+        return locked.clone();
+    }
+    let locked: Vec<(String, String)> = wanted
+        .iter()
+        .filter_map(|flake| lock_flake(flake))
+        .map(|r| (r.clone(), r))
+        .collect();
+    *cache = Some((wanted, locked.clone()));
+    locked
+}
+
+/// The GitHub flakes search.nixos.org lists, as `github:owner/repo`. Read
+/// from its repository, cached a week; empty offline. Blocking.
+pub fn suggested_flakes() -> Vec<String> {
+    const URL: &str =
+        "https://raw.githubusercontent.com/NixOS/nixos-search/main/flakes/manual.toml";
+    let path = crate::cache::cache_dir().join("suggested-flakes.toml");
+    let fresh = std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age.as_secs() < 7 * 24 * 3600);
+    if !fresh {
+        let mut text = String::new();
+        let got = crate::http::get(URL, std::time::Duration::from_secs(15))
+            .ok()
+            .and_then(|mut r| std::io::Read::read_to_string(&mut r, &mut text).ok());
+        if got.is_some() {
+            let _ = crate::paths::write_atomic(&path, text.as_bytes());
+        }
+    }
+    parse_suggested(&std::fs::read_to_string(&path).unwrap_or_default())
+}
+
+/// `github:owner/repo` of each GitHub source of nixos-search's flake list.
+fn parse_suggested(toml: &str) -> Vec<String> {
+    let value = |line: &str, key: &str| {
+        line.trim()
+            .strip_prefix(key)?
+            .trim()
+            .strip_prefix('=')?
+            .trim()
+            .trim_matches('"')
+            .to_string()
+            .into()
+    };
+    let mut out = Vec::new();
+    for block in toml.split("[[sources]]").skip(1) {
+        let field = |key: &str| block.lines().find_map(|l| value(l, key));
+        if field("type").as_deref() != Some("github") {
+            continue;
+        }
+        if let (Some(owner), Some(repo)) = (field("owner"), field("repo")) {
+            out.push(format!("github:{owner}/{repo}"));
+        }
+    }
+    out
 }
 
 /// `github:owner/repo` with its current revision; `None` for other forms.
@@ -527,6 +578,12 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_the_suggested_flakes() {
+        let toml = "[[sources]]\ntype = \"git\"\nurl = \"x\"\n\n[[sources]]\ntype = \"github\"\nowner = \"fufexan\"\nrepo = \"nix-gaming\"\n";
+        assert_eq!(parse_suggested(toml), vec!["github:fufexan/nix-gaming"]);
+    }
 
     #[test]
     fn package_sources_skip_nixpkgs_and_plumbing() {

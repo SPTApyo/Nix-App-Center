@@ -282,7 +282,8 @@ it is not in nixpkgs.
 
 Search also lists NixOS options, Home Manager options (from its docs-json
 package) and the NixOS modules the searched flakes ship (`nixosModules`,
-evaluated once per run). An option's dialog can set it: the value is kept
+evaluated again when the flakes change) and their Home Manager modules
+(`homeManagerModules`). An option's dialog can set it: the value is kept
 in kept.json as an option entry and written as `NAME = VALUE;` in its own
 module region, in the system file for NixOS, in the home file for Home
 Manager. A flake module is imported the same way (`imports = [ … ];`).
@@ -302,8 +303,9 @@ NixOS Wiki page named after the app when the wiki answers for it.
 
 ## Search filters
 
-Results filter by package set, by flake, or to installed apps, and sort by
-relevance or by name.
+Results filter by package set, by flake, to installed apps, and to free or
+proprietary software (one evaluation of nixpkgs for the whole page, after
+the results show), and sort by relevance or by name.
 
 ## Install modes
 
@@ -330,7 +332,9 @@ through specialArgs (or extraSpecialArgs for Home Manager).
 Flakes that are no input can be added in Preferences (github:owner/repo).
 They are locked to their current revision once per run, searched like
 inputs, and written as `(builtins.getFlake "github:owner/repo/REV")`, which
-needs no change to the configuration's flake.
+needs no change to the configuration's flake. Preferences also list the GitHub flakes
+search.nixos.org indexes (nixos-search's flakes/manual.toml, cached a
+week), each with a switch adding it to that list.
 
 ## Pending changes
 

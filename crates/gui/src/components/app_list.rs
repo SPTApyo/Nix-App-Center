@@ -15,6 +15,8 @@ use crate::util::{skeleton_list, AppItem};
 enum Filter {
     All,
     Installed,
+    Free,
+    Unfree,
     NoSet,
     Set(String),
     /// Packages of another flake.
@@ -36,6 +38,7 @@ pub struct AppList {
     filter_dropdown: gtk::DropDown,
     sort_dropdown: gtk::DropDown,
     items: Vec<AppItem>,
+    licenses: HashMap<String, bool>,
     filters: Vec<Filter>, // DropDown index to filter
 }
 
@@ -49,6 +52,8 @@ pub enum AppListInput {
     SetFileTypes(String, Vec<Package>),
     /// NixOS options matching the query.
     SetOptions(Vec<nix_software_core::NixOption>),
+    /// Free license or not, per attribute, found after the results.
+    SetLicenses(HashMap<String, bool>),
     Filter,
     Open(Package),
 }
@@ -203,6 +208,7 @@ impl SimpleComponent for AppList {
             sort_dropdown,
             items: Vec::new(),
             filters: vec![Filter::All],
+            licenses: HashMap::new(),
         };
         let widgets = view_output!();
         root.append(&stack);
@@ -218,8 +224,15 @@ impl SimpleComponent for AppList {
                 self.set_options(&[]);
                 self.stack.set_visible_child_name("loading");
             }
+            AppListInput::SetLicenses(licenses) => {
+                self.licenses = licenses;
+                let selected = self.filter_dropdown.selected();
+                self.rebuild_filter();
+                self.filter_dropdown.set_selected(selected);
+            }
             AppListInput::Set(items) => {
                 self.items = items;
+                self.licenses.clear();
                 self.rebuild_filter();
                 self.apply();
             }
@@ -373,6 +386,14 @@ impl AppList {
             labels.push(t("Installed ({})").replace("{}", &installed.to_string()));
             filters.push(Filter::Installed);
         }
+        let free = self.licenses.values().filter(|f| **f).count();
+        let unfree = self.licenses.len() - free;
+        if free > 0 && unfree > 0 {
+            labels.push(t("Free Software ({})").replace("{}", &free.to_string()));
+            filters.push(Filter::Free);
+            labels.push(t("Proprietary ({})").replace("{}", &unfree.to_string()));
+            filters.push(Filter::Unfree);
+        }
         for (src, n) in &sources {
             labels.push(format!(
                 "{} ({n})",
@@ -404,6 +425,8 @@ impl AppList {
         let keep = |it: &AppItem| match &filter {
             Filter::All => true,
             Filter::Installed => crate::util::installed(&it.package).is_some(),
+            Filter::Free => self.licenses.get(&it.package.attr) == Some(&true),
+            Filter::Unfree => self.licenses.get(&it.package.attr) == Some(&false),
             Filter::NoSet => it.package.source.is_none() && it.package.package_set().is_none(),
             Filter::Set(s) => {
                 it.package.source.is_none() && it.package.package_set() == Some(s.as_str())
@@ -433,12 +456,17 @@ impl AppList {
         let has_apps = !self.apps.is_empty();
         let has_others = !self.others.is_empty();
         self.heading_apps.set_visible(has_apps);
+        self.sort_dropdown.set_visible(has_apps || has_others);
         self.apps.widget().set_visible(has_apps);
         self.others.widget().set_visible(has_others);
         self.heading_others.set_visible(has_others && has_apps);
 
+        // Options or commands may have arrived first.
+        let has_extra = self.options_list.is_visible()
+            || self.locate_list.is_visible()
+            || self.types_list.is_visible();
         self.stack
-            .set_visible_child_name(if has_apps || has_others {
+            .set_visible_child_name(if has_apps || has_others || has_extra {
                 "filled"
             } else {
                 "empty"

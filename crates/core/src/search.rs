@@ -65,6 +65,44 @@ fn raw_flake_search(flake: &str, source: Option<&str>, patterns: &[String]) -> V
         .collect()
 }
 
+/// Which of `attrs` have a free license, in one evaluation of nixpkgs.
+/// Packages that fail to evaluate are left out. Blocking.
+pub fn free_licenses(attrs: &[String]) -> HashMap<String, bool> {
+    let safe = |a: &&String| {
+        !a.is_empty()
+            && a.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.'+".contains(c))
+    };
+    let list = attrs
+        .iter()
+        .filter(safe)
+        .map(|a| serde_json::to_string(a).unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if list.is_empty() {
+        return HashMap::new();
+    }
+    let system = format!("{}-linux", std::env::consts::ARCH);
+    let expr = format!(
+        "let p = (builtins.getFlake \"{}\").legacyPackages.{system}; \
+         free = a: let r = builtins.tryEval (let l = (p.${{a}}.meta.license or {{ }}); \
+         in if builtins.isList l then builtins.all (x: x.free or true) l else l.free or true); \
+         in if r.success then r.value else null; \
+         in builtins.listToAttrs (map (a: {{ name = a; value = free a; }}) [ {list} ])",
+        crate::nixpkgs_ref()
+    );
+    let Ok(out) = crate::util::nix()
+        .args(["eval", "--json", "--impure", "--expr", &expr])
+        .output()
+    else {
+        return HashMap::new();
+    };
+    let v: HashMap<String, Option<bool>> = serde_json::from_slice(&out.stdout).unwrap_or_default();
+    v.into_iter()
+        .filter_map(|(k, f)| f.map(|f| (k, f)))
+        .collect()
+}
+
 /// nixpkgs test derivations, not installable apps.
 fn is_internal(attr: &str) -> bool {
     attr.starts_with("tests.")

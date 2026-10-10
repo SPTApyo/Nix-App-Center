@@ -47,7 +47,11 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
     }
     body.append(&facts);
 
-    let snippet = option.snippet();
+    let snippet = if option.type_ == nix_software_core::FLAKE_MODULE {
+        option.snippet()
+    } else {
+        format!("{} = {};", option.name, proposed_value(option))
+    };
     let code = gtk::Label::new(Some(&snippet));
     code.add_css_class("monospace");
     code.add_css_class("card");
@@ -77,11 +81,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
         let current = nix_software_core::load_manifest().option_value(&option.name);
         let value = adw::EntryRow::builder()
             .title(t("Value"))
-            .text(
-                current
-                    .clone()
-                    .unwrap_or_else(|| snippet_value(&option.snippet())),
-            )
+            .text(current.clone().unwrap_or_else(|| proposed_value(option)))
             .build();
         value.add_css_class("monospace");
         let list = crate::util::boxed_list();
@@ -156,6 +156,15 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
         .present(Some(parent));
 }
 
+/// What setting the option most likely means: the opposite of a boolean's
+/// default, else the example or default.
+fn proposed_value(option: &NixOption) -> String {
+    if option.type_ == "boolean" {
+        return (option.default.as_deref() != Some("true")).to_string();
+    }
+    snippet_value(&option.snippet())
+}
+
 /// The value side of `name = value;`.
 fn snippet_value(snippet: &str) -> String {
     snippet
@@ -174,6 +183,7 @@ fn flake_module_actions(option: &NixOption) -> gtk::Box {
         .unwrap_or_default()
         .to_string();
     let key = format!("{source}#{module}");
+    let home = option.home;
     let imported = || {
         nix_software_core::load_manifest()
             .kept
@@ -198,7 +208,7 @@ fn flake_module_actions(option: &NixOption) -> gtk::Box {
         );
         move |b| {
             status.set_label(
-                &match nix_software_core::import_flake_module(&source, &module) {
+                &match nix_software_core::import_flake_module(&source, &module, home) {
                     Ok(()) => {
                         b.set_visible(false);
                         remove.set_visible(true);

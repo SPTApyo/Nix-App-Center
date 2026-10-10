@@ -143,6 +143,55 @@ mod tests {
     use super::*;
 
     #[test]
+    fn removing_an_appimage_deletes_both_files() {
+        let dir =
+            std::env::temp_dir().join(format!("nix-software-appimage-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let image = dir.join("kdenlive.AppImage");
+        let desktop = dir.join("kdenlive.desktop");
+        std::fs::write(&image, "").unwrap();
+        std::fs::write(
+            &desktop,
+            format!("Name=Kdenlive\nExec=\"{}\" %F\n", image.display()),
+        )
+        .unwrap();
+        let item = appimage_entry(&desktop, &std::fs::read_to_string(&desktop).unwrap()).unwrap();
+        remove_foreign(&item).unwrap();
+        assert!(!image.exists() && !desktop.exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn removing_a_flatpak_calls_flatpak_uninstall() {
+        let _g = crate::env_lock();
+        let dir = std::env::temp_dir().join(format!("nix-software-flatpak-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let log = dir.join("log");
+        let fake = dir.join("flatpak");
+        std::fs::write(
+            &fake,
+            format!("#!/bin/sh\necho \"$@\" > {}\n", log.display()),
+        )
+        .unwrap();
+        std::fs::set_permissions(&fake, std::os::unix::fs::PermissionsExt::from_mode(0o755))
+            .unwrap();
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        std::env::set_var(
+            "PATH",
+            format!("{}:{}", dir.display(), path.to_string_lossy()),
+        );
+        let item = parse_flatpak_list("org.videolan.VLC\t3.0\tuser\n").remove(0);
+        let res = remove_foreign(&item);
+        std::env::set_var("PATH", path);
+        res.unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&log).unwrap().trim(),
+            "uninstall --noninteractive --user org.videolan.VLC"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn reads_flatpak_list() {
         let apps = parse_flatpak_list(
             "org.videolan.VLC\t3.0.21\tsystem\ncom.valvesoftware.Steam\t1.0\tuser\n",

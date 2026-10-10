@@ -203,6 +203,9 @@ VERSION_TOP = "click:504,248"
 MENU_APPLY = "click:834,378"
 # Version section of the details page.
 VERSION_CHOOSE = "click:494,669"
+# Search results with an option only, and its dialog.
+FIRST_OPTION = "click:500,187"
+OPTION_SET = "click:504,586"
 PRIMARY = "click:820,145"
 
 
@@ -340,6 +343,22 @@ def actions(env, s):
     s.do(VERSION_TOP)
     wait_for(lambda: '"pin"' not in manifest.read_text(), 10, "hold released")
     assert "fetchTarball" not in home.read_text(), "a release drops the held import"
+
+    # Options: found by search, set in the system file.
+    s.do(BACK)
+    s.do("wait:800")
+    s.do(SEARCH_TOGGLE)
+    s.do("key:Control+a")
+    s.do("type:services.printing.enable")
+    s.do("key:Enter")
+    s.do("wait:15000")
+    s.shot("option-search")
+    s.do(FIRST_OPTION)
+    s.do("wait:2000")
+    s.shot("option-dialog")
+    s.do(OPTION_SET)
+    wait_for(lambda: "services.printing.enable = true;" in system.read_text(), 10, "option set")
+    s.do("key:Escape")
 
 
 def main():

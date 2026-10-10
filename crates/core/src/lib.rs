@@ -54,7 +54,8 @@ pub use config_attach::{
 pub use config_gen::default_home_block;
 pub use config_gen::{apply_argv, apply_config, run_streaming, ApplyOutcome};
 pub use config_layout::{
-    detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
+    detect as detect_layout, suggested_flakes, verify as verify_layout, Layout, LayoutKind,
+    ScopeTarget, Verified,
 };
 pub use detail::{closure_size, detail, PackageDetail};
 pub use enabled::{declared_in, enabled_modules};
@@ -84,7 +85,7 @@ pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{
     act_on_review, featured_review, reviews_for, submit_review, Review, ReviewAction,
 };
-pub use search::{search, search_apps, SearchResult};
+pub use search::{free_licenses, search, search_apps, SearchResult};
 pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, forget_app_meta, known_icon_url,
     remember_icon_url,

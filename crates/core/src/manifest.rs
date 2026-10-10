@@ -235,8 +235,9 @@ pub fn set_option(option: &str, value: &str, home: bool) -> std::io::Result<()> 
 }
 
 /// Imports module `module` of flake `source` (an input name, or the locked
-/// reference of a flake added in Preferences) in the system file.
-pub fn import_flake_module(source: &str, module: &str) -> std::io::Result<()> {
+/// reference of a flake added in Preferences): a NixOS module in the system
+/// file, a Home Manager one in the home file.
+pub fn import_flake_module(source: &str, module: &str, home: bool) -> std::io::Result<()> {
     let plain = |s: &str, extra: &str| {
         !s.is_empty()
             && s.chars()
@@ -253,12 +254,18 @@ pub fn import_flake_module(source: &str, module: &str) -> std::io::Result<()> {
         )));
     };
     let key = format!("{source}#{module}");
+    let set = if home {
+        "homeManagerModules"
+    } else {
+        "nixosModules"
+    };
+    let line = format!("imports = [ {flake}.{set}.{module} ];");
     let mut m = load_manifest();
     m.kept.retain(|e| !(e.option && e.package.attr == key));
     m.kept.push(KeptEntry {
         option: true,
-        home_nix: Some(String::new()),
-        system_nix: Some(format!("imports = [ {flake}.nixosModules.{module} ];")),
+        home_nix: Some(if home { line.clone() } else { String::new() }),
+        system_nix: (!home).then_some(line),
         ..KeptEntry::simple(Package {
             source: Some(source.to_string()),
             ..Package::from_attr(key)
@@ -476,6 +483,23 @@ mod tests {
         assert!(set_option("x; y = 1", "true", false).is_err());
         unset_option("services.printing.enable").unwrap();
         assert!(load_manifest().kept.is_empty());
+        cleanup();
+    }
+
+    #[test]
+    fn flake_modules_are_imported_in_the_right_file() {
+        let _g = crate::env_lock();
+        let base = sandbox("flake-module");
+        import_flake_module("nix-gaming", "platformOptimizations", false).unwrap();
+        import_flake_module("github:a/b/c", "theme", true).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        assert!(
+            system.contains("imports = [ inputs.nix-gaming.nixosModules.platformOptimizations ];")
+        );
+        assert!(system.contains("inputs ? { }"));
+        let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
+        assert!(home.contains("(builtins.getFlake \"github:a/b/c\").homeManagerModules.theme"));
+        assert!(import_flake_module("x\"; y", "m", false).is_err());
         cleanup();
     }
 
