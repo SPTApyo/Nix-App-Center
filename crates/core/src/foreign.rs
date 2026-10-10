@@ -1,0 +1,166 @@
+//! Apps installed outside Nix: Flatpak and AppImages. Read, and removed on
+//! request; never installed.
+
+use std::path::{Path, PathBuf};
+
+use crate::installed::{Installed, Origin};
+
+/// Flatpak apps of the user and system installations; empty without flatpak.
+pub fn flatpaks() -> Vec<Installed> {
+    if !crate::launch::in_path("flatpak") {
+        return Vec::new();
+    }
+    std::process::Command::new("flatpak")
+        .args([
+            "list",
+            "--app",
+            "--columns=application,version,installation",
+        ])
+        .output()
+        .map(|o| parse_flatpak_list(&String::from_utf8_lossy(&o.stdout)))
+        .unwrap_or_default()
+}
+
+fn parse_flatpak_list(stdout: &str) -> Vec<Installed> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let mut cols = line.split('\t');
+            let id = cols.next()?.trim();
+            if id.is_empty() {
+                return None;
+            }
+            let version = cols.next().unwrap_or("").trim().to_string();
+            let installation = cols.next().unwrap_or("system").trim();
+            let last = id.rsplit('.').next().unwrap_or(id).to_lowercase();
+            Some(Installed {
+                names: vec![id.to_lowercase(), last],
+                version,
+                origin: Origin::Flatpak,
+                module: false,
+                handle: format!("{installation}:{id}"),
+            })
+        })
+        .collect()
+}
+
+/// AppImages integrated in the menu (Gear Lever, AppImageLauncher): desktop
+/// files whose Exec runs a .AppImage.
+pub fn appimages() -> Vec<Installed> {
+    let dir = crate::util::home().join(".local/share/applications");
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "desktop"))
+        .filter_map(|p| appimage_entry(&p, &std::fs::read_to_string(&p).ok()?))
+        .collect()
+}
+
+fn appimage_entry(desktop_file: &Path, text: &str) -> Option<Installed> {
+    let field = |key: &str| {
+        text.lines()
+            .find_map(|l| l.strip_prefix(key))
+            .map(|v| v.trim().to_string())
+    };
+    let exec = field("Exec=")?;
+    if !exec.to_lowercase().contains(".appimage") {
+        return None;
+    }
+    let stem = desktop_file.file_stem()?.to_string_lossy().to_lowercase();
+    let mut names = vec![stem];
+    if let Some(name) = field("Name=") {
+        names.push(name.to_lowercase());
+    }
+    Some(Installed {
+        names,
+        version: String::new(),
+        origin: Origin::AppImage,
+        module: false,
+        handle: desktop_file.to_string_lossy().into_owned(),
+    })
+}
+
+/// The AppImage file a desktop file runs.
+fn appimage_file(desktop_file: &Path) -> Option<PathBuf> {
+    let text = std::fs::read_to_string(desktop_file).ok()?;
+    let exec = text.lines().find_map(|l| l.strip_prefix("Exec="))?;
+    let file = exec
+        .split_whitespace()
+        .find(|w| w.to_lowercase().trim_matches('"').ends_with(".appimage"))?;
+    Some(PathBuf::from(file.trim_matches('"')))
+}
+
+/// The files removing an AppImage deletes: the image and its desktop file.
+pub fn appimage_files(desktop_file: &Path) -> Vec<PathBuf> {
+    appimage_file(desktop_file)
+        .into_iter()
+        .chain(std::iter::once(desktop_file.to_path_buf()))
+        .collect()
+}
+
+/// Removes an installed Flatpak or AppImage. Blocking.
+pub fn remove_foreign(item: &Installed) -> std::io::Result<()> {
+    match item.origin {
+        Origin::Flatpak => {
+            let (installation, id) = item
+                .handle
+                .split_once(':')
+                .unwrap_or(("system", &item.handle));
+            let scope = if installation == "user" {
+                "--user"
+            } else {
+                "--system"
+            };
+            let status = std::process::Command::new("flatpak")
+                .args(["uninstall", "--noninteractive", scope, id])
+                .status()?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(crate::util::n_(
+                    "Flatpak could not remove the app.",
+                )))
+            }
+        }
+        Origin::AppImage => {
+            for f in appimage_files(Path::new(&item.handle)) {
+                match std::fs::remove_file(&f) {
+                    Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e),
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_flatpak_list() {
+        let apps = parse_flatpak_list(
+            "org.videolan.VLC\t3.0.21\tsystem\ncom.valvesoftware.Steam\t1.0\tuser\n",
+        );
+        assert_eq!(apps[0].names, vec!["org.videolan.vlc", "vlc"]);
+        assert_eq!(apps[1].handle, "user:com.valvesoftware.Steam");
+        assert_eq!(apps[1].origin, Origin::Flatpak);
+    }
+
+    #[test]
+    fn only_desktop_files_running_an_appimage() {
+        let p = Path::new("/home/u/.local/share/applications/gearlever_kdenlive.desktop");
+        let e = appimage_entry(
+            p,
+            "[Desktop Entry]\nName=Kdenlive\nExec=\"/home/u/AppImages/kdenlive.appimage\" %F\n",
+        )
+        .unwrap();
+        assert_eq!(e.names, vec!["gearlever_kdenlive", "kdenlive"]);
+        assert!(appimage_entry(p, "Name=X\nExec=firefox %u\n").is_none());
+    }
+}

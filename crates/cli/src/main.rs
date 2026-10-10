@@ -43,7 +43,7 @@ fn main() -> ExitCode {
         }
 
         Some("info") => match args.get(2) {
-            Some(attr) => match nix_software_core::detail(attr) {
+            Some(attr) => match nix_software_core::detail(&Package::from_attr(attr)) {
                 Some(d) => {
                     let kind = if d.is_runnable() {
                         "App (runnable)"
@@ -165,6 +165,7 @@ fn main() -> ExitCode {
             println!("latest: {}", latest.rev);
             for u in nix_software_core::app_updates(
                 &latest.rev,
+                source.rev.as_deref(),
                 &nix_software_core::updatable_apps(&source),
             ) {
                 println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);

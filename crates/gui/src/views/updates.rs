@@ -206,9 +206,11 @@ fn check() -> Check {
     let source = nix_software_core::current_source();
     let latest = source.branch.as_deref().and_then(nix_software_core::latest);
     let apps = match &latest {
-        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => {
-            nix_software_core::app_updates(&l.rev, &nix_software_core::updatable_apps(&source))
-        }
+        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => nix_software_core::app_updates(
+            &l.rev,
+            source.rev.as_deref(),
+            &nix_software_core::updatable_apps(&source),
+        ),
         _ => Vec::new(),
     };
     let command = nix_software_core::update_command(&source, &nix_software_core::detect_layout());

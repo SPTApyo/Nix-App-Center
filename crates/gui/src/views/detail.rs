@@ -37,6 +37,11 @@ pub struct DetailModel {
     kept: bool,
     /// The NixOS module that sets the app up.
     module: Option<nix_software_core::NixOption>,
+    /// File and line of the user's own configuration listing the app.
+    declared: Option<(std::path::PathBuf, usize)>,
+    /// A Flatpak, AppImage or nix-env install Nix Software can remove.
+    other: Option<nix_software_core::Installed>,
+    home_module: Option<nix_software_core::NixOption>,
     /// The revision the app is held at.
     pin: Option<nix_software_core::Pin>,
     holding: bool,
@@ -119,6 +124,11 @@ pub enum DetailMsg {
     RunFailed(String),
     SizeLoaded(Option<u64>),
     ModuleLoaded(Option<nix_software_core::NixOption>),
+    DeclaredLoaded(Option<(std::path::PathBuf, usize)>),
+    OtherLoaded(Option<nix_software_core::Installed>),
+    HomeModuleLoaded(Option<nix_software_core::NixOption>),
+    RemoveOther,
+    TakeOver,
     /// Keeps the app with the switched build options.
     SaveBuildOptions,
     /// Holds the app at the revision in use, or releases it.
@@ -536,7 +546,7 @@ impl SimpleComponent for DetailModel {
                                                             },
                                                             #[name(origin_label)]
                                                             gtk::Label {
-                                                                set_label: "nixpkgs",
+                                                                set_label: model.package.source.as_deref().unwrap_or("nixpkgs"),
                                                                 set_valign: gtk::Align::Center,
                                                                 set_max_width_chars: 12,
                                                                 set_ellipsize: gtk::pango::EllipsizeMode::End,
@@ -874,6 +884,9 @@ impl SimpleComponent for DetailModel {
             holding: false,
             custom_blocks,
             module: None,
+            declared: None,
+            other: None,
+            home_module: None,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -1002,6 +1015,36 @@ impl SimpleComponent for DetailModel {
                         )));
                     });
                 }
+                if nix_software_core::detect_layout().home.is_some() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::HomeModuleLoaded(
+                            nix_software_core::hm_module_for(&attr),
+                        ));
+                    });
+                }
+                {
+                    let (attr, version) = (self.package.attr.clone(), self.package.version.clone());
+                    let app_id = meta.app_id.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::OtherLoaded(other_install(
+                            &attr,
+                            &version,
+                            app_id.as_deref(),
+                        )));
+                    });
+                }
+                if self.installed_elsewhere() {
+                    let attr = self.package.attr.clone();
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let _ = s.send(DetailMsg::DeclaredLoaded(nix_software_core::declared_in(
+                            &attr,
+                        )));
+                    });
+                }
                 build_addons(&self.addons_box, &meta);
                 build_version_history(
                     &self.version_box,
@@ -1034,12 +1077,10 @@ impl SimpleComponent for DetailModel {
                 }
                 self.carousel.widget().set_visible(meta.app_id.is_some());
 
-                let attr = self.package.attr.clone();
+                let pkg = self.package.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(DetailMsg::SizeLoaded(nix_software_core::closure_size(
-                        &attr,
-                    )));
+                    let _ = s.send(DetailMsg::SizeLoaded(nix_software_core::closure_size(&pkg)));
                 });
 
                 if let Some(app_id) = meta.app_id.clone() {
@@ -1125,6 +1166,32 @@ impl SimpleComponent for DetailModel {
                     self.rebuild_context_bar(&meta);
                 }
             }
+            DetailMsg::DeclaredLoaded(declared) => {
+                self.declared = declared;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_problems(&meta, &sender);
+                }
+            }
+            DetailMsg::TakeOver => {
+                let Some((file, line)) = self.declared.take() else {
+                    return;
+                };
+                match nix_software_core::keep(&self.package) {
+                    Ok(()) => {
+                        self.kept = true;
+                        crate::util::toast(
+                            &self.toast_overlay,
+                            &t("Taken over. Delete line {line} of {file}, then apply.")
+                                .replace("{line}", &line.to_string())
+                                .replace("{file}", &file.display().to_string()),
+                        );
+                    }
+                    Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
+                }
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_problems(&meta, &sender);
+                }
+            }
             DetailMsg::ModuleLoaded(module) => {
                 self.module = module;
                 if let Some(meta) = self.meta.clone() {
@@ -1153,9 +1220,56 @@ impl SimpleComponent for DetailModel {
                 self.start_hold(None, &sender);
             }
             DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
+            DetailMsg::OtherLoaded(other) => self.other = other,
+            DetailMsg::HomeModuleLoaded(module) => self.home_module = module,
+            DetailMsg::RemoveOther => {
+                let Some(item) = self.other.clone() else {
+                    return;
+                };
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let res = match item.handle.strip_prefix("nix-env:") {
+                        Some(pname) => nix_software_core::nix_env_remove(pname),
+                        None => nix_software_core::remove_foreign(&item),
+                    };
+                    let _ = s.send(DetailMsg::TriedRemoved(
+                        res.map(|_| 0).map_err(|e| e.to_string()),
+                    ));
+                });
+                self.other = None;
+            }
             DetailMsg::Remove => {
                 if self.kept || self.profile_name.is_some() {
                     sender.input(DetailMsg::ToggleKeep);
+                    return;
+                }
+                if let Some(item) = &self.other {
+                    if item.origin == nix_software_core::Origin::AppImage {
+                        let files: Vec<String> =
+                            nix_software_core::appimage_files(std::path::Path::new(&item.handle))
+                                .iter()
+                                .map(|f| f.display().to_string())
+                                .collect();
+                        let dialog = adw::AlertDialog::new(
+                            Some(&t("Delete the AppImage?")),
+                            Some(
+                                &t("These files are deleted:\n{}").replace("{}", &files.join("\n")),
+                            ),
+                        );
+                        dialog.add_response("cancel", &t("_Cancel"));
+                        dialog.add_response("delete", &t("_Delete"));
+                        dialog.set_response_appearance(
+                            "delete",
+                            adw::ResponseAppearance::Destructive,
+                        );
+                        let s = sender.input_sender().clone();
+                        dialog.connect_response(Some("delete"), move |_, _| {
+                            let _ = s.send(DetailMsg::RemoveOther);
+                        });
+                        dialog.present(Some(&self.toast_overlay));
+                    } else {
+                        sender.input(DetailMsg::RemoveOther);
+                    }
                     return;
                 }
                 let attr = self.package.attr.clone();
@@ -1192,6 +1306,14 @@ impl SimpleComponent for DetailModel {
                         layout.system.as_ref().map(|_| InstallMode::System),
                     ),
                     ("module", t("Through the _Module"), module),
+                    (
+                        "home-module",
+                        t("Through the _Home Manager Module"),
+                        self.home_module
+                            .as_ref()
+                            .filter(|_| layout.home.is_some())
+                            .map(|o| InstallMode::HomeModule(o.name.clone())),
+                    ),
                 ];
                 let dialog = adw::AlertDialog::new(
                     Some(&t("Install As")),
@@ -1673,7 +1795,7 @@ impl DetailModel {
     /// True when the app can be taken off: kept, installed with nix
     /// profile, or tried.
     fn removable(&self) -> bool {
-        self.kept || self.profile_name.is_some() || self.tried()
+        self.kept || self.profile_name.is_some() || self.other.is_some() || self.tried()
     }
 
     fn tried(&self) -> bool {
@@ -1688,6 +1810,12 @@ impl DetailModel {
             t("Take the app out of your configuration. It is uninstalled when you apply.")
         } else if self.profile_name.is_some() {
             t("Uninstall the app from your user profile.")
+        } else if let Some(item) = &self.other {
+            match item.origin {
+                nix_software_core::Origin::Flatpak => t("Uninstall the Flatpak."),
+                nix_software_core::Origin::AppImage => t("Delete the AppImage and its menu entry."),
+                _ => t("Uninstall the app from your nix-env profile."),
+            }
         } else {
             t("Delete the tried app from the store.")
         }
@@ -1785,6 +1913,25 @@ impl DetailModel {
             self.problems_box.append(&infobox::held(pin, move || {
                 let _ = s.send(DetailMsg::ToggleHold);
             }));
+        }
+        if let (Some(app), Some(nixpkgs), None) =
+            (&self.installed, meta.version.as_deref(), &self.pin)
+        {
+            // An older one only waits for an apply.
+            if !app.version.is_empty()
+                && app.version != nixpkgs
+                && !nix_software_core::version_newer(nixpkgs, &app.version)
+            {
+                self.problems_box
+                    .append(&infobox::changed(&app.version, nixpkgs));
+            }
+        }
+        if let Some((file, line)) = self.declared.as_ref().filter(|_| !self.kept) {
+            let s = sender.input_sender().clone();
+            self.problems_box
+                .append(&infobox::declared(file, *line, move || {
+                    let _ = s.send(DetailMsg::TakeOver);
+                }));
         }
         if let Some(option) = &self.module {
             let in_use = nix_software_core::load_manifest().kept.iter().any(|e| {
@@ -2626,6 +2773,37 @@ fn is_empty_meta(meta: &AppMeta) -> bool {
     meta.summary.is_none() && meta.description.is_none() && meta.version.is_none()
 }
 
+/// A Flatpak, AppImage or nix-env install of the package. Blocking.
+fn other_install(
+    attr: &str,
+    version: &str,
+    app_id: Option<&str>,
+) -> Option<nix_software_core::Installed> {
+    let pname = attr.rsplit('.').next().unwrap_or(attr);
+    if nix_software_core::nix_env_names()
+        .iter()
+        .any(|n| n == pname)
+    {
+        return Some(nix_software_core::Installed {
+            names: vec![pname.to_lowercase()],
+            version: String::new(),
+            origin: nix_software_core::Origin::Home,
+            module: false,
+            handle: format!("nix-env:{pname}"),
+        });
+    }
+    let index: Vec<_> = nix_software_core::installed_index()
+        .into_iter()
+        .filter(|e| {
+            matches!(
+                e.origin,
+                nix_software_core::Origin::Flatpak | nix_software_core::Origin::AppImage
+            )
+        })
+        .collect();
+    nix_software_core::find_installed(&index, attr, version, app_id).cloned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2681,6 +2859,7 @@ mod tests {
             name: "hello".into(),
             version: "2.12".into(),
             description: "Demo program".into(),
+            source: None,
         };
         let ctrl = <DetailModel as relm4::Component>::builder().launch(pkg);
         let widgets = ctrl.widgets();

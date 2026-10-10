@@ -18,9 +18,25 @@ pub(crate) struct NixPkgEntry {
 /// How long raw `nix search` results stay cached: a cold search takes minutes.
 pub(crate) const SEARCH_CACHE_TTL_SECS: u64 = 3600;
 
-/// Raw `nix search` results as packages; empty when `nix` fails.
+/// Raw `nix search` results of nixpkgs and of the configuration's other
+/// flakes, searched side by side; empty when `nix` fails.
 pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
-    let mut args: Vec<String> = vec!["search".into(), crate::nixpkgs_ref().into()];
+    let flakes: Vec<_> = crate::config_layout::flake_sources()
+        .into_iter()
+        .map(|(name, flake)| {
+            let patterns = patterns.to_vec();
+            std::thread::spawn(move || raw_flake_search(&flake, Some(&name), &patterns))
+        })
+        .collect();
+    let mut out = raw_flake_search(crate::nixpkgs_ref(), None, patterns);
+    for h in flakes {
+        out.extend(h.join().unwrap_or_default());
+    }
+    out
+}
+
+fn raw_flake_search(flake: &str, source: Option<&str>, patterns: &[String]) -> Vec<Package> {
+    let mut args: Vec<String> = vec!["search".into(), flake.into()];
     args.extend(patterns.iter().cloned());
     args.push("--json".into());
 
@@ -42,6 +58,7 @@ pub(crate) fn raw_nix_search(patterns: &[String]) -> Vec<Package> {
                 name: info.pname.unwrap_or_else(|| short.clone()),
                 version: info.version.unwrap_or_default(),
                 description: info.description.unwrap_or_default(),
+                source: source.map(str::to_string),
                 attr: short,
             }
         })
@@ -72,7 +89,11 @@ pub fn search(query: &str) -> Vec<Package> {
     // Merge case aliases such as `superTux` and `supertux`.
     let mut canon: HashMap<String, Package> = HashMap::new();
     for p in packages {
-        let key = p.attr.to_lowercase();
+        let key = format!(
+            "{}:{}",
+            p.source.as_deref().unwrap_or(""),
+            p.attr.to_lowercase()
+        );
         match canon.get_mut(&key) {
             None => {
                 canon.insert(key, p);
@@ -88,7 +109,7 @@ pub fn search(query: &str) -> Vec<Package> {
                     existing.name = beautify_attr(&a);
                 }
                 // Run the lowercase attr.
-                if p.attr == key {
+                if p.attr == p.attr.to_lowercase() {
                     existing.attr = p.attr;
                 }
             }

@@ -8,6 +8,9 @@ pub struct Package {
     pub name: String,
     pub version: String,
     pub description: String,
+    /// Flake input providing it, when not nixpkgs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 
 impl Package {
@@ -18,6 +21,7 @@ impl Package {
             name: attr.clone(),
             version: String::new(),
             description: String::new(),
+            source: None,
             attr,
         }
     }

@@ -78,6 +78,33 @@ pub fn profile_remove(name: &str) -> std::io::Result<()> {
     run(crate::util::nix().args(["profile", "remove", name]))
 }
 
+/// pnames installed with nix-env, the older profile tool; empty when the
+/// profile is managed by nix profile.
+pub fn nix_env_names() -> Vec<String> {
+    if !crate::util::home()
+        .join(".nix-profile/manifest.nix")
+        .exists()
+    {
+        return Vec::new();
+    }
+    Command::new("nix-env")
+        .arg("--query")
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .map(|l| crate::profiles::split_name(l.trim()).0)
+                .filter(|n| !n.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Uninstalls `pname` from a nix-env profile.
+pub fn nix_env_remove(pname: &str) -> std::io::Result<()> {
+    run(Command::new("nix-env").args(["--uninstall", pname]))
+}
+
 fn run(cmd: &mut Command) -> std::io::Result<()> {
     let out = cmd.output()?;
     if out.status.success() {

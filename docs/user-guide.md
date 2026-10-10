@@ -16,17 +16,16 @@ your configuration. It shows the change before writing anything.
 
 ## What is installed
 
-Installed apps show a pill: a green check, then where and how the app is
-installed.
+Installed apps show a pill: a green check, then where the app is (house:
+your home, screen: the system, layers: Flatpak, box with an arrow: AppImage)
+and how (box: a package, puzzle piece: a module).
 
-- a screen: on the system, for every user;
-- a house: in your home, for you only;
-- a box: as a plain package;
-- a puzzle piece: through a module, which also sets up what the app needs
-  around it.
+If your own configuration installs an app, its page shows the file and
+line, and Take Over moves it to Nix Software.
 
 To install an app you added another way, open it, then Install As… in its
-menu.
+menu. The trash button next to the main button removes the app, whatever
+installed it.
 
 The Installed tab lists them all, with what you tried and can clean up.
 

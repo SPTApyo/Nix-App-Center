@@ -12,7 +12,9 @@ mod config_layout;
 mod detail;
 mod enabled;
 mod flathub;
+mod foreign;
 mod http;
+mod installed;
 mod launch;
 mod locate;
 mod manifest;
@@ -55,8 +57,10 @@ pub use config_layout::{
     detect as detect_layout, verify as verify_layout, Layout, LayoutKind, ScopeTarget, Verified,
 };
 pub use detail::{closure_size, detail, PackageDetail};
-pub use enabled::enabled_modules;
+pub use enabled::{declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
+pub use foreign::{appimage_files, remove_foreign};
+pub use installed::{find as find_installed, installed_index, Installed, Origin};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{
@@ -64,9 +68,11 @@ pub use manifest::{
     set_mode, set_pin, unkeep, InstallMode, KeptEntry, Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
-pub use options::{module_for, search_options, NixOption};
+pub use options::{hm_module_for, module_for, search_options, NixOption};
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
-pub use profiles::{installed_app, profile_apps, store_sizes, ProfileApp, Scope};
+pub use profiles::{
+    installed_app, profile_apps, profile_packages, store_sizes, ProfileApp, ProfilePackage, Scope,
+};
 pub use progress::{Phase, StreamEvent};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
@@ -85,10 +91,12 @@ pub use storage::{
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
-    app_updates, current_source, latest, newer_release, nixpkgs_ref, pinned_rev, updatable_apps,
-    update_command, AppUpdate, Latest, Source, UpdateMethod,
+    app_updates, current_source, installable, latest, newer_release, nixpkgs_ref, pinned_rev,
+    updatable_apps, update_command, version_newer, AppUpdate, Latest, Source, UpdateMethod,
 };
-pub use user_profile::{profile_add, profile_elements, profile_remove, ProfileElement};
+pub use user_profile::{
+    nix_env_names, nix_env_remove, profile_add, profile_elements, profile_remove, ProfileElement,
+};
 pub use util::now_unix;
 pub use versions::{versions, VersionChoice};
 

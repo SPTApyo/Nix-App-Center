@@ -222,27 +222,69 @@ step: GNOME asks apps not to flood the user.
 
 Tiles and search rows of installed apps carry a pill: a green check in a
 darker round, then where the app is (a screen for the system profile, a
-house for the user profiles), then how (a box for a package, a puzzle piece
-for a module). On tiles it floats in the top right corner.
-The profiles are read at most every five seconds, not once per tile. An app matches by pname; a
-nested attribute such as haskellPackages.Obsidian must match the version too,
-or every package named like an installed app would show the badge. The
-desktop file name counts as well, like on the Installed page: steam from
-programs.steam.enable resolves to steam-unwrapped but ships steam.desktop.
+house for the user profiles, layers for Flatpak, an arrow box for an
+AppImage), then how a Nix app came (a box for a package, a puzzle piece for
+a module). On tiles it floats in the top right corner.
 
-The module guess needs no evaluation either. The configuration is not evaluated for that, it is read: any `X.enable` not set
-to false in the .nix files of the configuration folder or of its local
-inputs counts, whatever its form (programs.steam.enable, or steam.enable
-inside programs = { }). It is a guess, but an instant one, and it works on a
-configuration that does not evaluate.
+One index answers for tiles, rows and app pages
+(crates/core/src/installed.rs). It is read at most every five seconds:
+
+- the store references of each profile (`nix-store --query --references`),
+  walking through the buildEnv layers (user-environment,
+  home-manager-path, system-path). Command line tools, fonts and themes
+  have no desktop file but are there; fonts.packages are read from the
+  fontconfig cache file, since they stay out of the system profile;
+- the desktop files of the profiles, for the names apps go by (steam ships
+  steam.desktop but resolves to steam-unwrapped);
+- `flatpak list`, and desktop files in ~/.local/share/applications whose
+  Exec runs a .AppImage (crates/core/src/foreign.rs).
+
+An app matches by pname, desktop file name or Flathub app id. A nested
+attribute such as haskellPackages.Obsidian must match the version too, or
+every package named like an installed app would show the pill.
+
+Modules are first guessed from the files: any `X.enable` not set to false in
+the .nix files of the configuration or of its local inputs, whatever its
+form. The guess is instant and works on a configuration that does not
+evaluate. In the background, Nix then evaluates which of those names are
+really enabled (NixOS and Home Manager options), and the answer is cached
+until a file changes.
+
+## Who installed it
+
+An app installed but not kept by Nix Software is looked up in the user's
+files: the line listing it in a `packages = …;` or `systemPackages = …;`
+definition, lists combined with `++` and `with pkgs;` included. The app page
+names the file and line, and offers Take Over: the app is kept, and the user
+deletes their own line. Nix Software never edits that file.
+
+The trash button removes what Nix Software can remove: a kept app, a nix
+profile or nix-env install, a Flatpak (`flatpak uninstall`), an AppImage
+(the image and its desktop file, after a confirmation naming both), a tried
+app.
+
+When the installed version is neither the nixpkgs one nor an older one
+waiting for an apply, the configuration changes the app, usually with an
+overlay. The page says so, and Updates leaves it alone.
 
 ## Install modes
 
-A kept app is installed one of three ways: in the user's home, in the
-system packages, or through its NixOS module (`X.enable = true` in its
-system block). Install As… in its menu switches between them. It is offered
-only while the entry is one of these three; custom blocks say more than a
-mode and are left alone.
+A kept app is installed one of four ways: in the user's home, in the
+system packages, through its NixOS module (`X.enable = true` in its system
+block) or through its Home Manager module (the same line in its home
+block). Home Manager's options come from its docs-json package. Install
+As… in its menu switches between them. It is offered only while the entry
+is one of these; custom blocks say more than a mode and are left alone.
+
+## Other flakes
+
+Search also runs `nix search` on the GitHub inputs of the configuration's
+flake.lock and of its local inputs, nixpkgs and plumbing (flake-utils,
+home-manager…) aside, in parallel. Their packages carry the input name,
+shown as their origin. They are written as
+`inputs.NAME.packages.${pkgs.stdenv.hostPlatform.system}.ATTR`; the
+generated file then takes `inputs ? { }`, which the configuration must pass
+through specialArgs (or extraSpecialArgs for Home Manager).
 
 ## Pending changes
 

@@ -53,6 +53,77 @@ pub fn profile_apps() -> Vec<ProfileApp> {
     out
 }
 
+/// A package a profile holds, app or not: command line tools, fonts and
+/// themes included.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfilePackage {
+    pub scope: Scope,
+    pub pname: String,
+    pub version: String,
+}
+
+/// Every package of the session's profiles, from their store references.
+/// Blocking: one nix-store query per environment.
+pub fn profile_packages() -> Vec<ProfilePackage> {
+    let query = |path: &str| -> Vec<String> {
+        std::process::Command::new("nix-store")
+            .args(["--query", "--references", path])
+            .output()
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .lines()
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let mut out = Vec::new();
+    // fonts.packages stay out of the system profile.
+    let fonts = (
+        Scope::System,
+        PathBuf::from("/etc/fonts/conf.d/00-nixos-cache.conf"),
+    );
+    for (scope, profile) in profile_dirs().into_iter().chain([fonts]) {
+        let Ok(root) = std::fs::canonicalize(&profile) else {
+            continue;
+        };
+        for path in expand(&root.to_string_lossy(), &query, 0) {
+            if let Some((pname, version)) = store_name(Path::new(&path)) {
+                out.push(ProfilePackage {
+                    scope,
+                    pname,
+                    version,
+                });
+            }
+        }
+    }
+    out
+}
+
+/// True for the buildEnv layers profiles are made of, not packages.
+fn is_environment(path: &str) -> bool {
+    let name = path.get(44..).unwrap_or("");
+    name.ends_with("-path") || matches!(name, "user-environment" | "profile")
+}
+
+/// The packages under `root`, going through nested environments.
+fn expand(root: &str, query: &dyn Fn(&str) -> Vec<String>, depth: u8) -> Vec<String> {
+    let mut out = Vec::new();
+    for path in query(root) {
+        if path == root || path.ends_with(".drv") || path.contains("-env-manifest") {
+            continue;
+        }
+        if is_environment(&path) {
+            if depth < 3 {
+                out.extend(expand(&path, query, depth + 1));
+            }
+        } else {
+            out.push(path);
+        }
+    }
+    out
+}
+
 /// The installed app matching a package, by pname or by desktop file name:
 /// steam ships steam.desktop but resolves to steam-unwrapped.
 pub fn installed_app(attr: &str, app_id: Option<&str>) -> Option<ProfileApp> {
@@ -147,6 +218,29 @@ pub(crate) fn split_name(name: &str) -> (String, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn environments_are_walked_through() {
+        let h = "0".repeat(32);
+        let p = |n: &str| format!("/nix/store/{h}-{n}");
+        let query = |path: &str| -> Vec<String> {
+            if path == p("user-environment") {
+                vec![p("home-manager-path"), p("env-manifest.nix")]
+            } else if path == p("home-manager-path") {
+                vec![
+                    p("ripgrep-14.1.0"),
+                    p("noto-fonts-2024.01"),
+                    p("home-manager-path"),
+                ]
+            } else {
+                Vec::new()
+            }
+        };
+        assert_eq!(
+            expand(&p("user-environment"), &query, 0),
+            vec![p("ripgrep-14.1.0"), p("noto-fonts-2024.01")]
+        );
+    }
 
     #[test]
     fn split_name_follows_nix_rules() {

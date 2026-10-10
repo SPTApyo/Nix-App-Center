@@ -76,6 +76,22 @@ pub fn nixpkgs_ref() -> &'static str {
     })
 }
 
+/// The flake reference running `pkg`: its flake input when it has one,
+/// else the configuration's nixpkgs.
+pub fn installable(pkg: &crate::Package) -> String {
+    let flake = pkg
+        .source
+        .as_ref()
+        .and_then(|name| {
+            crate::config_layout::flake_sources()
+                .into_iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, r)| r)
+        })
+        .unwrap_or_else(|| nixpkgs_ref().to_string());
+    format!("{flake}#{}", pkg.attr)
+}
+
 /// Finds the nixpkgs source of the detected config.
 pub fn current_source() -> Source {
     let layout = detect();
@@ -335,14 +351,32 @@ fn held_pnames(m: &crate::manifest::Manifest) -> Vec<String> {
         .collect()
 }
 
-/// Installed apps `rev` ships in a newer version, in one evaluation.
-pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
+/// Installed apps `rev` ships in a newer version. Apps whose installed
+/// version differs from the one of `current` were changed by the
+/// configuration (an overlay): updating nixpkgs may not move them, skipped.
+pub fn app_updates(rev: &str, current: Option<&str>, apps: &[ProfileApp]) -> Vec<AppUpdate> {
     let mut names: Vec<&str> = apps.iter().map(|a| a.pname.as_str()).collect();
     names.sort_unstable();
     names.dedup();
     if names.is_empty() {
         return Vec::new();
     }
+    let changed = current.map(|c| versions_at(c, &names)).unwrap_or_default();
+    let plain: Vec<ProfileApp> = apps
+        .iter()
+        .filter(|a| {
+            changed
+                .get(&a.pname)
+                .and_then(Value::as_str)
+                .is_none_or(|v| v == a.version)
+        })
+        .cloned()
+        .collect();
+    newer_apps(&plain, &versions_at(rev, &names))
+}
+
+/// Versions of `names` in nixpkgs `rev`, in one evaluation.
+fn versions_at(rev: &str, names: &[&str]) -> serde_json::Map<String, Value> {
     let list = names
         .iter()
         .map(|n| serde_json::to_string(n).unwrap_or_default())
@@ -357,10 +391,10 @@ pub fn app_updates(rev: &str, apps: &[ProfileApp]) -> Vec<AppUpdate> {
     let out = crate::util::nix()
         .args(["eval", "--json", "--expr", &expr])
         .output();
-    let Ok(out) = out else { return Vec::new() };
-    let versions: serde_json::Map<String, Value> =
-        serde_json::from_slice(&out.stdout).unwrap_or_default();
-    newer_apps(apps, &versions)
+    let Ok(out) = out else {
+        return Default::default();
+    };
+    serde_json::from_slice(&out.stdout).unwrap_or_default()
 }
 
 /// The apps whose pname has a newer version in `versions`.
@@ -434,7 +468,7 @@ pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<Vec<String
 }
 
 /// True when `candidate` is newer than `current`, by numeric segments.
-fn version_newer(candidate: &str, current: &str) -> bool {
+pub fn version_newer(candidate: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u64> {
         v.split(['.', '-'])
             .map(|s| {

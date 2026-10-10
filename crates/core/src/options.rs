@@ -114,6 +114,36 @@ pub fn search_options(query: &str, limit: usize) -> Vec<NixOption> {
     rank(options(), query, limit)
 }
 
+static HM_OPTIONS: OnceLock<Vec<NixOption>> = OnceLock::new();
+
+/// Home Manager's options, from its docs-json package. Blocking at first.
+fn hm_options() -> &'static [NixOption] {
+    HM_OPTIONS.get_or_init(|| {
+        let out = crate::util::nix()
+            .args([
+                "build",
+                "--no-link",
+                "--print-out-paths",
+                "github:nix-community/home-manager#docs-json",
+            ])
+            .output();
+        let Ok(out) = out else {
+            return Vec::new();
+        };
+        let dir = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        std::fs::read(format!("{dir}/share/doc/home-manager/options.json"))
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .map(|v| parse(&v))
+            .unwrap_or_default()
+    })
+}
+
+/// The Home Manager module setting up `attr`. Blocking at first.
+pub fn hm_module_for(attr: &str) -> Option<NixOption> {
+    module_in(hm_options(), attr)
+}
+
 /// The `enable` option of the module setting up `attr`. Blocking at first.
 pub fn module_for(attr: &str) -> Option<NixOption> {
     module_in(options(), attr)

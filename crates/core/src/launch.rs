@@ -11,7 +11,7 @@ const NIX_FEATURES: [&str; 2] = ["--extra-experimental-features", "nix-command f
 /// argv of `nix <sub>` (`run` or `shell`) for `attr`. Unfree and broken
 /// packages are allowed, insecure ones are not; `env` keeps the variables
 /// when a terminal server spawns the command.
-fn try_argv(sub: &str, attr: &str) -> Vec<String> {
+fn try_argv(sub: &str, pkg: &Package) -> Vec<String> {
     [
         "env",
         "NIXPKGS_ALLOW_UNFREE=1",
@@ -22,18 +22,14 @@ fn try_argv(sub: &str, attr: &str) -> Vec<String> {
     ]
     .into_iter()
     .map(str::to_string)
-    .chain([target(attr)])
+    .chain([crate::installable(pkg)])
     .chain(NIX_FEATURES.iter().map(|s| s.to_string()))
     .collect()
 }
 
 /// The `nix run` command to copy; `unfree` adds the needed opt-in.
 pub fn run_command(pkg: &Package, unfree: bool) -> String {
-    copy_command("run", &target(&pkg.attr), unfree)
-}
-
-fn target(attr: &str) -> String {
-    format!("{}#{attr}", crate::nixpkgs_ref())
+    copy_command("run", &crate::installable(pkg), unfree)
 }
 
 fn copy_command(sub: &str, target: &str, unfree: bool) -> String {
@@ -47,7 +43,7 @@ fn copy_command(sub: &str, target: &str, unfree: bool) -> String {
 /// Starts `nix run` for `pkg` without waiting and records the try. Give
 /// the child to [`run_failure`] to learn whether it failed.
 pub fn run(pkg: &Package) -> std::io::Result<Child> {
-    let argv = try_argv("run", &pkg.attr);
+    let argv = try_argv("run", pkg);
     let child = Command::new(&argv[0])
         .args(&argv[1..])
         .stdin(Stdio::null())
@@ -77,7 +73,7 @@ pub fn run_failure(mut child: Child) -> Option<String> {
 
 /// The `nix shell` command to copy.
 pub fn shell_command(pkg: &Package, unfree: bool) -> String {
-    copy_command("shell", &target(&pkg.attr), unfree)
+    copy_command("shell", &crate::installable(pkg), unfree)
 }
 
 /// Result of a shell request.
@@ -172,7 +168,7 @@ pub(crate) fn spawn_in_terminal(command: &[String]) -> std::io::Result<ShellOutc
 
 /// Opens a terminal where `pkg` is in `PATH`.
 pub fn shell(pkg: &Package) -> std::io::Result<ShellOutcome> {
-    let outcome = spawn_in_terminal(&try_argv("shell", &pkg.attr))?;
+    let outcome = spawn_in_terminal(&try_argv("shell", pkg))?;
     if outcome == ShellOutcome::Spawned {
         let _ = record_tried(pkg);
     }
@@ -197,7 +193,7 @@ mod tests {
 
     #[test]
     fn try_argv_lifts_unfree_and_broken_but_not_insecure() {
-        let argv = try_argv("run", "spotify");
+        let argv = try_argv("run", &Package::from_attr("spotify"));
         assert_eq!(
             argv[..3],
             ["env", "NIXPKGS_ALLOW_UNFREE=1", "NIXPKGS_ALLOW_BROKEN=1"]

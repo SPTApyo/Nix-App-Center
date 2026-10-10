@@ -64,8 +64,8 @@ pub struct AppMeta {
 
 /// Metadata of `pkg`, AppStream and Nix fetched in parallel. Blocking.
 pub fn app_meta(pkg: &Package, screenshot_target_w: u32) -> AppMeta {
-    let attr = pkg.attr.clone();
-    let nix_handle = std::thread::spawn(move || detail(&attr));
+    let owned = pkg.clone();
+    let nix_handle = std::thread::spawn(move || detail(&owned));
     let fh = flathub_meta_for(pkg, screenshot_target_w);
     let nix = nix_handle.join().ok().flatten();
     merge_app_meta(pkg, fh.as_ref(), nix.as_ref())
@@ -232,6 +232,7 @@ mod tests {
             name: "example".into(),
             version: "1.5".into(),
             description: "nix pname description".into(),
+            source: None,
         }
     }
 

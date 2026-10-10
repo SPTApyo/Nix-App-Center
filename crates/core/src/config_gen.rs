@@ -55,17 +55,37 @@ fn pin_binding(rev: &str) -> String {
 
 /// The package expression of a plain entry: its attr, from the held
 /// revision when pinned, with its build options.
-fn package_expr(e: &KeptEntry) -> String {
+/// The Nix expression of an entry; `None` when its names are not plain
+/// identifiers, since they come from other flakes and end up run as root.
+fn package_expr(e: &KeptEntry) -> Option<String> {
     let attr = &e.package.attr;
+    let ident = |s: &str, dots: bool| {
+        !s.is_empty()
+            && !s.starts_with(['.', '-'])
+            && s.chars().all(|c| {
+                c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '\'') || (dots && c == '.')
+            })
+    };
+    if !ident(attr, true) {
+        return None;
+    }
+    if let Some(input) = &e.package.source {
+        if !ident(input, false) || attr.contains('.') {
+            return None;
+        }
+        return Some(format!(
+            "inputs.{input}.packages.${{pkgs.stdenv.hostPlatform.system}}.{attr}"
+        ));
+    }
     let pin = valid_pin(e);
     if pin.is_none() && e.flags.is_empty() {
-        return attr.clone();
+        return Some(attr.clone());
     }
     let base = match pin {
         Some(p) => format!("{}.{attr}", pin_binding(&p.rev)),
         None => format!("pkgs.{attr}"),
     };
-    crate::build_flags::with_flags(&base, &e.flags)
+    Some(crate::build_flags::with_flags(&base, &e.flags))
 }
 
 /// The entry's hold, when its revision and hash are safe to write as Nix.
@@ -111,7 +131,7 @@ fn in_home_list(e: &KeptEntry) -> bool {
 
 /// `<option> = with pkgs; [ … ];` over `entries`, sorted.
 fn package_list<'a>(option: &str, entries: impl Iterator<Item = &'a KeptEntry>) -> String {
-    let mut items: Vec<String> = entries.map(package_expr).collect();
+    let mut items: Vec<String> = entries.filter_map(package_expr).collect();
     items.sort_unstable();
     items.dedup();
     if items.is_empty() {
@@ -224,12 +244,22 @@ fn system_body(kept: &[KeptEntry]) -> String {
     out
 }
 
+/// The module's arguments; `inputs` only when an app comes from another
+/// flake, with a default so configurations without it still evaluate.
+fn module_args(kept: &[KeptEntry]) -> String {
+    if kept.iter().any(|e| e.package.source.is_some()) {
+        "{ pkgs, lib, config, inputs ? { }, ... }:\n".into()
+    } else {
+        "{ pkgs, lib, config, ... }:\n".into()
+    }
+}
+
 /// `nix-software-home.nix`, shaped by the layout: a Home Manager module,
 /// or a NixOS module using `home-manager.users` or `users.users`.
 pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
     let body = home_body(kept, &shape.packages_option());
     let mut out = header("User scope.");
-    out.push_str("{ pkgs, lib, config, ... }:\n");
+    out.push_str(&module_args(kept));
     out.push_str(&pin_bindings(kept.iter().filter(|e| in_home_list(e))));
     out.push_str("{\n");
     match shape {
@@ -251,7 +281,7 @@ pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
 pub(crate) fn render_system(kept: &[KeptEntry]) -> String {
     let body = system_body(kept);
     let mut out = header("System scope (NixOS).");
-    out.push_str("{ pkgs, lib, config, ... }:\n");
+    out.push_str(&module_args(kept));
     out.push_str(&pin_bindings(kept.iter().filter(|e| e.system_wide)));
     out.push_str("{\n");
     if !body.trim().is_empty() {
@@ -900,6 +930,26 @@ mod tests {
     #[test]
     fn empty_files_are_still_valid_nix() {
         assert!(render_system(&[]).contains("{ pkgs, lib, config, ... }:"));
+        let gaming = KeptEntry {
+            system_wide: true,
+            ..KeptEntry::simple(Package {
+                source: Some("nix-gaming".into()),
+                ..Package::from_attr("star-citizen")
+            })
+        };
+        let out = render_system(&[gaming]);
+        assert!(out.contains("inputs ? { }"));
+        assert!(out.contains(
+            "inputs.nix-gaming.packages.${pkgs.stdenv.hostPlatform.system}.star-citizen"
+        ));
+        let evil = KeptEntry {
+            system_wide: true,
+            ..KeptEntry::simple(Package {
+                source: Some("x".into()),
+                ..Package::from_attr("a; }; system.activationScripts.x = \"rm\"; {")
+            })
+        };
+        assert!(!render_system(&[evil]).contains("activationScripts"));
         assert!(
             render_home(&[], &HomeShape::HomeManager).contains("home.packages = with pkgs; [ ];")
         );

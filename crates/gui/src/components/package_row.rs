@@ -12,8 +12,7 @@ pub struct PackageRow {
     rating: Option<Rating>,
     icon_tex: Option<gtk::gdk::Texture>,
     icon_state: IconState,
-    scope: Option<nix_software_core::Scope>,
-    module: bool,
+    installed: Option<nix_software_core::Installed>,
 }
 
 #[derive(Debug)]
@@ -133,7 +132,7 @@ impl FactoryComponent for PackageRow {
                 },
             },
 
-            crate::util::installed_pill(self.scope, self.module, 16) -> gtk::Box {
+            crate::util::installed_pill(self.installed.as_ref(), 16) -> gtk::Box {
                 add_css_class: "large",
             },
         }
@@ -161,16 +160,13 @@ impl FactoryComponent for PackageRow {
                 )));
             });
         }
-        let installed = crate::util::installed_scope(&package);
-        let scope = installed.map(|i| i.0);
-        let module = installed.is_some_and(|i| i.1);
+        let installed = crate::util::installed(&package);
         Self {
             package,
             rating,
             icon_tex: None,
             icon_state,
-            scope,
-            module,
+            installed,
         }
     }
 

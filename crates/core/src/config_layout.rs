@@ -107,6 +107,76 @@ pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Flake inputs of the configuration and of its local inputs that may hold
+/// packages, as (name, locked reference). nixpkgs and plumbing are left out.
+pub fn flake_sources() -> Vec<(String, String)> {
+    let dir = match detect().kind {
+        LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => dir,
+        _ => return Vec::new(),
+    };
+    let locals: Vec<PathBuf> = local_overrides(&dir)
+        .iter()
+        .filter_map(|s| s.strip_prefix("git+file://").or(s.strip_prefix("path:")))
+        .map(PathBuf::from)
+        .collect();
+    let mut out: Vec<(String, String)> = Vec::new();
+    for d in std::iter::once(dir).chain(locals) {
+        let Some(lock) = std::fs::read_to_string(d.join("flake.lock"))
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        else {
+            continue;
+        };
+        for (name, source) in sources_from_lock(&lock) {
+            if !out.iter().any(|(n, _)| *n == name) {
+                out.push((name, source));
+            }
+        }
+    }
+    out
+}
+
+fn sources_from_lock(lock: &serde_json::Value) -> Vec<(String, String)> {
+    const PLUMBING: [&str; 8] = [
+        "nixpkgs",
+        "home-manager",
+        "flake-utils",
+        "flake-parts",
+        "systems",
+        "flake-compat",
+        "nix-darwin",
+        "treefmt-nix",
+    ];
+    let root = lock["root"].as_str().unwrap_or("root");
+    let Some(inputs) = lock["nodes"][root]["inputs"].as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (name, node) in inputs {
+        let Some(node) = node.as_str() else { continue };
+        let locked = &lock["nodes"][node]["locked"];
+        let (Some("github"), Some(owner), Some(repo), Some(rev)) = (
+            locked["type"].as_str(),
+            locked["owner"].as_str(),
+            locked["repo"].as_str(),
+            locked["rev"].as_str(),
+        ) else {
+            continue;
+        };
+        if PLUMBING.iter().any(|p| repo == *p || name.starts_with(p)) {
+            continue;
+        }
+        let safe = |s: &str| {
+            s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+        };
+        if safe(name) && safe(owner) && safe(repo) && crate::versions::is_rev(rev) {
+            out.push((name.clone(), format!("github:{owner}/{repo}/{rev}")));
+        }
+    }
+    out
+}
+
 fn overrides_from_lock(lock: &serde_json::Value) -> Vec<String> {
     let root = lock["root"].as_str().unwrap_or("root");
     let Some(inputs) = lock["nodes"][root]["inputs"].as_object() else {
@@ -403,6 +473,24 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn package_sources_skip_nixpkgs_and_plumbing() {
+        let lock = serde_json::json!({ "root": "root", "nodes": {
+            "root": { "inputs": { "nixpkgs": "n", "nix-gaming": "g", "flake-utils": "u", "local": "l" } },
+            "n": { "locked": { "type": "github", "owner": "NixOS", "repo": "nixpkgs", "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+            "g": { "locked": { "type": "github", "owner": "fufexan", "repo": "nix-gaming", "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+            "u": { "locked": { "type": "github", "owner": "numtide", "repo": "flake-utils", "rev": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+            "l": { "locked": { "type": "path", "path": "/x" } }
+        }});
+        assert_eq!(
+            sources_from_lock(&lock),
+            vec![(
+                "nix-gaming".to_string(),
+                "github:fufexan/nix-gaming/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()
+            )]
+        );
+    }
 
     #[test]
     fn local_inputs_are_used_as_they_are_on_disk() {

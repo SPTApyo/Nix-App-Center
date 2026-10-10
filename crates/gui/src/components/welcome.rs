@@ -55,6 +55,21 @@ fn config_extra(parent: &gtk::Widget) -> gtk::Widget {
         move |_| crate::views::preferences::present(&parent)
     });
     let list = crate::util::boxed_list();
+    if layout.kind == nix_software_core::LayoutKind::Unknown {
+        let hint = adw::ActionRow::builder()
+            .title(t("No Configuration Yet"))
+            .subtitle(crate::util::esc(&t(
+                "Apps you install go to your user profile with nix profile. To keep them in a configuration instead, set up Home Manager, then open Preferences.",
+            )))
+            .build();
+        let link = gtk::LinkButton::with_label(
+            "https://nix-community.github.io/home-manager/",
+            &t("Home Manager Manual"),
+        );
+        link.set_valign(gtk::Align::Center);
+        hint.add_suffix(&link);
+        list.append(&hint);
+    }
     for w in [
         detected.upcast_ref::<gtk::Widget>(),
         check.upcast_ref(),

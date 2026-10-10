@@ -191,6 +191,8 @@ pub enum InstallMode {
     System,
     /// Through the NixOS module whose `enable` option this is.
     Module(String),
+    /// Through a Home Manager module.
+    HomeModule(String),
 }
 
 impl KeptEntry {
@@ -199,14 +201,20 @@ impl KeptEntry {
         match (self.home_nix.as_deref(), self.system_nix.as_deref()) {
             (None, None) if self.system_wide => Some(InstallMode::System),
             (None, None) => Some(InstallMode::Home),
-            (Some(""), Some(line)) => line
-                .trim()
-                .strip_suffix(" = true;")
-                .filter(|o| o.ends_with(".enable") && !o.contains(char::is_whitespace))
-                .map(|o| InstallMode::Module(o.to_string())),
+            (Some(""), Some(line)) => enable_option(line).map(InstallMode::Module),
+            (Some(line), None) => enable_option(line).map(InstallMode::HomeModule),
             _ => None,
         }
     }
+}
+
+/// `X.enable` of a block made of `X.enable = true;` only.
+fn enable_option(block: &str) -> Option<String> {
+    block
+        .trim()
+        .strip_suffix(" = true;")
+        .filter(|o| o.ends_with(".enable") && !o.contains(char::is_whitespace))
+        .map(str::to_string)
 }
 
 /// Installs the kept `pkg` another way.
@@ -215,6 +223,7 @@ pub fn set_mode(pkg: &Package, mode: &InstallMode) -> std::io::Result<()> {
         e.system_wide = mode == &InstallMode::System;
         (e.home_nix, e.system_nix) = match mode {
             InstallMode::Module(option) => (Some(String::new()), Some(format!("{option} = true;"))),
+            InstallMode::HomeModule(option) => (Some(format!("{option} = true;")), None),
             _ => (None, None),
         };
     })
@@ -372,6 +381,9 @@ mod tests {
         let module = InstallMode::Module("programs.steam.enable".into());
         set_mode(&pkg, &module).unwrap();
         assert_eq!(mode(), Some(module));
+        let home = InstallMode::HomeModule("programs.steam.enable".into());
+        set_mode(&pkg, &home).unwrap();
+        assert_eq!(mode(), Some(home));
         set_mode(&pkg, &InstallMode::System).unwrap();
         assert_eq!(mode(), Some(InstallMode::System));
         set_blocks(

@@ -501,93 +501,72 @@ impl AppItem {
 /// The attribute of Nix Software itself in nixpkgs.
 pub const SELF_ATTR: &str = "nix-software";
 
-/// When the profiles were read; each app's pname, desktop file name,
-/// version and scope; the modules the configuration enables.
-type InstalledCache = Option<(
-    std::time::Instant,
-    Vec<(String, String, String, nix_software_core::Scope)>,
-    std::collections::HashSet<String>,
-)>;
-
 thread_local! {
-    static INSTALLED: std::cell::RefCell<InstalledCache> = const { std::cell::RefCell::new(None) };
+    static INSTALLED: std::cell::RefCell<Option<(std::time::Instant, Vec<nix_software_core::Installed>)>> =
+        const { std::cell::RefCell::new(None) };
 }
 
-/// Where the package is installed, and whether through a module; read
-/// every 5 s at most. Nested attributes (haskellPackages.X) must match the
-/// version too.
-pub fn installed_scope(pkg: &Package) -> Option<(nix_software_core::Scope, bool)> {
-    let pname = pkg.attr.rsplit('.').next().unwrap_or(&pkg.attr);
-    let top_level = !pkg.attr.contains('.');
+/// How the package is installed, if it is; read every 5 s at most.
+pub fn installed(pkg: &Package) -> Option<nix_software_core::Installed> {
     INSTALLED.with_borrow_mut(|cache| {
         if cache
             .as_ref()
-            .is_none_or(|(at, ..)| at.elapsed() > std::time::Duration::from_secs(5))
+            .is_none_or(|(at, _)| at.elapsed() > std::time::Duration::from_secs(5))
         {
-            let apps = nix_software_core::profile_apps()
-                .into_iter()
-                .map(|a| {
-                    let stem = a
-                        .desktop_file
-                        .file_stem()
-                        .map(|s| s.to_string_lossy().into_owned())
-                        .unwrap_or_default();
-                    (a.pname, stem, a.version, a.scope)
-                })
-                .collect();
-            let modules = nix_software_core::enabled_modules();
-            *cache = Some((std::time::Instant::now(), apps, modules));
+            *cache = Some((
+                std::time::Instant::now(),
+                nix_software_core::installed_index(),
+            ));
         }
-        let (_, apps, modules) = cache.as_ref()?;
-        let (_, stem, _, scope) = apps.iter().find(|(p, stem, v, _)| {
-            (p.eq_ignore_ascii_case(pname) || stem.eq_ignore_ascii_case(pname))
-                && (top_level || pkg.version.is_empty() || *v == pkg.version)
-        })?;
-        let module =
-            modules.contains(&pname.to_lowercase()) || modules.contains(&stem.to_lowercase());
-        Some((*scope, module))
+        let (_, index) = cache.as_ref()?;
+        nix_software_core::find_installed(index, &pkg.attr, &pkg.version, None).cloned()
     })
 }
 
 /// The installed pill: a green check, then where the app is installed and
 /// how (package or module). Hidden when the app is not installed.
-pub fn installed_pill(
-    scope: Option<nix_software_core::Scope>,
-    module: bool,
-    icon_size: i32,
-) -> gtk::Box {
+pub fn installed_pill(item: Option<&nix_software_core::Installed>, icon_size: i32) -> gtk::Box {
+    use nix_software_core::Origin;
     let pill = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     pill.add_css_class("installed-pill");
     pill.set_valign(gtk::Align::Center);
-    pill.set_visible(scope.is_some());
-    let Some(scope) = scope else {
+    pill.set_visible(item.is_some());
+    let Some(item) = item else {
         return pill;
     };
-    let (where_icon, where_text) = match scope {
-        nix_software_core::Scope::System => (
+    let (where_icon, where_text) = match item.origin {
+        Origin::System => (
             "installed-system-symbolic",
             t("Installed on the system, for every user"),
         ),
-        nix_software_core::Scope::User => ("installed-home-symbolic", t("Installed in your home")),
+        Origin::Home => ("installed-home-symbolic", t("Installed in your home")),
+        Origin::Flatpak => ("installed-flatpak-symbolic", t("Installed with Flatpak")),
+        Origin::AppImage => ("installed-appimage-symbolic", t("Installed as an AppImage")),
     };
-    let (how_icon, how_text) = if module {
-        (
+    let how = match item.origin {
+        Origin::Flatpak | Origin::AppImage => None,
+        _ if item.module => Some((
             "installed-module-symbolic",
             t("through a module, with what it sets up around the app"),
-        )
-    } else {
-        ("installed-package-symbolic", t("as a package"))
+        )),
+        _ => Some(("installed-package-symbolic", t("as a package"))),
     };
-    for (icon, class) in [
+    let mut icons = vec![
         ("installed-check-symbolic", "installed-check"),
         (where_icon, "installed-kind"),
-        (how_icon, "installed-kind"),
-    ] {
+    ];
+    if let Some((icon, _)) = how {
+        icons.push((icon, "installed-kind"));
+    }
+    for (icon, class) in icons {
         let image = gtk::Image::from_icon_name(icon);
         image.set_pixel_size(icon_size);
         image.add_css_class(class);
         pill.append(&image);
     }
-    pill.set_tooltip_text(Some(&format!("{where_text}, {how_text}")));
+    pill.set_tooltip_text(Some(&match how {
+        Some((_, how_text)) => format!("{where_text}, {how_text}"),
+        None => where_text,
+    }));
     pill
 }

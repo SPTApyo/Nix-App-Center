@@ -10,8 +10,7 @@ pub struct AppTile {
     package: Package,
     icon_tex: Option<gtk::gdk::Texture>,
     icon_state: IconState,
-    scope: Option<nix_software_core::Scope>,
-    module: bool,
+    installed: Option<nix_software_core::Installed>,
 }
 
 #[derive(Debug)]
@@ -135,7 +134,7 @@ impl FactoryComponent for AppTile {
                     },
                 },
 
-                add_overlay = &crate::util::installed_pill(self.scope, self.module, 14) -> gtk::Box {
+                add_overlay = &crate::util::installed_pill(self.installed.as_ref(), 14) -> gtk::Box {
                     set_halign: gtk::Align::End,
                     set_valign: gtk::Align::Start,
                     set_margin_top: 6,
@@ -165,15 +164,12 @@ impl FactoryComponent for AppTile {
                 )));
             });
         }
-        let installed = crate::util::installed_scope(&package);
-        let scope = installed.map(|i| i.0);
-        let module = installed.is_some_and(|i| i.1);
+        let installed = crate::util::installed(&package);
         Self {
             package,
             icon_tex: None,
             icon_state,
-            scope,
-            module,
+            installed,
         }
     }
 

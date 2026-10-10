@@ -46,11 +46,11 @@ impl PackageDetail {
 }
 
 /// The meta and version of `attr`; `None` when evaluation fails.
-pub fn detail(attr: &str) -> Option<PackageDetail> {
+pub fn detail(pkg: &crate::Package) -> Option<PackageDetail> {
     let output = crate::util::nix()
         .args([
             "eval",
-            &format!("{}#{attr}", crate::nixpkgs_ref()),
+            &crate::installable(pkg),
             "--apply",
             "p: p.meta // { version = p.version or null; }",
             "--json",
@@ -134,7 +134,7 @@ fn maintainer_name(v: &serde_json::Value) -> Option<String> {
 
 /// Download size of the package and its dependencies, asked to the binary
 /// cache without building. `None` when the cache does not have it.
-pub fn closure_size(attr: &str) -> Option<u64> {
+pub fn closure_size(pkg: &crate::Package) -> Option<u64> {
     // Read-only: unfree and broken packages need sizes too.
     let out = crate::util::nix()
         .env("NIXPKGS_ALLOW_UNFREE", "1")
@@ -144,7 +144,7 @@ pub fn closure_size(attr: &str) -> Option<u64> {
             "eval",
             "--impure",
             "--raw",
-            &format!("{}#{attr}.outPath", crate::nixpkgs_ref()),
+            &format!("{}.outPath", crate::installable(pkg)),
         ])
         .output()
         .ok()?;
