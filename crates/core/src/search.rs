@@ -223,6 +223,13 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
 
     let _ = rate_handle.join();
 
+    // Local matches beat Flathub guesses: `jellyfin` is not Jellyfin Desktop.
+    let local: std::collections::HashSet<String> = pkgs
+        .iter()
+        .filter_map(appstream_db::lookup_package)
+        .map(|e| e.app_id.clone())
+        .collect();
+
     // Variants share one entry; best ranked wins.
     let mut claimed = std::collections::HashSet::new();
     pkgs.into_iter()
@@ -249,6 +256,7 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
                 .or_else(|| hits.get(&sanitize(&p.name)))
                 .filter(|h| {
                     !crate::resolve::is_unmatched(&p.attr)
+                        && !local.contains(&h.app_id)
                         && crate::resolve::attr_for_app_id(&h.app_id)
                             .is_none_or(|a| a.eq_ignore_ascii_case(&p.attr))
                 });
