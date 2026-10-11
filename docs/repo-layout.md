@@ -41,6 +41,8 @@ Where everything lives, and which file to open first for a given change.
 
 - crates/gui/data: desktop entry, AppStream metainfo, icons, stylesheet,
   search provider. nix/package.nix installs them.
+- data/screenshots: the screenshots of the README and of the AppStream
+  metainfo, taken in the end-to-end environment.
 - po: translations. po/update-pot.sh rebuilds the template.
 - tests/e2e: end-to-end suite, see [testing.md](testing.md).
 - scripts: commit message check, shared by the git hook and CI.

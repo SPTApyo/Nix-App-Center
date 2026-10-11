@@ -21,6 +21,20 @@
 
 **Nix Software** is a GNOME Software style app store for NixOS and Home Manager. Launch any package from nixpkgs right away, nothing installed. When you want to keep it, Nix Software adds it to a small Nix module it generates, your configuration imports it, and you apply the usual way. Your own files are only touched after you accept a diff, and a backup is written first.
 
+<p align="center">
+  <img src="data/screenshots/explore.png" alt="Explore, with the installed apps marked" width="720" />
+</p>
+
+<p align="center">
+  <img src="data/screenshots/app.png" alt="An app page" width="360" />
+  <img src="data/screenshots/versions.png" alt="Versions from nixpkgs and unstable" width="360" />
+</p>
+
+<p align="center">
+  <img src="data/screenshots/search.png" alt="Search" width="360" />
+  <img src="data/screenshots/storage.png" alt="Storage" width="360" />
+</p>
+
 ## Features
 
 - **Try first**: run any app with nix run, or open a nix shell for command line tools. Unfree packages included.

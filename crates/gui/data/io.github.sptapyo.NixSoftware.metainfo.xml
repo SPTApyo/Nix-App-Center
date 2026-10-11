@@ -37,6 +37,28 @@
 
   <content_rating type="oars-1.1"/>
 
+  <screenshots>
+    <screenshot type="default">
+      <caption>Explore: apps by category, with where and how each installed one is installed</caption>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/explore.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>An app page: try it, add it to the configuration, its Flathub metadata</caption>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/app.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Versions follow nixpkgs: hold any version, or take a newer one from unstable</caption>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/versions.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Search nixpkgs, other flakes and options</caption>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/search.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Where the Nix store space goes, with clean-ups</caption>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/storage.png</image>
+    </screenshot>
+  </screenshots>
   <url type="homepage">https://github.com/SPTApyo/nix-software</url>
   <url type="bugtracker">https://github.com/SPTApyo/nix-software/issues</url>
 
