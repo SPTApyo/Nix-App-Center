@@ -16,6 +16,7 @@ Where everything lives, and which file to open first for a given change.
 | --- | --- |
 | Search results, ranking | crates/core/src/search.rs, crates/gui/src/components/app_list.rs |
 | Matching a package to a Flathub app | crates/core/src/resolve.rs, crates/core/src/data/app_mapping.json |
+| nixsoftware.org data (curated apps, similar apps) | crates/core/src/nixsoftware.rs |
 | AppStream parsing, icons, screenshots | crates/core/src/appstream_db.rs, crates/core/src/session_cache.rs |
 | Try (nix run, nix shell) | crates/core/src/launch.rs, crates/core/src/tried.rs |
 | Keep, the generated Nix files | crates/core/src/manifest.rs, crates/core/src/config_gen.rs |

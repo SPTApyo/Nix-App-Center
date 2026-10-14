@@ -81,7 +81,7 @@ fn flathub_meta_for(pkg: &Package, screenshot_target_w: u32) -> Option<FlathubMe
     if let Some(entry) = appstream_db::lookup_package(pkg) {
         return Some(meta_from_db(entry));
     }
-    flathub_meta(&pkg.name, screenshot_target_w)
+    flathub_meta(&pkg.name, screenshot_target_w).or_else(|| crate::nixsoftware::meta(&pkg.attr))
 }
 
 /// GitHub link of a `meta.position` at `rev`.
