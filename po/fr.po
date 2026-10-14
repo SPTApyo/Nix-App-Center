@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-10 22:07+0200\n"
+"POT-Creation-Date: 2026-10-14 16:19+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -415,7 +415,7 @@ msgstr "Rechercher des paquets Nix…"
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:290
+#: crates/gui/src/app.rs:290 crates/gui/src/components/app_list.rs:497
 msgid "Installed"
 msgstr "Installées"
 
@@ -446,80 +446,94 @@ msgstr "Icône"
 msgid "translator-credits"
 msgstr "SPTApyo"
 
-#: crates/gui/src/components/app_list.rs:94
-msgid "All"
-msgstr "Tous"
+#: crates/gui/src/components/app_list.rs:126
+msgid "Filters"
+msgstr "Filtres"
 
-#: crates/gui/src/components/app_list.rs:102
-msgid "Best Match"
-msgstr "Pertinence"
-
-#: crates/gui/src/components/app_list.rs:102
-msgid "Name"
-msgstr "Nom"
-
-#: crates/gui/src/components/app_list.rs:103
-msgid "Sort"
-msgstr "Trier"
-
-#: crates/gui/src/components/app_list.rs:112
+#: crates/gui/src/components/app_list.rs:131
 msgid "Applications"
 msgstr "Applications"
 
-#: crates/gui/src/components/app_list.rs:113
+#: crates/gui/src/components/app_list.rs:132
 msgid "Other Packages"
 msgstr "Autres paquets"
 
-#: crates/gui/src/components/app_list.rs:125
+#: crates/gui/src/components/app_list.rs:144
 msgid "Options"
 msgstr "Options"
 
-#: crates/gui/src/components/app_list.rs:184
+#: crates/gui/src/components/app_list.rs:178
+msgid "Reset Filters"
+msgstr "Réinitialiser les filtres"
+
+#: crates/gui/src/components/app_list.rs:249
 msgid "No Results"
 msgstr "Aucun résultat"
 
-#: crates/gui/src/components/app_list.rs:185
+#: crates/gui/src/components/app_list.rs:250
 msgid "Try different keywords"
 msgstr "Essayez d'autres mots-clés"
 
-#: crates/gui/src/components/app_list.rs:241
+#: crates/gui/src/components/app_list.rs:309
 #, rust-format
 msgid "Provides the “{}” command"
 msgstr "Fournit la commande « {} »"
 
-#: crates/gui/src/components/app_list.rs:251
+#: crates/gui/src/components/app_list.rs:319
 #, rust-format
 msgid "Opens “{}” files"
 msgstr "Ouvre les fichiers « {} »"
 
-#: crates/gui/src/components/app_list.rs:306
+#: crates/gui/src/components/app_list.rs:387
 msgid "Set by Nix Software"
 msgstr "Réglée par Nix Software"
 
-#: crates/gui/src/components/app_list.rs:385
-#, rust-format
-msgid "All ({})"
-msgstr "Tous ({})"
+#: crates/gui/src/components/app_list.rs:480
+msgid "Sort"
+msgstr "Trier"
 
-#: crates/gui/src/components/app_list.rs:388
-#, rust-format
-msgid "Installed ({})"
-msgstr "Installées ({})"
+#: crates/gui/src/components/app_list.rs:482
+msgid "Best Match"
+msgstr "Pertinence"
 
-#: crates/gui/src/components/app_list.rs:398
-#, rust-format
-msgid "Free Software ({})"
-msgstr "Logiciels libres ({})"
+#: crates/gui/src/components/app_list.rs:483
+msgid "Name"
+msgstr "Nom"
 
-#: crates/gui/src/components/app_list.rs:400
-#, rust-format
-msgid "Proprietary ({})"
-msgstr "Propriétaires ({})"
+#: crates/gui/src/components/app_list.rs:488
+msgid "Show"
+msgstr "Afficher"
 
-#: crates/gui/src/components/app_list.rs:411
-#, rust-format
-msgid "No package set ({})"
-msgstr "Sans jeu de paquets ({})"
+#: crates/gui/src/components/app_list.rs:491
+#: crates/gui/src/components/app_list.rs:511
+#: crates/gui/src/components/app_list.rs:534
+#: crates/gui/src/components/app_list.rs:559
+msgid "All"
+msgstr "Tous"
+
+#: crates/gui/src/components/app_list.rs:508
+msgid "License"
+msgstr "Licence"
+
+#: crates/gui/src/components/app_list.rs:517
+msgid "Free Software"
+msgstr "Logiciels libres"
+
+#: crates/gui/src/components/app_list.rs:523
+msgid "Proprietary"
+msgstr "Propriétaires"
+
+#: crates/gui/src/components/app_list.rs:555
+msgid "Source"
+msgstr "Source"
+
+#: crates/gui/src/components/app_list.rs:561
+msgid "No Package Set"
+msgstr "Sans jeu de paquets"
+
+#: crates/gui/src/components/app_list.rs:576
+msgid "Package Set"
+msgstr "Jeu de paquets"
 
 #: crates/gui/src/components/apply_dialog.rs:22
 #: crates/gui/src/components/apply_dialog.rs:61

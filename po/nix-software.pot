@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-10 23:30+0200\n"
+"POT-Creation-Date: 2026-10-14 16:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -412,7 +412,7 @@ msgstr ""
 msgid "Explore"
 msgstr ""
 
-#: crates/gui/src/app.rs:290
+#: crates/gui/src/app.rs:290 crates/gui/src/components/app_list.rs:497
 msgid "Installed"
 msgstr ""
 
@@ -443,79 +443,93 @@ msgstr ""
 msgid "translator-credits"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:94
-msgid "All"
+#: crates/gui/src/components/app_list.rs:126
+msgid "Filters"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:102
-msgid "Best Match"
-msgstr ""
-
-#: crates/gui/src/components/app_list.rs:102
-msgid "Name"
-msgstr ""
-
-#: crates/gui/src/components/app_list.rs:103
-msgid "Sort"
-msgstr ""
-
-#: crates/gui/src/components/app_list.rs:112
+#: crates/gui/src/components/app_list.rs:131
 msgid "Applications"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:113
+#: crates/gui/src/components/app_list.rs:132
 msgid "Other Packages"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:125
+#: crates/gui/src/components/app_list.rs:144
 msgid "Options"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:184
+#: crates/gui/src/components/app_list.rs:178
+msgid "Reset Filters"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:249
 msgid "No Results"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:185
+#: crates/gui/src/components/app_list.rs:250
 msgid "Try different keywords"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:241
+#: crates/gui/src/components/app_list.rs:309
 #, rust-format
 msgid "Provides the “{}” command"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:251
+#: crates/gui/src/components/app_list.rs:319
 #, rust-format
 msgid "Opens “{}” files"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:306
+#: crates/gui/src/components/app_list.rs:387
 msgid "Set by Nix Software"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:385
-#, rust-format
-msgid "All ({})"
+#: crates/gui/src/components/app_list.rs:480
+msgid "Sort"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:388
-#, rust-format
-msgid "Installed ({})"
+#: crates/gui/src/components/app_list.rs:482
+msgid "Best Match"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:398
-#, rust-format
-msgid "Free Software ({})"
+#: crates/gui/src/components/app_list.rs:483
+msgid "Name"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:400
-#, rust-format
-msgid "Proprietary ({})"
+#: crates/gui/src/components/app_list.rs:488
+msgid "Show"
 msgstr ""
 
-#: crates/gui/src/components/app_list.rs:411
-#, rust-format
-msgid "No package set ({})"
+#: crates/gui/src/components/app_list.rs:491
+#: crates/gui/src/components/app_list.rs:511
+#: crates/gui/src/components/app_list.rs:534
+#: crates/gui/src/components/app_list.rs:559
+msgid "All"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:508
+msgid "License"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:517
+msgid "Free Software"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:523
+msgid "Proprietary"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:555
+msgid "Source"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:561
+msgid "No Package Set"
+msgstr ""
+
+#: crates/gui/src/components/app_list.rs:576
+msgid "Package Set"
 msgstr ""
 
 #: crates/gui/src/components/apply_dialog.rs:22
