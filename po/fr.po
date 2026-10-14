@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-software 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-software/issues\n"
-"POT-Creation-Date: 2026-10-14 09:06+0200\n"
+"POT-Creation-Date: 2026-10-14 09:15+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -1373,90 +1373,90 @@ msgstr "Bienvenue"
 msgid "_Start Exploring"
 msgstr "_Commencer"
 
-#: crates/gui/src/util.rs:28
+#: crates/gui/src/util.rs:33
 msgid "Configuration applied."
 msgstr "Configuration appliquée."
 
-#: crates/gui/src/util.rs:29
+#: crates/gui/src/util.rs:34
 #, rust-format
 msgid "Configuration applied: {}"
 msgstr "Configuration appliquée : {}"
 
-#: crates/gui/src/util.rs:30
+#: crates/gui/src/util.rs:35
 msgid "Applying in a terminal. Follow the build there."
 msgstr "Application en cours dans un terminal. Suivez la compilation là-bas."
 
-#: crates/gui/src/util.rs:33
+#: crates/gui/src/util.rs:38
 msgid "No terminal found. The apply command was copied."
 msgstr "Aucun terminal trouvé. La commande d'application a été copiée."
 
-#: crates/gui/src/util.rs:36
+#: crates/gui/src/util.rs:41
 msgid "Nix Software cannot find your Nix configuration. Nothing was applied."
 msgstr ""
 "Nix Software ne trouve pas votre configuration Nix. Rien n'a été appliqué."
 
-#: crates/gui/src/util.rs:55
+#: crates/gui/src/util.rs:60
 #, rust-format
 msgid "Failed: {}"
 msgstr "Échec : {}"
 
-#: crates/gui/src/util.rs:294
+#: crates/gui/src/util.rs:299
 msgid "Today"
 msgstr "Aujourd'hui"
 
-#: crates/gui/src/util.rs:295
+#: crates/gui/src/util.rs:300
 msgid "Yesterday"
 msgstr "Hier"
 
-#: crates/gui/src/util.rs:296
+#: crates/gui/src/util.rs:301
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "Il y a {} jour"
 msgstr[1] "Il y a {} jours"
 
-#: crates/gui/src/util.rs:297
+#: crates/gui/src/util.rs:302
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] "Il y a {} semaine"
 msgstr[1] "Il y a {} semaines"
 
-#: crates/gui/src/util.rs:298
+#: crates/gui/src/util.rs:303
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] "Il y a {} mois"
 msgstr[1] "Il y a {} mois"
 
-#: crates/gui/src/util.rs:299
+#: crates/gui/src/util.rs:304
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
 msgstr[0] "Il y a {} an"
 msgstr[1] "Il y a {} ans"
 
-#: crates/gui/src/util.rs:575
+#: crates/gui/src/util.rs:580
 msgid "Installed on the system, for every user"
 msgstr "Installée sur le système, pour tous les utilisateurs"
 
-#: crates/gui/src/util.rs:577
+#: crates/gui/src/util.rs:582
 msgid "Installed in your home"
 msgstr "Installée dans votre home"
 
-#: crates/gui/src/util.rs:578
+#: crates/gui/src/util.rs:583
 msgid "Installed with Flatpak"
 msgstr "Installée avec Flatpak"
 
-#: crates/gui/src/util.rs:579
+#: crates/gui/src/util.rs:584
 msgid "Installed as an AppImage"
 msgstr "Installée en AppImage"
 
-#: crates/gui/src/util.rs:585
+#: crates/gui/src/util.rs:590
 msgid "through a module, with what it sets up around the app"
 msgstr "par un module, avec ce qu'il met en place autour de l'application"
 
-#: crates/gui/src/util.rs:587
+#: crates/gui/src/util.rs:592
 msgid "as a package"
 msgstr "comme paquet"
 
