@@ -19,6 +19,7 @@ mod launch;
 mod locate;
 mod manifest;
 mod nix_check;
+mod nixsoftware;
 mod oars;
 mod options;
 mod package;
@@ -71,6 +72,7 @@ pub use manifest::{
     KeptEntry, Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
+pub use nixsoftware::similar_apps;
 pub use options::{
     hm_module_for, module_for, search_flake_modules, search_hm_options, search_options, NixOption,
     FLAKE_MODULE,

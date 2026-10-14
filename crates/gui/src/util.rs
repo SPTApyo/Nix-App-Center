@@ -9,8 +9,13 @@ pub fn toast(overlay: &adw::ToastOverlay, text: &str) {
     overlay.add_toast(adw::Toast::new(text));
 }
 
-/// Opens `uri` in the default app.
+/// Opens a web `uri` in the default app. Links come from outside, so other
+/// schemes (file:, custom handlers) are refused.
 pub fn open_uri(uri: &str) {
+    let scheme = uri.split_once(':').map(|(s, _)| s.to_ascii_lowercase());
+    if !matches!(scheme.as_deref(), Some("http" | "https")) {
+        return;
+    }
     let _ = gtk::gio::AppInfo::launch_default_for_uri(uri, None::<&gtk::gio::AppLaunchContext>);
 }
 
