@@ -11,6 +11,9 @@ use crate::components::package_row::PackageRow;
 use crate::i18n::t;
 use crate::util::{skeleton_list, AppItem};
 
+/// Width of the filter column, mirrored on the right.
+const FILTERS_WIDTH: i32 = 240;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum License {
     #[default]
@@ -121,13 +124,6 @@ impl SimpleComponent for AppList {
             lb.set_valign(gtk::Align::Start);
         }
 
-        // Shown when the sidebar folds away.
-        let filters_button = gtk::ToggleButton::builder()
-            .label(t("Filters"))
-            .halign(gtk::Align::Start)
-            .visible(false)
-            .build();
-
         let heading_apps = section_heading(&t("Applications"));
         let heading_others = section_heading(&t("Other Packages"));
         let heading_locate = section_heading("");
@@ -150,7 +146,6 @@ impl SimpleComponent for AppList {
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
             .build();
-        content.append(&filters_button);
         content.append(&heading_apps);
         content.append(apps.widget());
         content.append(&heading_types);
@@ -162,18 +157,6 @@ impl SimpleComponent for AppList {
         content.append(&heading_options);
         content.append(&options_list);
 
-        let clamp = adw::Clamp::new();
-        clamp.set_maximum_size(820);
-        clamp.set_margin_top(16);
-        clamp.set_margin_bottom(16);
-        clamp.set_margin_start(12);
-        clamp.set_margin_end(12);
-        clamp.set_child(Some(&content));
-
-        let scroll = gtk::ScrolledWindow::builder().vexpand(true).build();
-        scroll.set_child(Some(&clamp));
-        crate::util::smooth_scroll(&scroll);
-
         let reset = gtk::Button::builder()
             .label(t("Reset Filters"))
             .sensitive(false)
@@ -183,40 +166,85 @@ impl SimpleComponent for AppList {
             move |_| sender.input(AppListInput::Reset)
         });
         let sidebar = gtk::Box::new(gtk::Orientation::Vertical, 18);
-        let side_content = gtk::Box::builder()
+        let filter_column = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(18)
-            .margin_top(16)
-            .margin_bottom(16)
-            .margin_start(12)
-            .margin_end(12)
+            .width_request(FILTERS_WIDTH)
+            .valign(gtk::Align::Start)
             .build();
-        side_content.append(&reset);
-        side_content.append(&sidebar);
-        let side_scroll = gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&side_content)
+        filter_column.append(&reset);
+        filter_column.append(&sidebar);
+        let filters = gtk::Revealer::builder()
+            .child(&filter_column)
+            .reveal_child(true)
+            .transition_type(gtk::RevealerTransitionType::SlideDown)
             .build();
 
-        let split = adw::OverlaySplitView::builder()
-            .sidebar(&side_scroll)
-            .content(&scroll)
-            .min_sidebar_width(220.0)
-            .max_sidebar_width(280.0)
+        // Mirrors the filters so the results stay centered.
+        let spacer = gtk::Box::builder().width_request(FILTERS_WIDTH).build();
+        content.set_hexpand(true);
+        let row = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(24)
+            .build();
+        row.append(&filters);
+        row.append(&content);
+        row.append(&spacer);
+
+        // Shown when the filters fold above the results.
+        let filters_button = gtk::ToggleButton::builder()
+            .label(t("Filters"))
+            .halign(gtk::Align::Start)
+            .active(true)
+            .visible(false)
             .build();
         filters_button
-            .bind_property("active", &split, "show-sidebar")
-            .bidirectional()
+            .bind_property("active", &filters, "reveal-child")
+            .sync_create()
             .build();
+        let page = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
+            .build();
+        page.append(&filters_button);
+        page.append(&row);
+
+        let clamp = adw::Clamp::new();
+        let widest = 820 + 2 * (FILTERS_WIDTH + 24);
+        clamp.set_maximum_size(widest);
+        clamp.set_tightening_threshold(widest);
+        clamp.set_margin_top(16);
+        clamp.set_margin_bottom(16);
+        clamp.set_margin_start(12);
+        clamp.set_margin_end(12);
+        clamp.set_child(Some(&page));
+
+        let scroll = gtk::ScrolledWindow::builder().vexpand(true).build();
+        scroll.set_child(Some(&clamp));
+        crate::util::smooth_scroll(&scroll);
+
         let bin = adw::BreakpointBin::builder()
             .width_request(360)
             .height_request(200)
-            .child(&split)
+            .child(&scroll)
             .build();
-        if let Ok(narrow) = adw::BreakpointCondition::parse("max-width: 860sp") {
-            let bp = adw::Breakpoint::new(narrow);
-            bp.add_setter(&split, "collapsed", Some(&true.to_value()));
+        // The last matching breakpoint applies.
+        let breakpoint = |condition: &str| {
+            let bp = adw::Breakpoint::new(adw::BreakpointCondition::parse(condition).ok()?);
+            bp.add_setter(&spacer, "visible", Some(&false.to_value()));
+            Some(bp)
+        };
+        if let Some(bp) = breakpoint("max-width: 1180sp") {
+            bin.add_breakpoint(bp);
+        }
+        if let Some(bp) = breakpoint("max-width: 760sp") {
+            bp.add_setter(
+                &row,
+                "orientation",
+                Some(&gtk::Orientation::Vertical.to_value()),
+            );
             bp.add_setter(&filters_button, "visible", Some(&true.to_value()));
+            bp.add_setter(&filters_button, "active", Some(&false.to_value()));
             bin.add_breakpoint(bp);
         }
 
