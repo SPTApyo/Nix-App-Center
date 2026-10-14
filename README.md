@@ -45,7 +45,7 @@
 - **Search**: packages of nixpkgs and of other flakes, NixOS and Home Manager options you can set, search by command, and results in the GNOME Shell overview.
 - **Rich pages**: Flathub metadata (screenshots, ratings, age ratings) when the app exists there, else [nixsoftware.org](https://nixsoftware.org)'s, reviews, similar apps, build options.
 - **Updates and Storage**: what a nixpkgs update changes for your apps, and where the store space goes, with clean-ups.
-- **English and French** interface.
+- **Interface in English, French, Spanish, Portuguese (Brazil), Chinese (Simplified), Hindi and Arabic.** Only French is reviewed by a native speaker so far: corrections are welcome.
 
 # Getting Started
 
