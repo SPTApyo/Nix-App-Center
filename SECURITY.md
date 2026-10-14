@@ -25,8 +25,8 @@ In scope:
   the activation of a system built as the user;
 - edits to the user's own configuration (attach, detach);
 - text from outside reaching a shell, a Nix file or the UI markup: AppStream,
-  Flathub, ODRS reviews, the Devbox index, names from other flakes and
-  their lock files;
+  Flathub, ODRS reviews, the Devbox index, nixsoftware.org, names from other
+  flakes and their lock files;
 - deletion of store paths, Flatpaks and AppImages.
 
 Out of scope: vulnerabilities in the packages Nix Software lets you run,

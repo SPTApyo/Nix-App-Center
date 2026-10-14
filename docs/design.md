@@ -12,7 +12,7 @@ notes keep the reasons.
   showing the exact diff, with explicit consent, and removable later.
 - **No silent magic.** When Nix Software cannot tell where the configuration
   lives, it shows the snippet to paste and stops there.
-- **The network is optional.** Flathub, ODRS and Devbox only provide
+- **The network is optional.** Flathub, ODRS, Devbox and nixsoftware.org only provide
   metadata (icons, screenshots, ratings, version history). Every call has a
   short timeout and a silent fallback; running and installing always go
   through Nix.
@@ -222,6 +222,13 @@ key is dropped when an overlay pins that attribute to another app (nixpkgs
 moonlight is a Discord client, not the game streaming app). When several
 attributes share one AppStream entry (gimp, gimp3), only the best ranked one
 takes the app identity.
+
+nixsoftware.org curates apps by nixpkgs attribute. It fills what the
+AppStream data misses, never overrides it: a search result neither the local
+database nor Flathub recognizes takes its name and logo from there, and so
+does a details page. Its Similar Apps section lists that site's suggestions
+nixpkgs has for this machine, and only for packages with keywords, since the
+site otherwise lists its whole category.
 
 AppStream data comes from Flatpak's local appstream.xml.gz when Flatpak is
 installed, else from the same file downloaded from Flathub and refreshed in

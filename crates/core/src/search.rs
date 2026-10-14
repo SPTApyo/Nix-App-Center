@@ -197,7 +197,7 @@ pub struct SearchResult {
 }
 
 /// `search` results with their AppStream icon and rating, from the local
-/// database, else from one Flathub query.
+/// database, else from one Flathub query, else from nixsoftware.org.
 pub fn search_apps(query: &str) -> Vec<SearchResult> {
     let rate_handle = std::thread::spawn(odrs_ratings);
     let db_ready = appstream_db::is_ready();
@@ -207,6 +207,12 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
         let q = query.to_string();
         std::thread::spawn(move || flathub_icon_map(&q))
     });
+
+    // Curated apps of nixsoftware.org fill what both miss.
+    let ns_handle = {
+        let q = query.to_string();
+        std::thread::spawn(move || crate::nixsoftware::search(&q))
+    };
 
     let pkgs = search(query);
 
@@ -222,6 +228,7 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
     };
 
     let _ = rate_handle.join();
+    let ns = ns_handle.join().unwrap_or_default();
 
     // Local matches beat Flathub guesses: `jellyfin` is not Jellyfin Desktop.
     let local: std::collections::HashSet<String> = pkgs
@@ -263,13 +270,17 @@ pub fn search_apps(query: &str) -> Vec<SearchResult> {
             if let Some(h) = hit.filter(|h| !claimed.insert(h.app_id.clone())) {
                 return variant(p, Some(h.icon.clone()));
             }
-            let icon_url = hit.map(|h| h.icon.clone());
+            let curated = ns.get(&p.attr).filter(|a| hit.is_none() && a.curated);
+            let icon_url = hit
+                .map(|h| h.icon.clone())
+                .or_else(|| curated.and_then(|a| a.logo.clone()));
             let rating = hit.and_then(|h| rating_for(&h.app_id));
-            let recognized = hit.is_some();
-            match hit {
-                Some(h) if !h.name.trim().is_empty() => p.name = h.name.clone(),
-                Some(_) => {}
-                None => p = named_by_attr(p),
+            let recognized = hit.is_some() || curated.is_some();
+            match (hit, curated) {
+                (Some(h), _) if !h.name.trim().is_empty() => p.name = h.name.clone(),
+                (Some(_), _) => {}
+                (None, Some(a)) => p.name = a.name.clone(),
+                (None, None) => p = named_by_attr(p),
             }
             SearchResult {
                 package: p,

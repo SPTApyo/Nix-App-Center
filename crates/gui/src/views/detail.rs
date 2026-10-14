@@ -88,6 +88,8 @@ pub struct DetailModel {
     dev_apps_box: gtk::Box,
     dev_apps_heading: gtk::Label,
     dev_tiles: FactoryVecDeque<AppTile>,
+    similar_box: gtk::Box,
+    similar_tiles: FactoryVecDeque<AppTile>,
     addon_tiles: FactoryVecDeque<AppTile>,
     toast_overlay: adw::ToastOverlay,
 }
@@ -129,6 +131,8 @@ pub enum DetailMsg {
     BlocksSaved(Result<(), String>),
     /// Developer apps found in nixpkgs.
     DevAppsResolved(Vec<(Package, Option<String>)>),
+    /// Similar apps from nixsoftware.org.
+    SimilarResolved(Vec<(Package, Option<String>)>),
     /// An "Other Apps" tile clicked.
     OpenApp(Package),
     /// Opens the nixpkgs package of an add-on, found by name.
@@ -219,7 +223,8 @@ impl SimpleComponent for DetailModel {
 
     view! {
         adw::NavigationPage {
-            set_title: &model.package.name,
+            #[watch]
+            set_title: &meta_name(&model.meta, &model.package.name),
 
             #[wrap(Some)]
             set_child = &adw::ToolbarView {
@@ -767,6 +772,21 @@ impl SimpleComponent for DetailModel {
                                         set_visible: false,
                                     },
                                 },
+
+                                // 12. Similar apps
+                                adw::Clamp {
+                                    set_maximum_size: CLAMP_MAX,
+                                    set_tightening_threshold: CLAMP_TIGHTEN,
+                                    set_margin_start: 12,
+                                    set_margin_end: 12,
+
+                                    #[local_ref]
+                                    similar_box -> gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_spacing: 6,
+                                        set_visible: false,
+                                    },
+                                },
                             }
                         },
 
@@ -866,6 +886,17 @@ impl SimpleComponent for DetailModel {
             .forward(sender.input_sender(), DetailMsg::OpenApp);
         dev_apps_box.append(&dev_apps_heading);
         dev_apps_box.append(dev_tiles.widget());
+        let similar_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        let similar_heading = gtk::Label::new(Some(&t("Similar Apps")));
+        similar_heading.set_xalign(0.0);
+        similar_heading.set_margin_top(21);
+        similar_heading.set_margin_bottom(6);
+        similar_heading.add_css_class("heading");
+        let similar_tiles: FactoryVecDeque<AppTile> = FactoryVecDeque::builder()
+            .launch(tile_grid())
+            .forward(sender.input_sender(), DetailMsg::OpenApp);
+        similar_box.append(&similar_heading);
+        similar_box.append(similar_tiles.widget());
 
         let lightbox_clamp = adw::Clamp::new();
         lightbox_clamp.set_maximum_size(i32::MAX);
@@ -935,6 +966,8 @@ impl SimpleComponent for DetailModel {
             dev_apps_box: dev_apps_box.clone(),
             dev_apps_heading: dev_apps_heading.clone(),
             dev_tiles,
+            similar_box: similar_box.clone(),
+            similar_tiles,
             addon_tiles,
             toast_overlay: toast_overlay.clone(),
         };
@@ -969,6 +1002,7 @@ impl SimpleComponent for DetailModel {
             license_box.clone().upcast(),
             reviews_box.clone().upcast(),
             dev_apps_box.clone().upcast(),
+            similar_box.clone().upcast(),
         ] {
             sg.add_widget(&w);
         }
@@ -979,6 +1013,7 @@ impl SimpleComponent for DetailModel {
             &problems_box,
             &build_box,
             &dev_apps_box,
+            &similar_box,
         ] {
             if let Some(clamp) = section.parent() {
                 section
@@ -1135,6 +1170,15 @@ impl SimpleComponent for DetailModel {
                     });
                 }
 
+                let attr = self.package.attr.clone();
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let similar = nix_software_core::similar_apps(&attr);
+                    if !similar.is_empty() {
+                        let _ = s.send(DetailMsg::SimilarResolved(similar));
+                    }
+                });
+
                 if meta.screenshot_urls.is_empty() {
                     self.carousel.show_fallback();
                 }
@@ -1218,6 +1262,15 @@ impl SimpleComponent for DetailModel {
                 }
                 drop(g);
                 self.dev_apps_box.set_visible(true);
+            }
+            DetailMsg::SimilarResolved(list) => {
+                let mut g = self.similar_tiles.guard();
+                g.clear();
+                for (p, icon) in list.into_iter().take(6) {
+                    g.push_back(AppItem::new(p, icon));
+                }
+                drop(g);
+                self.similar_box.set_visible(true);
             }
             DetailMsg::OpenApp(pkg) => {
                 let _ = sender.output(pkg);
