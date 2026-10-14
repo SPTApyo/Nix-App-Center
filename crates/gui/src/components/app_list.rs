@@ -1,4 +1,4 @@
-//! Search results: AppStream apps, other packages, and a package set filter.
+//! Search results: AppStream apps, other packages, and a filter sidebar.
 
 use std::collections::HashMap;
 
@@ -11,16 +11,48 @@ use crate::components::package_row::PackageRow;
 use crate::i18n::t;
 use crate::util::{skeleton_list, AppItem};
 
-#[derive(Clone)]
-enum Filter {
+/// Width of the filter column, mirrored on the right.
+const FILTERS_WIDTH: i32 = 240;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub enum License {
+    #[default]
     All,
-    Installed,
     Free,
     Unfree,
-    NoSet,
-    Set(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Source {
+    Nixpkgs,
     /// Packages of another flake.
-    Source(String),
+    Flake(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PackageSet {
+    None,
+    Named(String),
+}
+
+/// The sidebar choices; groups combine.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct Filters {
+    by_name: bool,
+    installed: bool,
+    license: License,
+    source: Option<Source>,
+    set: Option<PackageSet>,
+}
+
+/// One radio button of the sidebar.
+#[derive(Debug, Clone)]
+pub enum Choice {
+    ByName(bool),
+    Installed(bool),
+    License(License),
+    Source(Option<Source>),
+    Set(Option<PackageSet>),
 }
 
 pub struct AppList {
@@ -35,11 +67,11 @@ pub struct AppList {
     options_list: gtk::ListBox,
     heading_types: gtk::Label,
     types_list: gtk::ListBox,
-    filter_dropdown: gtk::DropDown,
-    sort_dropdown: gtk::DropDown,
+    sidebar: gtk::Box,
+    reset: gtk::Button,
     items: Vec<AppItem>,
     meta: HashMap<String, nix_software_core::ResultMeta>,
-    filters: Vec<Filter>, // DropDown index to filter
+    filters: Filters,
 }
 
 #[derive(Debug)]
@@ -54,7 +86,8 @@ pub enum AppListInput {
     SetOptions(Vec<nix_software_core::NixOption>),
     /// License and platform per attribute, found after the results.
     SetMeta(HashMap<String, nix_software_core::ResultMeta>),
-    Filter,
+    Choose(Choice),
+    Reset,
     Open(Package),
 }
 
@@ -91,24 +124,6 @@ impl SimpleComponent for AppList {
             lb.set_valign(gtk::Align::Start);
         }
 
-        let filter_dropdown = gtk::DropDown::from_strings(&[&t("All")]);
-        filter_dropdown.set_halign(gtk::Align::Start);
-        filter_dropdown.set_visible(false);
-        filter_dropdown.connect_selected_notify({
-            let sender = sender.clone();
-            move |_| sender.input(AppListInput::Filter)
-        });
-
-        let sort_dropdown = gtk::DropDown::from_strings(&[&t("Best Match"), &t("Name")]);
-        sort_dropdown.set_tooltip_text(Some(&t("Sort")));
-        sort_dropdown.connect_selected_notify({
-            let sender = sender.clone();
-            move |_| sender.input(AppListInput::Filter)
-        });
-        let bar = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        bar.append(&filter_dropdown);
-        bar.append(&sort_dropdown);
-
         let heading_apps = section_heading(&t("Applications"));
         let heading_others = section_heading(&t("Other Packages"));
         let heading_locate = section_heading("");
@@ -131,7 +146,6 @@ impl SimpleComponent for AppList {
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
             .build();
-        content.append(&bar);
         content.append(&heading_apps);
         content.append(apps.widget());
         content.append(&heading_types);
@@ -143,17 +157,96 @@ impl SimpleComponent for AppList {
         content.append(&heading_options);
         content.append(&options_list);
 
+        let reset = gtk::Button::builder()
+            .label(t("Reset Filters"))
+            .sensitive(false)
+            .build();
+        reset.connect_clicked({
+            let sender = sender.clone();
+            move |_| sender.input(AppListInput::Reset)
+        });
+        let sidebar = gtk::Box::new(gtk::Orientation::Vertical, 18);
+        let filter_column = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(18)
+            .width_request(FILTERS_WIDTH)
+            .valign(gtk::Align::Start)
+            .build();
+        filter_column.append(&reset);
+        filter_column.append(&sidebar);
+        let filters = gtk::Revealer::builder()
+            .child(&filter_column)
+            .reveal_child(true)
+            .transition_type(gtk::RevealerTransitionType::SlideDown)
+            .build();
+
+        // Mirrors the filters so the results stay centered.
+        let spacer = gtk::Box::builder().width_request(FILTERS_WIDTH).build();
+        content.set_hexpand(true);
+        let row = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(24)
+            .build();
+        row.append(&filters);
+        row.append(&content);
+        row.append(&spacer);
+
+        // Shown when the filters fold above the results.
+        let filters_button = gtk::ToggleButton::builder()
+            .label(t("Filters"))
+            .halign(gtk::Align::Start)
+            .active(true)
+            .visible(false)
+            .build();
+        filters_button
+            .bind_property("active", &filters, "reveal-child")
+            .sync_create()
+            .build();
+        let page = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
+            .build();
+        page.append(&filters_button);
+        page.append(&row);
+
         let clamp = adw::Clamp::new();
-        clamp.set_maximum_size(820);
+        let widest = 820 + 2 * (FILTERS_WIDTH + 24);
+        clamp.set_maximum_size(widest);
+        clamp.set_tightening_threshold(widest);
         clamp.set_margin_top(16);
         clamp.set_margin_bottom(16);
         clamp.set_margin_start(12);
         clamp.set_margin_end(12);
-        clamp.set_child(Some(&content));
+        clamp.set_child(Some(&page));
 
         let scroll = gtk::ScrolledWindow::builder().vexpand(true).build();
         scroll.set_child(Some(&clamp));
         crate::util::smooth_scroll(&scroll);
+
+        let bin = adw::BreakpointBin::builder()
+            .width_request(360)
+            .height_request(200)
+            .child(&scroll)
+            .build();
+        // The last matching breakpoint applies.
+        let breakpoint = |condition: &str| {
+            let bp = adw::Breakpoint::new(adw::BreakpointCondition::parse(condition).ok()?);
+            bp.add_setter(&spacer, "visible", Some(&false.to_value()));
+            Some(bp)
+        };
+        if let Some(bp) = breakpoint("max-width: 1180sp") {
+            bin.add_breakpoint(bp);
+        }
+        if let Some(bp) = breakpoint("max-width: 760sp") {
+            bp.add_setter(
+                &row,
+                "orientation",
+                Some(&gtk::Orientation::Vertical.to_value()),
+            );
+            bp.add_setter(&filters_button, "visible", Some(&true.to_value()));
+            bp.add_setter(&filters_button, "active", Some(&false.to_value()));
+            bin.add_breakpoint(bp);
+        }
 
         // Placeholder shaped like the real results.
         let loading_heading = gtk::Box::builder()
@@ -189,7 +282,7 @@ impl SimpleComponent for AppList {
         let stack = gtk::Stack::builder().vexpand(true).build();
         stack.add_named(&loading_clamp, Some("loading"));
         stack.add_named(&empty, Some("empty"));
-        stack.add_named(&scroll, Some("filled"));
+        stack.add_named(&bin, Some("filled"));
         stack.set_visible_child_name("empty");
 
         let model = AppList {
@@ -204,10 +297,10 @@ impl SimpleComponent for AppList {
             heading_types: heading_types.clone(),
             types_list: types_list.clone(),
             options_list: options_list.clone(),
-            filter_dropdown: filter_dropdown.clone(),
-            sort_dropdown,
+            sidebar,
+            reset,
             items: Vec::new(),
-            filters: vec![Filter::All],
+            filters: Filters::default(),
             meta: HashMap::new(),
         };
         let widgets = view_output!();
@@ -226,15 +319,18 @@ impl SimpleComponent for AppList {
             }
             AppListInput::SetMeta(meta) => {
                 self.meta = meta;
-                let selected = self.filter_dropdown.selected();
-                self.rebuild_filter();
-                self.filter_dropdown.set_selected(selected);
+                self.rebuild_sidebar(&sender);
                 self.apply();
             }
             AppListInput::Set(items) => {
                 self.items = items;
                 self.meta.clear();
-                self.rebuild_filter();
+                // A new search keeps only the sort.
+                self.filters = Filters {
+                    by_name: self.filters.by_name,
+                    ..Filters::default()
+                };
+                self.rebuild_sidebar(&sender);
                 self.apply();
             }
             AppListInput::SetLocate(query, packages) => {
@@ -265,7 +361,20 @@ impl SimpleComponent for AppList {
                     self.stack.set_visible_child_name("filled");
                 }
             }
-            AppListInput::Filter => {
+            AppListInput::Choose(choice) => {
+                let f = &mut self.filters;
+                match choice {
+                    Choice::ByName(v) => f.by_name = v,
+                    Choice::Installed(v) => f.installed = v,
+                    Choice::License(v) => f.license = v,
+                    Choice::Source(v) => f.source = v,
+                    Choice::Set(v) => f.set = v,
+                }
+                self.apply();
+            }
+            AppListInput::Reset => {
+                self.filters = Filters::default();
+                self.rebuild_sidebar(&sender);
                 self.apply();
             }
             AppListInput::Open(pkg) => {
@@ -357,8 +466,11 @@ impl AppList {
         }
     }
 
-    /// Refills the package set filter, with counts.
-    fn rebuild_filter(&mut self) {
+    /// Refills the sidebar with the groups these results have, with counts.
+    fn rebuild_sidebar(&mut self, sender: &ComponentSender<Self>) {
+        while let Some(child) = self.sidebar.first_child() {
+            self.sidebar.remove(&child);
+        }
         let mut counts: HashMap<&str, usize> = HashMap::new();
         let mut sources: HashMap<&str, usize> = HashMap::new();
         let mut no_set = 0usize;
@@ -378,71 +490,155 @@ impl AppList {
                 None => no_set += 1,
             }
         }
-
-        let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
-        sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
-
-        let mut labels: Vec<String> = vec![t("All ({})").replace("{}", &items.len().to_string())];
-        let mut filters: Vec<Filter> = vec![Filter::All];
-        if installed > 0 {
-            labels.push(t("Installed ({})").replace("{}", &installed.to_string()));
-            filters.push(Filter::Installed);
-        }
+        let total = items.len();
+        let nixpkgs = total - sources.values().sum::<usize>();
         let free = self.meta.values().filter(|m| m.available && m.free).count();
         let unfree = self
             .meta
             .values()
             .filter(|m| m.available && !m.free)
             .count();
-        if free > 0 && unfree > 0 {
-            labels.push(t("Free Software ({})").replace("{}", &free.to_string()));
-            filters.push(Filter::Free);
-            labels.push(t("Proprietary ({})").replace("{}", &unfree.to_string()));
-            filters.push(Filter::Unfree);
-        }
-        for (src, n) in &sources {
-            labels.push(format!(
-                "{} ({n})",
-                src.split(':').next_back().unwrap_or(src)
-            ));
-            filters.push(Filter::Source((*src).to_string()));
-        }
-        if no_set > 0 {
-            labels.push(t("No package set ({})").replace("{}", &no_set.to_string()));
-            filters.push(Filter::NoSet);
-        }
-        for (name, n) in &sets {
-            labels.push(format!("{name} ({n})"));
-            filters.push(Filter::Set((*name).to_string()));
-        }
+        let mut sets: Vec<(&str, usize)> = counts.into_iter().collect();
+        sets.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        let mut flakes: Vec<(&str, usize)> = sources.into_iter().collect();
+        flakes.sort();
 
-        self.filters = filters;
-        let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
-        self.filter_dropdown
-            .set_model(Some(&gtk::StringList::new(&refs)));
-        self.filter_dropdown.set_selected(0);
-        self.filter_dropdown.set_visible(self.filters.len() > 1);
+        let f = &self.filters;
+        let mut groups: Vec<(String, Vec<Opt>)> = vec![(
+            t("Sort"),
+            vec![
+                (t("Best Match"), None, !f.by_name, Choice::ByName(false)),
+                (t("Name"), None, f.by_name, Choice::ByName(true)),
+            ],
+        )];
+        if installed > 0 {
+            groups.push((
+                t("Show"),
+                vec![
+                    (
+                        t("All"),
+                        Some(total),
+                        !f.installed,
+                        Choice::Installed(false),
+                    ),
+                    (
+                        t("Installed"),
+                        Some(installed),
+                        f.installed,
+                        Choice::Installed(true),
+                    ),
+                ],
+            ));
+        }
+        if free > 0 && unfree > 0 {
+            let l = f.license;
+            groups.push((
+                t("License"),
+                vec![
+                    (
+                        t("All"),
+                        Some(free + unfree),
+                        l == License::All,
+                        Choice::License(License::All),
+                    ),
+                    (
+                        t("Free Software"),
+                        Some(free),
+                        l == License::Free,
+                        Choice::License(License::Free),
+                    ),
+                    (
+                        t("Proprietary"),
+                        Some(unfree),
+                        l == License::Unfree,
+                        Choice::License(License::Unfree),
+                    ),
+                ],
+            ));
+        }
+        if !flakes.is_empty() {
+            let mut opts = vec![
+                (
+                    t("All"),
+                    Some(total),
+                    f.source.is_none(),
+                    Choice::Source(None),
+                ),
+                (
+                    "nixpkgs".to_string(),
+                    Some(nixpkgs),
+                    f.source == Some(Source::Nixpkgs),
+                    Choice::Source(Some(Source::Nixpkgs)),
+                ),
+            ];
+            for (src, n) in flakes {
+                let chosen = Source::Flake(src.to_string());
+                opts.push((
+                    src.split(':').next_back().unwrap_or(src).to_string(),
+                    Some(n),
+                    f.source.as_ref() == Some(&chosen),
+                    Choice::Source(Some(chosen)),
+                ));
+            }
+            groups.push((t("Source"), opts));
+        }
+        if !sets.is_empty() {
+            let mut opts = vec![
+                (t("All"), Some(nixpkgs), f.set.is_none(), Choice::Set(None)),
+                (
+                    t("No Package Set"),
+                    Some(no_set),
+                    f.set == Some(PackageSet::None),
+                    Choice::Set(Some(PackageSet::None)),
+                ),
+            ];
+            for (name, n) in sets {
+                let chosen = PackageSet::Named(name.to_string());
+                opts.push((
+                    name.to_string(),
+                    Some(n),
+                    f.set.as_ref() == Some(&chosen),
+                    Choice::Set(Some(chosen)),
+                ));
+            }
+            groups.push((t("Package Set"), opts));
+        }
+        for (title, opts) in groups {
+            self.sidebar.append(&radio_group(&title, opts, sender));
+        }
+        self.reset.set_sensitive(self.filters != Filters::default());
     }
 
     /// Filters the items and fills both sections.
     fn apply(&mut self) {
-        let idx = self.filter_dropdown.selected() as usize;
-        let filter = self.filters.get(idx).cloned().unwrap_or(Filter::All);
-        let keep = |it: &AppItem| match &filter {
-            Filter::All => true,
-            Filter::Installed => crate::util::installed(&it.package).is_some(),
-            Filter::Free => self.meta.get(&it.package.attr).is_some_and(|m| m.free),
-            Filter::Unfree => self.meta.get(&it.package.attr).is_some_and(|m| !m.free),
-            Filter::NoSet => it.package.source.is_none() && it.package.package_set().is_none(),
-            Filter::Set(s) => {
-                it.package.source.is_none() && it.package.package_set() == Some(s.as_str())
-            }
-            Filter::Source(s) => it.package.source.as_deref() == Some(s.as_str()),
+        self.reset.set_sensitive(self.filters != Filters::default());
+        let f = &self.filters;
+        let free = |it: &AppItem| self.meta.get(&it.package.attr).map(|m| m.free);
+        let keep = |it: &AppItem| {
+            let p = &it.package;
+            (!f.installed || crate::util::installed(p).is_some())
+                && match f.license {
+                    License::All => true,
+                    License::Free => free(it) == Some(true),
+                    License::Unfree => free(it) == Some(false),
+                }
+                && match &f.source {
+                    None => true,
+                    Some(Source::Nixpkgs) => p.source.is_none(),
+                    Some(Source::Flake(s)) => p.source.as_deref() == Some(s.as_str()),
+                }
+                && match &f.set {
+                    None => true,
+                    Some(PackageSet::None) => p.source.is_none() && p.package_set().is_none(),
+                    Some(PackageSet::Named(s)) => {
+                        p.source.is_none() && p.package_set() == Some(s.as_str())
+                    }
+                }
         };
         // What cannot run on this machine is never shown.
         let runs = |it: &AppItem| self.meta.get(&it.package.attr).is_none_or(|m| m.available);
         let mut shown: Vec<&AppItem> = self.items.iter().filter(|i| runs(i) && keep(i)).collect();
-        if self.sort_dropdown.selected() == 1 {
+        if f.by_name {
             shown.sort_by_key(|i| i.package.name.to_lowercase());
         }
 
@@ -464,7 +660,6 @@ impl AppList {
         let has_apps = !self.apps.is_empty();
         let has_others = !self.others.is_empty();
         self.heading_apps.set_visible(has_apps);
-        self.sort_dropdown.set_visible(has_apps || has_others);
         self.apps.widget().set_visible(has_apps);
         self.others.widget().set_visible(has_others);
         self.heading_others.set_visible(has_others && has_apps);
@@ -480,6 +675,44 @@ impl AppList {
                 "empty"
             });
     }
+}
+
+/// A radio option: label, count, chosen, what choosing it does.
+type Opt = (String, Option<usize>, bool, Choice);
+
+/// A titled list of radio rows sending their choice.
+fn radio_group(title: &str, opts: Vec<Opt>, sender: &ComponentSender<AppList>) -> gtk::Box {
+    let group = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    let heading = section_heading(title);
+    heading.set_margin_top(0);
+    group.append(&heading);
+    let list = crate::util::boxed_list();
+    let mut first: Option<gtk::CheckButton> = None;
+    for (label, count, chosen, choice) in opts {
+        let check = gtk::CheckButton::new();
+        check.set_group(first.as_ref());
+        check.set_active(chosen);
+        first.get_or_insert_with(|| check.clone());
+        let row = adw::ActionRow::builder()
+            .title(crate::util::esc(&label))
+            .activatable_widget(&check)
+            .build();
+        row.add_prefix(&check);
+        if let Some(n) = count {
+            let l = gtk::Label::new(Some(&n.to_string()));
+            l.add_css_class("dim-label");
+            row.add_suffix(&l);
+        }
+        let s = sender.input_sender().clone();
+        check.connect_toggled(move |c| {
+            if c.is_active() {
+                let _ = s.send(AppListInput::Choose(choice.clone()));
+            }
+        });
+        list.append(&row);
+    }
+    group.append(&list);
+    group
 }
 
 fn clear(heading: &gtk::Label, list: &gtk::ListBox) {
