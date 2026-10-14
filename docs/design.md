@@ -283,6 +283,9 @@ figure is what only it reaches.
   reviews is anonymous; a random id is only used to post one.
 - The GNOME Shell search provider answers from the local AppStream database
   only, so it never waits on the network.
+- nixpkg://ATTR links, the Install button of nixsoftware.org, open the app
+  page of ATTR. Only plain attrs are accepted, and the link never installs
+  anything by itself.
 - Nix Software is single instance: on its own page, Try and Open would only
   raise the window already open, so they say so instead.
 - A welcome tour opens on first launch and stays in the main menu.

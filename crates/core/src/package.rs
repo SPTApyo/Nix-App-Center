@@ -26,6 +26,17 @@ impl Package {
         }
     }
 
+    /// The package of a `nixpkg://ATTR` link, when the attr is plain.
+    pub fn from_uri(uri: &str) -> Option<Self> {
+        let attr = uri.strip_prefix("nixpkg://")?.trim_end_matches('/');
+        let plain = !attr.is_empty()
+            && !attr.starts_with(['.', '-'])
+            && attr
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '\'' | '.'));
+        plain.then(|| Self::from_attr(attr))
+    }
+
     /// Package set of the attr (`haskellPackages`), `None` at top level.
     pub fn package_set(&self) -> Option<&str> {
         self.attr.split_once('.').map(|(prefix, _)| prefix)
@@ -374,6 +385,20 @@ pub fn actions_for(pkg: &Package) -> Actions {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_uri_reads_plain_attrs_only() {
+        let attr = |u: &str| Package::from_uri(u).map(|p| p.attr);
+        assert_eq!(attr("nixpkg://gimp").as_deref(), Some("gimp"));
+        assert_eq!(
+            attr("nixpkg://python3Packages.numpy/").as_deref(),
+            Some("python3Packages.numpy")
+        );
+        assert_eq!(attr("nixpkg://"), None);
+        assert_eq!(attr("nixpkg://a;rm -rf"), None);
+        assert_eq!(attr("nixpkg://../etc"), None);
+        assert_eq!(attr("https://gimp"), None);
+    }
 
     fn kind(attr: &str, description: &str) -> IconKind {
         Package {
