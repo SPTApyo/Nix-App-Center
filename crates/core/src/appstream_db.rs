@@ -684,8 +684,17 @@ fn lang_rank(e: &quick_xml::events::BytesStart, langs: &[String]) -> Option<usiz
         .attributes()
         .flatten()
         .find(|a| a.key.as_ref() == "xml:lang")?;
-    let lang = attr.value.clone();
+    let lang = locale_tag(&attr.value);
     langs.iter().position(|l| *l == lang)
+}
+
+/// An AppStream (BCP 47) tag in locale form: `zh-Hans-CN` is `zh_CN`.
+fn locale_tag(tag: &str) -> String {
+    tag.split(['-', '_'])
+        // Script subtags (Hans, Cyrl) have four letters.
+        .filter(|part| part.len() != 4)
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 fn parse_for<R: BufRead>(reader: R, langs: &[String]) -> Vec<Entry> {
@@ -1486,6 +1495,15 @@ mod tests {
             .find(|e| e.app_id == "org.gnome.Gedit")
             .unwrap();
         assert_eq!(e.summary.as_deref(), Some("A text editor"));
+    }
+
+    #[test]
+    fn locale_tag_reads_bcp47_tags() {
+        assert_eq!(locale_tag("fr"), "fr");
+        assert_eq!(locale_tag("fr-FR"), "fr_FR");
+        assert_eq!(locale_tag("fr_CA"), "fr_CA");
+        assert_eq!(locale_tag("zh-Hans-CN"), "zh_CN");
+        assert_eq!(locale_tag("sr-Cyrl"), "sr");
     }
 
     #[test]
