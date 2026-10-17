@@ -90,7 +90,7 @@ The first time:
    nix-shell -p nixpkgs-review --run "nixpkgs-review wip"
    ```
 
-5. Commit as nix-app-center: init at 0.2.1 and open the pull request against
+5. Commit as nix-app-center: init at 0.3.0 and open the pull request against
    master, filling the template (tested on NixOS, built with sandboxing).
 
 Once merged, the package reaches nixos-unstable within a few days, and the

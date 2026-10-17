@@ -63,6 +63,16 @@
   <url type="bugtracker">https://github.com/SPTApyo/nix-app-center/issues</url>
 
   <releases>
+    <release version="0.3.0" date="2026-10-17">
+      <description>
+        <p>Nix Software is now Nix App Center. Links from nixsoftware.org open
+           the package page in the app, and packages Flathub does not know get
+           their name, logo and screenshots from there, with similar apps on
+           each page. Search results have filters you can combine. The
+           interface is translated into Spanish, Portuguese, Chinese, Hindi
+           and Arabic.</p>
+      </description>
+    </release>
     <release version="0.2.1" date="2026-10-11">
       <description>
         <p>A NixOS module, programs.nix-app-center.enable, installs the app
