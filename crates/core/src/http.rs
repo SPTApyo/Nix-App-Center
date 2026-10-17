@@ -8,9 +8,9 @@ pub(crate) const TIMEOUT: Duration = Duration::from_secs(6);
 
 /// Names the app to the services it calls, as nixsoftware.org asks.
 const USER_AGENT: &str = concat!(
-    "nix-software/",
+    "nix-app-center/",
     env!("CARGO_PKG_VERSION"),
-    " (+https://github.com/SPTApyo/nix-software)"
+    " (+https://github.com/SPTApyo/nix-app-center)"
 );
 
 /// GET `url` as a reader; callers cap its size with `take`.
