@@ -4,7 +4,7 @@
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use nix_software_core::{AppUpdate, Latest, Source, UpdateMethod};
+use nix_app_center_core::{AppUpdate, Latest, Source, UpdateMethod};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -65,7 +65,7 @@ pub enum UpdatesMsg {
     Background,
     Checked(Box<Check>),
     Update,
-    Updated(Result<nix_software_core::ApplyOutcome, String>),
+    Updated(Result<nix_app_center_core::ApplyOutcome, String>),
     /// Releases the hold of an attr.
     Release(String),
 }
@@ -180,8 +180,8 @@ impl SimpleComponent for UpdatesModel {
                 );
             }
             UpdatesMsg::Release(attr) => {
-                let pkg = nix_software_core::Package::from_attr(attr);
-                self.status = Some(match nix_software_core::set_pin(&pkg, None) {
+                let pkg = nix_app_center_core::Package::from_attr(attr);
+                self.status = Some(match nix_app_center_core::set_pin(&pkg, None) {
                     Ok(()) => t("Released. Update or apply your configuration to move it forward."),
                     Err(e) => util::failed(&e),
                 });
@@ -203,21 +203,27 @@ impl SimpleComponent for UpdatesModel {
 
 /// Reads the pin, the branch head and the app changes. Blocking.
 fn check() -> Check {
-    let source = nix_software_core::current_source();
-    let latest = source.branch.as_deref().and_then(nix_software_core::latest);
+    let source = nix_app_center_core::current_source();
+    let latest = source
+        .branch
+        .as_deref()
+        .and_then(nix_app_center_core::latest);
     let apps = match &latest {
-        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => nix_software_core::app_updates(
-            &l.rev,
-            source.rev.as_deref(),
-            &nix_software_core::updatable_apps(&source),
-        ),
+        Some(l) if source.rev.as_deref() != Some(l.rev.as_str()) => {
+            nix_app_center_core::app_updates(
+                &l.rev,
+                source.rev.as_deref(),
+                &nix_app_center_core::updatable_apps(&source),
+            )
+        }
         _ => Vec::new(),
     };
-    let command = nix_software_core::update_command(&source, &nix_software_core::detect_layout());
+    let command =
+        nix_app_center_core::update_command(&source, &nix_app_center_core::detect_layout());
     let new_release = source
         .branch
         .as_deref()
-        .and_then(nix_software_core::newer_release);
+        .and_then(nix_app_center_core::newer_release);
     Check {
         source,
         latest,
@@ -229,11 +235,11 @@ fn check() -> Check {
 
 /// Held apps, with their installed copy when found.
 fn held_apps() -> Vec<(
-    nix_software_core::KeptEntry,
-    Option<nix_software_core::ProfileApp>,
+    nix_app_center_core::KeptEntry,
+    Option<nix_app_center_core::ProfileApp>,
 )> {
-    let profile = nix_software_core::profile_apps();
-    nix_software_core::load_manifest()
+    let profile = nix_app_center_core::profile_apps();
+    nix_app_center_core::load_manifest()
         .kept
         .into_iter()
         .filter(|e| e.pin.is_some())
@@ -285,9 +291,9 @@ impl UpdatesModel {
 
         let Some(latest) = &c.latest else {
             let text = if c.source.branch.is_none() {
-                t("Nix Software cannot tell which nixpkgs branch your configuration follows.")
+                t("Nix App Center cannot tell which nixpkgs branch your configuration follows.")
             } else {
-                t("Nix Software could not reach nixpkgs to check for updates.")
+                t("Nix App Center could not reach nixpkgs to check for updates.")
             };
             self.content.append(&util::dim_label(&text));
             return;
@@ -404,8 +410,8 @@ impl UpdatesModel {
 /// The held apps, each with a Release button.
 fn held_list(
     held: &[(
-        nix_software_core::KeptEntry,
-        Option<nix_software_core::ProfileApp>,
+        nix_app_center_core::KeptEntry,
+        Option<nix_app_center_core::ProfileApp>,
     )],
     sender: &ComponentSender<UpdatesModel>,
 ) -> gtk::Box {
@@ -442,14 +448,14 @@ fn held_list(
     util::section(&t("Held Apps"), None, &list)
 }
 
-/// Why Nix Software cannot update by itself.
+/// Why Nix App Center cannot update by itself.
 fn method_note(method: &UpdateMethod) -> Option<String> {
     match method {
         UpdateMethod::Pinned { by } => Some(
             t("nixpkgs comes from the “{}” input of your configuration. Update that flake, then apply.")
                 .replace("{}", by),
         ),
-        UpdateMethod::Unknown => Some(t("Nix Software cannot update this configuration by itself.")),
+        UpdateMethod::Unknown => Some(t("Nix App Center cannot update this configuration by itself.")),
         _ => None,
     }
 }

@@ -1,7 +1,7 @@
 //! A review: stars, summary, date, author, text, and votes.
 
 use adw::prelude::*;
-use nix_software_core::{Review, ReviewAction};
+use nix_app_center_core::{Review, ReviewAction};
 
 use crate::i18n::t;
 use crate::util::{format_relative, stars_widget};
@@ -135,7 +135,7 @@ fn send(review: Review, action: ReviewAction, bar: gtk::Box, question: gtk::Labe
     }
     gtk::glib::spawn_future_local(async move {
         let res =
-            gtk::gio::spawn_blocking(move || nix_software_core::act_on_review(&review, action))
+            gtk::gio::spawn_blocking(move || nix_app_center_core::act_on_review(&review, action))
                 .await
                 .unwrap_or_else(|_| Err(String::new()));
         let mut child = question.next_sibling();

@@ -1,13 +1,13 @@
 [package]
-name = "nix-software-cli"
+name = "nix-app-center-cli"
 version = "0.2.1"
 edition = "2021"
 license = "GPL-3.0-or-later"
 publish = false
 
 [[bin]]
-name = "nix-software-cli"
+name = "nix-app-center-cli"
 path = "src/main.rs"
 
 [dependencies]
-nix-software-core = { path = "../core" }
+nix-app-center-core = { path = "../core" }

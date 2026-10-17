@@ -2,7 +2,7 @@
 //! that shipped it.
 
 use adw::prelude::*;
-use nix_software_core::VersionChoice;
+use nix_app_center_core::VersionChoice;
 
 use crate::i18n::t;
 use crate::util::esc;

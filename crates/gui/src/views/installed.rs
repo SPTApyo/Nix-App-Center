@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use adw::prelude::*;
-use nix_software_core::{Package, ProfileApp, Scope};
+use nix_app_center_core::{Package, ProfileApp, Scope};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -29,7 +29,7 @@ pub struct Data {
     tried: Vec<Item>,
     profile: Vec<ProfileApp>,
     sizes: std::collections::HashMap<PathBuf, u64>,
-    elements: Vec<nix_software_core::ProfileElement>,
+    elements: Vec<nix_app_center_core::ProfileElement>,
 }
 
 impl Data {
@@ -73,7 +73,7 @@ pub enum InstalledMsg {
     ProfileRemove(String),
     Removed(String, Result<u64, String>),
     Apply,
-    Applied(Result<nix_software_core::ApplyOutcome, String>),
+    Applied(Result<nix_app_center_core::ApplyOutcome, String>),
     Gc,
     GcDone(String),
 }
@@ -151,8 +151,8 @@ impl SimpleComponent for InstalledModel {
                 std::thread::spawn(move || {
                     let _ = s.send(InstalledMsg::DataReady(load_data()));
                     // List again once icons are known.
-                    if !nix_software_core::appstream_settled() {
-                        nix_software_core::wait_appstream(std::time::Duration::from_secs(180));
+                    if !nix_app_center_core::appstream_settled() {
+                        nix_app_center_core::wait_appstream(std::time::Duration::from_secs(180));
                         let _ = s.send(InstalledMsg::DataReady(load_data()));
                     }
                 });
@@ -168,7 +168,7 @@ impl SimpleComponent for InstalledModel {
                 let _ = sender.output(pkg);
             }
             InstalledMsg::Unkeep(attr) => {
-                match nix_software_core::unkeep(&attr) {
+                match nix_app_center_core::unkeep(&attr) {
                     Ok(()) => {
                         if let Some(d) = self.data.as_mut() {
                             d.kept.retain(|i| i.package.attr != attr);
@@ -187,12 +187,12 @@ impl SimpleComponent for InstalledModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = nix_software_core::remove_tried(&attr).map_err(|e| e.to_string());
+                    let res = nix_app_center_core::remove_tried(&attr).map_err(|e| e.to_string());
                     let _ = s.send(InstalledMsg::Removed(attr, res));
                 });
             }
             InstalledMsg::ProfileRemove(name) => {
-                self.status = Some(match nix_software_core::profile_remove(&name) {
+                self.status = Some(match nix_app_center_core::profile_remove(&name) {
                     Ok(()) => t("{} uninstalled.").replace("{}", &name),
                     Err(e) => crate::util::failed(&e),
                 });
@@ -226,9 +226,9 @@ impl SimpleComponent for InstalledModel {
                     return;
                 }
                 self.banner.set_revealed(false);
-                let Some(argv) = nix_software_core::apply_argv() else {
+                let Some(argv) = nix_app_center_core::apply_argv() else {
                     sender.input(InstalledMsg::Applied(Ok(
-                        nix_software_core::ApplyOutcome::UnknownLayout,
+                        nix_app_center_core::ApplyOutcome::UnknownLayout,
                     )));
                     return;
                 };
@@ -258,7 +258,7 @@ impl SimpleComponent for InstalledModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let msg = match nix_software_core::garbage_collect() {
+                    let msg = match nix_app_center_core::garbage_collect() {
                         Ok(s) if !s.is_empty() => s,
                         Ok(_) => t("Done."),
                         Err(e) => crate::util::failed(&e),
@@ -509,8 +509,8 @@ fn section(
 
 /// The manifest, history and profiles, with icons. Blocking.
 fn load_data() -> Data {
-    let tried = nix_software_core::load_tried().tried;
-    let kept: Vec<(Package, Option<u64>, Vec<String>)> = nix_software_core::load_manifest()
+    let tried = nix_app_center_core::load_tried().tried;
+    let kept: Vec<(Package, Option<u64>, Vec<String>)> = nix_app_center_core::load_manifest()
         .packages()
         .into_iter()
         .map(|p| (p, None, Vec::new()))
@@ -521,15 +521,15 @@ fn load_data() -> Data {
         .collect();
     let kept = with_icons(kept);
     let tried = with_icons(tried);
-    let profile = nix_software_core::profile_apps();
+    let profile = nix_app_center_core::profile_apps();
     let paths: Vec<PathBuf> = profile
         .iter()
         .map(|a| a.store_path.clone())
         .chain(tried.iter().flat_map(|i| i.paths.clone()))
         .collect();
     Data {
-        sizes: nix_software_core::store_sizes(&paths),
-        elements: nix_software_core::profile_elements(),
+        sizes: nix_app_center_core::store_sizes(&paths),
+        elements: nix_app_center_core::profile_elements(),
         kept,
         tried,
         profile,
@@ -546,12 +546,12 @@ fn with_icons(entries: Vec<(Package, Option<u64>, Vec<String>)>) -> Vec<Item> {
             .cloned()
             .map(|(package, tried_at, out_paths)| {
                 std::thread::spawn(move || {
-                    let meta = nix_software_core::cached_app_meta(&package, 1280);
+                    let meta = nix_app_center_core::cached_app_meta(&package, 1280);
                     Item {
                         icon: meta
                             .icon_url
                             .as_deref()
-                            .and_then(nix_software_core::cached_fetch_bytes),
+                            .and_then(nix_app_center_core::cached_fetch_bytes),
                         desktop_file: out_paths.iter().find_map(|p| first_desktop(Path::new(p))),
                         paths: out_paths.iter().map(PathBuf::from).collect(),
                         package,

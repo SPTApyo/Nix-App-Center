@@ -10,7 +10,7 @@ use gtk::prelude::*;
 
 use crate::app::AppMsg;
 
-const PATH: &str = "/io/github/sptapyo/NixSoftware/SearchProvider";
+const PATH: &str = "/io/github/sptapyo/NixAppCenter/SearchProvider";
 const XML: &str = r#"<node>
   <interface name="org.gnome.Shell.SearchProvider2">
     <method name="GetInitialResultSet">
@@ -52,7 +52,7 @@ pub fn register(app: &gtk::Application) {
     else {
         return;
     };
-    nix_software_core::init_appstream_db();
+    nix_app_center_core::init_appstream_db();
     let app = app.clone();
     let _ = conn
         .register_object(PATH, &iface)
@@ -85,7 +85,7 @@ fn handle(app: &gtk::Application, method: &str, params: &glib::Variant) -> Optio
             let name = name_of(&id);
             std::thread::spawn(move || {
                 if let (Some(pkg), Some(tx)) = (
-                    nix_software_core::package_for_app(&id, &name),
+                    nix_app_center_core::package_for_app(&id, &name),
                     APP_SENDER.get(),
                 ) {
                     let _ = tx.send(AppMsg::OpenDetail(pkg));
@@ -106,20 +106,20 @@ fn handle(app: &gtk::Application, method: &str, params: &glib::Variant) -> Optio
 }
 
 fn ids(terms: &[String]) -> Vec<String> {
-    nix_software_core::search_local(terms, 8)
+    nix_app_center_core::search_local(terms, 8)
         .into_iter()
         .map(|h| h.app_id)
         .collect()
 }
 
 fn name_of(app_id: &str) -> String {
-    nix_software_core::local_app(app_id)
+    nix_app_center_core::local_app(app_id)
         .map(|h| h.name)
         .unwrap_or_default()
 }
 
 fn meta(app_id: &str) -> HashMap<String, glib::Variant> {
-    let (name, summary) = nix_software_core::local_app(app_id)
+    let (name, summary) = nix_app_center_core::local_app(app_id)
         .map(|h| (h.name, h.summary))
         .unwrap_or_default();
     // The app's icon, else a generic one.

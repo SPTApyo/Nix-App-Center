@@ -1,5 +1,5 @@
-# Builds Nix Software from this tree with the nixpkgs recipe, without flakes:
-#   (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-software/archive/main.tar.gz") { inherit pkgs; })
+# Builds Nix App Center from this tree with the nixpkgs recipe, without flakes:
+#   (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-app-center/archive/main.tar.gz") { inherit pkgs; })
 {
   pkgs ? import <nixpkgs> { },
 }:

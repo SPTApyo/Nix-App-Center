@@ -8,8 +8,8 @@ open an issue first so we agree on the approach.
 You only need Nix with flakes. Everything else comes from the dev shell.
 
 ```bash
-git clone https://github.com/SPTApyo/nix-software.git
-cd nix-software
+git clone https://github.com/SPTApyo/nix-app-center.git
+cd nix-app-center
 nix develop
 just setup   # enables the commit message hook
 just         # lists every command
@@ -66,7 +66,7 @@ of a pull request.
 - Code that writes files, runs commands as root or deletes store paths needs
   tests for its error cases, not only the happy path.
 - Tests never touch the real system: use the sandboxes the existing tests
-  use (temporary directories, NIX_SOFTWARE_CONFIG_DIR, fake binaries). See
+  use (temporary directories, NIX_APP_CENTER_CONFIG_DIR, fake binaries). See
   [docs/testing.md](docs/testing.md).
 - Core line coverage must stay at or above the threshold in the justfile
   (just cov). Raise the threshold when coverage goes up, never lower it to
@@ -133,7 +133,7 @@ operates here; how a subsystem works belongs in docs/.
 
 ## Translations
 
-Translations live in po/. The template is po/nix-software.pot.
+Translations live in po/. The template is po/nix-app-center.pot.
 
 Update the template and the catalogs after changing strings:
 
@@ -143,7 +143,7 @@ just pot
 
 Add a language:
 
-1. Copy po/nix-software.pot to po/xx.po and fill the header.
+1. Copy po/nix-app-center.pot to po/xx.po and fill the header.
 2. Add xx to po/LINGUAS.
 3. Translate, then check with msgfmt --check po/xx.po.
 
@@ -155,7 +155,7 @@ LANGUAGE=xx just run
 
 ## Matching Flathub apps to nixpkgs
 
-Nix Software guesses which nixpkgs attribute matches a Flathub app. When the
+Nix App Center guesses which nixpkgs attribute matches a Flathub app. When the
 guess is wrong or missing, add an entry to crates/core/src/data/app_mapping.json
 (nixpkgs attribute to AppStream id) and check the id against the Flathub
 AppStream data.

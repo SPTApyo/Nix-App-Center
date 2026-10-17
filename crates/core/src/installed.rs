@@ -1,4 +1,4 @@
-//! What is installed on the machine, from every source Nix Software reads:
+//! What is installed on the machine, from every source Nix App Center reads:
 //! Nix profiles, Flatpak and AppImages. One index answers "is this package
 //! installed, where and how" for tiles, rows and app pages.
 

@@ -1,12 +1,12 @@
 [package]
-name = "nix-software-gui"
+name = "nix-app-center-gui"
 version = "0.2.1"
 edition = "2021"
 license = "GPL-3.0-or-later"
 publish = false
 
 [[bin]]
-name = "nix-software"
+name = "nix-app-center"
 path = "src/main.rs"
 
 [features]
@@ -15,7 +15,7 @@ path = "src/main.rs"
 dev-gallery = []
 
 [dependencies]
-nix-software-core = { path = "../core" }
+nix-app-center-core = { path = "../core" }
 relm4 = { version = "0.9", features = ["libadwaita"] }
 # Same gtk4 and libadwaita versions as relm4 0.9 pulls, so the gtk:: and
 # adw:: paths its macros generate resolve.

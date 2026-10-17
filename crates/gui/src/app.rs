@@ -2,7 +2,7 @@
 //! details pages.
 
 use adw::prelude::*;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use relm4::prelude::*;
 
 use crate::components::{AppList, AppListInput};
@@ -41,9 +41,9 @@ pub struct AppModel {
 #[derive(Debug)]
 pub enum AppMsg {
     Search(String),
-    SearchDone(Vec<nix_software_core::SearchResult>),
+    SearchDone(Vec<nix_app_center_core::SearchResult>),
     LocateDone(String, Vec<Package>),
-    OptionsDone(Vec<nix_software_core::NixOption>),
+    OptionsDone(Vec<nix_app_center_core::NixOption>),
     FileTypesDone(String, Vec<Package>),
     Home(HomeOutput),
     OpenCategory(&'static [&'static str], &'static str),
@@ -63,7 +63,7 @@ impl SimpleComponent for AppModel {
 
     view! {
         adw::ApplicationWindow {
-            set_title: Some("Nix Software"),
+            set_title: Some("Nix App Center"),
             set_default_width: 960,
             set_default_height: 680,
         }
@@ -74,7 +74,7 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        nix_software_core::init_appstream_db();
+        nix_app_center_core::init_appstream_db();
 
         let css = gtk::CssProvider::new();
         css.load_from_data(APP_CSS);
@@ -91,11 +91,11 @@ impl SimpleComponent for AppModel {
                 .ok()
                 .and_then(|exe| Some(exe.parent()?.parent()?.to_path_buf()))
             {
-                theme.add_search_path(out.join("share/nix-software/icons"));
+                theme.add_search_path(out.join("share/nix-app-center/icons"));
             }
             theme.add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/data/icons"));
         }
-        gtk::Window::set_default_icon_name("io.github.sptapyo.NixSoftware");
+        gtk::Window::set_default_icon_name("io.github.sptapyo.NixAppCenter");
 
         let home = HomeModel::builder()
             .launch(())
@@ -132,7 +132,7 @@ impl SimpleComponent for AppModel {
         let menu = gtk::gio::Menu::new();
         menu.append(Some(&t("_Welcome Tour")), Some("win.welcome"));
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
-        menu.append(Some(&t("_About Nix Software")), Some("win.about"));
+        menu.append(Some(&t("_About Nix App Center")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
             .menu_model(&menu)
@@ -144,7 +144,7 @@ impl SimpleComponent for AppModel {
         beta.add_css_class("beta-badge");
         beta.set_valign(gtk::Align::Center);
         beta.set_tooltip_text(Some(&t(
-            "Nix Software is still young: report what goes wrong.",
+            "Nix App Center is still young: report what goes wrong.",
         )));
         header.pack_end(&beta);
         let apply = gtk::Button::builder()
@@ -153,11 +153,11 @@ impl SimpleComponent for AppModel {
             .tooltip_text(t(
                 "Your configuration changed: rebuild it to install or remove the apps.",
             ))
-            .visible(nix_software_core::apply_pending())
+            .visible(nix_app_center_core::apply_pending())
             .build();
         apply.add_css_class("suggested-action");
         apply.connect_clicked(|btn| {
-            let Some(argv) = nix_software_core::apply_argv() else {
+            let Some(argv) = nix_app_center_core::apply_argv() else {
                 return;
             };
             btn.set_sensitive(false);
@@ -172,7 +172,7 @@ impl SimpleComponent for AppModel {
         gtk::glib::timeout_add_seconds_local(2, {
             let apply = apply.clone();
             move || {
-                apply.set_visible(nix_software_core::apply_pending());
+                apply.set_visible(nix_app_center_core::apply_pending());
                 gtk::glib::ControlFlow::Continue
             }
         });
@@ -335,7 +335,7 @@ impl SimpleComponent for AppModel {
 
         let nav = adw::NavigationView::new();
         let root_page = adw::NavigationPage::builder()
-            .title("Nix Software")
+            .title("Nix App Center")
             .tag("main")
             .child(&toolbar_view)
             .build();
@@ -347,12 +347,12 @@ impl SimpleComponent for AppModel {
             move |_, _| sender.input(AppMsg::PagePopped)
         });
 
-        let settings = nix_software_core::load_settings();
+        let settings = nix_app_center_core::load_settings();
         if !settings.onboarded {
             let win = root.clone();
             gtk::glib::idle_add_local_once(move || crate::components::welcome::present(&win));
         }
-        let now = nix_software_core::now_unix();
+        let now = nix_app_center_core::now_unix();
         if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
             let su = updates.sender().clone();
             gtk::glib::timeout_add_seconds_local_once(30, move || {
@@ -402,38 +402,38 @@ impl SimpleComponent for AppModel {
                 let q = query.clone();
                 let q2 = query.clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(AppMsg::SearchDone(nix_software_core::search_apps(&q)));
+                    let _ = s.send(AppMsg::SearchDone(nix_app_center_core::search_apps(&q)));
                 });
                 std::thread::spawn(move || {
                     let _ = s2.send(AppMsg::LocateDone(
                         q2.clone(),
-                        nix_software_core::locate_binary(&q2),
+                        nix_app_center_core::locate_binary(&q2),
                     ));
                 });
                 let s4 = sender.input_sender().clone();
                 let q4 = query.clone();
                 std::thread::spawn(move || {
-                    let apps = nix_software_core::apps_for_file_type(&q4, 6)
+                    let apps = nix_app_center_core::apps_for_file_type(&q4, 6)
                         .into_iter()
                         .map(|(p, _)| p)
                         .collect();
                     let _ = s4.send(AppMsg::FileTypesDone(q4, apps));
                 });
-                let layout = nix_software_core::detect_layout();
+                let layout = nix_app_center_core::detect_layout();
                 let (system, home) = (layout.system.is_some(), layout.home.is_some());
                 if system || home {
                     let s3 = sender.input_sender().clone();
                     std::thread::spawn(move || {
                         let mut found = Vec::new();
                         if system {
-                            found.extend(nix_software_core::search_options(&query, 6));
+                            found.extend(nix_app_center_core::search_options(&query, 6));
                         }
-                        found.extend(nix_software_core::search_flake_modules(&query, 3));
+                        found.extend(nix_app_center_core::search_flake_modules(&query, 3));
                         if home {
-                            found.extend(nix_software_core::search_hm_options(&query, 4));
+                            found.extend(nix_app_center_core::search_hm_options(&query, 4));
                         }
                         found.retain(|o| {
-                            o.type_ != nix_software_core::FLAKE_MODULE
+                            o.type_ != nix_app_center_core::FLAKE_MODULE
                                 || (o.home && home)
                                 || (!o.home && system)
                         });
@@ -449,7 +449,7 @@ impl SimpleComponent for AppModel {
                     .collect();
                 let list = self.results.sender().clone();
                 std::thread::spawn(move || {
-                    let _ = list.send(AppListInput::SetMeta(nix_software_core::results_meta(
+                    let _ = list.send(AppListInput::SetMeta(nix_app_center_core::results_meta(
                         &attrs,
                     )));
                 });
@@ -496,9 +496,9 @@ impl SimpleComponent for AppModel {
                 self.updates_page.set_badge_number(count as u32);
                 self.updates_page.set_needs_attention(count > 0);
                 if notify {
-                    let mut s = nix_software_core::load_settings();
-                    s.last_update_check = nix_software_core::now_unix();
-                    let _ = nix_software_core::save_settings(&s);
+                    let mut s = nix_app_center_core::load_settings();
+                    s.last_update_check = nix_app_center_core::now_unix();
+                    let _ = nix_app_center_core::save_settings(&s);
                 }
                 if notify && count > 0 {
                     let n = gtk::gio::Notification::new(&t("Updates Available"));
@@ -531,12 +531,12 @@ impl SimpleComponent for AppModel {
 
 fn about_dialog() -> adw::AboutDialog {
     let d = adw::AboutDialog::builder()
-        .application_name("Nix Software")
-        .application_icon("io.github.sptapyo.NixSoftware")
+        .application_name("Nix App Center")
+        .application_icon("io.github.sptapyo.NixAppCenter")
         .developer_name("SPTApyo")
         .version(env!("CARGO_PKG_VERSION"))
-        .website("https://github.com/SPTApyo/nix-software")
-        .issue_url("https://github.com/SPTApyo/nix-software/issues")
+        .website("https://github.com/SPTApyo/nix-app-center")
+        .issue_url("https://github.com/SPTApyo/nix-app-center/issues")
         .license_type(gtk::License::Gpl30)
         .copyright("© 2026 SPTApyo")
         .build();

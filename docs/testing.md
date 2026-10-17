@@ -7,7 +7,7 @@ real system.
 
 Tests sit next to the code, in a tests module at the bottom of each file.
 Run them with just test, or one test with
-cargo test -p nix-software-core NAME.
+cargo test -p nix-app-center-core NAME.
 
 Most logic is split into a pure function and a thin wrapper that runs
 commands. Test the pure function: plan_removal in tried.rs, parse_roots and
@@ -31,22 +31,22 @@ runs commands as root or deletes store paths comes first.
 ## Nix checks
 
 nix build .#checks.x86_64-linux.module starts a NixOS virtual machine with
-programs.nix-software enabled and checks the app, its desktop entry and its
+programs.nix-app-center enabled and checks the app, its desktop entry and its
 search provider are there (nix/test.nix, the same test nixpkgs runs).
-nix build .#nix-software.tests.version checks the packaged CLI answers.
+nix build .#nix-app-center.tests.version checks the packaged CLI answers.
 CI runs both, and builds on aarch64-linux too.
 
 ## End-to-end tests
 
-tests/e2e/nix_software_e2e.py runs the real app on a GTK Broadway display
+tests/e2e/nix_app_center_e2e.py runs the real app on a GTK Broadway display
 and drives it with Playwright from a headless Chromium. just e2e runs the
 full scenario and writes screenshots to target/e2e.
 
 Each run isolates everything:
 
 - throwaway XDG data, config and cache directories;
-- a fake NixOS configuration, through NIX_SOFTWARE_CONFIG_DIR;
-- its own D-Bus session, so a running Nix Software does not swallow it;
+- a fake NixOS configuration, through NIX_APP_CENTER_CONFIG_DIR;
+- its own D-Bus session, so a running Nix App Center does not swallow it;
 - fake pkexec, nixos-rebuild and xdg-terminal-exec in PATH. They log how the
   app called them, and the scenario asserts on those logs.
 

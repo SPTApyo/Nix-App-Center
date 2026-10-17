@@ -8,15 +8,15 @@ pub use gettextrs::gettext as t;
 /// Translates a string that means different things in different places.
 pub use gettextrs::pgettext;
 
-const DOMAIN: &str = "nix-software";
+const DOMAIN: &str = "nix-app-center";
 
 /// The `.mo` folder: the package's, then the one `build.rs` compiles, then
 /// the system's.
 fn localedir() -> String {
-    if let Ok(dir) = std::env::var("NIX_SOFTWARE_LOCALEDIR") {
+    if let Ok(dir) = std::env::var("NIX_APP_CENTER_LOCALEDIR") {
         return dir;
     }
-    if let Some(dir) = option_env!("NIX_SOFTWARE_DEV_LOCALEDIR") {
+    if let Some(dir) = option_env!("NIX_APP_CENTER_DEV_LOCALEDIR") {
         return dir.to_string();
     }
     "/usr/share/locale".to_string()

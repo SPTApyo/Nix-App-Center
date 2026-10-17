@@ -2,7 +2,7 @@
 //! widgets from `components::details`; this file assembles and loads them.
 
 use adw::prelude::*;
-use nix_software_core::{AppMeta, Package, Rating, Review};
+use nix_app_center_core::{AppMeta, Package, Rating, Review};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
@@ -28,32 +28,32 @@ pub struct DetailModel {
     meta: Option<AppMeta>,
     loading: bool,
     /// The app as a Nix profile already holds it.
-    installed: Option<nix_software_core::ProfileApp>,
-    /// True when Nix Software writes the config; else `nix profile`.
+    installed: Option<nix_app_center_core::ProfileApp>,
+    /// True when Nix App Center writes the config; else `nix profile`.
     managed: bool,
     /// The `nix profile` element of this package.
     profile_name: Option<String>,
     profile_busy: bool,
     kept: bool,
     /// The NixOS module that sets the app up.
-    module: Option<nix_software_core::NixOption>,
+    module: Option<nix_app_center_core::NixOption>,
     /// File and line of the user's own configuration listing the app.
     declared: Option<(std::path::PathBuf, usize)>,
-    /// A Flatpak, AppImage or nix-env install Nix Software can remove.
-    other: Option<nix_software_core::Installed>,
-    home_module: Option<nix_software_core::NixOption>,
+    /// A Flatpak, AppImage or nix-env install Nix App Center can remove.
+    other: Option<nix_app_center_core::Installed>,
+    home_module: Option<nix_app_center_core::NixOption>,
     /// nixpkgs versions of the app, newest first, for the history.
-    nix_versions: Option<Vec<nix_software_core::VersionChoice>>,
+    nix_versions: Option<Vec<nix_app_center_core::VersionChoice>>,
     /// Choose a Version… was clicked before the versions arrived.
     choose_pending: bool,
     /// The newer version nixos-unstable has, if any.
-    unstable: Option<nix_software_core::VersionChoice>,
+    unstable: Option<nix_app_center_core::VersionChoice>,
     /// Module lookups still running.
     lookups: u8,
     /// Add to Configuration waits for them.
     keep_pending: bool,
     /// The revision the app is held at.
-    pin: Option<nix_software_core::Pin>,
+    pin: Option<nix_app_center_core::Pin>,
     holding: bool,
     /// The app has its own user block, which a hold cannot rewrite.
     custom_blocks: bool,
@@ -141,10 +141,10 @@ pub enum DetailMsg {
     /// `nix run` failed, with its last error line.
     RunFailed(String),
     SizeLoaded(Option<u64>),
-    ModuleLoaded(Option<nix_software_core::NixOption>),
+    ModuleLoaded(Option<nix_app_center_core::NixOption>),
     DeclaredLoaded(Option<(std::path::PathBuf, usize)>),
-    OtherLoaded(Option<nix_software_core::Installed>),
-    HomeModuleLoaded(Option<nix_software_core::NixOption>),
+    OtherLoaded(Option<nix_app_center_core::Installed>),
+    HomeModuleLoaded(Option<nix_app_center_core::NixOption>),
     RemoveOther,
     TakeOver,
     /// Keeps the app with the switched build options.
@@ -152,30 +152,30 @@ pub enum DetailMsg {
     /// Holds the app at the revision in use, or releases it.
     ToggleHold,
     /// Holds the app at an earlier version.
-    HoldAt(nix_software_core::VersionChoice),
+    HoldAt(nix_app_center_core::VersionChoice),
     ChooseVersion,
     ChooseMode,
-    KeepAs(nix_software_core::InstallMode),
+    KeepAs(nix_app_center_core::InstallMode),
     KeepNow,
     CopyName,
     Remove,
     TriedRemoved(Result<u64, String>),
-    SetMode(nix_software_core::InstallMode),
-    VersionsLoaded(Vec<nix_software_core::VersionChoice>),
-    HistoryLoaded(Vec<nix_software_core::VersionChoice>),
-    UnstableLoaded(Option<nix_software_core::VersionChoice>),
-    Held(Result<Option<nix_software_core::Pin>, String>),
+    SetMode(nix_app_center_core::InstallMode),
+    VersionsLoaded(Vec<nix_app_center_core::VersionChoice>),
+    HistoryLoaded(Vec<nix_app_center_core::VersionChoice>),
+    UnstableLoaded(Option<nix_app_center_core::VersionChoice>),
+    Held(Result<Option<nix_app_center_core::Pin>, String>),
     ToggleDescription,
     /// Applies the configuration.
     ApplyConfig,
-    Applied(Result<nix_software_core::ApplyOutcome, String>),
+    Applied(Result<nix_app_center_core::ApplyOutcome, String>),
 }
 
 impl DetailModel {
     /// After keeping: an apply toast when attached, else the attach dialog.
     fn prompt_apply_or_attach(&self, sender: &ComponentSender<Self>) {
-        let layout = nix_software_core::detect_layout();
-        if nix_software_core::is_attached(&layout) {
+        let layout = nix_app_center_core::detect_layout();
+        if nix_app_center_core::is_attached(&layout) {
             apply_toast(
                 &self.toast_overlay,
                 sender,
@@ -186,7 +186,7 @@ impl DetailModel {
             let sender = sender.clone();
             attach_dialog::present(
                 &self.toast_overlay,
-                nix_software_core::attach_plan(&layout),
+                nix_app_center_core::attach_plan(&layout),
                 move |res| match res {
                     Ok(()) => apply_toast(
                         &overlay,
@@ -844,7 +844,9 @@ impl SimpleComponent for DetailModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let entry = nix_software_core::load_manifest().entry(&pkg.attr).cloned();
+        let entry = nix_app_center_core::load_manifest()
+            .entry(&pkg.attr)
+            .cloned();
         let kept = entry.is_some();
         let pin = entry.as_ref().and_then(|e| e.pin.clone());
         let custom_blocks = entry.as_ref().is_some_and(|e| e.home_nix.is_some());
@@ -906,21 +908,21 @@ impl SimpleComponent for DetailModel {
         let target_w = target_dev_w.clamp(1280, 3840) as u32;
 
         // Reuse the icon the list already loaded.
-        let icon_tex = nix_software_core::known_icon_url(&pkg.attr)
-            .and_then(|url| nix_software_core::cached_bytes_if_present(&url))
+        let icon_tex = nix_app_center_core::known_icon_url(&pkg.attr)
+            .and_then(|url| nix_app_center_core::cached_bytes_if_present(&url))
             .and_then(|bytes| texture_from_bytes_sized(&bytes, 128));
 
-        let managed = nix_software_core::detect_layout().is_usable();
+        let managed = nix_app_center_core::detect_layout().is_usable();
         let model = DetailModel {
             package: pkg.clone(),
             meta: None,
             loading: true,
-            installed: nix_software_core::installed_app(&pkg.attr, None),
+            installed: nix_app_center_core::installed_app(&pkg.attr, None),
             managed,
             profile_name: if managed {
                 None
             } else {
-                nix_software_core::profile_elements()
+                nix_app_center_core::profile_elements()
                     .into_iter()
                     .find(|e| e.is_attr(&pkg.attr))
                     .map(|e| e.name)
@@ -1049,7 +1051,7 @@ impl SimpleComponent for DetailModel {
         let s = sender.input_sender().clone();
         let pkg_meta = pkg.clone();
         std::thread::spawn(move || {
-            let meta = nix_software_core::cached_app_meta(&pkg_meta, target_w);
+            let meta = nix_app_center_core::cached_app_meta(&pkg_meta, target_w);
             let _ = s.send(if is_empty_meta(&meta) {
                 DetailMsg::LoadFailed
             } else {
@@ -1073,7 +1075,7 @@ impl SimpleComponent for DetailModel {
                         .map(|l| l.trim_end_matches(".desktop"))
                         .or(meta.app_id.as_deref());
                     self.installed =
-                        nix_software_core::installed_app(&self.package.attr, desktop_id);
+                        nix_app_center_core::installed_app(&self.package.attr, desktop_id);
                 }
 
                 self.rebuild_context_bar(&meta);
@@ -1083,18 +1085,18 @@ impl SimpleComponent for DetailModel {
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ = s.send(DetailMsg::ModuleLoaded(nix_software_core::module_for(
+                        let _ = s.send(DetailMsg::ModuleLoaded(nix_app_center_core::module_for(
                             &attr,
                         )));
                     });
                 }
-                if nix_software_core::detect_layout().home.is_some() {
+                if nix_app_center_core::detect_layout().home.is_some() {
                     self.lookups += 1;
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
                         let _ = s.send(DetailMsg::HomeModuleLoaded(
-                            nix_software_core::hm_module_for(&attr),
+                            nix_app_center_core::hm_module_for(&attr),
                         ));
                     });
                 }
@@ -1114,9 +1116,9 @@ impl SimpleComponent for DetailModel {
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ = s.send(DetailMsg::DeclaredLoaded(nix_software_core::declared_in(
-                            &attr,
-                        )));
+                        let _ = s.send(DetailMsg::DeclaredLoaded(
+                            nix_app_center_core::declared_in(&attr),
+                        ));
                     });
                 }
                 let mut g = self.addon_tiles.guard();
@@ -1138,7 +1140,7 @@ impl SimpleComponent for DetailModel {
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
                         let _ = s.send(DetailMsg::UnstableLoaded(
-                            nix_software_core::newer_in_unstable(&attr, &current),
+                            nix_app_center_core::newer_in_unstable(&attr, &current),
                         ));
                     });
                 }
@@ -1146,8 +1148,9 @@ impl SimpleComponent for DetailModel {
                     let attr = self.package.attr.clone();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        let _ =
-                            s.send(DetailMsg::HistoryLoaded(nix_software_core::versions(&attr)));
+                        let _ = s.send(DetailMsg::HistoryLoaded(nix_app_center_core::versions(
+                            &attr,
+                        )));
                     });
                 }
                 let s = sender.input_sender().clone();
@@ -1163,7 +1166,7 @@ impl SimpleComponent for DetailModel {
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
                         // Fuzzy matches may land on this attr.
-                        let resolved = nix_software_core::resolve_dev_apps(&apps, &attr);
+                        let resolved = nix_app_center_core::resolve_dev_apps(&apps, &attr);
                         if !resolved.is_empty() {
                             let _ = s.send(DetailMsg::DevAppsResolved(resolved));
                         }
@@ -1173,7 +1176,7 @@ impl SimpleComponent for DetailModel {
                 let attr = self.package.attr.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let similar = nix_software_core::similar_apps(&attr);
+                    let similar = nix_app_center_core::similar_apps(&attr);
                     if !similar.is_empty() {
                         let _ = s.send(DetailMsg::SimilarResolved(similar));
                     }
@@ -1187,21 +1190,24 @@ impl SimpleComponent for DetailModel {
                 let pkg = self.package.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(DetailMsg::SizeLoaded(nix_software_core::closure_size(&pkg)));
+                    let _ = s.send(DetailMsg::SizeLoaded(nix_app_center_core::closure_size(
+                        &pkg,
+                    )));
                 });
 
                 if let Some(app_id) = meta.app_id.clone() {
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
-                        if let Some(r) = nix_software_core::rating_for(&id) {
+                        if let Some(r) = nix_app_center_core::rating_for(&id) {
                             let _ = s.send(DetailMsg::RatingLoaded(r));
                         }
                     });
                     let s = sender.input_sender().clone();
                     let id = app_id.clone();
                     std::thread::spawn(move || {
-                        if let Some(n) = nix_software_core::flathub_installs(&id).filter(|n| *n > 0)
+                        if let Some(n) =
+                            nix_app_center_core::flathub_installs(&id).filter(|n| *n > 0)
                         {
                             let _ = s.send(DetailMsg::InstallsLoaded(n));
                         }
@@ -1209,7 +1215,7 @@ impl SimpleComponent for DetailModel {
                     let s = sender.input_sender().clone();
                     let version = meta.version.clone().unwrap_or_default();
                     std::thread::spawn(move || {
-                        let reviews = nix_software_core::reviews_for(&app_id, &version);
+                        let reviews = nix_app_center_core::reviews_for(&app_id, &version);
                         if !reviews.is_empty() {
                             let _ = s.send(DetailMsg::ReviewsLoaded(reviews));
                         }
@@ -1219,7 +1225,7 @@ impl SimpleComponent for DetailModel {
                 if let Some(url) = meta.icon_url.clone() {
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        if let Some(b) = nix_software_core::cached_fetch_bytes(&url) {
+                        if let Some(b) = nix_app_center_core::cached_fetch_bytes(&url) {
                             let _ = s.send(DetailMsg::IconLoaded(b));
                         }
                     });
@@ -1228,7 +1234,7 @@ impl SimpleComponent for DetailModel {
                     let caption = meta.screenshot_captions.get(i).cloned().flatten();
                     let s = sender.input_sender().clone();
                     std::thread::spawn(move || {
-                        if let Some(b) = nix_software_core::cached_fetch_bytes(&url) {
+                        if let Some(b) = nix_app_center_core::cached_fetch_bytes(&url) {
                             let _ = s.send(DetailMsg::ScreenshotLoaded(b, caption));
                         }
                     });
@@ -1307,7 +1313,7 @@ impl SimpleComponent for DetailModel {
                 let Some((file, line)) = self.declared.take() else {
                     return;
                 };
-                match nix_software_core::keep(&self.package) {
+                match nix_app_center_core::keep(&self.package) {
                     Ok(()) => {
                         self.kept = true;
                         crate::util::toast(
@@ -1337,13 +1343,13 @@ impl SimpleComponent for DetailModel {
                     .filter(|(_, default, row)| row.is_active() != *default)
                     .map(|(name, _, row)| (name.clone(), row.is_active()))
                     .collect();
-                let res =
-                    nix_software_core::set_flags(&self.package, changes).map_err(|e| e.to_string());
+                let res = nix_app_center_core::set_flags(&self.package, changes)
+                    .map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
             }
             DetailMsg::ToggleHold => {
                 if self.pin.is_some() {
-                    let res = nix_software_core::set_pin(&self.package, None)
+                    let res = nix_app_center_core::set_pin(&self.package, None)
                         .map(|()| None)
                         .map_err(|e| e.to_string());
                     sender.input(DetailMsg::Held(res));
@@ -1364,8 +1370,8 @@ impl SimpleComponent for DetailModel {
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let res = match item.handle.strip_prefix("nix-env:") {
-                        Some(pname) => nix_software_core::nix_env_remove(pname),
-                        None => nix_software_core::remove_foreign(&item),
+                        Some(pname) => nix_app_center_core::nix_env_remove(pname),
+                        None => nix_app_center_core::remove_foreign(&item),
                     };
                     let _ = s.send(DetailMsg::TriedRemoved(
                         res.map(|_| 0).map_err(|e| e.to_string()),
@@ -1379,9 +1385,9 @@ impl SimpleComponent for DetailModel {
                     return;
                 }
                 if let Some(item) = &self.other {
-                    if item.origin == nix_software_core::Origin::AppImage {
+                    if item.origin == nix_app_center_core::Origin::AppImage {
                         let files: Vec<String> =
-                            nix_software_core::appimage_files(std::path::Path::new(&item.handle))
+                            nix_app_center_core::appimage_files(std::path::Path::new(&item.handle))
                                 .iter()
                                 .map(|f| f.display().to_string())
                                 .collect();
@@ -1410,7 +1416,7 @@ impl SimpleComponent for DetailModel {
                 let attr = self.package.attr.clone();
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = nix_software_core::remove_tried(&attr).map_err(|e| e.to_string());
+                    let res = nix_app_center_core::remove_tried(&attr).map_err(|e| e.to_string());
                     let _ = s.send(DetailMsg::TriedRemoved(res));
                 });
             }
@@ -1435,7 +1441,7 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::SetMode(mode) => {
                 let res =
-                    nix_software_core::set_mode(&self.package, &mode).map_err(|e| e.to_string());
+                    nix_app_center_core::set_mode(&self.package, &mode).map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
             }
             DetailMsg::UnstableLoaded(unstable) => {
@@ -1558,7 +1564,7 @@ impl SimpleComponent for DetailModel {
                     .unwrap_or_default();
                 let dialog = adw::AlertDialog::new(
                     Some(&t("Not the Same App?")),
-                    Some(&t("Nix Software matched the nixpkgs package “{attr}” with the Flathub app “{name}”. If they are different apps, Nix Software stops showing Flathub data (icon, screenshots, reviews) for this package.")
+                    Some(&t("Nix App Center matched the nixpkgs package “{attr}” with the Flathub app “{name}”. If they are different apps, Nix App Center stops showing Flathub data (icon, screenshots, reviews) for this package.")
                         .replace("{attr}", &self.package.attr)
                         .replace("{name}", &name)),
                 );
@@ -1574,9 +1580,9 @@ impl SimpleComponent for DetailModel {
                 dialog.present(Some(&self.toast_overlay));
             }
             DetailMsg::Unmatch => {
-                let text = match nix_software_core::report_mapping(&self.package.attr, "") {
+                let text = match nix_app_center_core::report_mapping(&self.package.attr, "") {
                     Ok(()) => {
-                        nix_software_core::forget_app_meta(&self.package.attr);
+                        nix_app_center_core::forget_app_meta(&self.package.attr);
                         t("Saved. Open the page again to see the package alone.")
                     }
                     Err(e) => crate::util::failed(&e),
@@ -1628,11 +1634,11 @@ impl SimpleComponent for DetailModel {
                         &t("Starting {}…").replace("{}", &name),
                     );
                 }
-                match nix_software_core::run(&self.package) {
+                match nix_app_center_core::run(&self.package) {
                     Ok(child) => {
                         let s = sender.input_sender().clone();
                         std::thread::spawn(move || {
-                            if let Some(err) = nix_software_core::run_failure(child) {
+                            if let Some(err) = nix_app_center_core::run_failure(child) {
                                 let _ = s.send(DetailMsg::RunFailed(err));
                             }
                         });
@@ -1673,9 +1679,9 @@ impl SimpleComponent for DetailModel {
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let res = match &name {
-                        Some(n) => nix_software_core::profile_remove(n).map(|()| None),
-                        None => nix_software_core::profile_add(&attr).map(|()| {
-                            nix_software_core::profile_elements()
+                        Some(n) => nix_app_center_core::profile_remove(n).map(|()| None),
+                        None => nix_app_center_core::profile_add(&attr).map(|()| {
+                            nix_app_center_core::profile_elements()
                                 .into_iter()
                                 .find(|e| e.is_attr(&attr))
                                 .map(|e| e.name)
@@ -1697,7 +1703,7 @@ impl SimpleComponent for DetailModel {
                     }
                     Err(e) => crate::util::failed(&e),
                 };
-                self.installed = nix_software_core::installed_app(
+                self.installed = nix_app_center_core::installed_app(
                     &self.package.attr,
                     self.meta.as_ref().and_then(|m| m.app_id.as_deref()),
                 );
@@ -1711,16 +1717,16 @@ impl SimpleComponent for DetailModel {
                 };
                 sender.input(next);
             }
-            DetailMsg::Shell => match nix_software_core::shell(&self.package) {
-                Ok(nix_software_core::ShellOutcome::Spawned) => crate::util::toast(
+            DetailMsg::Shell => match nix_app_center_core::shell(&self.package) {
+                Ok(nix_app_center_core::ShellOutcome::Spawned) => crate::util::toast(
                     &self.toast_overlay,
                     &t("{} opened in a terminal…").replace("{}", &self.package.name),
                 ),
-                Ok(nix_software_core::ShellOutcome::NoTerminal) => {
+                Ok(nix_app_center_core::ShellOutcome::NoTerminal) => {
                     if let Some(display) = gtk::gdk::Display::default() {
                         display
                             .clipboard()
-                            .set_text(&nix_software_core::shell_command(
+                            .set_text(&nix_app_center_core::shell_command(
                                 &self.package,
                                 self.unfree(),
                             ));
@@ -1749,12 +1755,12 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::Keep if self.managed && self.mode_offer().has_choice() => {
                 let s = sender.input_sender().clone();
-                let everyone = nix_software_core::load_settings().install_for_everyone
-                    && nix_software_core::detect_layout().system.is_some();
+                let everyone = nix_app_center_core::load_settings().install_for_everyone
+                    && nix_app_center_core::detect_layout().system.is_some();
                 let default = if everyone {
-                    nix_software_core::InstallMode::System
+                    nix_app_center_core::InstallMode::System
                 } else {
-                    nix_software_core::InstallMode::Home
+                    nix_app_center_core::InstallMode::Home
                 };
                 crate::components::install_options::present_new(
                     &self.toast_overlay,
@@ -1772,19 +1778,19 @@ impl SimpleComponent for DetailModel {
                 }
             }
             DetailMsg::KeepAs(mode) => {
-                let res = nix_software_core::keep(&self.package)
-                    .and_then(|()| nix_software_core::set_mode(&self.package, &mode))
+                let res = nix_app_center_core::keep(&self.package)
+                    .and_then(|()| nix_app_center_core::set_mode(&self.package, &mode))
                     .map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
             }
-            DetailMsg::Keep => match nix_software_core::keep(&self.package) {
+            DetailMsg::Keep => match nix_app_center_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
                     self.prompt_apply_or_attach(&sender);
                 }
                 Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
             },
-            DetailMsg::Unkeep => match nix_software_core::unkeep(&self.package.attr) {
+            DetailMsg::Unkeep => match nix_app_center_core::unkeep(&self.package.attr) {
                 Ok(()) => {
                     self.kept = false;
                     self.pin = None;
@@ -1798,18 +1804,18 @@ impl SimpleComponent for DetailModel {
             },
             DetailMsg::AdvancedEdit if self.installed_elsewhere() => {}
             DetailMsg::AdvancedEdit => {
-                let m = nix_software_core::load_manifest();
+                let m = nix_app_center_core::load_manifest();
                 let (home, system) = m
                     .kept
                     .iter()
                     .find(|e| e.package.attr == self.package.attr)
                     .map(|e| (e.home_nix.clone(), e.system_nix.clone()))
                     .unwrap_or((None, None));
-                let layout = nix_software_core::detect_layout();
+                let layout = nix_app_center_core::detect_layout();
                 let system_available = layout.system.is_some();
                 // Start from the plain entry.
                 let home = home.or_else(|| {
-                    Some(nix_software_core::default_home_block(
+                    Some(nix_app_center_core::default_home_block(
                         &layout,
                         &self.package.attr,
                     ))
@@ -1823,7 +1829,7 @@ impl SimpleComponent for DetailModel {
                     system,
                     system_available,
                     move |blocks| {
-                        let res = nix_software_core::set_blocks(&pkg, blocks.home, blocks.system)
+                        let res = nix_app_center_core::set_blocks(&pkg, blocks.home, blocks.system)
                             .map_err(|e| e.to_string());
                         let _ = s.send(DetailMsg::BlocksSaved(res));
                     },
@@ -1833,7 +1839,7 @@ impl SimpleComponent for DetailModel {
                 Ok(()) => {
                     // Editing an app keeps it.
                     self.kept = true;
-                    self.custom_blocks = nix_software_core::load_manifest()
+                    self.custom_blocks = nix_app_center_core::load_manifest()
                         .entry(&self.package.attr)
                         .is_some_and(|e| e.home_nix.is_some());
                     if let Some(meta) = self.meta.clone() {
@@ -1844,7 +1850,7 @@ impl SimpleComponent for DetailModel {
                 }
                 Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
             },
-            DetailMsg::ApplyConfig => match nix_software_core::apply_argv() {
+            DetailMsg::ApplyConfig => match nix_app_center_core::apply_argv() {
                 Some(argv) => {
                     let s = sender.input_sender().clone();
                     crate::components::apply_dialog::present(
@@ -1857,7 +1863,7 @@ impl SimpleComponent for DetailModel {
                     );
                 }
                 None => sender.input(DetailMsg::Applied(Ok(
-                    nix_software_core::ApplyOutcome::UnknownLayout,
+                    nix_app_center_core::ApplyOutcome::UnknownLayout,
                 ))),
             },
             DetailMsg::Applied(res) => {
@@ -1876,7 +1882,7 @@ impl SimpleComponent for DetailModel {
                 if let Some(display) = gtk::gdk::Display::default() {
                     display
                         .clipboard()
-                        .set_text(&nix_software_core::run_command(
+                        .set_text(&nix_app_center_core::run_command(
                             &self.package,
                             self.unfree(),
                         ));
@@ -1897,7 +1903,7 @@ impl DetailModel {
     /// a thread.
     fn start_hold(
         &mut self,
-        choice: Option<nix_software_core::VersionChoice>,
+        choice: Option<nix_app_center_core::VersionChoice>,
         sender: &ComponentSender<Self>,
     ) {
         self.holding = true;
@@ -1910,11 +1916,11 @@ impl DetailModel {
         let s = sender.input_sender().clone();
         std::thread::spawn(move || {
             let pin = match choice {
-                Some(c) => nix_software_core::pin_at(&c.rev, Some(c.version)),
-                None => nix_software_core::pin_current(version),
+                Some(c) => nix_app_center_core::pin_at(&c.rev, Some(c.version)),
+                None => nix_app_center_core::pin_current(version),
             };
             let res = pin
-                .and_then(|p| nix_software_core::set_pin(&pkg, Some(p.clone())).map(|()| Some(p)))
+                .and_then(|p| nix_app_center_core::set_pin(&pkg, Some(p.clone())).map(|()| Some(p)))
                 .map_err(|e| e.to_string());
             let _ = s.send(DetailMsg::Held(res));
         });
@@ -1925,7 +1931,7 @@ impl DetailModel {
         self.managed
             && !self.installed_elsewhere()
             && !self.custom_blocks
-            && (self.pin.is_some() || nix_software_core::pinned_rev().is_some())
+            && (self.pin.is_some() || nix_app_center_core::pinned_rev().is_some())
     }
 
     /// True when the app can be taken off: kept, installed with nix
@@ -1935,7 +1941,7 @@ impl DetailModel {
     }
 
     fn tried(&self) -> bool {
-        nix_software_core::load_tried()
+        nix_app_center_core::load_tried()
             .tried
             .iter()
             .any(|e| e.package.attr == self.package.attr)
@@ -1948,8 +1954,10 @@ impl DetailModel {
             t("Uninstall the app from your user profile.")
         } else if let Some(item) = &self.other {
             match item.origin {
-                nix_software_core::Origin::Flatpak => t("Uninstall the Flatpak."),
-                nix_software_core::Origin::AppImage => t("Delete the AppImage and its menu entry."),
+                nix_app_center_core::Origin::Flatpak => t("Uninstall the Flatpak."),
+                nix_app_center_core::Origin::AppImage => {
+                    t("Delete the AppImage and its menu entry.")
+                }
                 _ => t("Uninstall the app from your nix-env profile."),
             }
         } else {
@@ -1959,7 +1967,7 @@ impl DetailModel {
 
     fn keep_tooltip(&self) -> String {
         if self.installed_elsewhere() {
-            return t("Your own configuration installs this app; Nix Software leaves it alone.");
+            return t("Your own configuration installs this app; Nix App Center leaves it alone.");
         }
         match (self.managed, self.kept, self.profile_name.is_some()) {
             (true, true, _) => {
@@ -1975,7 +1983,7 @@ impl DetailModel {
     fn keep_label(&self) -> String {
         if self.installed_elsewhere() {
             return match self.installed.as_ref().map(|a| a.scope) {
-                Some(nix_software_core::Scope::System) => t("In Your System Configuration"),
+                Some(nix_app_center_core::Scope::System) => t("In Your System Configuration"),
                 _ => t("In Your User Configuration"),
             };
         }
@@ -1992,16 +2000,16 @@ impl DetailModel {
         self.meta.as_ref().and_then(|m| m.is_free_license) == Some(false)
     }
 
-    /// True on the page of Nix Software itself: running it only
+    /// True on the page of Nix App Center itself: running it only
     /// raises this window.
     fn is_self(&self) -> bool {
         self.package.attr == crate::util::SELF_ATTR
     }
 
-    /// How Nix Software installs this app; `None` when custom blocks
+    /// How Nix App Center installs this app; `None` when custom blocks
     /// say more.
-    fn mode(&self) -> Option<nix_software_core::InstallMode> {
-        nix_software_core::load_manifest()
+    fn mode(&self) -> Option<nix_app_center_core::InstallMode> {
+        nix_app_center_core::load_manifest()
             .entry(&self.package.attr)
             .and_then(|e| e.mode())
     }
@@ -2016,7 +2024,7 @@ impl DetailModel {
 
     /// Where and how this app can be installed here.
     fn mode_offer(&self) -> crate::components::install_options::Offer {
-        let layout = nix_software_core::detect_layout();
+        let layout = nix_app_center_core::detect_layout();
         crate::components::install_options::Offer {
             home: layout.home.is_some(),
             system: layout.system.is_some(),
@@ -2120,7 +2128,7 @@ impl DetailModel {
             // An older one only waits for an apply.
             if !app.version.is_empty()
                 && app.version != nixpkgs
-                && !nix_software_core::version_newer(nixpkgs, &app.version)
+                && !nix_app_center_core::version_newer(nixpkgs, &app.version)
             {
                 self.problems_box
                     .append(&infobox::changed(&app.version, nixpkgs));
@@ -2137,14 +2145,14 @@ impl DetailModel {
             .set_visible(self.problems_box.first_child().is_some());
     }
 
-    /// The build options section: a switch per recipe flag. Only where Nix
-    /// Software writes the configuration.
+    /// The build options section: a switch per recipe flag. Only where Nix App
+    /// Center writes the configuration.
     fn rebuild_build_options(&mut self, meta: &AppMeta, sender: &ComponentSender<Self>) {
         while let Some(c) = self.build_box.first_child() {
             self.build_box.remove(&c);
         }
         self.flag_rows.clear();
-        let entry = nix_software_core::load_manifest()
+        let entry = nix_app_center_core::load_manifest()
             .kept
             .into_iter()
             .find(|e| e.package.attr == self.package.attr);
@@ -2302,7 +2310,7 @@ fn build_reviews(
     inner.append(&left);
 
     let right = crate::util::boxed_list();
-    if let Some(featured) = reviews.and_then(nix_software_core::featured_review) {
+    if let Some(featured) = reviews.and_then(nix_app_center_core::featured_review) {
         right.append(&review_row::row(featured));
     }
     let all = adw::ButtonRow::new();
@@ -2488,7 +2496,7 @@ fn build_version_history(
     container: &gtk::Box,
     meta: &AppMeta,
     nix_version: Option<&str>,
-    history: &[nix_software_core::VersionChoice],
+    history: &[nix_app_center_core::VersionChoice],
     installed: bool,
     actions: VersionActions,
     parent: gtk::Widget,
@@ -2508,7 +2516,7 @@ fn build_version_history(
         container.remove(&c);
     }
     let releases = match nix_version {
-        Some(v) => nix_software_core::nix_releases(&meta.releases, v, history),
+        Some(v) => nix_app_center_core::nix_releases(&meta.releases, v, history),
         None => meta.releases.clone(),
     };
     let Some(latest) = releases.first() else {
@@ -2837,42 +2845,42 @@ fn other_install(
     attr: &str,
     version: &str,
     app_id: Option<&str>,
-) -> Option<nix_software_core::Installed> {
+) -> Option<nix_app_center_core::Installed> {
     let pname = attr.rsplit('.').next().unwrap_or(attr);
-    if nix_software_core::nix_env_names()
+    if nix_app_center_core::nix_env_names()
         .iter()
         .any(|n| n == pname)
     {
-        return Some(nix_software_core::Installed {
+        return Some(nix_app_center_core::Installed {
             names: vec![pname.to_lowercase()],
             version: String::new(),
-            origin: nix_software_core::Origin::Home,
+            origin: nix_app_center_core::Origin::Home,
             module: false,
             handle: format!("nix-env:{pname}"),
         });
     }
-    let index: Vec<_> = nix_software_core::installed_index()
+    let index: Vec<_> = nix_app_center_core::installed_index()
         .into_iter()
         .filter(|e| {
             matches!(
                 e.origin,
-                nix_software_core::Origin::Flatpak | nix_software_core::Origin::AppImage
+                nix_app_center_core::Origin::Flatpak | nix_app_center_core::Origin::AppImage
             )
         })
         .collect();
-    nix_software_core::find_installed(&index, attr, version, app_id).cloned()
+    nix_app_center_core::find_installed(&index, attr, version, app_id).cloned()
 }
 
 /// The nixpkgs package of an add-on of `parent`: a search on its name,
 /// preferring packages of the parent's set (gimpPlugins for gimp). Blocking.
 fn addon_package(name: &str, parent: &str) -> Option<Package> {
-    let found = nix_software_core::search(name);
+    let found = nix_app_center_core::search(name);
     let of_parent =
         |p: &&Package| p.attr.to_lowercase().starts_with(parent) && p.attr.contains('.');
     found.iter().find(of_parent).or(found.first()).cloned()
 }
 
-/// The commands installing the package without Nix Software.
+/// The commands installing the package without Nix App Center.
 fn by_hand_row(pkg: &Package) -> adw::ActionRow {
     let row = adw::ActionRow::builder()
         .title(esc(&t("Install by Hand")))
@@ -2883,7 +2891,7 @@ fn by_hand_row(pkg: &Package) -> adw::ActionRow {
     row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
     let pkg = pkg.clone();
     row.connect_activated(move |row| {
-        let installable = nix_software_core::installable(&pkg);
+        let installable = nix_app_center_core::installable(&pkg);
         let attr = &pkg.attr;
         let list = crate::util::boxed_list();
         for (title, line) in [
@@ -2924,7 +2932,7 @@ fn wiki_row(list: &gtk::ListBox, meta: &AppMeta, pkg: &Package) {
     let list = list.clone();
     gtk::glib::spawn_future_local(async move {
         let check = url.clone();
-        let found = gtk::gio::spawn_blocking(move || nix_software_core::url_exists(&check))
+        let found = gtk::gio::spawn_blocking(move || nix_app_center_core::url_exists(&check))
             .await
             .unwrap_or(false);
         if found {

@@ -3,7 +3,7 @@
 use adw::prelude::*;
 
 use crate::i18n::t;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use relm4::prelude::*;
 
 use crate::util::{texture_from_bytes, AppItem};
@@ -116,7 +116,7 @@ impl SimpleComponent for FeaturedCarousel {
                     let (slide, img) = build_slide(&item, idx, &sender);
                     // The app's brand color when declared.
                     let brand =
-                        nix_software_core::brand_colors(&item.package).and_then(|(light, d)| {
+                        nix_app_center_core::brand_colors(&item.package).and_then(|(light, d)| {
                             if dark {
                                 d.or(light)
                             } else {
@@ -139,7 +139,7 @@ impl SimpleComponent for FeaturedCarousel {
                     if let Some(url) = item.icon_url {
                         let s = sender.input_sender().clone();
                         std::thread::spawn(move || {
-                            if let Some(bytes) = nix_software_core::cached_fetch_bytes(&url) {
+                            if let Some(bytes) = nix_app_center_core::cached_fetch_bytes(&url) {
                                 let _ = s.send(FeaturedInput::IconLoaded(idx, bytes));
                             }
                         });

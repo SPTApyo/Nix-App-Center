@@ -1,7 +1,7 @@
 //! A NixOS option: its facts and a line to paste.
 
 use adw::prelude::*;
-use nix_software_core::NixOption;
+use nix_app_center_core::NixOption;
 
 use crate::i18n::t;
 use crate::util::esc;
@@ -47,7 +47,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
     }
     body.append(&facts);
 
-    let snippet = if option.type_ == nix_software_core::FLAKE_MODULE {
+    let snippet = if option.type_ == nix_app_center_core::FLAKE_MODULE {
         option.snippet()
     } else {
         format!("{} = {};", option.name, proposed_value(option))
@@ -66,19 +66,19 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
     body.append(&code);
     body.append(&copy);
 
-    if option.type_ == nix_software_core::FLAKE_MODULE {
+    if option.type_ == nix_app_center_core::FLAKE_MODULE {
         body.append(&flake_module_actions(option));
     }
 
-    // Set it from here, in the files of Nix Software.
-    let writable = option.type_ != nix_software_core::FLAKE_MODULE
+    // Set it from here, in the files of Nix App Center.
+    let writable = option.type_ != nix_app_center_core::FLAKE_MODULE
         && if option.home {
-            nix_software_core::detect_layout().home.is_some()
+            nix_app_center_core::detect_layout().home.is_some()
         } else {
-            nix_software_core::detect_layout().system.is_some()
+            nix_app_center_core::detect_layout().system.is_some()
         };
     if writable {
-        let current = nix_software_core::load_manifest().option_value(&option.name);
+        let current = nix_app_center_core::load_manifest().option_value(&option.name);
         let value = adw::EntryRow::builder()
             .title(t("Value"))
             .text(current.clone().unwrap_or_else(|| proposed_value(option)))
@@ -108,7 +108,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
             let name = name.clone();
             move |_| {
                 status.set_label(
-                    &match nix_software_core::set_option(&name, &value.text(), home) {
+                    &match nix_app_center_core::set_option(&name, &value.text(), home) {
                         Ok(()) => {
                             unset.set_visible(true);
                             t("Saved. Apply your configuration to use it.")
@@ -121,7 +121,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>, option: &NixOption) {
         unset.connect_clicked({
             let status = status.clone();
             move |b| {
-                status.set_label(&match nix_software_core::unset_option(&name) {
+                status.set_label(&match nix_app_center_core::unset_option(&name) {
                     Ok(()) => {
                         b.set_visible(false);
                         t("Removed. Apply your configuration to undo it.")
@@ -185,7 +185,7 @@ fn flake_module_actions(option: &NixOption) -> gtk::Box {
     let key = format!("{source}#{module}");
     let home = option.home;
     let imported = || {
-        nix_software_core::load_manifest()
+        nix_app_center_core::load_manifest()
             .kept
             .iter()
             .any(|e| e.option && e.package.attr == key)
@@ -208,7 +208,7 @@ fn flake_module_actions(option: &NixOption) -> gtk::Box {
         );
         move |b| {
             status.set_label(
-                &match nix_software_core::import_flake_module(&source, &module, home) {
+                &match nix_app_center_core::import_flake_module(&source, &module, home) {
                     Ok(()) => {
                         b.set_visible(false);
                         remove.set_visible(true);
@@ -222,7 +222,7 @@ fn flake_module_actions(option: &NixOption) -> gtk::Box {
     remove.connect_clicked({
         let (import, status) = (import.clone(), status.clone());
         move |b| {
-            status.set_label(&match nix_software_core::unset_option(&key) {
+            status.set_label(&match nix_app_center_core::unset_option(&key) {
                 Ok(()) => {
                     b.set_visible(false);
                     import.set_visible(true);

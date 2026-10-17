@@ -2,25 +2,25 @@
 //! updates and search. Saved on change.
 
 use adw::prelude::*;
-use nix_software_core::{Layout, LayoutKind};
+use nix_app_center_core::{Layout, LayoutKind};
 
 use crate::i18n::t;
 use crate::util::esc;
 
 pub fn present(parent: &impl IsA<gtk::Widget>) {
-    let settings = nix_software_core::load_settings();
+    let settings = nix_app_center_core::load_settings();
     let dialog = adw::PreferencesDialog::new();
     let page = adw::PreferencesPage::new();
 
     let config = adw::PreferencesGroup::builder()
         .title(t("Configuration"))
         .description(t(
-            "Nix Software finds your configuration by reading its files. Correct it here when it guesses wrong.",
+            "Nix App Center finds your configuration by reading its files. Correct it here when it guesses wrong.",
         ))
         .build();
     let detected = adw::ActionRow::builder()
         .title(t("Detected"))
-        .subtitle(esc(&describe(&nix_software_core::detect_layout())))
+        .subtitle(esc(&describe(&nix_app_center_core::detect_layout())))
         .subtitle_selectable(true)
         .build();
     let dir = adw::EntryRow::builder()
@@ -39,11 +39,11 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     }
     let save = {
         let detected = detected.clone();
-        move |edit: &dyn Fn(&mut nix_software_core::Settings)| {
-            let mut s = nix_software_core::load_settings();
+        move |edit: &dyn Fn(&mut nix_app_center_core::Settings)| {
+            let mut s = nix_app_center_core::load_settings();
             edit(&mut s);
-            let _ = nix_software_core::save_settings(&s);
-            detected.set_subtitle(&esc(&describe(&nix_software_core::detect_layout())));
+            let _ = nix_app_center_core::save_settings(&s);
+            detected.set_subtitle(&esc(&describe(&nix_app_center_core::detect_layout())));
         }
     };
     dir.connect_apply({
@@ -83,12 +83,12 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         .active(settings.install_for_everyone)
         .build();
     everyone.connect_active_notify(move |row| {
-        let mut s = nix_software_core::load_settings();
+        let mut s = nix_app_center_core::load_settings();
         s.install_for_everyone = row.is_active();
-        let _ = nix_software_core::save_settings(&s);
+        let _ = nix_app_center_core::save_settings(&s);
     });
     installing.add(&everyone);
-    installing.set_visible(nix_software_core::detect_layout().system.is_some());
+    installing.set_visible(nix_app_center_core::detect_layout().system.is_some());
 
     let updates = adw::PreferencesGroup::builder().title(t("Updates")).build();
     let auto = adw::SwitchRow::builder()
@@ -99,22 +99,22 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         .active(settings.auto_check_updates)
         .build();
     auto.connect_active_notify(move |row| {
-        let mut s = nix_software_core::load_settings();
+        let mut s = nix_app_center_core::load_settings();
         s.auto_check_updates = row.is_active();
-        let _ = nix_software_core::save_settings(&s);
+        let _ = nix_app_center_core::save_settings(&s);
     });
     updates.add(&auto);
 
     let search = adw::PreferencesGroup::builder().title(t("Search")).build();
     let by_command = adw::ActionRow::builder()
         .title(t("Search by Command"))
-        .subtitle(esc(&if nix_software_core::locate_ready() {
+        .subtitle(esc(&if nix_app_center_core::locate_ready() {
             t("Ready: searching a command also lists the packages that provide it.")
         } else {
             t("Lists the packages that provide a command. Needs the nix-index database, about 100 MB.")
         }))
         .build();
-    if !nix_software_core::locate_ready() {
+    if !nix_app_center_core::locate_ready() {
         let download = gtk::Button::with_label(&t("Download"));
         download.set_tooltip_text(Some(&t("Download the nix-index database, about 100 MB.")));
         download.set_valign(gtk::Align::Center);
@@ -125,7 +125,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
                 row.set_subtitle(&esc(&t("Downloading the nix-index database…")));
                 let (btn, row) = (btn.clone(), row.clone());
                 gtk::glib::spawn_future_local(async move {
-                    let res = gtk::gio::spawn_blocking(nix_software_core::download_locate_db).await;
+                    let res = gtk::gio::spawn_blocking(nix_app_center_core::download_locate_db).await;
                     match res {
                         Ok(Ok(())) => {
                             row.set_subtitle(&esc(&t("Ready: searching a command also lists the packages that provide it.")));
@@ -164,7 +164,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     let warning = adw::ActionRow::builder()
         .title(t("How It Runs"))
         .subtitle(esc(&t(
-            "Run by the shell. Start it with sudo to run it as administrator: Nix Software asks for the password itself, so tools that call sudo on their own, such as nh, do not work here. The progress bar follows nixos-rebuild and plain Nix logs.",
+            "Run by the shell. Start it with sudo to run it as administrator: Nix App Center asks for the password itself, so tools that call sudo on their own, such as nh, do not work here. The progress bar follows nixos-rebuild and plain Nix logs.",
         )))
         .build();
     warning.add_prefix(&gtk::Image::from_icon_name("dialog-warning-symbolic"));
@@ -182,9 +182,9 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             .map(|f| f.trim().to_string())
             .filter(|f| !f.is_empty())
             .collect();
-        let mut s = nix_software_core::load_settings();
+        let mut s = nix_app_center_core::load_settings();
         s.extra_flakes = list;
-        let _ = nix_software_core::save_settings(&s);
+        let _ = nix_app_center_core::save_settings(&s);
     });
     let suggested = adw::ExpanderRow::builder()
         .title(t("Flakes Suggested by search.nixos.org"))
@@ -199,7 +199,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             }
             let (row, flakes) = (row.clone(), flakes.clone());
             gtk::glib::spawn_future_local(async move {
-                let list = gtk::gio::spawn_blocking(nix_software_core::suggested_flakes)
+                let list = gtk::gio::spawn_blocking(nix_app_center_core::suggested_flakes)
                     .await
                     .unwrap_or_default();
                 if list.is_empty() {
@@ -210,7 +210,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
                     );
                 }
                 for flake in list {
-                    let chosen = nix_software_core::load_settings()
+                    let chosen = nix_app_center_core::load_settings()
                         .extra_flakes
                         .contains(&flake);
                     let switch = adw::SwitchRow::builder()
@@ -219,13 +219,13 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
                         .build();
                     let flakes = flakes.clone();
                     switch.connect_active_notify(move |sw| {
-                        let mut s = nix_software_core::load_settings();
+                        let mut s = nix_app_center_core::load_settings();
                         s.extra_flakes.retain(|f| *f != flake);
                         if sw.is_active() {
                             s.extra_flakes.push(flake.clone());
                         }
                         flakes.set_text(&s.extra_flakes.join(", "));
-                        let _ = nix_software_core::save_settings(&s);
+                        let _ = nix_app_center_core::save_settings(&s);
                     });
                     row.add_row(&switch);
                 }
@@ -272,7 +272,7 @@ pub(crate) fn describe(layout: &Layout) -> String {
     lines.join("\n")
 }
 
-fn verified_text(v: &nix_software_core::Verified) -> String {
+fn verified_text(v: &nix_app_center_core::Verified) -> String {
     let mut lines = Vec::new();
     if !v.hosts.is_empty() {
         lines.push(t("Configurations: {}").replace("{}", &v.hosts.join(", ")));
@@ -302,9 +302,9 @@ pub(crate) fn nix_check_rows() -> (adw::ButtonRow, adw::ActionRow) {
             verdict.set_subtitle(&esc(&t("Evaluating your configuration…")));
             let (row, verdict) = (row.clone(), verdict.clone());
             gtk::glib::spawn_future_local(async move {
-                let layout = nix_software_core::detect_layout();
+                let layout = nix_app_center_core::detect_layout();
                 let res =
-                    gtk::gio::spawn_blocking(move || nix_software_core::verify_layout(&layout))
+                    gtk::gio::spawn_blocking(move || nix_app_center_core::verify_layout(&layout))
                         .await
                         .unwrap_or_else(|_| Err(String::new()));
                 verdict.set_subtitle(&esc(&match res {

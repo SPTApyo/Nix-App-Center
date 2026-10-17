@@ -1,7 +1,7 @@
 //! A category page: New & Updated, then Other Software.
 
 use adw::prelude::*;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
@@ -150,7 +150,7 @@ impl SimpleComponent for CategoryModel {
         let s = sender.input_sender().clone();
         std::thread::spawn(move || {
             let _ = s.send(CategoryMsg::Loaded(
-                nix_software_core::category_sections_union(slugs, 200),
+                nix_app_center_core::category_sections_union(slugs, 200),
             ));
         });
 

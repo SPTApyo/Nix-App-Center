@@ -430,7 +430,7 @@ fn newer_apps(apps: &[ProfileApp], versions: &serde_json::Map<String, Value>) ->
     out
 }
 
-/// The steps moving the pin and applying, when Nix Software can run them.
+/// The steps moving the pin and applying, when Nix App Center can run them.
 /// The lock is updated as the user when the user owns it.
 pub fn update_command(source: &Source, layout: &Layout) -> Option<Vec<Vec<String>>> {
     let apply = layout.apply.clone();

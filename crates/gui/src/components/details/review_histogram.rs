@@ -1,7 +1,7 @@
 //! The ratings histogram: average, stars, one bar per star level, total.
 
 use gtk::prelude::*;
-use nix_software_core::Rating;
+use nix_app_center_core::Rating;
 
 use crate::i18n::t;
 use crate::util::{plural, stars_widget};

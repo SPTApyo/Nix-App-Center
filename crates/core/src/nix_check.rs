@@ -17,8 +17,10 @@ pub fn parse_block(block: &str) -> Result<(), String> {
     // Unique file: checks may run concurrently.
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path =
-        std::env::temp_dir().join(format!("nix-software-parse-{}-{n}.nix", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "nix-app-center-parse-{}-{n}.nix",
+        std::process::id()
+    ));
     std::fs::write(&path, wrap(block)).map_err(|e| e.to_string())?;
 
     let out = Command::new("nix-instantiate")
@@ -97,7 +99,7 @@ pub fn dry_build() -> DryRun {
     let layout = crate::config_layout::detect();
     let Some(argv) = dry_argv(&layout) else {
         return DryRun::Unavailable(
-            crate::util::n_("Nix Software cannot find your Nix configuration.").into(),
+            crate::util::n_("Nix App Center cannot find your Nix configuration.").into(),
         );
     };
 

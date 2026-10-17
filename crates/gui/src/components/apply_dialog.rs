@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use nix_software_core::{ApplyOutcome, Phase, StreamEvent};
+use nix_app_center_core::{ApplyOutcome, Phase, StreamEvent};
 
 use crate::i18n::t;
 
@@ -173,11 +173,11 @@ pub fn present(
         }
     });
 
-    let applies = nix_software_core::apply_argv().is_some_and(|a| steps.contains(&a));
+    let applies = nix_app_center_core::apply_argv().is_some_and(|a| steps.contains(&a));
     let (tx, rx) = async_channel::unbounded::<Event>();
     std::thread::spawn(move || {
         let events = tx.clone();
-        let res = nix_software_core::run_streaming(&steps, move |e| {
+        let res = nix_app_center_core::run_streaming(&steps, move |e| {
             let _ = events.send_blocking(Event::Stream(e));
         })
         .map_err(|e| e.to_string());
@@ -214,7 +214,7 @@ pub fn present(
                     match &res {
                         Ok(outcome) => {
                             if applies && matches!(outcome, ApplyOutcome::Done(_)) {
-                                nix_software_core::applied();
+                                nix_app_center_core::applied();
                             }
                             crate::util::refresh_installed();
                             target.set(Some(1.0));

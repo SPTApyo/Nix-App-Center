@@ -36,9 +36,9 @@ fn page(icon: &str, title: &str, body: &str, extra: Option<gtk::Widget>) -> gtk:
     b
 }
 
-/// What Nix Software found, with a check by Nix and a way to correct it.
+/// What Nix App Center found, with a check by Nix and a way to correct it.
 fn config_extra(parent: &gtk::Widget) -> gtk::Widget {
-    let layout = nix_software_core::detect_layout();
+    let layout = nix_app_center_core::detect_layout();
     let detected = adw::ActionRow::builder()
         .title(t("Detected"))
         .subtitle(crate::util::esc(&crate::views::preferences::describe(
@@ -55,7 +55,7 @@ fn config_extra(parent: &gtk::Widget) -> gtk::Widget {
         move |_| crate::views::preferences::present(&parent)
     });
     let list = crate::util::boxed_list();
-    if layout.kind == nix_software_core::LayoutKind::Unknown {
+    if layout.kind == nix_app_center_core::LayoutKind::Unknown {
         let hint = adw::ActionRow::builder()
             .title(t("No Configuration Yet"))
             .subtitle(crate::util::esc(&t(
@@ -83,9 +83,9 @@ fn config_extra(parent: &gtk::Widget) -> gtk::Widget {
 
 /// The two settings most people want to decide at once.
 fn settings_extra() -> gtk::Widget {
-    let settings = nix_software_core::load_settings();
+    let settings = nix_app_center_core::load_settings();
     let list = crate::util::boxed_list();
-    if nix_software_core::detect_layout().system.is_some() {
+    if nix_app_center_core::detect_layout().system.is_some() {
         let everyone = adw::SwitchRow::builder()
             .title(t("Install for Everyone"))
             .subtitle(t(
@@ -94,9 +94,9 @@ fn settings_extra() -> gtk::Widget {
             .active(settings.install_for_everyone)
             .build();
         everyone.connect_active_notify(|row| {
-            let mut s = nix_software_core::load_settings();
+            let mut s = nix_app_center_core::load_settings();
             s.install_for_everyone = row.is_active();
-            let _ = nix_software_core::save_settings(&s);
+            let _ = nix_app_center_core::save_settings(&s);
         });
         list.append(&everyone);
     }
@@ -108,9 +108,9 @@ fn settings_extra() -> gtk::Widget {
         .active(settings.auto_check_updates)
         .build();
     auto.connect_active_notify(|row| {
-        let mut s = nix_software_core::load_settings();
+        let mut s = nix_app_center_core::load_settings();
         s.auto_check_updates = row.is_active();
-        let _ = nix_software_core::save_settings(&s);
+        let _ = nix_app_center_core::save_settings(&s);
     });
     list.append(&auto);
     list.upcast()
@@ -118,10 +118,10 @@ fn settings_extra() -> gtk::Widget {
 
 /// Remembers that the tour was seen.
 fn mark_seen() {
-    let mut s = nix_software_core::load_settings();
+    let mut s = nix_app_center_core::load_settings();
     if !s.onboarded {
         s.onboarded = true;
-        let _ = nix_software_core::save_settings(&s);
+        let _ = nix_app_center_core::save_settings(&s);
     }
 }
 
@@ -130,8 +130,8 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     let parent = parent.clone().upcast::<gtk::Widget>();
     let pages = [
         page(
-            "io.github.sptapyo.NixSoftware",
-            &t("Welcome to Nix Software"),
+            "io.github.sptapyo.NixAppCenter",
+            &t("Welcome to Nix App Center"),
             &t("An app store for NixOS and Home Manager. In one minute, see how it works and check that it found your configuration."),
             None,
         ),
@@ -144,13 +144,13 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         page(
             "bookmark-new-symbolic",
             &t("Keep the Ones You Like"),
-            &t("Add to Configuration writes the app into two small files that belong to Nix Software. Your own files are touched once, to import them, and only after you approve the exact change."),
+            &t("Add to Configuration writes the app into two small files that belong to Nix App Center. Your own files are touched once, to import them, and only after you approve the exact change."),
             None,
         ),
         page(
             "computer-symbolic",
             &t("Your Configuration"),
-            &t("This is where Nix Software found your system. If it is wrong, correct it now: apps would otherwise be added to the wrong place."),
+            &t("This is where Nix App Center found your system. If it is wrong, correct it now: apps would otherwise be added to the wrong place."),
             Some(config_extra(&parent)),
         ),
         page(
@@ -160,7 +160,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             Some(settings_extra()),
         ),
         page(
-            "io.github.sptapyo.NixSoftware",
+            "io.github.sptapyo.NixAppCenter",
             &t("You Are All Set"),
             &t("Explore apps, look at Updates for new versions and at Storage to free space. This tour stays in the main menu."),
             None,

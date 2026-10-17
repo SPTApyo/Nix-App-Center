@@ -1,5 +1,5 @@
 {
-  description = "Nix Software, a declarative app store for Nix";
+  description = "Nix App Center, a declarative app store for Nix";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
@@ -16,12 +16,12 @@
       package = pkgs: import ./default.nix { inherit pkgs; };
     in
     {
-      # programs.nix-software, with this flake's package.
+      # programs.nix-app-center, with this flake's package.
       nixosModules.default =
         { lib, pkgs, ... }:
         {
           imports = [ ./nix/module.nix ];
-          programs.nix-software.package = lib.mkDefault (package pkgs);
+          programs.nix-app-center.package = lib.mkDefault (package pkgs);
         };
 
       # The maintainer entry only exists in nixpkgs.
@@ -40,18 +40,18 @@
 
       packages = forAll (pkgs: {
         default = package pkgs;
-        nix-software = package pkgs;
+        nix-app-center = package pkgs;
       });
 
-      # `nix run .` opens the window; `nix run .#nix-software-cli -- search …` runs the CLI.
+      # `nix run .` opens the window; `nix run .#nix-app-center-cli -- search …` runs the CLI.
       apps = forAll (pkgs: {
         default = {
           type = "app";
-          program = "${package pkgs}/bin/nix-software";
+          program = "${package pkgs}/bin/nix-app-center";
         };
-        nix-software-cli = {
+        nix-app-center-cli = {
           type = "app";
-          program = "${package pkgs}/bin/nix-software-cli";
+          program = "${package pkgs}/bin/nix-app-center-cli";
         };
       });
 

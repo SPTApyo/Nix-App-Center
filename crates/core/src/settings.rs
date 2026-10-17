@@ -1,4 +1,4 @@
-//! User settings, in `$XDG_CONFIG_HOME/nix-software/settings.json`.
+//! User settings, in `$XDG_CONFIG_HOME/nix-app-center/settings.json`.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -48,7 +48,7 @@ fn settings_path() -> PathBuf {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| crate::util::home().join(".config"));
-    base.join("nix-software/settings.json")
+    base.join("nix-app-center/settings.json")
 }
 
 /// The saved settings, defaults when missing or unreadable.

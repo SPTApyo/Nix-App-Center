@@ -1,5 +1,5 @@
 # The NixOS module, as it goes into nixpkgs
-# (nixos/modules/programs/nix-software.nix).
+# (nixos/modules/programs/nix-app-center.nix).
 {
   config,
   lib,
@@ -8,12 +8,12 @@
 }:
 
 let
-  cfg = config.programs.nix-software;
+  cfg = config.programs.nix-app-center;
 in
 {
-  options.programs.nix-software = {
-    enable = lib.mkEnableOption "Nix Software, a declarative app store for NixOS and Home Manager";
-    package = lib.mkPackageOption pkgs "nix-software" { };
+  options.programs.nix-app-center = {
+    enable = lib.mkEnableOption "Nix App Center, a declarative app store for NixOS and Home Manager";
+    package = lib.mkPackageOption pkgs "nix-app-center" { };
   };
 
   config = lib.mkIf cfg.enable {

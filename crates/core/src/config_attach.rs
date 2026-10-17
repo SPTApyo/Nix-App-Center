@@ -1,4 +1,4 @@
-//! Connects the Nix Software files to the user's configuration with one line
+//! Connects the Nix App Center files to the user's configuration with one line
 //! in its `imports` (or flake `modules`) list. [`plan`] computes the diff,
 //! [`commit`] writes it after the user approves. Never guesses.
 
@@ -31,11 +31,11 @@ pub enum AttachPlan {
 }
 
 /// The import path relative to the importing file.
-fn import_line(nix_software_file: &Path) -> String {
-    let name = nix_software_file
+fn import_line(nix_app_center_file: &Path) -> String {
+    let name = nix_app_center_file
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("nix-software.nix");
+        .unwrap_or("nix-app-center.nix");
     format!("./{name}")
 }
 
@@ -45,7 +45,7 @@ fn required_imports(layout: &Layout) -> Vec<(PathBuf, String)> {
     for scope in [&layout.home, &layout.system].into_iter().flatten() {
         let entry = (
             scope.import_site.clone(),
-            import_line(&scope.nix_software_file),
+            import_line(&scope.nix_app_center_file),
         );
         if !out.contains(&entry) {
             out.push(entry);
@@ -163,7 +163,7 @@ pub fn detach(layout: &Layout) -> std::io::Result<()> {
 
 fn backup_path(site: &Path) -> PathBuf {
     let mut name = site.file_name().unwrap_or_default().to_os_string();
-    name.push(".nix-software-bak");
+    name.push(".nix-app-center-bak");
     site.with_file_name(name)
 }
 
@@ -308,9 +308,9 @@ mod tests {
     fn flake_without_configuration_nix_gets_a_modules_line() {
         let flake = "{\n  outputs = { c, ... }: {\n    nixosConfigurations.pc = c.extendModules {\n      modules = [\n        ./hardware-configuration.nix\n        ./custom.nix\n      ];\n    };\n  };\n}\n";
         let (patched, _) =
-            splice_imports(flake, &["./nix-software-system.nix".to_string()]).unwrap();
+            splice_imports(flake, &["./nix-app-center-system.nix".to_string()]).unwrap();
         assert!(
-            patched.contains("        ./custom.nix\n        ./nix-software-system.nix\n      ];"),
+            patched.contains("        ./custom.nix\n        ./nix-app-center-system.nix\n      ];"),
             "{patched}"
         );
     }
@@ -326,7 +326,7 @@ mod tests {
 
     fn fixture(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "nix-software-attach-{}-{}",
+            "nix-app-center-attach-{}-{}",
             std::process::id(),
             name
         ));
@@ -344,11 +344,11 @@ mod tests {
                 host: "Test".into(),
             },
             home: Some(ScopeTarget {
-                nix_software_file: dir.join("nix-software-home.nix"),
+                nix_app_center_file: dir.join("nix-app-center-home.nix"),
                 import_site: site.clone(),
             }),
             system: Some(ScopeTarget {
-                nix_software_file: dir.join("nix-software-system.nix"),
+                nix_app_center_file: dir.join("nix-app-center-system.nix"),
                 import_site: site,
             }),
             apply: vec!["sudo".into(), "nixos-rebuild".into(), "switch".into()],
@@ -373,9 +373,9 @@ mod tests {
         };
         assert_eq!(
             added,
-            &["./nix-software-home.nix", "./nix-software-system.nix"]
+            &["./nix-app-center-home.nix", "./nix-app-center-system.nix"]
         );
-        assert!(diff.contains("+    ./nix-software-home.nix"));
+        assert!(diff.contains("+    ./nix-app-center-home.nix"));
         assert!(patched.contains("./hardware-configuration.nix"));
 
         // Nothing written before commit.
@@ -391,14 +391,14 @@ mod tests {
         commit(&plan(&layout)).unwrap();
 
         let patched = std::fs::read_to_string(dir.join("configuration.nix")).unwrap();
-        assert!(patched.contains("./nix-software-home.nix"));
-        assert!(patched.contains("./nix-software-system.nix"));
+        assert!(patched.contains("./nix-app-center-home.nix"));
+        assert!(patched.contains("./nix-app-center-system.nix"));
         // What existed is still there, unchanged.
         assert!(patched.contains("./hardware-configuration.nix"));
         assert!(patched.contains("services.foo.enable = true;"));
 
         let backup =
-            std::fs::read_to_string(dir.join("configuration.nix.nix-software-bak")).unwrap();
+            std::fs::read_to_string(dir.join("configuration.nix.nix-app-center-bak")).unwrap();
         assert_eq!(backup, CONFIG, "the backup must come before the change");
     }
 
@@ -413,7 +413,7 @@ mod tests {
 
         commit(&plan(&layout)).unwrap();
         let src = std::fs::read_to_string(dir.join("configuration.nix")).unwrap();
-        assert_eq!(src.matches("./nix-software-home.nix").count(), 1);
+        assert_eq!(src.matches("./nix-app-center-home.nix").count(), 1);
     }
 
     #[test]
@@ -440,17 +440,17 @@ mod tests {
 
         let p = plan(&layout);
         let AttachPlan::Manual { snippet, .. } = &p else {
-            panic!("Nix Software must not guess where to write; got {p:?}");
+            panic!("Nix App Center must not guess where to write; got {p:?}");
         };
-        assert!(snippet.contains("./nix-software-home.nix"));
+        assert!(snippet.contains("./nix-app-center-home.nix"));
     }
 
     #[test]
     fn ignores_imports_inside_a_comment() {
         let src = "{\n  # imports = [ ./vieux.nix ];\n  imports = [\n    ./vrai.nix\n  ];\n}\n";
-        let (patched, _) = splice_imports(src, &["./nix-software-home.nix".to_string()]).unwrap();
+        let (patched, _) = splice_imports(src, &["./nix-app-center-home.nix".to_string()]).unwrap();
         assert!(patched.contains("./vrai.nix"));
-        assert!(patched.contains("./nix-software-home.nix"));
+        assert!(patched.contains("./nix-app-center-home.nix"));
         // The commented line stays commented, and untouched.
         assert!(patched.contains("# imports = [ ./vieux.nix ];"));
     }

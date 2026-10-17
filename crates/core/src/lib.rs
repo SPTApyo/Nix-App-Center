@@ -1,4 +1,4 @@
-//! Nix Software core: search, try, keep and the config engine, without UI.
+//! Nix App Center core: search, try, keep and the config engine, without UI.
 //! Front ends render the same data (packages, actions) their own way.
 
 mod app_meta;

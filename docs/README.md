@@ -1,6 +1,6 @@
 # Documentation
 
-How Nix Software works, for people working on it. To set up the project,
+How Nix App Center works, for people working on it. To set up the project,
 start with [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 - [user-guide.md](user-guide.md): how to use the app, for users
