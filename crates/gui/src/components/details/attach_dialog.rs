@@ -3,7 +3,7 @@
 
 use crate::i18n::t;
 use adw::prelude::*;
-use nix_software_core::AttachPlan;
+use nix_app_center_core::AttachPlan;
 
 fn code_block(text: &str) -> gtk::ScrolledWindow {
     let view = gtk::TextView::new();
@@ -33,11 +33,11 @@ pub fn present(
             site, backup, diff, ..
         } => (
             t(
-                "Nix Software wrote its own files, but nothing imports them yet, so your kept \
+                "Nix App Center wrote its own files, but nothing imports them yet, so your kept \
                apps have no real effect.\n\n\
-               To fix this, Nix Software needs to add the lines below to\n{site}\n\
+               To fix this, Nix App Center needs to add the lines below to\n{site}\n\
                A backup will be written to\n{backup}\n\n\
-               This is the only change Nix Software will ever make to your files.",
+               This is the only change Nix App Center will ever make to your files.",
             )
             .replace("{site}", &site.display().to_string())
             .replace("{backup}", &backup.display().to_string()),
@@ -46,7 +46,7 @@ pub fn present(
         ),
         AttachPlan::Manual { site, snippet } => (
             t(
-                "Nix Software cannot find a top-level “imports” list in\n{site}\n\n\
+                "Nix App Center cannot find a top-level “imports” list in\n{site}\n\n\
                It will not guess where to write in your file. Add these lines \
                yourself, wherever you see fit.",
             )
@@ -55,13 +55,13 @@ pub fn present(
             false,
         ),
         AttachPlan::AlreadyAttached => (
-            t("Nix Software is already connected to your configuration. Nothing to do."),
+            t("Nix App Center is already connected to your configuration. Nothing to do."),
             String::new(),
             false,
         ),
         AttachPlan::NoLayout => (
             t(
-                "Nix Software cannot find your Nix configuration (neither /etc/nixos nor \
+                "Nix App Center cannot find your Nix configuration (neither /etc/nixos nor \
                ~/.config/home-manager). It will not guess: your apps stay in the \
                manifest, but no file is generated.",
             ),
@@ -87,7 +87,7 @@ pub fn present(
 
     let header = adw::HeaderBar::new();
     let dialog = adw::Dialog::new();
-    dialog.set_title(&t("Connect Nix Software to Your Configuration"));
+    dialog.set_title(&t("Connect Nix App Center to Your Configuration"));
     dialog.set_content_width(760);
     dialog.set_content_height(560);
 
@@ -121,7 +121,7 @@ pub fn present(
 
         let dialog2 = dialog.clone();
         accept.connect_clicked(move |_| {
-            let res = nix_software_core::attach_commit(&plan).map_err(|e| e.to_string());
+            let res = nix_app_center_core::attach_commit(&plan).map_err(|e| e.to_string());
             on_attached(res);
             dialog2.close();
         });

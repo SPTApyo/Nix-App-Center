@@ -2,7 +2,7 @@
 
 use crate::i18n::t;
 use gettextrs::ngettext;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 
 /// Shows `text` as a toast.
 pub fn toast(overlay: &adw::ToastOverlay, text: &str) {
@@ -27,8 +27,8 @@ pub fn copy_to_clipboard(text: &str) {
 }
 
 /// The message for an apply result. Copies the command when it could not run.
-pub fn describe_apply(res: Result<nix_software_core::ApplyOutcome, String>) -> String {
-    use nix_software_core::ApplyOutcome::*;
+pub fn describe_apply(res: Result<nix_app_center_core::ApplyOutcome, String>) -> String {
+    use nix_app_center_core::ApplyOutcome::*;
     match res {
         Ok(Done(line)) if line.is_empty() => t("Configuration applied."),
         Ok(Done(line)) => t("Configuration applied: {}").replace("{}", &line),
@@ -38,7 +38,7 @@ pub fn describe_apply(res: Result<nix_software_core::ApplyOutcome, String>) -> S
             t("No terminal found. The apply command was copied.")
         }
         Ok(UnknownLayout) => {
-            t("Nix Software cannot find your Nix configuration. Nothing was applied.")
+            t("Nix App Center cannot find your Nix configuration. Nothing was applied.")
         }
         Err(e) => failed(e),
     }
@@ -350,8 +350,8 @@ mod tests {
     #[test]
     fn app_item_from_search_preserves_recognized_without_icon() {
         // Recognized apps without icon stay applications.
-        let r = nix_software_core::SearchResult {
-            package: nix_software_core::Package::from_attr("gedit"),
+        let r = nix_app_center_core::SearchResult {
+            package: nix_app_center_core::Package::from_attr("gedit"),
             icon_url: None,
             rating: None,
             recognized: true,
@@ -364,7 +364,7 @@ mod tests {
 
 /// Glyph and color class of a package without AppStream icon, by family.
 pub fn fallback_icon(pkg: &Package) -> (&'static str, &'static str) {
-    use nix_software_core::IconKind::*;
+    use nix_app_center_core::IconKind::*;
     match pkg.icon_kind() {
         Game => ("applications-games-symbolic", "kind-game"),
         Audio => ("audio-x-generic-symbolic", "kind-audio"),
@@ -476,7 +476,7 @@ pub fn fallback_badge(pkg: &Package, px: i32) -> gtk::Widget {
 pub struct AppItem {
     pub package: Package,
     pub icon_url: Option<String>,
-    pub rating: Option<nix_software_core::Rating>,
+    pub rating: Option<nix_app_center_core::Rating>,
     /// Matched to an AppStream entry, even without an icon.
     pub recognized: bool,
 }
@@ -493,7 +493,7 @@ impl AppItem {
         }
     }
 
-    pub fn from_search(r: nix_software_core::SearchResult) -> Self {
+    pub fn from_search(r: nix_app_center_core::SearchResult) -> Self {
         Self {
             package: r.package,
             icon_url: r.icon_url,
@@ -503,11 +503,11 @@ impl AppItem {
     }
 }
 
-/// The attribute of Nix Software itself in nixpkgs.
-pub const SELF_ATTR: &str = "nix-software";
+/// The attribute of Nix App Center itself in nixpkgs.
+pub const SELF_ATTR: &str = "nix-app-center";
 
 thread_local! {
-    static INSTALLED: std::cell::RefCell<Option<(std::time::Instant, Vec<nix_software_core::Installed>)>> =
+    static INSTALLED: std::cell::RefCell<Option<(std::time::Instant, Vec<nix_app_center_core::Installed>)>> =
         const { std::cell::RefCell::new(None) };
 }
 
@@ -544,7 +544,7 @@ pub fn refresh_installed() {
 }
 
 /// How the package is installed, if it is; read every 5 s at most.
-pub fn installed(pkg: &Package) -> Option<nix_software_core::Installed> {
+pub fn installed(pkg: &Package) -> Option<nix_app_center_core::Installed> {
     if pkg.attr.is_empty() {
         return None;
     }
@@ -555,18 +555,18 @@ pub fn installed(pkg: &Package) -> Option<nix_software_core::Installed> {
         {
             *cache = Some((
                 std::time::Instant::now(),
-                nix_software_core::installed_index(),
+                nix_app_center_core::installed_index(),
             ));
         }
         let (_, index) = cache.as_ref()?;
-        nix_software_core::find_installed(index, &pkg.attr, &pkg.version, None).cloned()
+        nix_app_center_core::find_installed(index, &pkg.attr, &pkg.version, None).cloned()
     })
 }
 
 /// The installed pill: a green check, then where the app is installed and
 /// how (package or module). Hidden when the app is not installed.
-pub fn installed_pill(item: Option<&nix_software_core::Installed>, icon_size: i32) -> gtk::Box {
-    use nix_software_core::Origin;
+pub fn installed_pill(item: Option<&nix_app_center_core::Installed>, icon_size: i32) -> gtk::Box {
+    use nix_app_center_core::Origin;
     let pill = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     pill.add_css_class("installed-pill");
     pill.set_valign(gtk::Align::Center);

@@ -47,8 +47,8 @@ pub fn problems(broken: bool, insecure: bool, vulnerabilities: &[String]) -> Opt
 const LONG_HOLD_DAYS: u64 = 30;
 
 /// The held version infobar, with a button releasing the hold.
-pub fn held(pin: &nix_software_core::Pin, on_release: impl Fn() + 'static) -> gtk::Box {
-    let days = nix_software_core::now_unix().saturating_sub(pin.since) / 86_400;
+pub fn held(pin: &nix_app_center_core::Pin, on_release: impl Fn() + 'static) -> gtk::Box {
+    let days = nix_app_center_core::now_unix().saturating_sub(pin.since) / 86_400;
     let heading = if days >= LONG_HOLD_DAYS {
         crate::util::plural("Held for {} day", "Held for {} days", days as i64)
     } else {
@@ -90,7 +90,7 @@ pub fn declared(
     heading.add_css_class("heading");
     b.append(&heading);
     let text = gtk::Label::new(Some(
-        &t("{file}, line {line}. Nix Software leaves your files alone. Take the app over to manage it here, then delete that line.")
+        &t("{file}, line {line}. Nix App Center leaves your files alone. Take the app over to manage it here, then delete that line.")
             .replace("{file}", &file.display().to_string())
             .replace("{line}", &line.to_string()),
     ));
@@ -101,7 +101,7 @@ pub fn declared(
     let take = gtk::Button::with_mnemonic(&t("_Take Over"));
     take.add_css_class("pill");
     take.set_tooltip_text(Some(&t(
-        "Add the app to the files of Nix Software. Your own line stays until you delete it.",
+        "Add the app to the files of Nix App Center. Your own line stays until you delete it.",
     )));
     take.set_halign(gtk::Align::Center);
     take.set_margin_top(6);

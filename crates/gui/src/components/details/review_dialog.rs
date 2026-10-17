@@ -134,7 +134,7 @@ pub fn present(
             let (dialog, done, btn) = (dialog.clone(), done.clone(), btn.clone());
             gtk::glib::spawn_future_local(async move {
                 let res = gtk::gio::spawn_blocking(move || {
-                    nix_software_core::submit_review(
+                    nix_app_center_core::submit_review(
                         &app_id,
                         &version,
                         n,

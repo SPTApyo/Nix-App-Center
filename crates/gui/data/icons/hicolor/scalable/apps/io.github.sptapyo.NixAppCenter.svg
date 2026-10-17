@@ -4,7 +4,7 @@
   SPDX-FileCopyrightText: GNOME Software authors (bag, org.gnome.Software.svg)
   SPDX-FileCopyrightText: NixOS/nixos-artwork (nix-snowflake)
 
-  Nix Software: the GNOME Software bag carrying the NixOS snowflake.
+  Nix App Center: the GNOME Software bag carrying the NixOS snowflake.
 -->
 <svg height="128px" viewBox="0 0 128 128" width="128px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>

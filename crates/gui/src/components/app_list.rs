@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use adw::prelude::*;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
@@ -70,7 +70,7 @@ pub struct AppList {
     sidebar: gtk::Box,
     reset: gtk::Button,
     items: Vec<AppItem>,
-    meta: HashMap<String, nix_software_core::ResultMeta>,
+    meta: HashMap<String, nix_app_center_core::ResultMeta>,
     filters: Filters,
 }
 
@@ -83,9 +83,9 @@ pub enum AppListInput {
     /// Apps that open files of the queried type.
     SetFileTypes(String, Vec<Package>),
     /// NixOS options matching the query.
-    SetOptions(Vec<nix_software_core::NixOption>),
+    SetOptions(Vec<nix_app_center_core::NixOption>),
     /// License and platform per attribute, found after the results.
-    SetMeta(HashMap<String, nix_software_core::ResultMeta>),
+    SetMeta(HashMap<String, nix_app_center_core::ResultMeta>),
     Choose(Choice),
     Reset,
     Open(Package),
@@ -385,7 +385,7 @@ impl SimpleComponent for AppList {
 }
 
 impl AppList {
-    fn set_options(&self, options: &[nix_software_core::NixOption]) {
+    fn set_options(&self, options: &[nix_app_center_core::NixOption]) {
         while let Some(child) = self.options_list.first_child() {
             self.options_list.remove(&child);
         }
@@ -407,12 +407,12 @@ impl AppList {
                 tag.add_css_class("caption");
                 row.add_suffix(&tag);
             }
-            if nix_software_core::load_manifest()
+            if nix_app_center_core::load_manifest()
                 .option_value(&o.name)
                 .is_some()
             {
                 let set = gtk::Image::from_icon_name("installed-check-symbolic");
-                set.set_tooltip_text(Some(&t("Set by Nix Software")));
+                set.set_tooltip_text(Some(&t("Set by Nix App Center")));
                 row.add_suffix(&set);
             }
             row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::config_layout::LayoutKind;
 
 /// The .nix files of the configuration folder and of its local inputs,
-/// the two Nix Software writes included. Blocking.
+/// the two Nix App Center writes included. Blocking.
 pub fn config_files() -> Vec<(PathBuf, String)> {
     let layout = crate::detect_layout();
     let dir = match &layout.kind {
@@ -103,7 +103,7 @@ pub fn declared_in(attr: &str) -> Option<(PathBuf, usize)> {
         .filter(|(path, _)| {
             !path
                 .file_name()
-                .is_some_and(|n| n.to_string_lossy().starts_with("nix-software-"))
+                .is_some_and(|n| n.to_string_lossy().starts_with("nix-app-center-"))
         })
         .find_map(|(path, text)| package_line(&text, attr).map(|n| (path, n)))
 }

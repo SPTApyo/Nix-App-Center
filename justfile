@@ -13,7 +13,7 @@ check: fmt-check lint test translations deny
 
 # Run the app
 run:
-    cargo run -p nix-software-gui
+    cargo run -p nix-app-center-gui
 
 test:
     cargo test --workspace
@@ -30,12 +30,12 @@ fmt-check:
 # Line coverage of the core, fails under the CI threshold
 cov:
     cargo llvm-cov clean --workspace
-    cargo llvm-cov -p nix-software-core --fail-under-lines 70
+    cargo llvm-cov -p nix-app-center-core --fail-under-lines 70
 
 # HTML coverage report, to see which lines no test reaches
 cov-html:
     cargo llvm-cov clean --workspace
-    cargo llvm-cov -p nix-software-core --html --open
+    cargo llvm-cov -p nix-app-center-core --html --open
 
 # Dependency licenses and security advisories
 deny:

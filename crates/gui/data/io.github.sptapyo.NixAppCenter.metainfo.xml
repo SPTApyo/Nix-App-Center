@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2026 SPTApyo -->
 <component type="desktop-application">
-  <id>io.github.sptapyo.NixSoftware</id>
-  <launchable type="desktop-id">io.github.sptapyo.NixSoftware.desktop</launchable>
+  <id>io.github.sptapyo.NixAppCenter</id>
+  <launchable type="desktop-id">io.github.sptapyo.NixAppCenter.desktop</launchable>
+  <replaces>
+    <id>io.github.sptapyo.NixSoftware</id>
+  </replaces>
 
-  <name>Nix Software</name>
+  <name>Nix App Center</name>
   <summary>Declarative app store for Nix</summary>
   <summary xml:lang="fr">App store déclaratif pour Nix</summary>
 
@@ -17,15 +20,15 @@
 
   <description>
     <p>
-      Nix Software is a declarative app store for Nix. Try first: run a package instantly
-      with Try (nix run), then deliberately keep it in your configuration. Nix Software
+      Nix App Center is a declarative app store for Nix. Try first: run a package instantly
+      with Try (nix run), then deliberately keep it in your configuration. Nix App Center
       owns its own files and only edits yours with your explicit consent, showing
       the diff first.
     </p>
     <p xml:lang="fr">
-      Nix Software est une logithèque déclarative pour Nix. Le principe « try-first » :
+      Nix App Center est une logithèque déclarative pour Nix. Le principe « try-first » :
       lancez un paquet instantanément avec « Lancer » (nix run), puis gardez-le
-      délibérément dans votre configuration. Nix Software écrit ses propres fichiers et
+      délibérément dans votre configuration. Nix App Center écrit ses propres fichiers et
       ne modifie la vôtre qu'avec votre accord explicite, diff à l'appui.
     </p>
   </description>
@@ -40,32 +43,32 @@
   <screenshots>
     <screenshot type="default">
       <caption>Explore: apps by category, with where and how each installed one is installed</caption>
-      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/explore.png</image>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-app-center/main/data/screenshots/explore.png</image>
     </screenshot>
     <screenshot>
       <caption>An app page: try it, add it to the configuration, its Flathub metadata</caption>
-      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/app.png</image>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-app-center/main/data/screenshots/app.png</image>
     </screenshot>
     <screenshot>
       <caption>Versions follow nixpkgs: hold any version, or take a newer one from unstable</caption>
-      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/versions.png</image>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-app-center/main/data/screenshots/versions.png</image>
     </screenshot>
     <screenshot>
       <caption>Search nixpkgs, other flakes and options</caption>
-      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/search.png</image>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-app-center/main/data/screenshots/search.png</image>
     </screenshot>
     <screenshot>
       <caption>Where the Nix store space goes, with clean-ups</caption>
-      <image>https://raw.githubusercontent.com/SPTApyo/nix-software/main/data/screenshots/storage.png</image>
+      <image>https://raw.githubusercontent.com/SPTApyo/nix-app-center/main/data/screenshots/storage.png</image>
     </screenshot>
   </screenshots>
-  <url type="homepage">https://github.com/SPTApyo/nix-software</url>
-  <url type="bugtracker">https://github.com/SPTApyo/nix-software/issues</url>
+  <url type="homepage">https://github.com/SPTApyo/nix-app-center</url>
+  <url type="bugtracker">https://github.com/SPTApyo/nix-app-center/issues</url>
 
   <releases>
     <release version="0.2.1" date="2026-10-11">
       <description>
-        <p>A NixOS module, programs.nix-software.enable, installs the app
+        <p>A NixOS module, programs.nix-app-center.enable, installs the app
            with its search provider and polkit. Builds on aarch64-linux, and
            uses the system gettext.</p>
       </description>

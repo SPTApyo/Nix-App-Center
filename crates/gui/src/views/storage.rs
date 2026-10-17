@@ -5,7 +5,7 @@
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use nix_software_core::{AppOrigin, Category, GenProfile, HomeDir, HomeKind, StorageReport};
+use nix_app_center_core::{AppOrigin, Category, GenProfile, HomeDir, HomeKind, StorageReport};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -102,12 +102,12 @@ impl SimpleComponent for StorageModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = nix_software_core::storage_report().map_err(|e| e.to_string());
+                    let res = nix_app_center_core::storage_report().map_err(|e| e.to_string());
                     let _ = s.send(StorageMsg::Loaded(res));
                 });
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(StorageMsg::HomeLoaded(nix_software_core::home_usage()));
+                    let _ = s.send(StorageMsg::HomeLoaded(nix_app_center_core::home_usage()));
                 });
             }
             StorageMsg::HomeLoaded(dirs) => {
@@ -117,7 +117,7 @@ impl SimpleComponent for StorageModel {
             StorageMsg::ClearCache(dir) => {
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let res = nix_software_core::clear_cache(&dir).map_err(|e| e.to_string());
+                    let res = nix_app_center_core::clear_cache(&dir).map_err(|e| e.to_string());
                     let _ = s.send(StorageMsg::CacheCleared(res));
                 });
             }
@@ -128,7 +128,7 @@ impl SimpleComponent for StorageModel {
                 });
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
-                    let _ = s.send(StorageMsg::HomeLoaded(nix_software_core::home_usage()));
+                    let _ = s.send(StorageMsg::HomeLoaded(nix_app_center_core::home_usage()));
                 });
             }
             StorageMsg::Loaded(res) => {
@@ -190,7 +190,7 @@ fn category_info(c: Category) -> (&'static str, String, String) {
         Category::TriedApps => (
             "#33c7de",
             t("Tried Apps"),
-            t("Apps you ran with Nix Software"),
+            t("Apps you ran with Nix App Center"),
         ),
         Category::Garbage => ("#9a9996", t("Garbage"), t("Nothing uses it anymore")),
     }
@@ -550,7 +550,7 @@ fn apps(r: &StorageReport) -> gtk::Box {
         (vec![AppOrigin::User], t("User Apps")),
         (
             vec![AppOrigin::Kept, AppOrigin::Tried],
-            t("Nix Software Apps"),
+            t("Nix App Center Apps"),
         ),
     ] {
         let apps: Vec<_> = r
@@ -574,7 +574,7 @@ fn apps(r: &StorageReport) -> gtk::Box {
             let detail = t("{} with its dependencies").replace("{}", &size(a.closure))
                 + &own
                 + &match a.origin {
-                    AppOrigin::Kept => format!(" · {}", t("kept by Nix Software")),
+                    AppOrigin::Kept => format!(" · {}", t("kept by Nix App Center")),
                     AppOrigin::Tried => format!(" · {}", t("tried")),
                     _ => String::new(),
                 };
@@ -636,7 +636,7 @@ fn home_files(
     }
     util::section(
         &t("Your Files"),
-        Some(&t("Folders apps keep in your home: {} in all. A cache is rebuilt when needed; data and settings are yours, Nix Software never deletes them.").replace("{}", &size(total))),
+        Some(&t("Folders apps keep in your home: {} in all. A cache is rebuilt when needed; data and settings are yours, Nix App Center never deletes them.").replace("{}", &size(total))),
         &list,
     )
 }

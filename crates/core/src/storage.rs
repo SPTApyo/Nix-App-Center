@@ -550,7 +550,7 @@ fn disk() -> (u64, u64) {
     )
 }
 
-/// Sizes of the apps Nix Software shows.
+/// Sizes of the apps Nix App Center shows.
 fn apps(g: &Graph) -> Vec<AppSize> {
     let none = HashSet::new();
     let sized = |paths: &[String]| -> (u64, u64) {

@@ -2,7 +2,7 @@
 //! pages for every kind of app, and the home page.
 
 use adw::prelude::*;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use relm4::prelude::*;
 
 use crate::views::home::{HomeModel, HomeOutput};

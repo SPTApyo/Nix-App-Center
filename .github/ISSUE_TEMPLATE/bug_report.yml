@@ -22,7 +22,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Nix Software version
+      label: Nix App Center version
       description: About dialog, or the flake revision you run.
     validations:
       required: true
@@ -30,7 +30,7 @@ body:
     id: setup
     attributes:
       label: Your setup
-      description: Output of nix-software-cli layout --verify, and nixos-version.
+      description: Output of nix-app-center-cli layout --verify, and nixos-version.
       render: text
     validations:
       required: true
@@ -38,7 +38,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Run nix-software from a terminal and paste what it prints.
+      description: Run nix-app-center from a terminal and paste what it prints.
       render: text
   - type: textarea
     id: screenshots

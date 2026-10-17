@@ -1,5 +1,5 @@
 //! Compiles `po/*.po` for `cargo run` and `cargo test`, and points
-//! `NIX_SOFTWARE_DEV_LOCALEDIR` at them.
+//! `NIX_APP_CENTER_DEV_LOCALEDIR` at them.
 
 use std::path::Path;
 use std::process::Command;
@@ -22,7 +22,7 @@ fn main() {
             let lang = po.file_stem().unwrap().to_string_lossy().into_owned();
             let dest_dir = locale_root.join(&lang).join("LC_MESSAGES");
             std::fs::create_dir_all(&dest_dir).unwrap();
-            let dest = dest_dir.join("nix-software.mo");
+            let dest = dest_dir.join("nix-app-center.mo");
             match Command::new("msgfmt")
                 .arg(&po)
                 .arg("-o")
@@ -36,7 +36,7 @@ fn main() {
     }
 
     println!(
-        "cargo:rustc-env=NIX_SOFTWARE_DEV_LOCALEDIR={}",
+        "cargo:rustc-env=NIX_APP_CENTER_DEV_LOCALEDIR={}",
         locale_root.display()
     );
 }

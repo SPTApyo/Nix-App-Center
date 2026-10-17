@@ -1,16 +1,16 @@
 # Design
 
-Why Nix Software works the way it does. The code says what it does; these
+Why Nix App Center works the way it does. The code says what it does; these
 notes keep the reasons.
 
 ## Principles
 
 - **Try first.** Running a package with nix run is the primary action. Keeping
   it is a deliberate second step.
-- **Nix Software never overwrites anything.** It owns two generated files. Its
+- **Nix App Center never overwrites anything.** It owns two generated files. Its
   only change to a file the user wrote is one import line, added once, after
   showing the exact diff, with explicit consent, and removable later.
-- **No silent magic.** When Nix Software cannot tell where the configuration
+- **No silent magic.** When Nix App Center cannot tell where the configuration
   lives, it shows the snippet to paste and stops there.
 - **The network is optional.** Flathub, ODRS, Devbox and nixsoftware.org only provide
   metadata (icons, screenshots, ratings, version history). Every call has a
@@ -31,7 +31,7 @@ so each front end renders the same logic its own way.
 
 ## How a Nix machine keeps its software
 
-Nix Software has to handle every common setup. What matters is where
+Nix App Center has to handle every common setup. What matters is where
 packages are declared, where they end up once applied, and where the nixpkgs
 revision is pinned.
 
@@ -68,10 +68,10 @@ The layout is detected by scanning text, never by parsing Nix
 Manager as a flake or standalone, or unknown. The host is the
 nixosConfigurations entry named like the machine, whatever its case.
 Preferences can override the folder and the host, and check the result with
-Nix itself. NIX_SOFTWARE_CONFIG_DIR overrides the folder too; the tests use
+Nix itself. NIX_APP_CENTER_CONFIG_DIR overrides the folder too; the tests use
 it so they never touch /etc/nixos.
 
-Nix Software writes nix-software-home.nix and nix-software-system.nix from
+Nix App Center writes nix-app-center-home.nix and nix-app-center-system.nix from
 its manifest, kept.json. On NixOS both are imported from the imports list of
 configuration.nix; a flake without configuration.nix gets them in the
 modules list of flake.nix. When Home Manager is a NixOS module, the home file
@@ -87,7 +87,7 @@ everything as it was.
 
 A plain kept app is one entry of the aggregated package list. An app with
 its own Nix (advanced editor, module, option) gets its own module region,
-between nix-software:begin and nix-software:end markers. Each region is a
+between nix-app-center:begin and nix-app-center:end markers. Each region is a
 separate module, so two blocks defining the same option merge instead of
 clashing. The advanced editor checks syntax on every keystroke
 (nix-instantiate --parse, about 50 ms) and offers a dry build on demand.
@@ -151,11 +151,11 @@ not evaluate. Nix then evaluates which of those names are really enabled, in
 the background, and the answer is cached until a file changes
 (crates/core/src/enabled.rs).
 
-An app installed but not kept by Nix Software is looked up in the user's
+An app installed but not kept by Nix App Center is looked up in the user's
 files: the line listing it in a packages or systemPackages definition, lists
 combined with ++ and with pkgs; included. Its page names the file and line
 and offers Take Over: the app is kept, and the user deletes their own line.
-The trash button removes only what Nix Software can: a kept app, a nix
+The trash button removes only what Nix App Center can: a kept app, a nix
 profile or nix-env install, a Flatpak, an AppImage (after naming both files
 it deletes), a tried app.
 
@@ -214,8 +214,8 @@ offers it as a hold at the unstable revision.
 
 ## Package identity
 
-nixpkgs and Flathub have no official mapping. Nix Software matches them in
-this order: the user overlay ($XDG_DATA_HOME/nix-software/app-mapping.json,
+nixpkgs and Flathub have no official mapping. Nix App Center matches them in
+this order: the user overlay ($XDG_DATA_HOME/nix-app-center/app-mapping.json,
 filled by Wrong App?), the community overlay
 (crates/core/src/data/app_mapping.json), then name heuristics. A heuristic
 key is dropped when an overlay pins that attribute to another app (nixpkgs
@@ -269,8 +269,8 @@ value is the user's own Nix.
 Updates reads the nixpkgs revision the system runs, finds its branch in the
 configuration's flake.lock, asks nix flake metadata for the branch head and
 evaluates the versions the head ships for the installed apps. Updating moves
-the pin and applies. When nixpkgs comes through another flake input, Nix
-Software says which one and leaves it. Without a managed configuration
+the pin and applies. When nixpkgs comes through another flake input, Nix App
+Center says which one and leaves it. Without a managed configuration
 (other Linux distributions), it compares the apps of ~/.nix-profile and
 updates with nix profile upgrade.
 
@@ -286,19 +286,24 @@ figure is what only it reaches.
 
 ## Integration
 
-- Settings live in $XDG_CONFIG_HOME/nix-software/settings.json. Reading
+- Settings live in $XDG_CONFIG_HOME/nix-app-center/settings.json. Reading
   reviews is anonymous; a random id is only used to post one.
 - The GNOME Shell search provider answers from the local AppStream database
   only, so it never waits on the network.
 - nixpkg://ATTR links, the Install button of nixsoftware.org, open the app
   page of ATTR. Only plain attrs are accepted, and the link never installs
   anything by itself.
-- Nix Software is single instance: on its own page, Try and Open would only
+- The app was called Nix Software before 0.3. On first launch it moves the
+  nix-software data, settings and cache folders to their new name. A
+  configuration that still imports nix-software-home.nix or
+  nix-software-system.nix keeps working: those files are rewritten to import
+  the new ones, and count as attached.
+- Nix App Center is single instance: on its own page, Try and Open would only
   raise the window already open, so they say so instead.
 - A welcome tour opens on first launch and stays in the main menu.
 - Translations use gettext, driven by the system locale like GNOME Software.
   Core strings shown in the UI are marked with n_() and translated where
   they are displayed.
-- cargo run -p nix-software-gui --features dev-gallery adds a Gallery tab of
+- cargo run -p nix-app-center-gui --features dev-gallery adds a Gallery tab of
   labeled scenarios opening the real views; it is absent from release
   builds.

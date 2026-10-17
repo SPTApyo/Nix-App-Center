@@ -1,43 +1,44 @@
-//! Nix Software CLI, a text front end over the core.
+//! Nix App Center CLI, a text front end over the core.
 //!
 //! Usage:
-//!   nix-software-cli search <query…>   list matching packages
-//!   nix-software-cli info <attr>       rich metadata (nix eval meta)
-//!   nix-software-cli run <attr>        `nix run nixpkgs#<attr>` (try-first)
-//!   nix-software-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
-//!   nix-software-cli keep <attr>       add to the Nix Software manifest
-//!   nix-software-cli unkeep <attr>     remove from the manifest
-//!   nix-software-cli updates           nixpkgs pin vs its branch head, app changes
-//!   nix-software-cli versions <attr>   earlier versions and their nixpkgs revision
-//!   nix-software-cli locate <bin>      packages providing a binary (nix-locate)
-//!   nix-software-cli layout [--verify] what Nix Software detects of your config (read only)
-//!   nix-software-cli attach [--commit] consented attach (diff; --commit to write)
-//!   nix-software-cli detach            remove the Nix Software import line
-//!   nix-software-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
-//!   nix-software-cli apply             apply the config (command derived from the layout)
-//!   nix-software-cli gc                store garbage collection (nix-collect-garbage)
-//!   nix-software-cli list              print the manifest
+//!   nix-app-center-cli search <query…>   list matching packages
+//!   nix-app-center-cli info <attr>       rich metadata (nix eval meta)
+//!   nix-app-center-cli run <attr>        `nix run nixpkgs#<attr>` (try-first)
+//!   nix-app-center-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
+//!   nix-app-center-cli keep <attr>       add to the Nix App Center manifest
+//!   nix-app-center-cli unkeep <attr>     remove from the manifest
+//!   nix-app-center-cli updates           nixpkgs pin vs its branch head, app changes
+//!   nix-app-center-cli versions <attr>   earlier versions and their nixpkgs revision
+//!   nix-app-center-cli locate <bin>      packages providing a binary (nix-locate)
+//!   nix-app-center-cli layout [--verify] what Nix App Center detects of your config (read only)
+//!   nix-app-center-cli attach [--commit] consented attach (diff; --commit to write)
+//!   nix-app-center-cli detach            remove the Nix App Center import line
+//!   nix-app-center-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
+//!   nix-app-center-cli apply             apply the config (command derived from the layout)
+//!   nix-app-center-cli gc                store garbage collection (nix-collect-garbage)
+//!   nix-app-center-cli list              print the manifest
 
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    nix_app_center_core::migrate_legacy_dirs();
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(String::as_str) {
         Some("--version" | "-V") => {
-            println!("nix-software {}", env!("CARGO_PKG_VERSION"));
+            println!("nix-app-center {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         Some("search") => {
             let query = args[2..].join(" ");
-            let pkgs = nix_software_core::search(&query);
+            let pkgs = nix_app_center_core::search(&query);
             if pkgs.is_empty() {
                 eprintln!("No results for “{query}”");
                 return ExitCode::FAILURE;
             }
             for p in pkgs {
-                let action = nix_software_core::actions_for(&p).primary.label();
+                let action = nix_app_center_core::actions_for(&p).primary.label();
                 println!(
                     "{:<36} {:<12} [{action}]  {}",
                     p.attr, p.version, p.description
@@ -47,7 +48,7 @@ fn main() -> ExitCode {
         }
 
         Some("info") => match args.get(2) {
-            Some(attr) => match nix_software_core::detail(&Package::from_attr(attr)) {
+            Some(attr) => match nix_app_center_core::detail(&Package::from_attr(attr)) {
                 Some(d) => {
                     let kind = if d.is_runnable() {
                         "App (runnable)"
@@ -84,8 +85,8 @@ fn main() -> ExitCode {
         Some("run") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                eprintln!("→ {}", nix_software_core::run_command(&pkg, false));
-                match nix_software_core::run(&pkg).map(nix_software_core::run_failure) {
+                eprintln!("→ {}", nix_app_center_core::run_command(&pkg, false));
+                match nix_app_center_core::run(&pkg).map(nix_app_center_core::run_failure) {
                     Ok(None) => ExitCode::SUCCESS,
                     Ok(Some(err)) => {
                         eprintln!("{attr} failed: {err}");
@@ -103,10 +104,10 @@ fn main() -> ExitCode {
         Some("shell") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                eprintln!("→ {}", nix_software_core::shell_command(&pkg, false));
-                match nix_software_core::shell(&pkg) {
-                    Ok(nix_software_core::ShellOutcome::Spawned) => ExitCode::SUCCESS,
-                    Ok(nix_software_core::ShellOutcome::NoTerminal) => {
+                eprintln!("→ {}", nix_app_center_core::shell_command(&pkg, false));
+                match nix_app_center_core::shell(&pkg) {
+                    Ok(nix_app_center_core::ShellOutcome::Spawned) => ExitCode::SUCCESS,
+                    Ok(nix_app_center_core::ShellOutcome::NoTerminal) => {
                         eprintln!("no terminal found; run the command above yourself");
                         ExitCode::FAILURE
                     }
@@ -122,7 +123,7 @@ fn main() -> ExitCode {
         Some("keep") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                match nix_software_core::keep(&pkg) {
+                match nix_app_center_core::keep(&pkg) {
                     Ok(()) => {
                         println!("kept: {attr}");
                         ExitCode::SUCCESS
@@ -137,7 +138,7 @@ fn main() -> ExitCode {
         },
 
         Some("unkeep") => match args.get(2) {
-            Some(attr) => match nix_software_core::unkeep(attr) {
+            Some(attr) => match nix_app_center_core::unkeep(attr) {
                 Ok(()) => {
                     println!("removed: {attr}");
                     ExitCode::SUCCESS
@@ -151,14 +152,18 @@ fn main() -> ExitCode {
         },
 
         Some("updates") => {
-            let source = nix_software_core::current_source();
+            let source = nix_app_center_core::current_source();
             println!(
                 "nixpkgs: {} at {} ({:?})",
                 source.branch.as_deref().unwrap_or("unknown branch"),
                 source.rev.as_deref().unwrap_or("unknown revision"),
                 source.method
             );
-            let Some(latest) = source.branch.as_deref().and_then(nix_software_core::latest) else {
+            let Some(latest) = source
+                .branch
+                .as_deref()
+                .and_then(nix_app_center_core::latest)
+            else {
                 eprintln!("cannot reach the branch head");
                 return ExitCode::FAILURE;
             };
@@ -167,14 +172,17 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             println!("latest: {}", latest.rev);
-            for u in nix_software_core::app_updates(
+            for u in nix_app_center_core::app_updates(
                 &latest.rev,
                 source.rev.as_deref(),
-                &nix_software_core::updatable_apps(&source),
+                &nix_app_center_core::updatable_apps(&source),
             ) {
                 println!("{}: {} → {}", u.app.pname, u.app.version, u.new_version);
             }
-            match nix_software_core::update_command(&source, &nix_software_core::detect_layout()) {
+            match nix_app_center_core::update_command(
+                &source,
+                &nix_app_center_core::detect_layout(),
+            ) {
                 Some(steps) => {
                     let steps: Vec<String> = steps.iter().map(|a| a.join(" ")).collect();
                     println!("update with: {}", steps.join(" && "));
@@ -186,7 +194,7 @@ fn main() -> ExitCode {
 
         Some("versions") => match args.get(2) {
             Some(attr) => {
-                let found = nix_software_core::versions(attr);
+                let found = nix_app_center_core::versions(attr);
                 if found.is_empty() {
                     eprintln!("no known versions of {attr}");
                     return ExitCode::FAILURE;
@@ -201,7 +209,7 @@ fn main() -> ExitCode {
         },
         Some("locate") => match args.get(2) {
             Some(cmd) => {
-                let pkgs = nix_software_core::locate_binary(cmd);
+                let pkgs = nix_app_center_core::locate_binary(cmd);
                 if pkgs.is_empty() {
                     eprintln!("no package provides “{cmd}” (or nix-locate is missing)");
                     return ExitCode::FAILURE;
@@ -215,10 +223,10 @@ fn main() -> ExitCode {
         },
 
         Some("layout") => {
-            let l = nix_software_core::detect_layout();
+            let l = nix_app_center_core::detect_layout();
             println!("layout: {:?}", l.kind);
             if args.get(2).map(String::as_str) == Some("--verify") {
-                match nix_software_core::verify_layout(&l) {
+                match nix_app_center_core::verify_layout(&l) {
                     Ok(v) => println!(
                         "nix: hosts {:?}, home-manager users {:?}",
                         v.hosts, v.hm_users
@@ -234,7 +242,7 @@ fn main() -> ExitCode {
                 match scope {
                     Some(s) => println!(
                         "{name} scope: {} (imported from {})",
-                        s.nix_software_file.display(),
+                        s.nix_app_center_file.display(),
                         s.import_site.display()
                     ),
                     None => println!("{name} scope: unavailable"),
@@ -250,11 +258,11 @@ fn main() -> ExitCode {
 
         // Writes only with `--commit`.
         Some("attach") => {
-            let layout = nix_software_core::detect_layout();
-            let plan = nix_software_core::attach_plan(&layout);
+            let layout = nix_app_center_core::detect_layout();
+            let plan = nix_app_center_core::attach_plan(&layout);
             let commit = args.iter().any(|a| a == "--commit");
             match &plan {
-                nix_software_core::AttachPlan::Patch {
+                nix_app_center_core::AttachPlan::Patch {
                     site, backup, diff, ..
                 } => {
                     println!(
@@ -264,24 +272,24 @@ fn main() -> ExitCode {
                     );
                     print!("{diff}");
                 }
-                nix_software_core::AttachPlan::Manual { site, snippet } => {
+                nix_app_center_core::AttachPlan::Manual { site, snippet } => {
                     println!(
                         "no top-level `imports` list in {}; add it yourself:\n{snippet}",
                         site.display()
                     );
                     return ExitCode::SUCCESS;
                 }
-                nix_software_core::AttachPlan::AlreadyAttached => {
+                nix_app_center_core::AttachPlan::AlreadyAttached => {
                     println!("already attached, nothing to do.");
                     return ExitCode::SUCCESS;
                 }
-                nix_software_core::AttachPlan::NoLayout => {
+                nix_app_center_core::AttachPlan::NoLayout => {
                     eprintln!("Nix configuration not found, nothing to attach to.");
                     return ExitCode::FAILURE;
                 }
             }
             if commit {
-                match nix_software_core::attach_commit(&plan) {
+                match nix_app_center_core::attach_commit(&plan) {
                     Ok(()) => {
                         println!("→ attached.");
                         ExitCode::SUCCESS
@@ -298,10 +306,10 @@ fn main() -> ExitCode {
         }
 
         Some("detach") => {
-            let layout = nix_software_core::detect_layout();
-            match nix_software_core::detach(&layout) {
+            let layout = nix_app_center_core::detect_layout();
+            match nix_app_center_core::detach(&layout) {
                 Ok(()) => {
-                    println!("detached: the Nix Software import line was removed.");
+                    println!("detached: the Nix App Center import line was removed.");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
@@ -320,13 +328,13 @@ fn main() -> ExitCode {
                 let block = block.trim().to_string();
                 let home = (!block.is_empty()).then(|| block.clone());
                 if let Some(b) = &home {
-                    if let Err(e) = nix_software_core::parse_block(b) {
+                    if let Err(e) = nix_app_center_core::parse_block(b) {
                         eprintln!("invalid Nix syntax:\n{e}");
                         return ExitCode::FAILURE;
                     }
                 }
                 let pkg = Package::from_attr(attr);
-                match nix_software_core::set_blocks(&pkg, home, None) {
+                match nix_app_center_core::set_blocks(&pkg, home, None) {
                     Ok(()) => {
                         println!("blocks saved for {attr}");
                         ExitCode::SUCCESS
@@ -340,7 +348,7 @@ fn main() -> ExitCode {
             None => usage(),
         },
 
-        Some("gc") => match nix_software_core::garbage_collect() {
+        Some("gc") => match nix_app_center_core::garbage_collect() {
             Ok(summary) => {
                 println!(
                     "{}",
@@ -359,8 +367,8 @@ fn main() -> ExitCode {
         },
 
         Some("apply") => {
-            use nix_software_core::ApplyOutcome::*;
-            match nix_software_core::apply_config() {
+            use nix_app_center_core::ApplyOutcome::*;
+            match nix_app_center_core::apply_config() {
                 Ok(Done(line)) => {
                     println!("configuration applied: {line}");
                     ExitCode::SUCCESS
@@ -385,7 +393,7 @@ fn main() -> ExitCode {
         }
 
         Some("list") => {
-            let manifest = nix_software_core::load_manifest();
+            let manifest = nix_app_center_core::load_manifest();
             if manifest.kept.is_empty() {
                 println!("(empty manifest)");
             } else {
@@ -402,7 +410,7 @@ fn main() -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: nix-software-cli <--version | search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: nix-app-center-cli <--version | search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
     );
     ExitCode::FAILURE
 }

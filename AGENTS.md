@@ -10,7 +10,7 @@ from them.
 Run everything inside the dev shell: nix develop -c just check. It covers
 format, clippy, unit tests, translations and dependencies.
 
-- One test: nix develop -c cargo test -p nix-software-core NAME.
+- One test: nix develop -c cargo test -p nix-app-center-core NAME.
 - Coverage of the core: nix develop -c just cov. It fails under the threshold
   set in the justfile. Never lower the threshold to make it pass.
 - just check does not run the end-to-end suite. Run it (just e2e) when you
@@ -24,11 +24,11 @@ Formatting belongs to rustfmt: run just fmt, do not hand-format.
 The app edits Nix configurations and runs commands as root. While working:
 
 - Never write to /etc/nixos, the user's own configuration or the real
-  ~/.local/share/nix-software. Point NIX_SOFTWARE_CONFIG_DIR at a temporary
+  ~/.local/share/nix-app-center. Point NIX_APP_CENTER_CONFIG_DIR at a temporary
   copy when you need a configuration.
 - Never run nixos-rebuild, home-manager switch, pkexec, sudo or
   nix-collect-garbage yourself. The e2e suite replaces them with fakes.
-- Do not kill a running nix-software process you did not start: it may be the
+- Do not kill a running nix-app-center process you did not start: it may be the
   user's. The e2e suite uses its own D-Bus session and display.
 - Network access is needed for nixpkgs, Flathub and ODRS. Unit tests must not
   depend on it.

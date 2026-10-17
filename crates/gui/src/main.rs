@@ -1,4 +1,4 @@
-//! Nix Software GUI: the relm4 and libadwaita front end.
+//! Nix App Center GUI: the relm4 and libadwaita front end.
 
 mod app;
 mod components;
@@ -12,8 +12,9 @@ use gtk::prelude::*;
 use relm4::RelmApp;
 
 fn main() {
+    nix_app_center_core::migrate_legacy_dirs();
     i18n::init();
-    let app = RelmApp::new("io.github.sptapyo.NixSoftware");
+    let app = RelmApp::new("io.github.sptapyo.NixAppCenter");
     let main_app = relm4::main_application();
     main_app.set_flags(gtk::gio::ApplicationFlags::HANDLES_OPEN);
     main_app.connect_startup(|app| search_provider::register(app.upcast_ref()));
@@ -29,7 +30,7 @@ fn open_links(app: &gtk::Application, files: &[gtk::gio::File], _hint: &str) {
     };
     for pkg in files
         .iter()
-        .filter_map(|f| nix_software_core::Package::from_uri(&f.uri()))
+        .filter_map(|f| nix_app_center_core::Package::from_uri(&f.uri()))
     {
         let _ = tx.send(AppMsg::OpenDetail(pkg));
     }

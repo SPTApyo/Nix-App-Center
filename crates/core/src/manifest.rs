@@ -1,4 +1,4 @@
-//! The kept apps, Nix Software's source of truth. Each change rewrites the
+//! The kept apps, Nix App Center's source of truth. Each change rewrites the
 //! generated files. An app may carry its own Nix blocks, user and system.
 
 use crate::config_gen;
@@ -97,7 +97,7 @@ impl Manifest {
             .collect()
     }
 
-    /// The value Nix Software sets `option` to, if it does.
+    /// The value Nix App Center sets `option` to, if it does.
     pub fn option_value(&self, option: &str) -> Option<String> {
         self.kept
             .iter()
@@ -217,7 +217,7 @@ pub fn set_option(option: &str, value: &str, home: bool) -> std::io::Result<()> 
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '"' | '<' | '>'));
     let value = value.trim().trim_end_matches(';').trim();
-    if !plain || value.is_empty() || value.contains("nix-software:") {
+    if !plain || value.is_empty() || value.contains("nix-app-center:") {
         return Err(std::io::Error::other(crate::util::n_(
             "This option cannot be set here.",
         )));
@@ -390,11 +390,11 @@ pub fn pin_at(rev: &str, version: Option<String>) -> std::io::Result<Pin> {
 mod tests {
     use super::*;
 
-    /// Isolates `XDG_DATA_HOME` (manifest) and `NIX_SOFTWARE_CONFIG_DIR` (generated files)
+    /// Isolates `XDG_DATA_HOME` (manifest) and `NIX_APP_CENTER_CONFIG_DIR` (generated files)
     /// in a throwaway directory. No test touches the real `~` or `/etc/nixos`.
     fn sandbox(name: &str) -> PathBuf {
         let base = std::env::temp_dir().join(format!(
-            "nix-software-manifest-{}-{}",
+            "nix-app-center-manifest-{}-{}",
             std::process::id(),
             name
         ));
@@ -404,7 +404,7 @@ mod tests {
         std::fs::write(base.join("configuration.nix"), "{ imports = [ ]; }").unwrap();
         std::env::set_var("XDG_DATA_HOME", &base);
         std::env::set_var("XDG_CONFIG_HOME", &base);
-        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &base);
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &base);
         base
     }
 
@@ -419,8 +419,8 @@ mod tests {
         crate::settings::save_settings(&settings).unwrap();
 
         keep(&Package::from_attr("ripgrep")).unwrap();
-        let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
-        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        let home = std::fs::read_to_string(base.join("nix-app-center-home.nix")).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-app-center-system.nix")).unwrap();
         assert!(!home.contains("ripgrep"), "{home}");
         assert!(
             system.contains("environment.systemPackages = with pkgs; [\n    ripgrep\n  ];"),
@@ -464,7 +464,7 @@ mod tests {
 
     fn cleanup() {
         std::env::remove_var("XDG_DATA_HOME");
-        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
             Some("true")
         );
         assert!(m.packages().is_empty());
-        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-app-center-system.nix")).unwrap();
         assert!(system.contains("services.printing.enable = true;"));
         assert!(set_option("x; y = 1", "true", false).is_err());
         unset_option("services.printing.enable").unwrap();
@@ -492,12 +492,12 @@ mod tests {
         let base = sandbox("flake-module");
         import_flake_module("nix-gaming", "platformOptimizations", false).unwrap();
         import_flake_module("github:a/b/c", "theme", true).unwrap();
-        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-app-center-system.nix")).unwrap();
         assert!(
             system.contains("imports = [ inputs.nix-gaming.nixosModules.platformOptimizations ];")
         );
         assert!(system.contains("inputs ? { }"));
-        let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
+        let home = std::fs::read_to_string(base.join("nix-app-center-home.nix")).unwrap();
         assert!(home.contains("(builtins.getFlake \"github:a/b/c\").homeManagerModules.theme"));
         assert!(import_flake_module("x\"; y", "m", false).is_err());
         cleanup();
@@ -539,11 +539,11 @@ mod tests {
         assert!(apply_pending());
         applied();
         assert!(!apply_pending());
-        let after_keep = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
+        let after_keep = std::fs::read_to_string(base.join("nix-app-center-home.nix")).unwrap();
         assert!(after_keep.contains("ripgrep"));
 
         unkeep("ripgrep").unwrap();
-        let after_unkeep = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
+        let after_unkeep = std::fs::read_to_string(base.join("nix-app-center-home.nix")).unwrap();
         assert!(!after_unkeep.contains("ripgrep"));
 
         cleanup();
@@ -581,9 +581,9 @@ mod tests {
         )
         .unwrap();
 
-        let home = std::fs::read_to_string(base.join("nix-software-home.nix")).unwrap();
-        let system = std::fs::read_to_string(base.join("nix-software-system.nix")).unwrap();
-        assert!(home.contains("# nix-software:begin quickshare"));
+        let home = std::fs::read_to_string(base.join("nix-app-center-home.nix")).unwrap();
+        let system = std::fs::read_to_string(base.join("nix-app-center-system.nix")).unwrap();
+        assert!(home.contains("# nix-app-center:begin quickshare"));
         assert!(home.contains("services.quickshare.enable = true;"));
         assert!(system.contains("networking.firewall.allowedTCPPorts = [ 8080 ];"));
 
@@ -596,7 +596,7 @@ mod tests {
         // Old format: bare packages.
         let _g = crate::env_lock();
         let base = sandbox("migration");
-        let data = base.join("nix-software");
+        let data = base.join("nix-app-center");
         std::fs::create_dir_all(&data).unwrap();
         std::fs::write(
             data.join("kept.json"),

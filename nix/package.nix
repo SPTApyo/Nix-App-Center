@@ -1,4 +1,4 @@
-# Nix Software as it goes into nixpkgs (pkgs/by-name/ni/nix-software).
+# Nix App Center as it goes into nixpkgs (pkgs/by-name/ni/nix-app-center).
 # flake.nix builds the same recipe from the local tree; the hashes below are
 # filled when a release is tagged, see docs/packaging.md.
 {
@@ -20,14 +20,14 @@
 }:
 
 rustPlatform.buildRustPackage (finalAttrs: {
-  pname = "nix-software";
+  pname = "nix-app-center";
   version = "0.2.1";
 
   __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "SPTApyo";
-    repo = "nix-software";
+    repo = "nix-app-center";
     tag = "v${finalAttrs.version}";
     hash = lib.fakeHash;
   };
@@ -53,7 +53,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # The GUI tests need a display; the core holds the logic.
   cargoTestFlags = [
     "--package"
-    "nix-software-core"
+    "nix-app-center-core"
   ];
   nativeCheckInputs = [
     git
@@ -61,27 +61,27 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   postInstall = ''
-    install -Dm644 -t $out/share/applications crates/gui/data/io.github.sptapyo.NixSoftware.desktop
-    install -Dm644 -t $out/share/metainfo crates/gui/data/io.github.sptapyo.NixSoftware.metainfo.xml
+    install -Dm644 -t $out/share/applications crates/gui/data/io.github.sptapyo.NixAppCenter.desktop
+    install -Dm644 -t $out/share/metainfo crates/gui/data/io.github.sptapyo.NixAppCenter.metainfo.xml
     install -Dm644 -t $out/share/gnome-shell/search-providers \
-      crates/gui/data/io.github.sptapyo.NixSoftware.search-provider.ini
+      crates/gui/data/io.github.sptapyo.NixAppCenter.search-provider.ini
     # Lets GNOME Shell start the app to answer searches.
     install -d $out/share/dbus-1/services
-    printf '[D-BUS Service]\nName=io.github.sptapyo.NixSoftware\nExec=%s --gapplication-service\n' \
-      "$out/bin/nix-software" > $out/share/dbus-1/services/io.github.sptapyo.NixSoftware.service
+    printf '[D-BUS Service]\nName=io.github.sptapyo.NixAppCenter\nExec=%s --gapplication-service\n' \
+      "$out/bin/nix-app-center" > $out/share/dbus-1/services/io.github.sptapyo.NixAppCenter.service
     install -Dm644 -t $out/share/icons/hicolor/scalable/apps \
-      crates/gui/data/icons/hicolor/scalable/apps/io.github.sptapyo.NixSoftware.svg
-    mkdir -p $out/share/nix-software/icons
-    cp -r crates/gui/data/icons/hicolor $out/share/nix-software/icons/
+      crates/gui/data/icons/hicolor/scalable/apps/io.github.sptapyo.NixAppCenter.svg
+    mkdir -p $out/share/nix-app-center/icons
+    cp -r crates/gui/data/icons/hicolor $out/share/nix-app-center/icons/
     for po in po/*.po; do
       lang=$(basename "$po" .po)
       install -d $out/share/locale/$lang/LC_MESSAGES
-      msgfmt "$po" -o $out/share/locale/$lang/LC_MESSAGES/nix-software.mo
+      msgfmt "$po" -o $out/share/locale/$lang/LC_MESSAGES/nix-app-center.mo
     done
   '';
 
   preFixup = ''
-    gappsWrapperArgs+=(--set NIX_SOFTWARE_LOCALEDIR "$out/share/locale")
+    gappsWrapperArgs+=(--set NIX_APP_CENTER_LOCALEDIR "$out/share/locale")
   '';
 
   passthru = {
@@ -89,19 +89,19 @@ rustPlatform.buildRustPackage (finalAttrs: {
     tests = {
       version = testers.testVersion {
         package = finalAttrs.finalPackage;
-        command = "nix-software-cli --version";
+        command = "nix-app-center-cli --version";
       };
-      module = nixosTests.nix-software;
+      module = nixosTests.nix-app-center;
     };
   };
 
   meta = {
     description = "Declarative app store for NixOS and Home Manager, built around try first";
-    homepage = "https://github.com/SPTApyo/nix-software";
-    changelog = "https://github.com/SPTApyo/nix-software/releases/tag/v${finalAttrs.version}";
+    homepage = "https://github.com/SPTApyo/nix-app-center";
+    changelog = "https://github.com/SPTApyo/nix-app-center/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [ SPTApyo ];
-    mainProgram = "nix-software";
+    mainProgram = "nix-app-center";
     platforms = lib.platforms.linux;
   };
 })

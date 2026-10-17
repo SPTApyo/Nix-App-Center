@@ -2,7 +2,7 @@
 //! how (plain package or module).
 
 use adw::prelude::*;
-use nix_software_core::InstallMode;
+use nix_app_center_core::InstallMode;
 
 use crate::i18n::t;
 use crate::util::esc;

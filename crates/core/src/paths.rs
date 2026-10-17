@@ -1,4 +1,4 @@
-//! Nix Software data folder and file writing, including as root.
+//! Nix App Center data folder and file writing, including as root.
 
 use std::path::PathBuf;
 
@@ -9,7 +9,27 @@ pub(crate) fn data_dir() -> PathBuf {
             let home = crate::util::home();
             home.join(".local/share")
         });
-    base.join("nix-software")
+    base.join("nix-app-center")
+}
+
+/// The name the app had before 0.3, still found on existing machines.
+pub(crate) const LEGACY_NAME: &str = "nix-software";
+
+/// Moves the data, settings and cache folders of the old name to the new
+/// one, once. Run first in `main`.
+pub fn migrate_legacy_dirs() {
+    let settings = crate::settings::settings_path();
+    let dirs = [
+        Some(data_dir()),
+        settings.parent().map(PathBuf::from),
+        Some(crate::cache::cache_dir()),
+    ];
+    for new in dirs.into_iter().flatten() {
+        let old = new.with_file_name(LEGACY_NAME);
+        if old.is_dir() && !new.exists() {
+            let _ = std::fs::rename(&old, &new);
+        }
+    }
 }
 
 /// Writes `path` through a temporary file and a rename: never half written.
@@ -20,7 +40,7 @@ pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Res
         ".{}.tmp-{}",
         path.file_name()
             .and_then(|n| n.to_str())
-            .unwrap_or("nix-software"),
+            .unwrap_or("nix-app-center"),
         std::process::id()
     ));
     std::fs::write(&tmp, bytes)?;
@@ -82,7 +102,7 @@ fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
     let mut parts = Vec::new();
     for (dest, bytes) in files {
         let text = String::from_utf8_lossy(bytes);
-        let mut mark = String::from("NIX_SOFTWARE_EOF");
+        let mut mark = String::from("NIX_APP_CENTER_EOF");
         while text.contains(&mark) {
             mark.push('_');
         }
@@ -94,7 +114,7 @@ fn root_write_script(files: &[&(PathBuf, Vec<u8>)]) -> String {
         );
         // mktemp: unguessable name, no link followed.
         parts.push(format!(
-            "tmp=$(mktemp {dir}/.nix-software-XXXXXX)\ncat <<'{mark}' | head -c -1 > \"$tmp\"\n{text}\n{mark}\nchmod 644 \"$tmp\" && mv \"$tmp\" {}",
+            "tmp=$(mktemp {dir}/.nix-app-center-XXXXXX)\ncat <<'{mark}' | head -c -1 > \"$tmp\"\n{text}\n{mark}\nchmod 644 \"$tmp\" && mv \"$tmp\" {}",
             sh_quote(&dest.to_string_lossy())
         ));
     }
@@ -140,7 +160,8 @@ mod tests {
     #[test]
     fn write_atomic_replaces_content_and_leaves_no_tmp() {
         // No env mutation, so no env_lock needed.
-        let dir = std::env::temp_dir().join(format!("nix-software-atomic-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("nix-app-center-atomic-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let path = dir.join("kept.json");
 
@@ -157,7 +178,7 @@ mod tests {
 
     #[test]
     fn write_files_writes_in_order_without_rights_when_allowed() {
-        let dir = std::env::temp_dir().join(format!("nix-software-files-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-app-center-files-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let (a, b) = (dir.join("a.nix"), dir.join("b.nix"));
         write_files(&[(a.clone(), b"one".to_vec()), (b.clone(), b"two".to_vec())]).unwrap();
@@ -169,10 +190,10 @@ mod tests {
 
     #[test]
     fn root_write_script_round_trips_any_content() {
-        let dir = std::env::temp_dir().join(format!("nix-software-root-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-app-center-root-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let tricky = b"{ x = \"$HOME `id` 'q' \\n\"; }\nNIX_SOFTWARE_EOF\nend".to_vec();
+        let tricky = b"{ x = \"$HOME `id` 'q' \\n\"; }\nNIX_APP_CENTER_EOF\nend".to_vec();
         let files = [
             (dir.join("a b.nix"), tricky.clone()),
             (dir.join("c.nix"), b"two\n".to_vec()),
@@ -190,7 +211,7 @@ mod tests {
 
     #[test]
     fn track_in_git_marks_new_files() {
-        let dir = std::env::temp_dir().join(format!("nix-software-git-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("nix-app-center-git-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let git = |args: &[&str]| {
@@ -202,13 +223,13 @@ mod tests {
                 .unwrap()
         };
         git(&["init", "-q"]);
-        let file = dir.join("nix-software-home.nix");
+        let file = dir.join("nix-app-center-home.nix");
         std::fs::write(&file, "{ }").unwrap();
         track_in_git(&file);
         let listed = git(&["ls-files"]);
         assert_eq!(
             String::from_utf8_lossy(&listed.stdout).trim(),
-            "nix-software-home.nix"
+            "nix-app-center-home.nix"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }

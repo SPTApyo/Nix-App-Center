@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn removing_an_appimage_deletes_both_files() {
         let dir =
-            std::env::temp_dir().join(format!("nix-software-appimage-{}", std::process::id()));
+            std::env::temp_dir().join(format!("nix-app-center-appimage-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let image = dir.join("kdenlive.AppImage");
         let desktop = dir.join("kdenlive.desktop");
@@ -164,7 +164,8 @@ mod tests {
     #[test]
     fn removing_a_flatpak_calls_flatpak_uninstall() {
         let _g = crate::env_lock();
-        let dir = std::env::temp_dir().join(format!("nix-software-flatpak-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("nix-app-center-flatpak-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let log = dir.join("log");
         let fake = dir.join("flatpak");

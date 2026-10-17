@@ -13,7 +13,7 @@ body:
     id: idea
     attributes:
       label: Idea
-      description: How Nix Software could help. Mockups welcome.
+      description: How Nix App Center could help. Mockups welcome.
   - type: textarea
     id: alternatives
     attributes:

@@ -1,4 +1,4 @@
-//! Detects how the user's Nix configuration is laid out: where Nix Software
+//! Detects how the user's Nix configuration is laid out: where Nix App Center
 //! writes its files, which file imports them and how to apply. Text scanning,
 //! so the front end always shows the result before writing.
 
@@ -15,15 +15,15 @@ pub enum LayoutKind {
     HmFlake { dir: PathBuf, user: String },
     /// Standalone home-manager (`~/.config/home-manager/home.nix`).
     HmStandalone { dir: PathBuf },
-    /// Nothing recognizable: Nix Software shows a snippet instead of guessing.
+    /// Nothing recognizable: Nix App Center shows a snippet instead of guessing.
     Unknown,
 }
 
-/// A scope Nix Software writes to, and the file importing it.
+/// A scope Nix App Center writes to, and the file importing it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeTarget {
-    /// The generated file Nix Software owns.
-    pub nix_software_file: PathBuf,
+    /// The generated file Nix App Center owns.
+    pub nix_app_center_file: PathBuf,
     /// The user's file whose `imports` list gets one line.
     pub import_site: PathBuf,
 }
@@ -42,19 +42,19 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// True when Nix Software knows where to write and how to apply.
+    /// True when Nix App Center knows where to write and how to apply.
     pub fn is_usable(&self) -> bool {
         !matches!(self.kind, LayoutKind::Unknown)
     }
 }
 
-const NIX_SOFTWARE_HOME_FILE: &str = "nix-software-home.nix";
-const NIX_SOFTWARE_SYSTEM_FILE: &str = "nix-software-system.nix";
+const NIX_APP_CENTER_HOME_FILE: &str = "nix-app-center-home.nix";
+const NIX_APP_CENTER_SYSTEM_FILE: &str = "nix-app-center-system.nix";
 
-/// The NixOS configuration folder: `NIX_SOFTWARE_CONFIG_DIR`, the settings,
+/// The NixOS configuration folder: `NIX_APP_CENTER_CONFIG_DIR`, the settings,
 /// else `/etc/nixos`.
 fn nixos_dir() -> PathBuf {
-    std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
+    std::env::var_os("NIX_APP_CENTER_CONFIG_DIR")
         .map(PathBuf::from)
         .or_else(|| crate::settings::load_settings().config_dir)
         .unwrap_or_else(|| PathBuf::from("/etc/nixos"))
@@ -72,7 +72,7 @@ fn read(path: &Path) -> String {
 /// Detects the machine layout.
 pub fn detect() -> Layout {
     let mut layout = detect_files();
-    let custom = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
+    let custom = std::env::var_os("NIX_APP_CENTER_CONFIG_DIR")
         .is_none()
         .then(|| crate::settings::load_settings().apply_command)
         .flatten()
@@ -314,7 +314,7 @@ fn detect_files() -> Layout {
     if flake.is_file() {
         let src = read(&flake);
         // The environment variable beats the settings.
-        let chosen = std::env::var_os("NIX_SOFTWARE_CONFIG_DIR")
+        let chosen = std::env::var_os("NIX_APP_CENTER_CONFIG_DIR")
             .is_none()
             .then(|| crate::settings::load_settings().host)
             .flatten();
@@ -497,11 +497,11 @@ fn nixos_scopes(dir: &Path) -> (Option<ScopeTarget>, Option<ScopeTarget>) {
     };
     (
         Some(ScopeTarget {
-            nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
+            nix_app_center_file: dir.join(NIX_APP_CENTER_HOME_FILE),
             import_site: site.clone(),
         }),
         Some(ScopeTarget {
-            nix_software_file: dir.join(NIX_SOFTWARE_SYSTEM_FILE),
+            nix_app_center_file: dir.join(NIX_APP_CENTER_SYSTEM_FILE),
             import_site: site,
         }),
     )
@@ -540,7 +540,7 @@ fn nixos_legacy_layout(dir: PathBuf, hm_user: Option<String>) -> Layout {
 
 fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
     let home = Some(ScopeTarget {
-        nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
+        nix_app_center_file: dir.join(NIX_APP_CENTER_HOME_FILE),
         import_site: dir.join("home.nix"),
     });
     let mut apply = vec![
@@ -562,7 +562,7 @@ fn hm_flake_layout(dir: PathBuf, user: String) -> Layout {
 
 fn hm_standalone_layout(dir: PathBuf) -> Layout {
     let home = Some(ScopeTarget {
-        nix_software_file: dir.join(NIX_SOFTWARE_HOME_FILE),
+        nix_app_center_file: dir.join(NIX_APP_CENTER_HOME_FILE),
         import_site: dir.join("home.nix"),
     });
     let apply = vec!["home-manager".into(), "switch".into()];
@@ -645,7 +645,7 @@ mod tests {
     /// Throwaway fixture. No test ever touches the real `/etc/nixos` or `~`.
     fn fixture(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "nix-software-layout-{}-{}",
+            "nix-app-center-layout-{}-{}",
             std::process::id(),
             name
         ));
@@ -673,10 +673,10 @@ mod tests {
             "{ imports = [ ./hardware-configuration.nix ]; }",
         );
         write(&dir, "home.nix", "{ home-manager.users.alice = { ... }; }");
-        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &dir);
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &dir);
 
         let layout = detect();
-        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
 
         assert_eq!(
             layout.kind,
@@ -699,10 +699,13 @@ mod tests {
         // Both scopes attach in the same configuration.nix.
         let home = layout.home.unwrap();
         let system = layout.system.unwrap();
-        assert_eq!(home.nix_software_file, dir.join("nix-software-home.nix"));
         assert_eq!(
-            system.nix_software_file,
-            dir.join("nix-software-system.nix")
+            home.nix_app_center_file,
+            dir.join("nix-app-center-home.nix")
+        );
+        assert_eq!(
+            system.nix_app_center_file,
+            dir.join("nix-app-center-system.nix")
         );
         assert_eq!(home.import_site, dir.join("configuration.nix"));
         assert_eq!(system.import_site, dir.join("configuration.nix"));
@@ -713,10 +716,10 @@ mod tests {
         let _g = crate::env_lock();
         let dir = fixture("legacy");
         write(&dir, "configuration.nix", "{ imports = [ ]; }");
-        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &dir);
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &dir);
 
         let layout = detect();
-        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
 
         assert_eq!(layout.kind, LayoutKind::NixosLegacy { dir });
         assert_eq!(layout.apply, ["sudo", "nixos-rebuild", "switch"]);
@@ -728,11 +731,11 @@ mod tests {
         let _g = crate::env_lock();
         let dir = fixture("vide");
         let home = fixture("home-vide");
-        std::env::set_var("NIX_SOFTWARE_CONFIG_DIR", &dir);
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &dir);
         std::env::set_var("HOME", &home);
 
         let layout = detect();
-        std::env::remove_var("NIX_SOFTWARE_CONFIG_DIR");
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
 
         assert_eq!(layout.kind, LayoutKind::Unknown);
         assert!(layout.apply.is_empty(), "no apply may be offered");

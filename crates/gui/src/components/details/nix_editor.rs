@@ -4,7 +4,7 @@
 use crate::i18n::t;
 use adw::prelude::*;
 use gtk::glib;
-use nix_software_core::Package;
+use nix_app_center_core::Package;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -102,7 +102,7 @@ pub fn present(
         msg.set_icon_name(Some("dialog-information-symbolic"));
         msg.set_title(&t("System Scope Unavailable"));
         msg.set_description(Some(&t(
-            "Your configuration uses standalone home-manager: Nix Software cannot write NixOS \
+            "Your configuration uses standalone home-manager: Nix App Center cannot write NixOS \
              options there (firewall, system services).",
         )));
         let page = stack.add_titled(&msg, Some("system"), &t("System"));
@@ -137,7 +137,7 @@ pub fn present(
                 (t("System scope:"), &system_buf),
             ] {
                 if let Some(block) = block_or_none(buf) {
-                    if let Err(e) = nix_software_core::parse_block(&block) {
+                    if let Err(e) = nix_app_center_core::parse_block(&block) {
                         errs.push(format!("{scope}\n{e}"));
                     }
                 }
@@ -220,7 +220,7 @@ pub fn present(
 
             let (tx, rx) = async_channel::bounded(1);
             std::thread::spawn(move || {
-                let _ = tx.send_blocking(nix_software_core::dry_build());
+                let _ = tx.send_blocking(nix_app_center_core::dry_build());
             });
 
             let status = status.clone();
@@ -228,17 +228,17 @@ pub fn present(
             glib::spawn_future_local(async move {
                 if let Ok(res) = rx.recv().await {
                     match res {
-                        nix_software_core::DryRun::Ok => {
+                        nix_app_center_core::DryRun::Ok => {
                             status.remove_css_class("error");
                             status.set_label(&t(
                                 "✓ The whole configuration evaluates, options and types included",
                             ));
                         }
-                        nix_software_core::DryRun::Failed(e) => {
+                        nix_app_center_core::DryRun::Failed(e) => {
                             status.add_css_class("error");
                             status.set_label(&e);
                         }
-                        nix_software_core::DryRun::Unavailable(e) => {
+                        nix_app_center_core::DryRun::Unavailable(e) => {
                             status.set_label(&t("Cannot check: {}").replace("{}", &t(&e)));
                         }
                     }

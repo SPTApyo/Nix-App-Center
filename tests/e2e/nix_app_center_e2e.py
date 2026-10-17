@@ -1,4 +1,4 @@
-"""End-to-end tests for Nix Software, driven through GTK's Broadway backend.
+"""End-to-end tests for Nix App Center, driven through GTK's Broadway backend.
 
 Broadway renders the real GTK app into a web page, which Playwright drives
 with real mouse and keyboard events. Assertions check the real side effects
@@ -20,7 +20,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
-DISPLAY = os.environ.get("NIX_SOFTWARE_E2E_DISPLAY", ":7")
+DISPLAY = os.environ.get("NIX_APP_CENTER_E2E_DISPLAY", ":7")
 PORT = 8080 + int(DISPLAY.lstrip(":"))
 URL = f"http://127.0.0.1:{PORT}/"
 VIEWPORT = {"width": 1100, "height": 760}
@@ -94,17 +94,17 @@ def wait_for(predicate, timeout, what):
 
 
 class Environment:
-    """Throwaway XDG dirs + a fake NixOS layout, then broadwayd + nix-software."""
+    """Throwaway XDG dirs + a fake NixOS layout, then broadwayd + nix-app-center."""
 
     def __init__(self, binary):
-        self.tmp = Path(tempfile.mkdtemp(prefix="nix-software-e2e-"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="nix-app-center-e2e-"))
         self.data = self.tmp / "data"
         self.config = self.tmp / "nixos"
         self.config.mkdir(parents=True)
         (self.config / "configuration.nix").write_text(
             "{ pkgs, ... }:\n{\n  imports = [\n    ./hardware-configuration.nix\n  ];\n}\n"
         )
-        # Fake programs: they record how Nix Software calls them, so the actions can
+        # Fake programs: they record how Nix App Center calls them, so the actions can
         # be checked without a real terminal, root rights or a rebuild.
         self.bin = self.tmp / "bin"
         self.bin.mkdir()
@@ -135,13 +135,13 @@ class Environment:
             os.environ,
             GDK_BACKEND="broadway",
             BROADWAY_DISPLAY=DISPLAY,
-            LANGUAGE=os.environ.get("NIX_SOFTWARE_E2E_LANG", "en"),
+            LANGUAGE=os.environ.get("NIX_APP_CENTER_E2E_LANG", "en"),
             LANG="en_US.UTF-8",
             XDG_DATA_HOME=str(self.data),
             XDG_CONFIG_HOME=str(self.tmp / "config"),
             # Reuse the real cache: AppStream download and nix search results.
             XDG_CACHE_HOME=str(cache),
-            NIX_SOFTWARE_CONFIG_DIR=str(self.config),
+            NIX_APP_CENTER_CONFIG_DIR=str(self.config),
             PATH=f"{self.bin}:{os.environ['PATH']}",
         )
         # Child processes (terminals, apps started by Run) must never reach the
@@ -156,13 +156,13 @@ class Environment:
         time.sleep(1)
         if self.broadway.poll() is not None:
             sys.exit(f"gtk4-broadwayd {DISPLAY} did not start (display already in use?)")
-        self.log = open(self.tmp / "nix-software.log", "w")
-        # Private bus: a running Nix Software elsewhere would swallow the launch.
+        self.log = open(self.tmp / "nix-app-center.log", "w")
+        # Private bus: a running Nix App Center elsewhere would swallow the launch.
         self.app = subprocess.Popen(["dbus-run-session", "--", binary], env=self.env,
                                     stdout=self.log, stderr=self.log, start_new_session=True)
 
     def kept(self):
-        path = self.data / "nix-software" / "kept.json"
+        path = self.data / "nix-app-center" / "kept.json"
         return [e["attr"] for e in json.loads(path.read_text())["kept"]] if path.exists() else []
 
     def logged(self, name):
@@ -170,7 +170,7 @@ class Environment:
         return path.read_text() if path.exists() else ""
 
     def tried(self):
-        path = self.data / "nix-software" / "tried.json"
+        path = self.data / "nix-app-center" / "tried.json"
         return path.read_text() if path.exists() else ""
 
     def close(self):
@@ -185,7 +185,7 @@ class Environment:
 TOUR_SKIP = "click:196,659"
 SEARCH_TOGGLE = "click:47,48"
 BACK = "click:47,48"
-FIRST_RESULT = "click:400,230"
+FIRST_RESULT = "click:600,170"
 TAB_INSTALLED = "click:443,48"
 # Installed tab: Remove buttons of the first kept and first tried rows.
 KEPT_REMOVE = "click:846,159"
@@ -221,7 +221,7 @@ def scenario(env, s):
     s.do("wait:8000")
     s.shot("welcome")
     s.do(TOUR_SKIP)
-    settings = env.tmp / "config" / "nix-software" / "settings.json"
+    settings = env.tmp / "config" / "nix-app-center" / "settings.json"
     wait_for(lambda: '"onboarded": true' in settings.read_text(), 10, "tour remembered")
     s.do("wait:800")
     s.shot("home")
@@ -233,7 +233,7 @@ def scenario(env, s):
     s.shot("search-hello")
 
     s.do(FIRST_RESULT)
-    s.do("wait:6000")
+    s.do("wait:15000")
     s.shot("details-hello")
 
     s.do(MENU)
@@ -247,15 +247,15 @@ def scenario(env, s):
     wait_for(lambda: "hello" in env.kept(), 10, "hello in kept.json")
     s.do("wait:1000")
     s.shot("attach-dialog")
-    home = env.config / "nix-software-home.nix"
+    home = env.config / "nix-app-center-home.nix"
     site = env.config / "configuration.nix"
-    assert "hello" in home.read_text(), "nix-software-home.nix must list hello"
+    assert "hello" in home.read_text(), "nix-app-center-home.nix must list hello"
     assert "home.packages" not in home.read_text(), "NixOS without home-manager has no home.packages"
-    assert "nix-software-home.nix" not in site.read_text(), "configuration.nix must stay untouched before consent"
+    assert "nix-app-center-home.nix" not in site.read_text(), "configuration.nix must stay untouched before consent"
 
     s.do(ATTACH_ACCEPT)
-    wait_for(lambda: "./nix-software-home.nix" in site.read_text(), 10, "import line in configuration.nix")
-    assert (env.config / "configuration.nix.nix-software-bak").exists(), "a backup must be written first"
+    wait_for(lambda: "./nix-app-center-home.nix" in site.read_text(), 10, "import line in configuration.nix")
+    assert (env.config / "configuration.nix.nix-app-center-bak").exists(), "a backup must be written first"
     s.shot("attached")
 
     actions(env, s)
@@ -267,7 +267,7 @@ def scenario(env, s):
 
     s.do(KEPT_REMOVE)
     wait_for(lambda: "hello" not in env.kept(), 10, "hello removed from kept.json")
-    assert "hello" not in home.read_text(), "nix-software-home.nix must drop hello"
+    assert "hello" not in home.read_text(), "nix-app-center-home.nix must drop hello"
     s.shot("removed")
 
     # The banner pushed the list down.
@@ -301,7 +301,7 @@ def actions(env, s):
     s.do("wait:500")
     s.shot("action-copy")
 
-    # Advanced options: a system block lands in nix-software-system.nix.
+    # Advanced options: a system block lands in nix-app-center-system.nix.
     s.do(MENU)
     s.do(MENU_ADVANCED)
     s.do("wait:1000")
@@ -312,7 +312,7 @@ def actions(env, s):
     s.do("wait:2000")
     s.shot("action-editor-typed")
     s.do(EDITOR_SAVE)
-    system = env.config / "nix-software-system.nix"
+    system = env.config / "nix-app-center-system.nix"
     wait_for(lambda: system.exists() and "8080" in system.read_text(), 10, "system block written")
 
     # Apply: elevated through pkexec, never through a password prompt in a tty.
@@ -327,8 +327,8 @@ def actions(env, s):
     s.do("key:Escape")
     s.do("wait:500")
 
-    home = env.config / "nix-software-home.nix"
-    manifest = env.data / "nix-software" / "kept.json"
+    home = env.config / "nix-app-center-home.nix"
+    manifest = env.data / "nix-app-center" / "kept.json"
     s.do(VERSION_CHOOSE)
     s.do("wait:8000")
     s.shot("action-versions")
@@ -364,8 +364,8 @@ def actions(env, s):
 def main():
     serve = "--serve" in sys.argv
     args = [a for a in sys.argv[1:] if a != "--serve"]
-    binary = args[0] if args else str(ROOT / "target/debug/nix-software")
-    out = Path(os.environ.get("NIX_SOFTWARE_E2E_OUT", ROOT / "target/e2e"))
+    binary = args[0] if args else str(ROOT / "target/debug/nix-app-center")
+    out = Path(os.environ.get("NIX_APP_CENTER_E2E_OUT", ROOT / "target/e2e"))
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     env = Environment(binary)
@@ -384,7 +384,7 @@ def main():
         print(f"e2e: OK, screenshots in {out}")
     finally:
         env.close()
-        print(f"e2e: app log in {env.tmp / 'nix-software.log'}")
+        print(f"e2e: app log in {env.tmp / 'nix-app-center.log'}")
 
 
 if __name__ == "__main__":

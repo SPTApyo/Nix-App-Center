@@ -778,14 +778,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix-software-cli"
+name = "nix-app-center-cli"
 version = "0.2.1"
 dependencies = [
- "nix-software-core",
+ "nix-app-center-core",
 ]
 
 [[package]]
-name = "nix-software-core"
+name = "nix-app-center-core"
 version = "0.2.1"
 dependencies = [
  "brotli-decompressor",
@@ -797,14 +797,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix-software-gui"
+name = "nix-app-center-gui"
 version = "0.2.1"
 dependencies = [
  "async-channel",
  "gettext-rs",
  "gtk4",
  "libadwaita",
- "nix-software-core",
+ "nix-app-center-core",
  "relm4",
 ]
 

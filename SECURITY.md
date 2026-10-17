@@ -1,13 +1,13 @@
 # Security
 
-Nix Software edits Nix configurations and runs some commands as root through
+Nix App Center edits Nix configurations and runs some commands as root through
 pkexec (writing files under /etc/nixos, activating a built system, garbage
 collection).
 Bugs there matter, so please report them privately.
 
 ## Reporting
 
-Open a [private security advisory](https://github.com/SPTApyo/nix-software/security/advisories/new).
+Open a [private security advisory](https://github.com/SPTApyo/nix-app-center/security/advisories/new).
 Do not open a public issue. Include what an attacker controls, what they gain,
 and steps to reproduce.
 
@@ -29,6 +29,6 @@ In scope:
   flakes and their lock files;
 - deletion of store paths, Flatpaks and AppImages.
 
-Out of scope: vulnerabilities in the packages Nix Software lets you run,
+Out of scope: vulnerabilities in the packages Nix App Center lets you run,
 which come from nixpkgs or the flakes you add, and what you write yourself:
 option values, the advanced editor, a custom apply command.

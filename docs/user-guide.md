@@ -1,6 +1,6 @@
 # User guide
 
-How to use Nix Software. Short on purpose.
+How to use Nix App Center. Short on purpose.
 
 ## The idea
 
@@ -11,7 +11,7 @@ How to use Nix Software. Short on purpose.
 3. **Apply**: your system is rebuilt and the app is installed. The Apply
    button shows at the top of the window whenever something changed.
 
-The first time you add an app, Nix Software asks to add one import line to
+The first time you add an app, Nix App Center asks to add one import line to
 your configuration. It shows the change before writing anything.
 
 ## What is installed
@@ -21,7 +21,7 @@ your home, screen: the system, layers: Flatpak, box with an arrow: AppImage)
 and how (box: a package, puzzle piece: a module).
 
 If your own configuration installs an app, its page shows the file and
-line, and Take Over moves it to Nix Software.
+line, and Take Over moves it to Nix App Center.
 
 To install an app you added another way, open it, then Installation Options…
 in its menu. The trash button next to the main button removes the app, whatever
@@ -45,7 +45,7 @@ nothing uses anymore.
 ## When it goes wrong
 
 - **Apps go to the wrong place**: open Preferences and look at Detected. Leave
-  the fields empty to let Nix Software find your configuration.
+  the fields empty to let Nix App Center find your configuration.
 - **Apply fails**: open Show Details in the progress window. The last error
   line is usually the one that matters, and it is often in your own
   configuration, not in the app you added.
