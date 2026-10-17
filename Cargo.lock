@@ -779,14 +779,14 @@ dependencies = [
 
 [[package]]
 name = "nix-app-center-cli"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "nix-app-center-core",
 ]
 
 [[package]]
 name = "nix-app-center-core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "brotli-decompressor",
  "flate2",
@@ -798,7 +798,7 @@ dependencies = [
 
 [[package]]
 name = "nix-app-center-gui"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "gettext-rs",

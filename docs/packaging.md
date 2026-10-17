@@ -37,8 +37,8 @@ Versions follow SemVer, bumped once per release, not per commit:
 
 Numbers never wrap: 0.1.9 is followed by 0.1.10.
 
-1. Bump version in crates/*/Cargo.toml and nix/package.nix, then run
-   cargo update --workspace.
+1. Bump version in crates/*/Cargo.toml, nix/package.nix and po/update-pot.sh,
+   then run cargo update --workspace and just pot.
 2. Add a release entry to
    crates/gui/data/io.github.sptapyo.NixAppCenter.metainfo.xml.
 3. Commit (chore: release vX.Y.Z), tag vX.Y.Z and push the tag.
@@ -90,7 +90,7 @@ The first time:
    nix-shell -p nixpkgs-review --run "nixpkgs-review wip"
    ```
 
-5. Commit as nix-app-center: init at 0.2.1 and open the pull request against
+5. Commit as nix-app-center: init at 0.3.0 and open the pull request against
    master, filling the template (tested on NixOS, built with sandboxing).
 
 Once merged, the package reaches nixos-unstable within a few days, and the

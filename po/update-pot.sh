@@ -8,7 +8,7 @@ find crates/gui/src crates/core/src -name '*.rs' | sort > po/POTFILES
 xgettext --language=Rust --from-code=UTF-8 \
   --keyword=t --keyword=n_ --keyword=pgettext:1c,2 --keyword=pgettext:1c,2 --keyword=ngettext:1,2 --keyword=plural:1,2 \
   --add-comments=TRANSLATORS --sort-by-file \
-  --package-name=nix-app-center --package-version=0.2.1 \
+  --package-name=nix-app-center --package-version=0.3.0 \
   --msgid-bugs-address=https://github.com/SPTApyo/nix-app-center/issues \
   --files-from=po/POTFILES --output=po/nix-app-center.pot
 rm po/POTFILES

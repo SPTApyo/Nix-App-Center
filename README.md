@@ -78,7 +78,7 @@ On NixOS without flakes, no channel needed:
 
 ```nix
 environment.systemPackages = [
-  (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-app-center/archive/v0.2.1.tar.gz") { inherit pkgs; })
+  (import (builtins.fetchTarball "https://github.com/SPTApyo/nix-app-center/archive/v0.3.0.tar.gz") { inherit pkgs; })
 ];
 ```
 
