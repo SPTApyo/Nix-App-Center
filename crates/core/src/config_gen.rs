@@ -334,17 +334,6 @@ pub(crate) fn sync_to(layout: &Layout, kept: &[KeptEntry]) -> std::io::Result<()
             render_system(kept).into_bytes(),
         ));
     }
-    // A configuration importing the old file name keeps working.
-    let forwards: Vec<(std::path::PathBuf, Vec<u8>)> = files
-        .iter()
-        .filter_map(|(path, _)| {
-            let old = crate::config_attach::legacy_file(path)?;
-            let name = path.file_name()?.to_str()?;
-            old.exists()
-                .then(|| (old, format!("{{ imports = [ ./{name} ]; }}\n").into_bytes()))
-        })
-        .collect();
-    files.extend(forwards);
     // Skip unchanged files: no needless password prompt.
     files.retain(|(path, body)| std::fs::read(path).ok().as_ref() != Some(body));
     crate::paths::write_files(&files)?;

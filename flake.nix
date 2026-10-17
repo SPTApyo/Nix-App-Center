@@ -20,11 +20,7 @@
       nixosModules.default =
         { lib, pkgs, ... }:
         {
-          imports = [
-            ./nix/module.nix
-            # The name before 0.3.
-            (lib.mkRenamedOptionModule [ "programs" "nix-software" ] [ "programs" "nix-app-center" ])
-          ];
+          imports = [ ./nix/module.nix ];
           programs.nix-app-center.package = lib.mkDefault (package pkgs);
         };
 

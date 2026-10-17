@@ -22,7 +22,6 @@ use nix_app_center_core::Package;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    nix_app_center_core::migrate_legacy_dirs();
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(String::as_str) {

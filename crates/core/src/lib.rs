@@ -78,7 +78,6 @@ pub use options::{
     FLAKE_MODULE,
 };
 pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
-pub use paths::migrate_legacy_dirs;
 pub use profiles::{
     installed_app, profile_apps, profile_packages, store_sizes, ProfileApp, ProfilePackage, Scope,
 };

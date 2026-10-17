@@ -3,9 +3,6 @@
 <component type="desktop-application">
   <id>io.github.sptapyo.NixAppCenter</id>
   <launchable type="desktop-id">io.github.sptapyo.NixAppCenter.desktop</launchable>
-  <replaces>
-    <id>io.github.sptapyo.NixSoftware</id>
-  </replaces>
 
   <name>Nix App Center</name>
   <summary>Declarative app store for Nix</summary>

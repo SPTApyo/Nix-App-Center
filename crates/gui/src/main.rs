@@ -12,7 +12,6 @@ use gtk::prelude::*;
 use relm4::RelmApp;
 
 fn main() {
-    nix_app_center_core::migrate_legacy_dirs();
     i18n::init();
     let app = RelmApp::new("io.github.sptapyo.NixAppCenter");
     let main_app = relm4::main_application();

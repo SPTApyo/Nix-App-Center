@@ -293,11 +293,6 @@ figure is what only it reaches.
 - nixpkg://ATTR links, the Install button of nixsoftware.org, open the app
   page of ATTR. Only plain attrs are accepted, and the link never installs
   anything by itself.
-- The app was called Nix Software before 0.3. On first launch it moves the
-  nix-software data, settings and cache folders to their new name. A
-  configuration that still imports nix-software-home.nix or
-  nix-software-system.nix keeps working: those files are rewritten to import
-  the new ones, and count as attached.
 - Nix App Center is single instance: on its own page, Try and Open would only
   raise the window already open, so they say so instead.
 - A welcome tour opens on first launch and stays in the main menu.

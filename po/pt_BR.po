@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-17 17:55+0200\n"
+"POT-Creation-Date: 2026-10-17 20:11+0200\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -15,15 +15,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: crates/core/src/config_gen.rs:486
+#: crates/core/src/config_gen.rs:475
 msgid "The build gave an unexpected result."
 msgstr "A compilação deu um resultado inesperado."
 
-#: crates/core/src/config_gen.rs:593 crates/core/src/paths.rs:87
+#: crates/core/src/config_gen.rs:582 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "A autenticação foi cancelada."
 
-#: crates/core/src/config_gen.rs:596 crates/core/src/paths.rs:91
+#: crates/core/src/config_gen.rs:585 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "As permissões de administrador foram recusadas."
 
@@ -347,11 +347,11 @@ msgstr "Sem compartilhamento da localização física com outros usuários"
 msgid "Sharing physical location with other users"
 msgstr "Compartilhamento da localização física com outros usuários"
 
-#: crates/core/src/paths.rs:72
+#: crates/core/src/paths.rs:52
 msgid "Writing there needs administrator rights, and pkexec is missing."
 msgstr "Gravar ali exige permissões de administrador, e o pkexec está ausente."
 
-#: crates/core/src/paths.rs:94
+#: crates/core/src/paths.rs:74
 msgid "Writing the configuration failed."
 msgstr "Falha ao gravar a configuração."
 

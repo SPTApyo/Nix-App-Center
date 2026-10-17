@@ -39,20 +39,6 @@ fn import_line(nix_app_center_file: &Path) -> String {
     format!("./{name}")
 }
 
-/// The same file under the name the app had before 0.3.
-pub(crate) fn legacy_file(file: &Path) -> Option<PathBuf> {
-    let name = file.file_name()?.to_str()?;
-    let old = name.strip_prefix("nix-app-center")?;
-    Some(file.with_file_name(format!("{}{old}", crate::paths::LEGACY_NAME)))
-}
-
-/// True when `src` imports `line`, or the same file by its old name.
-fn imports(src: &str, line: &str) -> bool {
-    let name = line.trim_start_matches("./");
-    let old = name.replacen("nix-app-center", crate::paths::LEGACY_NAME, 1);
-    src.contains(name) || src.contains(&old)
-}
-
 /// The import lines the layout needs, without duplicates.
 fn required_imports(layout: &Layout) -> Vec<(PathBuf, String)> {
     let mut out: Vec<(PathBuf, String)> = Vec::new();
@@ -76,7 +62,7 @@ pub fn is_attached(layout: &Layout) -> bool {
     }
     needed.iter().all(|(site, line)| {
         std::fs::read_to_string(site)
-            .map(|src| imports(&src, line))
+            .map(|src| src.contains(line.trim_start_matches("./")))
             .unwrap_or(false)
     })
 }
@@ -104,7 +90,7 @@ pub fn plan(layout: &Layout) -> AttachPlan {
     let src = std::fs::read_to_string(&site).unwrap_or_default();
     let missing: Vec<String> = lines
         .iter()
-        .filter(|l| !imports(&src, l))
+        .filter(|l| !src.contains(l.trim_start_matches("./")))
         .cloned()
         .collect();
 
@@ -414,28 +400,6 @@ mod tests {
         let backup =
             std::fs::read_to_string(dir.join("configuration.nix.nix-app-center-bak")).unwrap();
         assert_eq!(backup, CONFIG, "the backup must come before the change");
-    }
-
-    #[test]
-    fn a_configuration_importing_the_old_names_keeps_working() {
-        let dir = fixture("legacy");
-        let site = dir.join("configuration.nix");
-        let old = CONFIG.replace(
-            "./hardware-configuration.nix",
-            "./hardware-configuration.nix\n    ./nix-software-home.nix\n    ./nix-software-system.nix",
-        );
-        std::fs::write(&site, old).unwrap();
-        std::fs::write(dir.join("nix-software-home.nix"), "{ }\n").unwrap();
-        std::fs::write(dir.join("nix-software-system.nix"), "{ }\n").unwrap();
-        let layout = layout_for(&dir);
-
-        assert!(is_attached(&layout));
-        crate::config_gen::sync_to(&layout, &[]).unwrap();
-        assert_eq!(
-            std::fs::read_to_string(dir.join("nix-software-home.nix")).unwrap(),
-            "{ imports = [ ./nix-app-center-home.nix ]; }\n"
-        );
-        assert!(dir.join("nix-app-center-system.nix").exists());
     }
 
     #[test]

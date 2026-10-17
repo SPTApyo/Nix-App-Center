@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-17 17:55+0200\n"
+"POT-Creation-Date: 2026-10-17 20:11+0200\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Arabic\n"
@@ -16,15 +16,15 @@ msgstr ""
 "Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
 "&& n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
 
-#: crates/core/src/config_gen.rs:486
+#: crates/core/src/config_gen.rs:475
 msgid "The build gave an unexpected result."
 msgstr "أعطى البناء نتيجة غير متوقعة."
 
-#: crates/core/src/config_gen.rs:593 crates/core/src/paths.rs:87
+#: crates/core/src/config_gen.rs:582 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "أُلغيت المصادقة."
 
-#: crates/core/src/config_gen.rs:596 crates/core/src/paths.rs:91
+#: crates/core/src/config_gen.rs:585 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "رُفضت صلاحيات المدير."
 
@@ -342,11 +342,11 @@ msgstr "لا مشاركة للموقع الفعلي مع المستخدمين ا
 msgid "Sharing physical location with other users"
 msgstr "مشاركة الموقع الفعلي مع المستخدمين الآخرين"
 
-#: crates/core/src/paths.rs:72
+#: crates/core/src/paths.rs:52
 msgid "Writing there needs administrator rights, and pkexec is missing."
 msgstr "الكتابة هناك تحتاج صلاحيات المدير، و pkexec غير موجود."
 
-#: crates/core/src/paths.rs:94
+#: crates/core/src/paths.rs:74
 msgid "Writing the configuration failed."
 msgstr "فشلت كتابة الإعدادات."
 

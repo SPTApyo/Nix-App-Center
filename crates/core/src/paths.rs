@@ -12,26 +12,6 @@ pub(crate) fn data_dir() -> PathBuf {
     base.join("nix-app-center")
 }
 
-/// The name the app had before 0.3, still found on existing machines.
-pub(crate) const LEGACY_NAME: &str = "nix-software";
-
-/// Moves the data, settings and cache folders of the old name to the new
-/// one, once. Run first in `main`.
-pub fn migrate_legacy_dirs() {
-    let settings = crate::settings::settings_path();
-    let dirs = [
-        Some(data_dir()),
-        settings.parent().map(PathBuf::from),
-        Some(crate::cache::cache_dir()),
-    ];
-    for new in dirs.into_iter().flatten() {
-        let old = new.with_file_name(LEGACY_NAME);
-        if old.is_dir() && !new.exists() {
-            let _ = std::fs::rename(&old, &new);
-        }
-    }
-}
-
 /// Writes `path` through a temporary file and a rename: never half written.
 pub(crate) fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));

@@ -44,7 +44,7 @@ impl Default for Settings {
     }
 }
 
-pub(crate) fn settings_path() -> PathBuf {
+fn settings_path() -> PathBuf {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| crate::util::home().join(".config"));
