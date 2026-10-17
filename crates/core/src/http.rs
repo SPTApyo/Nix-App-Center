@@ -6,12 +6,20 @@ use std::time::Duration;
 /// Timeout of every JSON request.
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(6);
 
+/// Names the app to the services it calls, as nixsoftware.org asks.
+const USER_AGENT: &str = concat!(
+    "nix-software/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://github.com/SPTApyo/nix-software)"
+);
+
 /// GET `url` as a reader; callers cap its size with `take`.
 pub(crate) fn get(url: &str, timeout: Duration) -> Result<ureq::BodyReader<'static>, ureq::Error> {
     let resp = ureq::get(url)
         .config()
         .timeout_global(Some(timeout))
         .build()
+        .header("User-Agent", USER_AGENT)
         .call()?;
     Ok(resp.into_body().into_with_config().limit(u64::MAX).reader())
 }
@@ -22,6 +30,7 @@ pub fn exists(url: &str) -> bool {
         .config()
         .timeout_global(Some(TIMEOUT))
         .build()
+        .header("User-Agent", USER_AGENT)
         .call()
         .is_ok()
 }
@@ -41,6 +50,7 @@ pub(crate) fn post_json(url: &str, body: &serde_json::Value) -> Option<serde_jso
         .config()
         .timeout_global(Some(TIMEOUT))
         .build()
+        .header("User-Agent", USER_AGENT)
         .header("Content-Type", "application/json")
         .send(body.to_string())
         .ok()?;
