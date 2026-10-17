@@ -227,8 +227,8 @@ nixsoftware.org curates apps by nixpkgs attribute. It fills what the
 AppStream data misses, never overrides it: a search result neither the local
 database nor Flathub recognizes takes its name and logo from there, and so
 does a details page. Its Similar Apps section lists that site's suggestions
-nixpkgs has for this machine, and only for packages with keywords, since the
-site otherwise lists its whole category.
+nixpkgs has for this machine. Every request names the app in its User-Agent,
+as the site asks.
 
 AppStream data comes from Flatpak's local appstream.xml.gz when Flatpak is
 installed, else from the same file downloaded from Flathub and refreshed in

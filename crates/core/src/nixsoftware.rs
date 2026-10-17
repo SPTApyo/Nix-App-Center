@@ -34,14 +34,6 @@ pub(crate) fn search(query: &str) -> HashMap<String, NsApp> {
 
 /// Apps similar to `attr` that this nixpkgs has, with their logo. Blocking.
 pub fn similar_apps(attr: &str) -> Vec<(Package, Option<String>)> {
-    // Without keywords the site lists its category alphabetically.
-    let meta = format!("{API}/v2/packages/{}/meta", encode(attr));
-    let has_keywords = crate::http::get_json(&meta)
-        .and_then(|v| v.pointer("/data/translation/keywords")?.as_array().cloned())
-        .is_some_and(|k| !k.is_empty());
-    if !has_keywords {
-        return vec![];
-    }
     let url = format!("{API}/v2/packages/{}/similar", encode(attr));
     let found = crate::http::get_json(&url)
         .map(|v| apps(&v))
