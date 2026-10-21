@@ -321,7 +321,7 @@ impl StorageModel {
         garbage.set_tooltip_text(Some(&t(
             "Runs the Nix garbage collector: deletes store paths nothing uses.",
         )));
-        garbage.add_suffix(&button(&t("Clean"), false, {
+        garbage.add_suffix(&button(&t("_Clean"), false, {
             let s = sender.input_sender().clone();
             move || {
                 let _ = s.send(StorageMsg::Clean(vec!["nix-store".into(), "--gc".into()]));
@@ -336,7 +336,7 @@ impl StorageModel {
         old.set_tooltip_text(Some(&t(
             "Deletes the old generations: you can no longer boot or roll back to them.",
         )));
-        old.add_suffix(&button(&t("Delete…"), true, {
+        old.add_suffix(&button(&t("_Delete…"), true, {
             let s = sender.input_sender().clone();
             let parent = self.content.clone();
             move || confirm_delete_generations(&parent, s.clone())
@@ -683,7 +683,7 @@ fn confirm_delete_generations(parent: &gtk::Box, s: relm4::Sender<StorageMsg>) {
 }
 
 fn button(label: &str, destructive: bool, on_click: impl Fn() + 'static) -> gtk::Button {
-    let b = gtk::Button::with_label(label);
+    let b = gtk::Button::with_mnemonic(label);
     b.set_valign(gtk::Align::Center);
     if destructive {
         b.add_css_class("destructive-action");

@@ -52,7 +52,8 @@ pub enum AppMsg {
     PagePopped,
     GoHome,
     Updates(UpdatesOutput),
-    ShowUpdates,
+    /// Opens a top-level tab by its name.
+    ShowTab(String),
 }
 
 #[relm4::component(pub)]
@@ -131,6 +132,7 @@ impl SimpleComponent for AppModel {
 
         let menu = gtk::gio::Menu::new();
         menu.append(Some(&t("_Welcome Tour")), Some("win.welcome"));
+        menu.append(Some(&t("_Keyboard Shortcuts")), Some("win.shortcuts"));
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
         menu.append(Some(&t("_About Nix App Center")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
@@ -197,12 +199,30 @@ impl SimpleComponent for AppModel {
         root.add_action(&about);
         let app = relm4::main_application();
         app.set_accels_for_action("win.preferences", &["<Control>comma"]);
-        let show_updates = gtk::gio::SimpleAction::new("show-updates", None);
-        show_updates.connect_activate({
+        let show_tab = gtk::gio::SimpleAction::new("show-tab", Some(gtk::glib::VariantTy::STRING));
+        show_tab.connect_activate({
             let sender = sender.clone();
-            move |_, _| sender.input(AppMsg::ShowUpdates)
+            move |_, tab| {
+                if let Some(tab) = tab.and_then(|v| v.str()) {
+                    sender.input(AppMsg::ShowTab(tab.to_string()));
+                }
+            }
         });
-        app.add_action(&show_updates);
+        app.add_action(&show_tab);
+        for (i, tab) in ["explorer", "installed", "updates", "storage"]
+            .iter()
+            .enumerate()
+        {
+            let accel = format!("<Control>{}", i + 1);
+            app.set_accels_for_action(&format!("app.show-tab::{tab}"), &[accel.as_str()]);
+        }
+        let shortcuts = gtk::gio::SimpleAction::new("shortcuts", None);
+        shortcuts.connect_activate({
+            let win = root.clone();
+            move |_, _| shortcuts_dialog().present(Some(&win))
+        });
+        root.add_action(&shortcuts);
+        app.set_accels_for_action("win.shortcuts", &["<Control>question"]);
 
         let switcher = adw::ViewSwitcher::new();
         switcher.set_policy(adw::ViewSwitcherPolicy::Wide);
@@ -507,13 +527,13 @@ impl SimpleComponent for AppModel {
                         "{} apps can be updated.",
                         count as i64,
                     )));
-                    n.set_default_action("app.show-updates");
+                    n.set_default_action("app.show-tab::updates");
                     relm4::main_application().send_notification(Some("updates"), &n);
                 }
             }
-            AppMsg::ShowUpdates => {
+            AppMsg::ShowTab(tab) => {
                 self.nav.pop_to_tag("main");
-                self.view_stack.set_visible_child_name("updates");
+                self.view_stack.set_visible_child_name(&tab);
                 relm4::main_application().activate();
             }
             AppMsg::GoHome => {
@@ -527,6 +547,50 @@ impl SimpleComponent for AppModel {
             }
         }
     }
+}
+
+/// The keyboard shortcuts, as GNOME apps list them.
+fn shortcuts_dialog() -> adw::Dialog {
+    let item = |title: String, accel: &str| {
+        format!(
+            r#"<child><object class="AdwShortcutsItem"><property name="title">{}</property><property name="accelerator">{}</property></object></child>"#,
+            crate::util::esc(&title),
+            crate::util::esc(accel)
+        )
+    };
+    let section = |title: String, items: Vec<String>| {
+        format!(
+            r#"<child><object class="AdwShortcutsSection"><property name="title">{}</property>{}</object></child>"#,
+            crate::util::esc(&title),
+            items.concat()
+        )
+    };
+    let xml = format!(
+        r#"<interface><object class="AdwShortcutsDialog" id="dialog">{}{}</object></interface>"#,
+        section(
+            t("General"),
+            vec![
+                item(t("Search"), "<Control>f"),
+                item(t("Preferences"), "<Control>comma"),
+                item(t("Keyboard Shortcuts"), "<Control>question"),
+                item(t("Quit"), "<Control>q"),
+            ]
+        ),
+        section(
+            t("Navigation"),
+            vec![
+                item(t("Explore"), "<Control>1"),
+                item(t("Installed"), "<Control>2"),
+                item(t("Updates"), "<Control>3"),
+                item(t("Storage"), "<Control>4"),
+                item(t("Go Back"), "<Alt>Left"),
+                item(t("Underlined letter of a button"), "Alt_L"),
+            ]
+        ),
+    );
+    gtk::Builder::from_string(&xml)
+        .object("dialog")
+        .expect("the shortcuts dialog is valid")
 }
 
 fn about_dialog() -> adw::AboutDialog {

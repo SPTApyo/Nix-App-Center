@@ -158,7 +158,8 @@ impl SimpleComponent for AppList {
         content.append(&options_list);
 
         let reset = gtk::Button::builder()
-            .label(t("Reset Filters"))
+            .label(t("_Reset Filters"))
+            .use_underline(true)
             .sensitive(false)
             .build();
         reset.connect_clicked({
@@ -193,7 +194,8 @@ impl SimpleComponent for AppList {
 
         // Shown when the filters fold above the results.
         let filters_button = gtk::ToggleButton::builder()
-            .label(t("Filters"))
+            .label(t("_Filters"))
+            .use_underline(true)
             .halign(gtk::Align::Start)
             .active(true)
             .visible(false)
