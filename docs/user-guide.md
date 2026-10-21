@@ -42,6 +42,12 @@ version. Release it from the same place or from Updates.
 The Storage tab shows what fills the Nix store. Free Up Space removes what
 nothing uses anymore.
 
+## Keyboard
+
+Ctrl+1 to Ctrl+4 open Explore, Installed, Updates and Storage, Ctrl+F
+searches and Alt+Left goes back. Hold Alt to see the underlined letter of
+each button: Alt and that letter press it. Ctrl+? lists every shortcut.
+
 ## When it goes wrong
 
 - **Apps go to the wrong place**: open Preferences and look at Detected. Leave
