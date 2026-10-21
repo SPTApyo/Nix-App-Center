@@ -29,6 +29,84 @@ nix/          the nixpkgs recipe, the NixOS module and its test
 The core models packages and actions as data (Package, Action, actions_for)
 so each front end renders the same logic its own way.
 
+## Where the data comes from
+
+Nothing is fetched twice in a row: nix search results, the AppStream file
+and Flathub answers are cached on disk ($XDG_CACHE_HOME/nix-app-center), and
+every network call has a short timeout and falls back silently.
+
+### Search
+
+```mermaid
+flowchart LR
+    Q[query] --> NS[nix search<br/>config nixpkgs]
+    Q --> FL[nix search<br/>flake inputs and<br/>Preferences flakes]
+    Q --> FH[Flathub search<br/>if AppStream not loaded]
+    Q --> NSO[nixsoftware.org<br/>search]
+    Q --> OD[ODRS ratings]
+    NS --> M{one row<br/>per package}
+    FL --> M
+    AS[(local AppStream)] --> M
+    FH --> M
+    NSO --> M
+    OD --> M
+    M --> EV[nix eval: license<br/>and platform]
+    EV --> R[Applications /<br/>Other Packages]
+    IDX[(installed index)] --> R
+```
+
+Each package takes its app identity from the first source that knows it:
+the local AppStream data (through the user and community mappings, see
+Package identity), then a Flathub hit, then nixsoftware.org. One app id
+belongs to one package; a Flathub guess never takes an id the local data
+already gave. A package nobody recognizes stays in Other Packages under its
+attribute name. Packages that do not build for this machine are dropped.
+
+### App page
+
+```mermaid
+flowchart LR
+    P[package] --> NIX[nix eval: version,<br/>license, meta, broken,<br/>insecure, maintainers]
+    P --> ID{AppStream<br/>identity}
+    AS[(local AppStream)] --> ID
+    FHA[Flathub API] --> ID
+    NSO[nixsoftware.org] --> ID
+    ID --> META[name, summary, icon,<br/>screenshots, links,<br/>add-ons, developer]
+    NIX --> PAGE[app page]
+    META --> PAGE
+    ODRS[ODRS reviews] --> PAGE
+    DEV[Devbox index:<br/>older versions] --> PAGE
+    SIM[nixsoftware.org:<br/>similar apps] --> PAGE
+    IDX[(installed index)] --> PAGE
+```
+
+AppStream data wins for what describes the app (name, description,
+screenshots, links). Nix wins for what runs: the version, whether it is
+broken or insecure, the license when AppStream has none. The version list
+follows nixpkgs, with Flathub release notes only for versions nixpkgs ships.
+
+### What is installed
+
+```mermaid
+flowchart LR
+    subgraph machine [read from the machine]
+        SYS["/run/current-system<br/>system profile"]
+        HM[Home Manager<br/>profile]
+        NP[nix profile /<br/>nix-env]
+        FC[fontconfig cache:<br/>fonts.packages]
+        FP[flatpak list]
+        AI[AppImage desktop<br/>files]
+        EN[enabled modules:<br/>files, then nix eval]
+    end
+    machine --> IDX[(installed index)]
+    IDX --> PILL[pill on tiles,<br/>rows and pages]
+    MAN[(kept.json:<br/>apps kept by<br/>Nix App Center)] --> PILL
+```
+
+The index says where an app is (system, home, Flatpak, AppImage) and
+whether a module brings it; the manifest says whether Nix App Center owns
+it. Details follow in What is installed.
+
 ## How a Nix machine keeps its software
 
 Nix App Center has to handle every common setup. What matters is where
