@@ -115,7 +115,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         }))
         .build();
     if !nix_app_center_core::locate_ready() {
-        let download = gtk::Button::with_label(&t("Download"));
+        let download = gtk::Button::with_mnemonic(&t("_Download"));
         download.set_tooltip_text(Some(&t("Download the nix-index database, about 100 MB.")));
         download.set_valign(gtk::Align::Center);
         download.connect_clicked({

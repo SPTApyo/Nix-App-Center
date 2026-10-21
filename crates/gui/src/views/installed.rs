@@ -350,7 +350,7 @@ impl InstalledModel {
             .collect();
         let gc = (!data.tried.is_empty()).then(|| {
             let b = self.action_button(
-                &t("Free Up Space"),
+                &t("_Free Up Space"),
                 self.gc_running,
                 InstalledMsg::Gc,
                 sender,
@@ -435,7 +435,7 @@ impl InstalledModel {
         msg: InstalledMsg,
         sender: &ComponentSender<Self>,
     ) -> gtk::Button {
-        let b = gtk::Button::with_label(label);
+        let b = gtk::Button::with_mnemonic(label);
         b.set_valign(gtk::Align::Center);
         b.set_sensitive(!busy);
         let s = sender.input_sender().clone();

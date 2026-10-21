@@ -115,15 +115,15 @@ pub fn present(
     status.set_selectable(true);
     status.add_css_class("caption");
 
-    let save = gtk::Button::with_label(&t("Save"));
+    let save = gtk::Button::with_mnemonic(&t("_Save"));
     save.add_css_class("suggested-action");
 
-    let verify = gtk::Button::with_label(&t("Check"));
+    let verify = gtk::Button::with_mnemonic(&t("C_heck"));
     verify.set_tooltip_text(Some(&t(
         "Evaluates the whole configuration (dry-build) without applying anything. May take 1 to 2 minutes.",
     )));
 
-    let cancel = gtk::Button::with_label(&t("Cancel"));
+    let cancel = gtk::Button::with_mnemonic(&t("_Cancel"));
 
     let recheck = {
         let status = status.clone();

@@ -478,6 +478,7 @@ impl SimpleComponent for DetailModel {
                                                                 gtk::Button {
                                                                     #[watch]
                                                                     set_label: &model.keep_label(),
+                                                                    set_use_underline: true,
                                                                     #[watch]
                                                                     set_sensitive: !model.profile_busy && !model.installed_elsewhere(),
                                                                     set_tooltip_text: Some(&model.keep_tooltip()),
@@ -486,7 +487,8 @@ impl SimpleComponent for DetailModel {
                                                                 },
                                                                 gtk::Button {
                                                                     #[watch]
-                                                                    set_label: &if model.cli_first() { t("Try the App") } else { t("Try in a Shell") },
+                                                                    set_label: &if model.cli_first() { t("_Try the App") } else { t("Try in a _Shell") },
+                                                                    set_use_underline: true,
                                                                     #[watch]
                                                                     set_visible: model.installed.is_none() && !model.is_self(),
                                                                     set_tooltip_text: Some(&if model.cli_first() { t("Start the app now, without installing it.") } else { t("Open a terminal where this package can be used, without installing it.") }),
@@ -494,13 +496,15 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::AltLaunch,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Copy Command"),
+                                                                    set_label: &t("_Copy Command"),
+                                                                    set_use_underline: true,
                                                                     set_tooltip_text: Some(&t("Copy the command that tries this package, to paste in a terminal.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::CopyCommand,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Advanced Options…"),
+                                                                    set_label: &t("Ad_vanced Options…"),
+                                                                    set_use_underline: true,
                                                                     #[watch]
                                                                     set_sensitive: !model.installed_elsewhere(),
                                                                     set_tooltip_text: Some(&t("Write your own Nix for this app: services, options, overrides.")),
@@ -508,7 +512,8 @@ impl SimpleComponent for DetailModel {
                                                                     connect_clicked => DetailMsg::AdvancedEdit,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Installation Options…"),
+                                                                    set_label: &t("I_nstallation Options…"),
+                                                                    set_use_underline: true,
                                                                     #[watch]
                                                                     set_visible: model.kept && model.mode().is_some(),
                                                                     set_tooltip_text: Some(&t("Install this app another way: in your home, for every user, or through its module.")),
@@ -519,7 +524,8 @@ impl SimpleComponent for DetailModel {
                                                                     set_orientation: gtk::Orientation::Horizontal,
                                                                 },
                                                                 gtk::Button {
-                                                                    set_label: &t("Apply Configuration"),
+                                                                    set_label: &t("A_pply Configuration"),
+                                                                    set_use_underline: true,
                                                                     set_tooltip_text: Some(&t("Rebuild your system now with the apps you added or removed.")),
                                                                     add_css_class: "flat",
                                                                     connect_clicked => DetailMsg::ApplyConfig,
@@ -656,7 +662,8 @@ impl SimpleComponent for DetailModel {
                                             #[watch]
                                             set_visible: !model.loading && model.desc_needs_toggle,
                                             #[watch]
-                                            set_label: &if model.desc_expanded { t("Show Less") } else { t("Show More") },
+                                            set_label: &if model.desc_expanded { t("Show _Less") } else { t("Show _More") },
+                                            set_use_underline: true,
                                             add_css_class: "pill",
                                             set_halign: gtk::Align::Center,
                                             set_margin_bottom: 14,
@@ -1988,10 +1995,10 @@ impl DetailModel {
             };
         }
         match (self.managed, self.kept, self.profile_name.is_some()) {
-            (true, true, _) => t("Remove from Configuration"),
-            (true, false, _) => t("Add to Configuration"),
-            (false, _, true) => t("Uninstall"),
-            (false, _, false) => t("Install for This User"),
+            (true, true, _) => t("_Remove from Configuration"),
+            (true, false, _) => t("_Add to Configuration"),
+            (false, _, true) => t("_Uninstall"),
+            (false, _, false) => t("_Install for This User"),
         }
     }
 
@@ -2557,7 +2564,7 @@ fn build_version_history(
             .title(esc(&t("Version {} in Unstable").replace("{}", &version)))
             .subtitle(esc(&t("Newer than your configuration's nixpkgs. Installing it holds the app at that revision.")))
             .build();
-        let install = gtk::Button::with_label(&t("Install"));
+        let install = gtk::Button::with_mnemonic(&t("_Install"));
         install.set_valign(gtk::Align::Center);
         install.add_css_class("pill");
         install.connect_clicked(move |_| on_install());

@@ -91,10 +91,10 @@ pub fn present(
     dialog.set_content_width(760);
     dialog.set_content_height(560);
 
-    let close = gtk::Button::with_label(&if can_patch {
-        t("Do It Myself")
+    let close = gtk::Button::with_mnemonic(&if can_patch {
+        t("_Do It Myself")
     } else {
-        t("Close")
+        t("_Close")
     });
     close.set_tooltip_text(Some(&t(
         "Copy the lines to paste yourself, and change nothing.",
@@ -112,7 +112,7 @@ pub fn present(
     }
 
     if can_patch {
-        let accept = gtk::Button::with_label(&t("Add Import Line"));
+        let accept = gtk::Button::with_mnemonic(&t("_Add Import Line"));
         accept.add_css_class("suggested-action");
         accept.set_tooltip_text(Some(&t(
             "Add these lines to your file. A backup is written first.",
