@@ -157,6 +157,30 @@ fn build_index(
     }
     content.append(&detail_list);
 
+    content.append(&heading("Updates"));
+    let updates_list = crate::util::boxed_list();
+    let row = scenario_row(
+        "Switch to the next NixOS release",
+        "flake.nix diff, stateVersion warning, release notes link; Switch does nothing here",
+    );
+    row.connect_activated(|row| {
+        let original = "nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.05\";\nhome-manager.url = \"github:nix-community/home-manager/release-26.05\";\n";
+        let plan = nix_app_center_core::ReleasePlan {
+            release: "26.11".into(),
+            edit: Some(nix_app_center_core::ReleaseEdit {
+                file: "/etc/nixos/flake.nix".into(),
+                original: original.into(),
+                patched: original.replace("26.05", "26.11"),
+                lock: Vec::new(),
+            }),
+            diff: "nixpkgs.url: nixos-26.05 → nixos-26.11\nhome-manager.url: release-26.05 → release-26.11\n".into(),
+            steps: Vec::new(),
+        };
+        crate::views::updates::release_dialog(row, plan, |_| {});
+    });
+    updates_list.append(&row);
+    content.append(&updates_list);
+
     content.append(&heading("Home"));
     let note = gtk::Label::new(Some(
         "Icon states to check: loading (shimmer), colored fallback, real icon.",

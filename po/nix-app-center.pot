@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-24 19:27+0200\n"
+"POT-Creation-Date: 2026-10-24 23:51+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -739,12 +739,12 @@ msgid ""
 msgstr ""
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:580
+#: crates/gui/src/views/updates.rs:653
 msgid "_Release"
 msgstr ""
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:582
+#: crates/gui/src/views/updates.rs:655
 msgid "Let the app follow your configuration again."
 msgstr ""
 
@@ -888,6 +888,7 @@ msgstr ""
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
 #: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+#: crates/gui/src/views/updates.rs:734
 msgid "_Cancel"
 msgstr ""
 
@@ -1027,6 +1028,7 @@ msgid "Version {}"
 msgstr ""
 
 #: crates/gui/src/components/details/version_history_row.rs:52
+#: crates/gui/src/views/updates.rs:729
 msgid "Release Notes"
 msgstr ""
 
@@ -2580,151 +2582,200 @@ msgid ""
 "current user setup stay."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:181 crates/gui/src/views/updates.rs:202
+#: crates/gui/src/views/updates.rs:190 crates/gui/src/views/updates.rs:211
 msgid "Updating"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:212
+#: crates/gui/src/views/updates.rs:227
+msgid ""
+"Nix App Center cannot change the release of this configuration. Switch it in "
+"your flake.nix or channel."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:251
+#, rust-format
+msgid "Switching to NixOS {}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:262
+#, rust-format
+msgid "Your configuration now follows NixOS {}."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:274
+msgid "flake.nix and flake.lock are back as they were."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:285
 msgid "Released. Update or apply your configuration to move it forward."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:311
+#: crates/gui/src/views/updates.rs:384
 #, rust-format
 msgid "Revision {rev}, {age}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:314
+#: crates/gui/src/views/updates.rs:387
 #, rust-format
 msgid "Revision {rev}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:315
+#: crates/gui/src/views/updates.rs:388
 msgid "Revision unknown"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:338
+#: crates/gui/src/views/updates.rs:411
 msgid "Checking for updates…"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:354
+#: crates/gui/src/views/updates.rs:427
 msgid ""
 "Nix App Center cannot tell which nixpkgs branch your configuration follows."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:356
+#: crates/gui/src/views/updates.rs:429
 msgid "Nix App Center could not reach nixpkgs to check for updates."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:384
+#: crates/gui/src/views/updates.rs:457
 msgid ""
 "Apps update together: they all come from the same nixpkgs revision. To keep "
 "one app as it is, hold its version from its page."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:392
+#: crates/gui/src/views/updates.rs:465
 #, rust-format
 msgid "nixpkgs {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:396
+#: crates/gui/src/views/updates.rs:469
 msgid "Apps in your user profile, updated with nix profile"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:398
+#: crates/gui/src/views/updates.rs:471
 #, rust-format
 msgid "Installed: {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:406
+#: crates/gui/src/views/updates.rs:479
 msgid "Check Again"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:424
+#: crates/gui/src/views/updates.rs:497
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/views/updates.rs:426
+#: crates/gui/src/views/updates.rs:499
 msgid "New nixpkgs revision"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:430
+#: crates/gui/src/views/updates.rs:503
 #, rust-format
 msgid "Available: {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:442 crates/gui/src/views/updates.rs:540
+#: crates/gui/src/views/updates.rs:515 crates/gui/src/views/updates.rs:613
 msgid "_Update"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:483
+#: crates/gui/src/views/updates.rs:556
 msgid "Other Sources"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:498
+#: crates/gui/src/views/updates.rs:571
 msgid "Update _All"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:509
+#: crates/gui/src/views/updates.rs:582
 msgid ""
 "The flakes your configuration uses besides nixpkgs: modules, themes, apps "
 "from other sources."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:513
+#: crates/gui/src/views/updates.rs:586
 #, rust-format
 msgid ""
 "Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may "
 "warn or break. Change its branch in your flake.nix."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:527
+#: crates/gui/src/views/updates.rs:600
 msgid "Could not check"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:529
+#: crates/gui/src/views/updates.rs:602
 #, rust-format
 msgid "Up to date, from {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:531
+#: crates/gui/src/views/updates.rs:604
 #, rust-format
 msgid "New version from {new}, yours is from {old}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:566
+#: crates/gui/src/views/updates.rs:639
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:593
+#: crates/gui/src/views/updates.rs:666
 msgid "Held Apps"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:600
+#: crates/gui/src/views/updates.rs:673
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:603
+#: crates/gui/src/views/updates.rs:676
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:611
+#: crates/gui/src/views/updates.rs:683
+#, rust-format
+msgid "NixOS {0} is available."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:684
+#, rust-format
+msgid "_Switch to NixOS {0}…"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:702
 #, rust-format
 msgid ""
-"NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
-"ready."
+"Nix App Center changes these lines of {file}, a backup next to it first, "
+"then updates the flake and applies. If anything fails or you cancel, "
+"flake.nix and flake.lock go back as they were."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:614
-msgid "Release _Notes"
+#: crates/gui/src/views/updates.rs:704
+msgid ""
+"Nix App Center points the nixos channel to the new release, then upgrades "
+"and applies. If you added Home Manager as a channel, switch it too."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:630
+#: crates/gui/src/views/updates.rs:707
+#, rust-format
+msgid "Switch to NixOS {}?"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:725
+msgid ""
+"system.stateVersion stays as it is: it is not the release you run, never "
+"change it to upgrade. Read the release notes first: some options change or "
+"go away."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:735
+msgid "_Switch"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:755
 msgid "Everything is up to date"
 msgstr ""

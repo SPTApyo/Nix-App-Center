@@ -364,6 +364,17 @@ in that flake, not refused. Home Manager on another release than nixpkgs
 (release-25.11 against nixos-26.05, or a release against unstable) gets a
 warning: the fix is in flake.nix, which Nix App Center does not edit.
 
+When a newer NixOS release exists, Updates offers to switch to it. For a
+flake, the flake.nix holding nixpkgs (the local input one when /etc/nixos
+imports it) gets its nixos-YY.MM and release-YY.MM branches moved, after a
+backup next to it; the dialog lists each changed line. nixpkgs and the
+inputs that followed the old release are then updated and the configuration
+applied, with the usual review. If anything fails or the review is
+cancelled, flake.nix and flake.lock are written back. On channels the nixos
+channel moves before nixos-rebuild switch --upgrade; going back is the
+History list then. system.stateVersion is never touched, and the dialog says
+why.
+
 ## Storage
 
 The Storage tab reads every store path once (nix path-info --all --json) and

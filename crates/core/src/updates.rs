@@ -337,6 +337,134 @@ pub fn release_mismatch(source: &Source, inputs: &[FlakeInput]) -> Option<(Strin
     (hm_branch != expected).then(|| (hm_branch, nixpkgs.to_string()))
 }
 
+/// Moving the configuration to the next NixOS release.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReleasePlan {
+    pub release: String,
+    /// The flake.nix to change and its new text; `None` on channels.
+    pub edit: Option<ReleaseEdit>,
+    /// What changes, one line each: `nixpkgs.url: nixos-26.05 → nixos-26.11`.
+    pub diff: String,
+    pub steps: Vec<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReleaseEdit {
+    pub file: PathBuf,
+    pub original: String,
+    pub patched: String,
+    /// flake.lock before the update, put back with flake.nix on failure.
+    pub lock: Vec<u8>,
+}
+
+/// The plan moving the configuration from its stable release to `next`:
+/// the branches of nixpkgs and Home Manager in flake.nix, or the nixos
+/// channel. `None` when the configuration follows no stable release.
+pub fn release_plan(next: &str) -> Option<ReleasePlan> {
+    let source = current_source();
+    let current = source
+        .branch
+        .as_deref()?
+        .strip_prefix("nixos-")?
+        .to_string();
+    if current == "unstable" || current == next {
+        return None;
+    }
+    let layout = detect();
+    match &source.method {
+        UpdateMethod::FlakeInput { dir, input } => {
+            let file = dir.join("flake.nix");
+            let original = std::fs::read_to_string(&file).ok()?;
+            let patched = retarget(&original, &current, next);
+            if patched == original || layout.apply.is_empty() {
+                return None;
+            }
+            let lock_bytes = std::fs::read(dir.join("flake.lock")).ok()?;
+            let lock: Value = serde_json::from_slice(&lock_bytes).ok()?;
+            let mut moved: Vec<FlakeInput> = inputs_from_lock(&lock, dir)
+                .into_iter()
+                .filter(|i| {
+                    i.name == *input || i.branch.as_deref() == Some(&format!("release-{current}"))
+                })
+                .collect();
+            moved.dedup_by(|a, b| a.name == b.name);
+            Some(ReleasePlan {
+                release: next.to_string(),
+                diff: line_diff(&original, &patched, &current, next),
+                steps: inputs_update_command(&moved, &layout)?,
+                edit: Some(ReleaseEdit {
+                    file,
+                    original,
+                    patched,
+                    lock: lock_bytes,
+                }),
+            })
+        }
+        UpdateMethod::Channel => {
+            let url = format!("https://channels.nixos.org/nixos-{next}");
+            Some(ReleasePlan {
+                release: next.to_string(),
+                edit: None,
+                diff: format!("nixos channel: nixos-{current} → nixos-{next}\n"),
+                steps: vec![
+                    ["sudo", "nix-channel", "--add", &url, "nixos"]
+                        .map(String::from)
+                        .to_vec(),
+                    ["sudo", "nixos-rebuild", "switch", "--upgrade"]
+                        .map(String::from)
+                        .to_vec(),
+                ],
+            })
+        }
+        _ => None,
+    }
+}
+
+/// `src` with the branches of release `from` moved to `to`.
+fn retarget(src: &str, from: &str, to: &str) -> String {
+    src.replace(&format!("nixos-{from}\""), &format!("nixos-{to}\""))
+        .replace(&format!("nixos-{from}/"), &format!("nixos-{to}/"))
+        .replace(&format!("release-{from}\""), &format!("release-{to}\""))
+        .replace(&format!("release-{from}/"), &format!("release-{to}/"))
+}
+
+/// One line per changed line of `old`: what it sets, and the branch move.
+fn line_diff(old: &str, new: &str, from: &str, to: &str) -> String {
+    let mut out = String::new();
+    for (a, b) in old.lines().zip(new.lines()) {
+        if a == b {
+            continue;
+        }
+        let key = a.split('=').next().unwrap_or(a).trim();
+        let (before, after) = if a.contains(&format!("release-{from}")) {
+            (format!("release-{from}"), format!("release-{to}"))
+        } else {
+            (format!("nixos-{from}"), format!("nixos-{to}"))
+        };
+        out.push_str(&format!("{key}: {before} → {after}\n"));
+    }
+    out
+}
+
+/// Writes the plan's flake.nix, the original beside it first.
+pub fn write_release_edit(edit: &ReleaseEdit) -> std::io::Result<()> {
+    let mut backup = edit.file.clone().into_os_string();
+    backup.push(".nix-app-center-bak");
+    crate::paths::write_files(&[
+        (PathBuf::from(backup), edit.original.clone().into_bytes()),
+        (edit.file.clone(), edit.patched.clone().into_bytes()),
+    ])
+}
+
+/// Puts the original flake.nix and flake.lock back, after a failed or
+/// cancelled switch.
+pub fn revert_release_edit(edit: &ReleaseEdit) -> std::io::Result<()> {
+    crate::paths::write_files(&[
+        (edit.file.clone(), edit.original.clone().into_bytes()),
+        (edit.file.with_file_name("flake.lock"), edit.lock.clone()),
+    ])
+}
+
 fn registry_list() -> String {
     crate::util::nix()
         .args(["registry", "list"])
@@ -742,6 +870,19 @@ mod tests {
             "--flake".into(),
             "/cfg".into()
         ]));
+    }
+
+    #[test]
+    fn retargets_the_release_branches_only() {
+        let flake = "{\n  inputs = {\n    nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.05\";\n    home-manager.url = \"github:nix-community/home-manager/release-26.05\";\n    other.url = \"github:me/nixos-26.05-notes\";\n  };\n}\n";
+        let patched = retarget(flake, "26.05", "26.11");
+        assert!(patched.contains("nixpkgs/nixos-26.11\""));
+        assert!(patched.contains("home-manager/release-26.11\""));
+        assert!(patched.contains("me/nixos-26.05-notes"), "{patched}");
+        assert_eq!(
+            line_diff(flake, &patched, "26.05", "26.11"),
+            "nixpkgs.url: nixos-26.05 → nixos-26.11\nhome-manager.url: release-26.05 → release-26.11\n"
+        );
     }
 
     #[test]

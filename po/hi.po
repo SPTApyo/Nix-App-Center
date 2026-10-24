@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-24 19:27+0200\n"
+"POT-Creation-Date: 2026-10-24 23:51+0200\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Hindi\n"
@@ -758,12 +758,12 @@ msgstr ""
 "सुरक्षा अपडेट नहीं मिलेंगे।"
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:580
+#: crates/gui/src/views/updates.rs:653
 msgid "_Release"
 msgstr "मुक्त करें (_R)"
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:582
+#: crates/gui/src/views/updates.rs:655
 msgid "Let the app follow your configuration again."
 msgstr "ऐप को फिर से आपके कॉन्फ़िगरेशन का पालन करने दें।"
 
@@ -929,6 +929,7 @@ msgstr ""
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
 #: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+#: crates/gui/src/views/updates.rs:734
 msgid "_Cancel"
 msgstr "रद्द करें (_C)"
 
@@ -1070,6 +1071,7 @@ msgid "Version {}"
 msgstr "संस्करण {}"
 
 #: crates/gui/src/components/details/version_history_row.rs:52
+#: crates/gui/src/views/updates.rs:729
 msgid "Release Notes"
 msgstr "रिलीज़ नोट्स"
 
@@ -2676,44 +2678,66 @@ msgstr ""
 "आप उन पर वापस नहीं लौट पाएँगे। वर्तमान सिस्टम और आपका वर्तमान उपयोगकर्ता सेटअप बने "
 "रहेंगे।"
 
-#: crates/gui/src/views/updates.rs:181 crates/gui/src/views/updates.rs:202
+#: crates/gui/src/views/updates.rs:190 crates/gui/src/views/updates.rs:211
 msgid "Updating"
 msgstr "अपडेट हो रहा है"
 
-#: crates/gui/src/views/updates.rs:212
+#: crates/gui/src/views/updates.rs:227
+msgid ""
+"Nix App Center cannot change the release of this configuration. Switch it in "
+"your flake.nix or channel."
+msgstr ""
+"Nix App Center इस कॉन्फ़िगरेशन की रिलीज़ नहीं बदल सकता। इसे अपने flake.nix या "
+"channel में बदलें।"
+
+#: crates/gui/src/views/updates.rs:251
+#, rust-format
+msgid "Switching to NixOS {}"
+msgstr "NixOS {} पर स्विच हो रहा है"
+
+#: crates/gui/src/views/updates.rs:262
+#, rust-format
+msgid "Your configuration now follows NixOS {}."
+msgstr "आपका कॉन्फ़िगरेशन अब NixOS {} का पालन करता है।"
+
+#: crates/gui/src/views/updates.rs:274
+msgid "flake.nix and flake.lock are back as they were."
+msgstr "flake.nix और flake.lock पहले जैसे हो गए हैं।"
+
+#: crates/gui/src/views/updates.rs:285
 msgid "Released. Update or apply your configuration to move it forward."
 msgstr "मुक्त किया गया। इसे आगे बढ़ाने के लिए अपना कॉन्फ़िगरेशन अपडेट या लागू करें।"
 
-#: crates/gui/src/views/updates.rs:311
+#: crates/gui/src/views/updates.rs:384
 #, rust-format
 msgid "Revision {rev}, {age}"
 msgstr "संशोधन {rev}, {age}"
 
-#: crates/gui/src/views/updates.rs:314
+#: crates/gui/src/views/updates.rs:387
 #, rust-format
 msgid "Revision {rev}"
 msgstr "संशोधन {rev}"
 
-#: crates/gui/src/views/updates.rs:315
+#: crates/gui/src/views/updates.rs:388
 msgid "Revision unknown"
 msgstr "संशोधन अज्ञात"
 
-#: crates/gui/src/views/updates.rs:338
+#: crates/gui/src/views/updates.rs:411
 msgid "Checking for updates…"
 msgstr "अपडेट की जाँच हो रही है…"
 
-#: crates/gui/src/views/updates.rs:354
+#: crates/gui/src/views/updates.rs:427
 msgid ""
 "Nix App Center cannot tell which nixpkgs branch your configuration follows."
 msgstr ""
 "Nix App Center यह नहीं बता सकता कि आपका कॉन्फ़िगरेशन nixpkgs की किस शाखा का पालन "
 "करता है।"
 
-#: crates/gui/src/views/updates.rs:356
+#: crates/gui/src/views/updates.rs:429
 msgid "Nix App Center could not reach nixpkgs to check for updates."
 msgstr "Nix App Center अपडेट की जाँच के लिए nixpkgs तक नहीं पहुँच सका।"
 
-#: crates/gui/src/views/updates.rs:384
+#: crates/gui/src/views/updates.rs:457
 msgid ""
 "Apps update together: they all come from the same nixpkgs revision. To keep "
 "one app as it is, hold its version from its page."
@@ -2721,53 +2745,53 @@ msgstr ""
 "ऐप्स एक साथ अपडेट होते हैं: सभी एक ही nixpkgs संशोधन से आते हैं। किसी ऐप को जैसा है वैसा "
 "रखने के लिए, उसके पेज से उसका संस्करण रोकें।"
 
-#: crates/gui/src/views/updates.rs:392
+#: crates/gui/src/views/updates.rs:465
 #, rust-format
 msgid "nixpkgs {}"
 msgstr "nixpkgs {}"
 
-#: crates/gui/src/views/updates.rs:396
+#: crates/gui/src/views/updates.rs:469
 msgid "Apps in your user profile, updated with nix profile"
 msgstr "आपकी उपयोगकर्ता प्रोफ़ाइल के ऐप्स, nix profile से अपडेट किए गए"
 
-#: crates/gui/src/views/updates.rs:398
+#: crates/gui/src/views/updates.rs:471
 #, rust-format
 msgid "Installed: {}"
 msgstr "इंस्टॉल: {}"
 
-#: crates/gui/src/views/updates.rs:406
+#: crates/gui/src/views/updates.rs:479
 msgid "Check Again"
 msgstr "फिर से जाँचें"
 
-#: crates/gui/src/views/updates.rs:424
+#: crates/gui/src/views/updates.rs:497
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] "{} ऐप अपडेट"
 msgstr[1] "{} ऐप अपडेट"
 
-#: crates/gui/src/views/updates.rs:426
+#: crates/gui/src/views/updates.rs:499
 msgid "New nixpkgs revision"
 msgstr "नया nixpkgs संशोधन"
 
-#: crates/gui/src/views/updates.rs:430
+#: crates/gui/src/views/updates.rs:503
 #, rust-format
 msgid "Available: {}"
 msgstr "उपलब्ध: {}"
 
-#: crates/gui/src/views/updates.rs:442 crates/gui/src/views/updates.rs:540
+#: crates/gui/src/views/updates.rs:515 crates/gui/src/views/updates.rs:613
 msgid "_Update"
 msgstr "अपडेट करें (_U)"
 
-#: crates/gui/src/views/updates.rs:483
+#: crates/gui/src/views/updates.rs:556
 msgid "Other Sources"
 msgstr "अन्य स्रोत"
 
-#: crates/gui/src/views/updates.rs:498
+#: crates/gui/src/views/updates.rs:571
 msgid "Update _All"
 msgstr "सभी अपडेट करें (_A)"
 
-#: crates/gui/src/views/updates.rs:509
+#: crates/gui/src/views/updates.rs:582
 msgid ""
 "The flakes your configuration uses besides nixpkgs: modules, themes, apps "
 "from other sources."
@@ -2775,7 +2799,7 @@ msgstr ""
 "nixpkgs के अलावा आपका कॉन्फ़िगरेशन जिन flakes का उपयोग करता है: मॉड्यूल, थीम, अन्य "
 "स्रोतों के ऐप्स।"
 
-#: crates/gui/src/views/updates.rs:513
+#: crates/gui/src/views/updates.rs:586
 #, rust-format
 msgid ""
 "Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may "
@@ -2784,30 +2808,30 @@ msgstr ""
 "Home Manager {hm} का पालन करता है जबकि nixpkgs {nixpkgs} का: Home Manager "
 "चेतावनी दे सकता है या टूट सकता है। अपने flake.nix में इसकी शाखा बदलें।"
 
-#: crates/gui/src/views/updates.rs:527
+#: crates/gui/src/views/updates.rs:600
 msgid "Could not check"
 msgstr "जाँच नहीं हो सकी"
 
-#: crates/gui/src/views/updates.rs:529
+#: crates/gui/src/views/updates.rs:602
 #, rust-format
 msgid "Up to date, from {}"
 msgstr "अप टू डेट, {} का"
 
-#: crates/gui/src/views/updates.rs:531
+#: crates/gui/src/views/updates.rs:604
 #, rust-format
 msgid "New version from {new}, yours is from {old}"
 msgstr "{new} का नया संस्करण, आपका {old} का है"
 
-#: crates/gui/src/views/updates.rs:566
+#: crates/gui/src/views/updates.rs:639
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr "{age} रोका गया, सुरक्षा अपडेट नहीं मिलते"
 
-#: crates/gui/src/views/updates.rs:593
+#: crates/gui/src/views/updates.rs:666
 msgid "Held Apps"
 msgstr "रोके गए ऐप्स"
 
-#: crates/gui/src/views/updates.rs:600
+#: crates/gui/src/views/updates.rs:673
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
@@ -2815,21 +2839,57 @@ msgid ""
 msgstr ""
 "nixpkgs आपके कॉन्फ़िगरेशन के “{}” इनपुट से आता है। उस flake को अपडेट करें, फिर लागू करें।"
 
-#: crates/gui/src/views/updates.rs:603
+#: crates/gui/src/views/updates.rs:676
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr "Nix App Center इस कॉन्फ़िगरेशन को खुद अपडेट नहीं कर सकता।"
 
-#: crates/gui/src/views/updates.rs:611
+#: crates/gui/src/views/updates.rs:683
+#, rust-format
+msgid "NixOS {0} is available."
+msgstr "NixOS {0} उपलब्ध है।"
+
+#: crates/gui/src/views/updates.rs:684
+#, rust-format
+msgid "_Switch to NixOS {0}…"
+msgstr "NixOS {0} पर स्विच करें… (_S)"
+
+#: crates/gui/src/views/updates.rs:702
 #, rust-format
 msgid ""
-"NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
-"ready."
-msgstr "NixOS {0} उपलब्ध है। तैयार होने पर अपना कॉन्फ़िगरेशन nixos-{0} पर स्विच करें।"
+"Nix App Center changes these lines of {file}, a backup next to it first, "
+"then updates the flake and applies. If anything fails or you cancel, "
+"flake.nix and flake.lock go back as they were."
+msgstr ""
+"Nix App Center पहले बगल में एक बैकअप रखकर {file} की ये पंक्तियाँ बदलता है, फिर flake "
+"अपडेट करके लागू करता है। कुछ विफल होने या रद्द करने पर flake.nix और flake.lock पहले "
+"जैसे हो जाते हैं।"
 
-#: crates/gui/src/views/updates.rs:614
-msgid "Release _Notes"
-msgstr "रिलीज़ नोट्स (_N)"
+#: crates/gui/src/views/updates.rs:704
+msgid ""
+"Nix App Center points the nixos channel to the new release, then upgrades "
+"and applies. If you added Home Manager as a channel, switch it too."
+msgstr ""
+"Nix App Center nixos channel को नई रिलीज़ पर ले जाता है, फिर अपग्रेड करके लागू करता "
+"है। अगर आपने Home Manager को channel के रूप में जोड़ा है, तो उसे भी बदलें।"
 
-#: crates/gui/src/views/updates.rs:630
+#: crates/gui/src/views/updates.rs:707
+#, rust-format
+msgid "Switch to NixOS {}?"
+msgstr "NixOS {} पर स्विच करें?"
+
+#: crates/gui/src/views/updates.rs:725
+msgid ""
+"system.stateVersion stays as it is: it is not the release you run, never "
+"change it to upgrade. Read the release notes first: some options change or "
+"go away."
+msgstr ""
+"system.stateVersion जैसा है वैसा रहता है: यह वह रिलीज़ नहीं है जो आप चलाते हैं, अपग्रेड "
+"के लिए इसे कभी न बदलें। पहले रिलीज़ नोट्स पढ़ें: कुछ विकल्प बदलते या हट जाते हैं।"
+
+#: crates/gui/src/views/updates.rs:735
+msgid "_Switch"
+msgstr "स्विच करें (_S)"
+
+#: crates/gui/src/views/updates.rs:755
 msgid "Everything is up to date"
 msgstr "सब कुछ अप टू डेट है"
