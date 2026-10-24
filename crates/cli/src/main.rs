@@ -5,7 +5,8 @@
 //!   nix-app-center-cli info <attr>       rich metadata (nix eval meta)
 //!   nix-app-center-cli run <attr>        `nix run nixpkgs#<attr>` (try-first)
 //!   nix-app-center-cli shell <attr>      `nix shell` in a terminal (try-first for CLIs)
-//!   nix-app-center-cli keep <attr>       add to the Nix App Center manifest
+//!   nix-app-center-cli keep <attr> [--allow-unfree] [--allow-insecure]
+//!                                      add to the Nix App Center manifest
 //!   nix-app-center-cli unkeep <attr>     remove from the manifest
 //!   nix-app-center-cli updates           nixpkgs pin vs its branch head, app changes
 //!   nix-app-center-cli versions <attr>   earlier versions and their nixpkgs revision
@@ -122,7 +123,11 @@ fn main() -> ExitCode {
         Some("keep") => match args.get(2) {
             Some(attr) => {
                 let pkg = Package::from_attr(attr);
-                match nix_app_center_core::keep(&pkg) {
+                let allow = nix_app_center_core::Allowance {
+                    unfree: args.iter().any(|a| a == "--allow-unfree"),
+                    insecure: args.iter().any(|a| a == "--allow-insecure"),
+                };
+                match nix_app_center_core::keep_allowing(&pkg, allow) {
                     Ok(()) => {
                         println!("kept: {attr}");
                         ExitCode::SUCCESS
@@ -409,7 +414,7 @@ fn main() -> ExitCode {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: nix-app-center-cli <--version | search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: nix-app-center-cli <--version | search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> [--allow-unfree] [--allow-insecure] | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
     );
     ExitCode::FAILURE
 }

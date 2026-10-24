@@ -48,9 +48,71 @@ pub(crate) fn nixpkgs_tarball(rev: &str) -> String {
     format!("https://github.com/NixOS/nixpkgs/archive/{rev}.tar.gz")
 }
 
-/// Name of the binding holding nixpkgs at `rev`.
-fn pin_binding(rev: &str) -> String {
-    format!("nixpkgs-{}", rev.get(..12).unwrap_or(rev))
+/// The nixpkgs an entry is built from when it is not `pkgs`: a held
+/// revision, or one that allows what the user allowed for this app.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Source<'a> {
+    rev: Option<&'a str>,
+    sha256: &'a str,
+    unfree: bool,
+    insecure: bool,
+}
+
+impl Source<'_> {
+    /// Name of the binding, shared by every app built from it.
+    fn binding(&self) -> String {
+        let mut name = String::from("nixpkgs");
+        if let Some(rev) = self.rev {
+            name.push('-');
+            name.push_str(rev.get(..12).unwrap_or(rev));
+        }
+        if self.unfree {
+            name.push_str("-unfree");
+        }
+        if self.insecure {
+            name.push_str("-insecure");
+        }
+        name
+    }
+
+    fn render(&self) -> String {
+        let src = match self.rev {
+            Some(rev) => format!(
+                "(builtins.fetchTarball {{\n    url = \"{}\";\n    sha256 = \"{}\";\n  }})",
+                nixpkgs_tarball(rev),
+                self.sha256
+            ),
+            None => "pkgs.path".to_string(),
+        };
+        let mut allow = Vec::new();
+        if self.unfree {
+            allow.push("allowUnfree = true;");
+        }
+        if self.insecure {
+            allow.push("allowInsecurePredicate = _: true;");
+        }
+        let extra = if allow.is_empty() {
+            String::new()
+        } else {
+            format!(" // {{ {} }}", allow.join(" "))
+        };
+        format!(
+            "  {} = import {src} {{\n    config = lib.filterAttrs (_: v: v != null) pkgs.config{extra};\n    system = pkgs.stdenv.hostPlatform.system;\n  }};\n",
+            self.binding()
+        )
+    }
+}
+
+/// Where `e` is built from, `None` for `pkgs` itself.
+fn source(e: &KeptEntry) -> Option<Source<'_>> {
+    let pin = valid_pin(e);
+    let s = Source {
+        rev: pin.map(|p| p.rev.as_str()),
+        sha256: pin.map_or("", |p| p.sha256.as_str()),
+        unfree: e.allow_unfree,
+        insecure: e.allow_insecure,
+    };
+    (s.rev.is_some() || s.unfree || s.insecure).then_some(s)
 }
 
 /// The package expression of a plain entry: its attr, from the held
@@ -94,12 +156,12 @@ fn package_expr(e: &KeptEntry) -> Option<String> {
             "inputs.{input}.packages.${{pkgs.stdenv.hostPlatform.system}}.{attr}"
         ));
     }
-    let pin = valid_pin(e);
-    if pin.is_none() && e.flags.is_empty() {
+    let src = source(e);
+    if src.is_none() && e.flags.is_empty() {
         return Some(attr.clone());
     }
-    let base = match pin {
-        Some(p) => format!("{}.{attr}", pin_binding(&p.rev)),
+    let base = match src {
+        Some(s) => format!("{}.{attr}", s.binding()),
         None => format!("pkgs.{attr}"),
     };
     Some(crate::build_flags::with_flags(&base, &e.flags))
@@ -114,31 +176,60 @@ fn valid_pin(e: &KeptEntry) -> Option<&crate::manifest::Pin> {
     })
 }
 
-/// `let` bindings importing each held revision once, shared by its apps.
-fn pin_bindings<'a>(entries: impl Iterator<Item = &'a KeptEntry>) -> String {
-    let mut pins: Vec<&crate::manifest::Pin> = entries.filter_map(valid_pin).collect();
-    pins.sort_by(|a, b| a.rev.cmp(&b.rev));
-    pins.dedup_by(|a, b| a.rev == b.rev);
-    if pins.is_empty() {
+/// `let` bindings importing each nixpkgs the entries need once.
+fn source_bindings<'a>(entries: impl Iterator<Item = &'a KeptEntry>) -> String {
+    let mut sources: Vec<Source> = entries.filter_map(source).collect();
+    sources.sort();
+    sources.dedup();
+    if sources.is_empty() {
         return String::new();
     }
-    let mut out = String::from(
-        "let
-",
-    );
-    for p in pins {
-        out.push_str(&format!(
-            "  {} = import (builtins.fetchTarball {{\n    url = \"{}\";\n    sha256 = \"{}\";\n  }}) {{\n    config = lib.filterAttrs (_: v: v != null) pkgs.config;\n    system = pkgs.stdenv.hostPlatform.system;\n  }};\n",
-            pin_binding(&p.rev),
-            nixpkgs_tarball(&p.rev),
-            p.sha256
-        ));
+    let mut out = String::from("let\n");
+    for s in sources {
+        out.push_str(&s.render());
     }
-    out.push_str(
-        "in
-",
-    );
+    out.push_str("in\n");
     out
+}
+
+/// Entries kept through a module whose package must come from a nixpkgs
+/// that allows it, by their own block of `scope`.
+fn overlaid(
+    kept: &[KeptEntry],
+    scope: fn(&KeptEntry) -> Option<&String>,
+) -> impl Iterator<Item = &KeptEntry> {
+    kept.iter().filter(move |e| {
+        (e.allow_unfree || e.allow_insecure)
+            && !e.package.attr.contains('.')
+            && e.package.source.is_none()
+            && scope(e).is_some_and(|b| !b.trim().is_empty())
+    })
+}
+
+/// An overlay giving modules the allowed package: they read `pkgs.X`.
+fn overlay(entries: Vec<&KeptEntry>) -> String {
+    let mut items: Vec<String> = entries
+        .iter()
+        .filter_map(|e| {
+            let s = source(e)?;
+            package_expr(&KeptEntry::simple(e.package.clone()))?;
+            Some(format!(
+                "{} = {}.{};",
+                e.package.attr,
+                s.binding(),
+                e.package.attr
+            ))
+        })
+        .collect();
+    if items.is_empty() {
+        return String::new();
+    }
+    items.sort();
+    items.dedup();
+    format!(
+        "nixpkgs.overlays = [\n  (final: prev: {{\n{}\n  }})\n];\n",
+        indent(&items.join("\n"), 4)
+    )
 }
 
 /// True for a plain entry of the user scope.
@@ -279,18 +370,42 @@ fn module_args(kept: &[KeptEntry]) -> String {
 /// `nix-app-center-home.nix`, shaped by the layout: a Home Manager module,
 /// or a NixOS module using `home-manager.users` or `users.users`.
 pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
-    let body = home_body(kept, &shape.packages_option());
+    let mut body = home_body(kept, &shape.packages_option());
+    let modules: Vec<&KeptEntry> = overlaid(kept, |e| e.home_nix.as_ref()).collect();
+    let overlay = overlay(modules.clone());
     let mut out = header("User scope.");
     out.push_str(&module_args(kept));
-    out.push_str(&pin_bindings(kept.iter().filter(|e| in_home_list(e))));
+    out.push_str(&source_bindings(
+        kept.iter().filter(|e| in_home_list(e)).chain(modules),
+    ));
     out.push_str("{\n");
     match shape {
         HomeShape::NixosHm(user) => {
             out.push_str(&format!("  home-manager.users.{user} = {{\n"));
             out.push_str(&indent(&body, 4));
             out.push_str("\n  };\n");
+            // Home Manager modules read the system's pkgs, or their own
+            // when useGlobalPkgs is off.
+            if !overlay.is_empty() {
+                out.push_str(&indent(&overlay, 2));
+                out.push_str(&indent(
+                    &overlay.replacen(
+                        "nixpkgs.overlays = [",
+                        &format!(
+                            "home-manager.users.{user}.nixpkgs.overlays = lib.mkIf (!config.home-manager.useGlobalPkgs) ["
+                        ),
+                        1,
+                    ),
+                    2,
+                ));
+                out.push('\n');
+            }
         }
         HomeShape::HomeManager | HomeShape::NixosUser(_) => {
+            if !overlay.is_empty() {
+                body.push('\n');
+                body.push_str(&overlay);
+            }
             out.push_str(&indent(&body, 2));
             out.push('\n');
         }
@@ -301,10 +416,18 @@ pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
 
 /// `nix-app-center-system.nix`, written even when empty since it is imported.
 pub(crate) fn render_system(kept: &[KeptEntry]) -> String {
-    let body = system_body(kept);
+    let mut body = system_body(kept);
+    let modules: Vec<&KeptEntry> = overlaid(kept, |e| e.system_nix.as_ref()).collect();
+    let overlay = overlay(modules.clone());
+    if !overlay.is_empty() {
+        body.push('\n');
+        body.push_str(&overlay);
+    }
     let mut out = header("System scope (NixOS).");
     out.push_str(&module_args(kept));
-    out.push_str(&pin_bindings(kept.iter().filter(|e| e.system_wide)));
+    out.push_str(&source_bindings(
+        kept.iter().filter(|e| e.system_wide).chain(modules),
+    ));
     out.push_str("{\n");
     if !body.trim().is_empty() {
         out.push_str(&indent(body.trim_end(), 2));
@@ -796,6 +919,74 @@ mod tests {
             }),
             ..simple(attr)
         }
+    }
+
+    #[test]
+    fn allowed_apps_come_from_a_nixpkgs_that_allows_them() {
+        let steam = KeptEntry {
+            allow_unfree: true,
+            ..simple("steam")
+        };
+        let old = KeptEntry {
+            allow_insecure: true,
+            ..simple("olm")
+        };
+        let out = render_home(&[simple("firefox"), steam, old], &HomeShape::HomeManager);
+        assert!(out.contains("nixpkgs-unfree = import pkgs.path {"), "{out}");
+        assert!(out.contains("pkgs.config // { allowUnfree = true; };"));
+        assert!(out.contains("pkgs.config // { allowInsecurePredicate = _: true; };"));
+        assert!(out.contains("  nixpkgs-unfree.steam\n"));
+        assert!(out.contains("  nixpkgs-insecure.olm\n"));
+        assert!(out.contains("  firefox\n"));
+        assert!(!out.contains("nixpkgs.overlays"));
+    }
+
+    #[test]
+    fn a_module_reads_the_allowed_package_through_an_overlay() {
+        let steam = KeptEntry {
+            allow_unfree: true,
+            ..promue("steam", Some(""), Some("programs.steam.enable = true;"))
+        };
+        let system = render_system(std::slice::from_ref(&steam));
+        assert!(
+            system.contains("nixpkgs-unfree = import pkgs.path {"),
+            "{system}"
+        );
+        assert!(system.contains("steam = nixpkgs-unfree.steam;"));
+        assert!(system.contains("programs.steam.enable = true;"));
+
+        let home = KeptEntry {
+            allow_unfree: true,
+            ..promue("spotify", Some("programs.spotify.enable = true;"), None)
+        };
+        let nixos_hm = render_home(
+            std::slice::from_ref(&home),
+            &HomeShape::NixosHm("alice".into()),
+        );
+        let users = nixos_hm.find("home-manager.users.alice").unwrap();
+        let overlay = nixos_hm.find("nixpkgs.overlays").unwrap();
+        assert!(overlay > users, "the overlay is NixOS level: {nixos_hm}");
+        assert!(nixos_hm.contains(
+            "home-manager.users.alice.nixpkgs.overlays = lib.mkIf (!config.home-manager.useGlobalPkgs) ["
+        ));
+        let standalone = render_home(&[home], &HomeShape::HomeManager);
+        assert!(
+            standalone.contains("spotify = nixpkgs-unfree.spotify;"),
+            "{standalone}"
+        );
+    }
+
+    #[test]
+    fn a_held_proprietary_app_allows_it_in_its_revision() {
+        let rev = "0123456789abcdef0123456789abcdef01234567";
+        let steam = KeptEntry {
+            allow_unfree: true,
+            ..pinned("steam", rev)
+        };
+        let out = render_home(&[steam, pinned("vlc", rev)], &HomeShape::HomeManager);
+        assert!(out.contains("nixpkgs-0123456789ab-unfree.steam"), "{out}");
+        assert!(out.contains("nixpkgs-0123456789ab.vlc"));
+        assert_eq!(out.matches("builtins.fetchTarball").count(), 2);
     }
 
     #[test]

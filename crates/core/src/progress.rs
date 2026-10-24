@@ -203,6 +203,27 @@ impl Tracker {
     }
 }
 
+/// Why nixpkgs refused to evaluate a package, read from a Nix error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    Unfree(String),
+    Insecure(String),
+}
+
+/// The package a Nix error refuses, and why: an app that turned
+/// proprietary or insecure since it was kept.
+pub fn refusal(error: &str) -> Option<Refusal> {
+    let rest = error.split("Refusing to evaluate package '").nth(1)?;
+    let (name, rest) = rest.split_once('\'')?;
+    if rest.contains("unfree license") {
+        Some(Refusal::Unfree(name.to_string()))
+    } else if rest.contains("marked as insecure") {
+        Some(Refusal::Insecure(name.to_string()))
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,6 +258,15 @@ mod tests {
         );
         assert_eq!(t.phase(), Phase::Activating);
         assert_eq!(t.fraction(), Some(1.0));
+    }
+
+    #[test]
+    fn reads_why_nixpkgs_refused_a_package() {
+        let e = "error: Refusing to evaluate package 'olm-3.2.16' in /nix/store/x/package.nix:42 because it is marked as insecure";
+        assert_eq!(refusal(e), Some(Refusal::Insecure("olm-3.2.16".into())));
+        let e = "error: Refusing to evaluate package 'vscode-1.119.0' in /x:106 because it has an unfree license (‘unfree’)";
+        assert_eq!(refusal(e), Some(Refusal::Unfree("vscode-1.119.0".into())));
+        assert_eq!(refusal("error: attribute 'x' missing"), None);
     }
 
     #[test]
