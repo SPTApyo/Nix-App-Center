@@ -7,12 +7,14 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use nix_app_center_core::{ApplyOutcome, Phase, StreamEvent};
+use nix_app_center_core::{ApplyOutcome, ChangeKind, ChangeSet, Phase, StreamEvent};
 
 use crate::i18n::t;
 
 enum Event {
     Stream(StreamEvent),
+    /// Built: what activating it changes, waiting for the user.
+    Review(ChangeSet),
     Done(Result<ApplyOutcome, String>),
 }
 
@@ -126,6 +128,9 @@ pub fn present(
         }
     });
 
+    let review = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    review.set_visible(false);
+    let progress = gtk::Box::new(gtk::Orientation::Vertical, 10);
     let body = gtk::Box::new(gtk::Orientation::Vertical, 10);
     body.set_margin_top(12);
     body.set_margin_bottom(18);
@@ -136,11 +141,13 @@ pub fn present(
         bar.upcast_ref(),
         detail.upcast_ref(),
         outcome.upcast_ref(),
-        toggle.upcast_ref(),
-        revealer.upcast_ref(),
     ] {
-        body.append(w);
+        progress.append(w);
     }
+    body.append(&progress);
+    body.append(&review);
+    body.append(&toggle);
+    body.append(&revealer);
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&adw::HeaderBar::new());
     toolbar.set_content(Some(&body));
@@ -175,13 +182,32 @@ pub fn present(
 
     let applies = nix_app_center_core::apply_argv().is_some_and(|a| steps.contains(&a));
     let (tx, rx) = async_channel::unbounded::<Event>();
+    let (answer_tx, answer_rx) = async_channel::bounded::<bool>(1);
+    let ask = nix_app_center_core::load_settings().review_changes;
     std::thread::spawn(move || {
         let events = tx.clone();
-        let res = nix_app_center_core::run_streaming(&steps, move |e| {
-            let _ = events.send_blocking(Event::Stream(e));
-        })
+        let reviews = tx.clone();
+        let res = nix_app_center_core::run_reviewed(
+            &steps,
+            move |e| {
+                let _ = events.send_blocking(Event::Stream(e));
+            },
+            move |set| {
+                if !ask || reviews.send_blocking(Event::Review(set)).is_err() {
+                    return true;
+                }
+                answer_rx.recv_blocking().unwrap_or(false)
+            },
+        )
         .map_err(|e| e.to_string());
         let _ = tx.send_blocking(Event::Done(res));
+    });
+    // Closing the dialog while it waits keeps the running system.
+    dialog.connect_closed({
+        let answer_tx = answer_tx.clone();
+        move |_| {
+            let _ = answer_tx.try_send(false);
+        }
     });
 
     let started = Instant::now();
@@ -208,8 +234,15 @@ pub fn present(
                         None => t("Working…"),
                     });
                 }
+                Event::Review(set) => {
+                    fill_review(&review, &set, &answer_tx, &progress);
+                    progress.set_visible(false);
+                    review.set_visible(true);
+                }
                 Event::Done(res) => {
                     finished.set(true);
+                    progress.set_visible(true);
+                    review.set_visible(false);
                     let message = crate::util::describe_apply(res.clone());
                     match &res {
                         Ok(outcome) => {
@@ -237,6 +270,192 @@ pub fn present(
             }
         }
     });
+}
+
+/// The review step alone, for the development gallery: nothing runs.
+#[cfg(feature = "dev-gallery")]
+pub fn present_review(parent: &impl IsA<gtk::Widget>, set: &ChangeSet) {
+    let review = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    review.set_margin_top(12);
+    review.set_margin_bottom(18);
+    review.set_margin_start(18);
+    review.set_margin_end(18);
+    let (answer, _) = async_channel::bounded::<bool>(1);
+    fill_review(
+        &review,
+        set,
+        &answer,
+        &gtk::Box::new(gtk::Orientation::Vertical, 0),
+    );
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&adw::HeaderBar::new());
+    toolbar.set_content(Some(&review));
+    adw::Dialog::builder()
+        .title(t("Applying Configuration"))
+        .content_width(640)
+        .child(&toolbar)
+        .build()
+        .present(Some(parent));
+}
+
+/// Fills `review` with what `set` changes and the buttons answering.
+fn fill_review(
+    review: &gtk::Box,
+    set: &ChangeSet,
+    answer: &async_channel::Sender<bool>,
+    progress: &gtk::Box,
+) {
+    while let Some(child) = review.first_child() {
+        review.remove(&child);
+    }
+    let heading = gtk::Label::new(Some(&t("Review the Changes")));
+    heading.add_css_class("heading");
+    heading.set_xalign(0.0);
+    review.append(&heading);
+    review.append(&crate::util::dim_label(&summary(set)));
+    if set.reboot {
+        review.append(&banner(&t(
+            "The kernel changes: restart the computer to use the new one.",
+        )));
+    }
+    if set.system {
+        review.append(&banner(&t(
+            "These changes apply to every user of this computer.",
+        )));
+    }
+
+    let mut shown: Vec<&nix_app_center_core::Change> = set
+        .changes
+        .iter()
+        .filter(|c| c.kind != ChangeKind::Rebuilt)
+        .collect();
+    let apps = known_apps();
+    shown.sort_by_key(|c| {
+        (
+            !apps.contains(&c.name.to_lowercase()),
+            c.name.to_lowercase(),
+        )
+    });
+    if !shown.is_empty() {
+        let list = crate::util::boxed_list();
+        for c in shown {
+            let row = adw::ActionRow::builder()
+                .title(crate::util::esc(&c.name))
+                .subtitle(crate::util::esc(&change_text(c)))
+                .build();
+            if c.size != 0 {
+                let size = gtk::Label::new(Some(&signed_size(c.size)));
+                size.add_css_class("dim-label");
+                row.add_suffix(&size);
+            }
+            list.append(&row);
+        }
+        review.append(
+            &gtk::ScrolledWindow::builder()
+                .child(&list)
+                .hscrollbar_policy(gtk::PolicyType::Never)
+                .propagate_natural_height(true)
+                .max_content_height(320)
+                .build(),
+        );
+    }
+
+    let cancel = gtk::Button::with_mnemonic(&t("_Cancel"));
+    let apply = gtk::Button::with_mnemonic(&t("_Apply Changes"));
+    apply.add_css_class("suggested-action");
+    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    buttons.set_halign(gtk::Align::End);
+    buttons.append(&cancel);
+    buttons.append(&apply);
+    review.append(&buttons);
+    for (button, yes) in [(cancel, false), (apply.clone(), true)] {
+        let (answer, review, progress) = (answer.clone(), review.clone(), progress.clone());
+        button.connect_clicked(move |_| {
+            let _ = answer.try_send(yes);
+            review.set_visible(false);
+            progress.set_visible(true);
+        });
+    }
+    apply.grab_focus();
+}
+
+/// "2 updated, 1 added · +120 MB", or that nothing changes.
+fn summary(set: &ChangeSet) -> String {
+    let count = |kind: ChangeKind| set.count(&kind) as i64;
+    let mut parts = Vec::new();
+    for (n, text) in [
+        (
+            count(ChangeKind::Updated),
+            crate::util::plural("{} updated", "{} updated", count(ChangeKind::Updated)),
+        ),
+        (
+            count(ChangeKind::Added),
+            crate::util::plural("{} added", "{} added", count(ChangeKind::Added)),
+        ),
+        (
+            count(ChangeKind::Removed),
+            crate::util::plural("{} removed", "{} removed", count(ChangeKind::Removed)),
+        ),
+        (
+            count(ChangeKind::Rebuilt),
+            crate::util::plural("{} rebuilt", "{} rebuilt", count(ChangeKind::Rebuilt)),
+        ),
+    ] {
+        if n > 0 {
+            parts.push(text);
+        }
+    }
+    if parts.is_empty() {
+        return t("No package changes, only settings.");
+    }
+    let mut text = parts.join(", ");
+    if set.size() != 0 {
+        text.push_str(" · ");
+        text.push_str(&signed_size(set.size()));
+    }
+    text
+}
+
+/// "131.0 → 132.0", "Added: 1.0" or "Removed".
+fn change_text(c: &nix_app_center_core::Change) -> String {
+    match c.kind {
+        ChangeKind::Added => t("Added: {}").replace("{}", &c.after.join(", ")),
+        ChangeKind::Removed => t("Removed"),
+        ChangeKind::Updated => format!("{} → {}", c.before.join(", "), c.after.join(", ")),
+        ChangeKind::Rebuilt => t("Rebuilt"),
+    }
+}
+
+fn signed_size(bytes: i64) -> String {
+    let size = gtk::glib::format_size(bytes.unsigned_abs());
+    if bytes < 0 {
+        format!("−{size}")
+    } else {
+        format!("+{size}")
+    }
+}
+
+fn banner(text: &str) -> gtk::Label {
+    let l = gtk::Label::new(Some(text));
+    l.set_xalign(0.0);
+    l.set_wrap(true);
+    l.add_css_class("warning");
+    l
+}
+
+/// Lowercase names of the apps the user has or keeps, listed first.
+fn known_apps() -> std::collections::HashSet<String> {
+    let mut names: std::collections::HashSet<String> = nix_app_center_core::load_manifest()
+        .kept
+        .iter()
+        .map(|e| e.package.attr.to_lowercase())
+        .collect();
+    names.extend(
+        nix_app_center_core::profile_apps()
+            .into_iter()
+            .map(|a| a.pname.to_lowercase()),
+    );
+    names
 }
 
 /// A desktop notification when the user is not looking at the app.

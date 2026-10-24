@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-21 18:16+0200\n"
+"POT-Creation-Date: 2026-10-24 18:59+0200\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -15,15 +15,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: crates/core/src/config_gen.rs:475
+#: crates/core/src/config_gen.rs:487
 msgid "The build gave an unexpected result."
 msgstr "La construction a donné un résultat inattendu."
 
-#: crates/core/src/config_gen.rs:582 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:674 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
 
-#: crates/core/src/config_gen.rs:585 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:677 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "Les droits administrateur ont été refusés."
 
@@ -365,7 +365,7 @@ msgid "ODRS did not accept this app."
 msgstr "ODRS n'accepte pas cette application."
 
 #: crates/gui/src/app.rs:129 crates/gui/src/app.rs:573
-#: crates/gui/src/views/preferences.rs:108
+#: crates/gui/src/views/preferences.rs:122
 msgid "Search"
 msgstr "Rechercher"
 
@@ -407,8 +407,8 @@ msgstr ""
 "Votre configuration a changé : reconstruisez-la pour installer ou retirer "
 "les applications."
 
-#: crates/gui/src/app.rs:169 crates/gui/src/views/detail.rs:1865
-#: crates/gui/src/views/installed.rs:239
+#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:294
+#: crates/gui/src/views/detail.rs:1865 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "Application de la configuration"
 
@@ -426,7 +426,7 @@ msgid "Installed"
 msgstr "Installées"
 
 #: crates/gui/src/app.rs:313 crates/gui/src/app.rs:584
-#: crates/gui/src/views/preferences.rs:93
+#: crates/gui/src/views/preferences.rs:106
 msgid "Updates"
 msgstr "Mises à jour"
 
@@ -570,70 +570,140 @@ msgstr "Sans jeu de paquets"
 msgid "Package Set"
 msgstr "Jeu de paquets"
 
-#: crates/gui/src/components/apply_dialog.rs:22
-#: crates/gui/src/components/apply_dialog.rs:61
+#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:63
 msgid "Preparing…"
 msgstr "Préparation…"
 
-#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:26
 #, rust-format
 msgid "Downloading {done} of {} package"
 msgid_plural "Downloading {done} of {} packages"
 msgstr[0] "Téléchargement de {done} paquet sur {}"
 msgstr[1] "Téléchargement de {done} paquets sur {}"
 
-#: crates/gui/src/components/apply_dialog.rs:29
+#: crates/gui/src/components/apply_dialog.rs:31
 #, rust-format
 msgid "Building {done} of {total}"
 msgstr "Compilation {done} sur {total}"
 
-#: crates/gui/src/components/apply_dialog.rs:32
+#: crates/gui/src/components/apply_dialog.rs:34
 msgid "Activating the new configuration…"
 msgstr "Activation de la nouvelle configuration…"
 
-#: crates/gui/src/components/apply_dialog.rs:44
+#: crates/gui/src/components/apply_dialog.rs:46
 msgid "less than a minute left"
 msgstr "moins d'une minute restante"
 
-#: crates/gui/src/components/apply_dialog.rs:47
+#: crates/gui/src/components/apply_dialog.rs:49
 #, rust-format
 msgid "about {} min left"
 msgid_plural "about {} min left"
 msgstr[0] "environ {} min restante"
 msgstr[1] "environ {} min restantes"
 
-#: crates/gui/src/components/apply_dialog.rs:67
+#: crates/gui/src/components/apply_dialog.rs:69
 msgid "Starting…"
 msgstr "Démarrage…"
 
-#: crates/gui/src/components/apply_dialog.rs:111
-#: crates/gui/src/components/apply_dialog.rs:123
+#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:125
 msgid "Show _Details"
 msgstr "Afficher les _détails"
 
-#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:115
 msgid "Show the full build log."
 msgstr "Afficher le journal de build complet."
 
-#: crates/gui/src/components/apply_dialog.rs:121
+#: crates/gui/src/components/apply_dialog.rs:123
 msgid "Hide _Details"
 msgstr "Masquer les _détails"
 
-#: crates/gui/src/components/apply_dialog.rs:208
+#: crates/gui/src/components/apply_dialog.rs:234
 msgid "Working…"
 msgstr "En cours…"
 
-#: crates/gui/src/components/apply_dialog.rs:221
+#: crates/gui/src/components/apply_dialog.rs:254
 msgid "Done"
 msgstr "Terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:222
+#: crates/gui/src/components/apply_dialog.rs:255
 msgid "finished"
 msgstr "terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:226
+#: crates/gui/src/components/apply_dialog.rs:259
 msgid "Failed"
 msgstr "Échec"
+
+#: crates/gui/src/components/apply_dialog.rs:311
+msgid "Review the Changes"
+msgstr "Vérifier les changements"
+
+#: crates/gui/src/components/apply_dialog.rs:318
+msgid "The kernel changes: restart the computer to use the new one."
+msgstr "Le noyau change : redémarrez l'ordinateur pour utiliser le nouveau."
+
+#: crates/gui/src/components/apply_dialog.rs:323
+msgid "These changes apply to every user of this computer."
+msgstr ""
+"Ces changements s'appliquent à tous les utilisateurs de cet ordinateur."
+
+#: crates/gui/src/components/apply_dialog.rs:363
+#: crates/gui/src/components/details/nix_editor.rs:126
+#: crates/gui/src/components/details/review_row.rs:113
+#: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
+#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+msgid "_Cancel"
+msgstr "_Annuler"
+
+#: crates/gui/src/components/apply_dialog.rs:364
+msgid "_Apply Changes"
+msgstr "_Appliquer les changements"
+
+#: crates/gui/src/components/apply_dialog.rs:389
+#, rust-format
+msgid "{} updated"
+msgid_plural "{} updated"
+msgstr[0] "{} mis à jour"
+msgstr[1] "{} mis à jour"
+
+#: crates/gui/src/components/apply_dialog.rs:393
+#, rust-format
+msgid "{} added"
+msgid_plural "{} added"
+msgstr[0] "{} ajouté"
+msgstr[1] "{} ajoutés"
+
+#: crates/gui/src/components/apply_dialog.rs:397
+#, rust-format
+msgid "{} removed"
+msgid_plural "{} removed"
+msgstr[0] "{} retiré"
+msgstr[1] "{} retirés"
+
+#: crates/gui/src/components/apply_dialog.rs:401
+#, rust-format
+msgid "{} rebuilt"
+msgid_plural "{} rebuilt"
+msgstr[0] "{} reconstruit"
+msgstr[1] "{} reconstruits"
+
+#: crates/gui/src/components/apply_dialog.rs:409
+msgid "No package changes, only settings."
+msgstr "Aucun paquet ne change, seulement des réglages."
+
+#: crates/gui/src/components/apply_dialog.rs:422
+#, rust-format
+msgid "Added: {}"
+msgstr "Ajouté : {}"
+
+#: crates/gui/src/components/apply_dialog.rs:423
+msgid "Removed"
+msgstr "Retiré"
+
+#: crates/gui/src/components/apply_dialog.rs:425
+msgid "Rebuilt"
+msgstr "Reconstruit"
 
 #: crates/gui/src/components/details/attach_dialog.rs:36
 #, rust-format
@@ -937,13 +1007,6 @@ msgid ""
 msgstr ""
 "Évalue toute la configuration (dry-build) sans rien appliquer. Peut prendre "
 "1 à 2 minutes."
-
-#: crates/gui/src/components/details/nix_editor.rs:126
-#: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
-#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
-msgid "_Cancel"
-msgstr "_Annuler"
 
 #: crates/gui/src/components/details/nix_editor.rs:136
 msgid "User scope:"
@@ -1305,12 +1368,12 @@ msgstr ""
 "utilisateurs de cet ordinateur"
 
 #: crates/gui/src/components/welcome.rs:104
-#: crates/gui/src/views/preferences.rs:95
+#: crates/gui/src/views/preferences.rs:108
 msgid "Check for Updates Automatically"
 msgstr "Rechercher les mises à jour automatiquement"
 
 #: crates/gui/src/components/welcome.rs:106
-#: crates/gui/src/views/preferences.rs:97
+#: crates/gui/src/views/preferences.rs:110
 msgid "Once a day, with a notification when apps can be updated"
 msgstr ""
 "Une fois par jour, avec une notification quand des applications peuvent être "
@@ -1440,68 +1503,72 @@ msgid "Nix App Center cannot find your Nix configuration. Nothing was applied."
 msgstr ""
 "Nix App Center ne trouve pas votre configuration Nix. Rien n'a été appliqué."
 
-#: crates/gui/src/util.rs:60
+#: crates/gui/src/util.rs:43
+msgid "Nothing was changed."
+msgstr "Rien n'a été changé."
+
+#: crates/gui/src/util.rs:61
 #, rust-format
 msgid "Failed: {}"
 msgstr "Échec : {}"
 
-#: crates/gui/src/util.rs:299
+#: crates/gui/src/util.rs:300
 msgid "Today"
 msgstr "Aujourd'hui"
 
-#: crates/gui/src/util.rs:300
+#: crates/gui/src/util.rs:301
 msgid "Yesterday"
 msgstr "Hier"
 
-#: crates/gui/src/util.rs:301
+#: crates/gui/src/util.rs:302
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "Il y a {} jour"
 msgstr[1] "Il y a {} jours"
 
-#: crates/gui/src/util.rs:302
+#: crates/gui/src/util.rs:303
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] "Il y a {} semaine"
 msgstr[1] "Il y a {} semaines"
 
-#: crates/gui/src/util.rs:303
+#: crates/gui/src/util.rs:304
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] "Il y a {} mois"
 msgstr[1] "Il y a {} mois"
 
-#: crates/gui/src/util.rs:304
+#: crates/gui/src/util.rs:305
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
 msgstr[0] "Il y a {} an"
 msgstr[1] "Il y a {} ans"
 
-#: crates/gui/src/util.rs:580
+#: crates/gui/src/util.rs:581
 msgid "Installed on the system, for every user"
 msgstr "Installée sur le système, pour tous les utilisateurs"
 
-#: crates/gui/src/util.rs:582
+#: crates/gui/src/util.rs:583
 msgid "Installed in your home"
 msgstr "Installée dans votre home"
 
-#: crates/gui/src/util.rs:583
+#: crates/gui/src/util.rs:584
 msgid "Installed with Flatpak"
 msgstr "Installée avec Flatpak"
 
-#: crates/gui/src/util.rs:584
+#: crates/gui/src/util.rs:585
 msgid "Installed as an AppImage"
 msgstr "Installée en AppImage"
 
-#: crates/gui/src/util.rs:590
+#: crates/gui/src/util.rs:591
 msgid "through a module, with what it sets up around the app"
 msgstr "par un module, avec ce qu'il met en place autour de l'application"
 
-#: crates/gui/src/util.rs:592
+#: crates/gui/src/util.rs:593
 msgid "as a package"
 msgstr "comme paquet"
 
@@ -2298,17 +2365,25 @@ msgstr "Hôte (vide : cette machine)"
 msgid "Installing"
 msgstr "Installation"
 
-#: crates/gui/src/views/preferences.rs:110
+#: crates/gui/src/views/preferences.rs:94
+msgid "Show Changes Before Applying"
+msgstr "Montrer les changements avant d'appliquer"
+
+#: crates/gui/src/views/preferences.rs:96
+msgid "What gets updated, added or removed, before the system switches"
+msgstr "Ce qui est mis à jour, ajouté ou retiré, avant que le système bascule"
+
+#: crates/gui/src/views/preferences.rs:124
 msgid "Search by Command"
 msgstr "Recherche par commande"
 
-#: crates/gui/src/views/preferences.rs:112
-#: crates/gui/src/views/preferences.rs:131
+#: crates/gui/src/views/preferences.rs:126
+#: crates/gui/src/views/preferences.rs:145
 msgid "Ready: searching a command also lists the packages that provide it."
 msgstr ""
 "Prête : chercher une commande liste aussi les paquets qui la fournissent."
 
-#: crates/gui/src/views/preferences.rs:114
+#: crates/gui/src/views/preferences.rs:128
 msgid ""
 "Lists the packages that provide a command. Needs the nix-index database, "
 "about 100 MB."
@@ -2316,23 +2391,23 @@ msgstr ""
 "Liste les paquets qui fournissent une commande. Nécessite la base nix-index, "
 "environ 100 Mo."
 
-#: crates/gui/src/views/preferences.rs:118
+#: crates/gui/src/views/preferences.rs:132
 msgid "_Download"
 msgstr "_Télécharger"
 
-#: crates/gui/src/views/preferences.rs:119
+#: crates/gui/src/views/preferences.rs:133
 msgid "Download the nix-index database, about 100 MB."
 msgstr "Télécharger la base nix-index, environ 100 Mo."
 
-#: crates/gui/src/views/preferences.rs:125
+#: crates/gui/src/views/preferences.rs:139
 msgid "Downloading the nix-index database…"
 msgstr "Téléchargement de la base nix-index…"
 
-#: crates/gui/src/views/preferences.rs:148
+#: crates/gui/src/views/preferences.rs:162
 msgid "Advanced"
 msgstr "Avancé"
 
-#: crates/gui/src/views/preferences.rs:150
+#: crates/gui/src/views/preferences.rs:164
 msgid ""
 "For unusual setups only, such as a configuration kept in another folder and "
 "built with your own script. Leave it empty if Apply already works."
@@ -2341,15 +2416,15 @@ msgstr ""
 "configuration rangée dans un autre dossier et construite avec votre propre "
 "script. Laissez vide si Appliquer fonctionne déjà."
 
-#: crates/gui/src/views/preferences.rs:154
+#: crates/gui/src/views/preferences.rs:168
 msgid "Apply command (empty: found by itself)"
 msgstr "Commande d'application (vide : trouvée toute seule)"
 
-#: crates/gui/src/views/preferences.rs:165
+#: crates/gui/src/views/preferences.rs:179
 msgid "How It Runs"
 msgstr "Fonctionnement"
 
-#: crates/gui/src/views/preferences.rs:167
+#: crates/gui/src/views/preferences.rs:181
 msgid ""
 "Run by the shell. Start it with sudo to run it as administrator: Nix App "
 "Center asks for the password itself, so tools that call sudo on their own, "
@@ -2361,94 +2436,94 @@ msgstr ""
 "appellent sudo eux-mêmes, comme nh, ne marchent pas ici. La barre de "
 "progression suit nixos-rebuild et les journaux Nix simples."
 
-#: crates/gui/src/views/preferences.rs:173
+#: crates/gui/src/views/preferences.rs:187
 msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr ""
 "Autres flakes où chercher (github:propriétaire/dépôt, séparés par des "
 "virgules)"
 
-#: crates/gui/src/views/preferences.rs:190
+#: crates/gui/src/views/preferences.rs:204
 msgid "Flakes Suggested by search.nixos.org"
 msgstr "Flakes proposés par search.nixos.org"
 
-#: crates/gui/src/views/preferences.rs:191
+#: crates/gui/src/views/preferences.rs:205
 msgid "Search their packages too"
 msgstr "Chercher aussi leurs paquets"
 
-#: crates/gui/src/views/preferences.rs:208
+#: crates/gui/src/views/preferences.rs:222
 msgid "The list could not be read."
 msgstr "La liste n'a pas pu être lue."
 
-#: crates/gui/src/views/preferences.rs:251
+#: crates/gui/src/views/preferences.rs:265
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "Flake NixOS dans {dir}, hôte {host}"
 
-#: crates/gui/src/views/preferences.rs:255
+#: crates/gui/src/views/preferences.rs:269
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "NixOS avec canaux dans {}"
 
-#: crates/gui/src/views/preferences.rs:258
+#: crates/gui/src/views/preferences.rs:272
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "Flake Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:261
+#: crates/gui/src/views/preferences.rs:275
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:263
+#: crates/gui/src/views/preferences.rs:277
 msgid "No configuration found."
 msgstr "Aucune configuration trouvée."
 
-#: crates/gui/src/views/preferences.rs:267
+#: crates/gui/src/views/preferences.rs:281
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "Module Home Manager pour {}"
 
-#: crates/gui/src/views/preferences.rs:270
+#: crates/gui/src/views/preferences.rs:284
 #, rust-format
 msgid "Applied with: {}"
 msgstr "Appliquée avec : {}"
 
-#: crates/gui/src/views/preferences.rs:278
+#: crates/gui/src/views/preferences.rs:292
 #, rust-format
 msgid "Configurations: {}"
 msgstr "Configurations : {}"
 
-#: crates/gui/src/views/preferences.rs:282
+#: crates/gui/src/views/preferences.rs:296
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Utilisateurs Home Manager : {}"
 
-#: crates/gui/src/views/preferences.rs:284
+#: crates/gui/src/views/preferences.rs:298
 msgid "No Home Manager module."
 msgstr "Pas de module Home Manager."
 
-#: crates/gui/src/views/preferences.rs:285
+#: crates/gui/src/views/preferences.rs:299
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "Cet hôte ne s'évalue pas : {}"
 
-#: crates/gui/src/views/preferences.rs:292
+#: crates/gui/src/views/preferences.rs:306
 msgid "Check with Nix"
 msgstr "Vérifier avec Nix"
 
-#: crates/gui/src/views/preferences.rs:294
+#: crates/gui/src/views/preferences.rs:308
 msgid "Nix says"
 msgstr "Réponse de Nix"
 
-#: crates/gui/src/views/preferences.rs:295
+#: crates/gui/src/views/preferences.rs:309
 msgid "Not checked yet."
 msgstr "Pas encore vérifiée."
 
-#: crates/gui/src/views/preferences.rs:302
+#: crates/gui/src/views/preferences.rs:316
 msgid "Evaluating your configuration…"
 msgstr "Évaluation de votre configuration…"
 
-#: crates/gui/src/views/preferences.rs:312
+#: crates/gui/src/views/preferences.rs:326
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix n'a pas pu l'évaluer : {}"

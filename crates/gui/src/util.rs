@@ -40,6 +40,7 @@ pub fn describe_apply(res: Result<nix_app_center_core::ApplyOutcome, String>) ->
         Ok(UnknownLayout) => {
             t("Nix App Center cannot find your Nix configuration. Nothing was applied.")
         }
+        Ok(Cancelled) => t("Nothing was changed."),
         Err(e) => failed(e),
     }
 }
