@@ -107,6 +107,18 @@ pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// The folders of the flake in `dir` and of its local inputs, the flake first.
+pub(crate) fn flake_dirs(dir: &Path) -> Vec<PathBuf> {
+    let mut out = vec![dir.to_path_buf()];
+    out.extend(
+        local_overrides(dir)
+            .iter()
+            .filter_map(|s| s.strip_prefix("git+file://").or(s.strip_prefix("path:")))
+            .map(PathBuf::from),
+    );
+    out
+}
+
 /// The flakes the user added in Preferences, locked when the list changes,
 /// as (locked reference, locked reference): they are no input of the
 /// configuration, so the reference is their name.

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-21 18:16+0200\n"
+"POT-Creation-Date: 2026-10-24 19:27+0200\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Arabic\n"
@@ -774,12 +774,12 @@ msgstr ""
 "تحرّره."
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:435
+#: crates/gui/src/views/updates.rs:580
 msgid "_Release"
 msgstr "_حرّر"
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:437
+#: crates/gui/src/views/updates.rs:582
 msgid "Let the app follow your configuration again."
 msgstr "دع التطبيق يتبع إعداداتك من جديد."
 
@@ -2720,42 +2720,42 @@ msgstr ""
 "لن تتمكن من التراجع إليها. يبقى النظام الحالي وإعدادات المستخدم الحالية "
 "الخاصة بك."
 
-#: crates/gui/src/views/updates.rs:175
+#: crates/gui/src/views/updates.rs:181 crates/gui/src/views/updates.rs:202
 msgid "Updating"
 msgstr "جارٍ التحديث"
 
-#: crates/gui/src/views/updates.rs:185
+#: crates/gui/src/views/updates.rs:212
 msgid "Released. Update or apply your configuration to move it forward."
 msgstr "حُرّر. حدّث إعداداتك أو طبّقها ليتقدم."
 
-#: crates/gui/src/views/updates.rs:260
+#: crates/gui/src/views/updates.rs:311
 #, rust-format
 msgid "Revision {rev}, {age}"
 msgstr "المراجعة {rev}، {age}"
 
-#: crates/gui/src/views/updates.rs:263
+#: crates/gui/src/views/updates.rs:314
 #, rust-format
 msgid "Revision {rev}"
 msgstr "المراجعة {rev}"
 
-#: crates/gui/src/views/updates.rs:264
+#: crates/gui/src/views/updates.rs:315
 msgid "Revision unknown"
 msgstr "المراجعة غير معروفة"
 
-#: crates/gui/src/views/updates.rs:278
+#: crates/gui/src/views/updates.rs:338
 msgid "Checking for updates…"
 msgstr "جارٍ التحقق من التحديثات…"
 
-#: crates/gui/src/views/updates.rs:294
+#: crates/gui/src/views/updates.rs:354
 msgid ""
 "Nix App Center cannot tell which nixpkgs branch your configuration follows."
 msgstr "لا يستطيع Nix App Center معرفة فرع nixpkgs الذي تتبعه إعداداتك."
 
-#: crates/gui/src/views/updates.rs:296
+#: crates/gui/src/views/updates.rs:356
 msgid "Nix App Center could not reach nixpkgs to check for updates."
 msgstr "تعذّر على Nix App Center الوصول إلى nixpkgs للتحقق من التحديثات."
 
-#: crates/gui/src/views/updates.rs:324
+#: crates/gui/src/views/updates.rs:384
 msgid ""
 "Apps update together: they all come from the same nixpkgs revision. To keep "
 "one app as it is, hold its version from its page."
@@ -2763,25 +2763,25 @@ msgstr ""
 "تُحدَّث التطبيقات معًا: كلها تأتي من مراجعة nixpkgs نفسها. لإبقاء تطبيق كما هو، "
 "ثبّت إصداره من صفحته."
 
-#: crates/gui/src/views/updates.rs:332
+#: crates/gui/src/views/updates.rs:392
 #, rust-format
 msgid "nixpkgs {}"
 msgstr "nixpkgs {}"
 
-#: crates/gui/src/views/updates.rs:336
+#: crates/gui/src/views/updates.rs:396
 msgid "Apps in your user profile, updated with nix profile"
 msgstr "تطبيقات في ملف المستخدم الخاص بك، تُحدَّث عبر nix profile"
 
-#: crates/gui/src/views/updates.rs:338
+#: crates/gui/src/views/updates.rs:398
 #, rust-format
 msgid "Installed: {}"
 msgstr "المثبَّت: {}"
 
-#: crates/gui/src/views/updates.rs:346
+#: crates/gui/src/views/updates.rs:406
 msgid "Check Again"
 msgstr "تحقّق مجددًا"
 
-#: crates/gui/src/views/updates.rs:364
+#: crates/gui/src/views/updates.rs:424
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
@@ -2792,50 +2792,89 @@ msgstr[3] "{} تحديثات تطبيقات"
 msgstr[4] "{} تحديثًا للتطبيقات"
 msgstr[5] "{} تحديث تطبيق"
 
-#: crates/gui/src/views/updates.rs:366
+#: crates/gui/src/views/updates.rs:426
 msgid "New nixpkgs revision"
 msgstr "مراجعة nixpkgs جديدة"
 
-#: crates/gui/src/views/updates.rs:370
+#: crates/gui/src/views/updates.rs:430
 #, rust-format
 msgid "Available: {}"
 msgstr "المتاح: {}"
 
-#: crates/gui/src/views/updates.rs:382
+#: crates/gui/src/views/updates.rs:442 crates/gui/src/views/updates.rs:540
 msgid "_Update"
 msgstr "_حدّث"
 
-#: crates/gui/src/views/updates.rs:421
+#: crates/gui/src/views/updates.rs:483
+msgid "Other Sources"
+msgstr "مصادر أخرى"
+
+#: crates/gui/src/views/updates.rs:498
+msgid "Update _All"
+msgstr "حدّث ال_كل"
+
+#: crates/gui/src/views/updates.rs:509
+msgid ""
+"The flakes your configuration uses besides nixpkgs: modules, themes, apps "
+"from other sources."
+msgstr ""
+"مستودعات flake التي تستخدمها إعداداتك إلى جانب nixpkgs: وحدات وسمات وتطبيقات "
+"من مصادر أخرى."
+
+#: crates/gui/src/views/updates.rs:513
+#, rust-format
+msgid ""
+"Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may "
+"warn or break. Change its branch in your flake.nix."
+msgstr ""
+"يتبع Home Manager ‏{hm} بينما يتبع nixpkgs ‏{nixpkgs}: قد يعرض Home Manager "
+"تحذيرات أو يتعطّل. غيّر فرعه في flake.nix."
+
+#: crates/gui/src/views/updates.rs:527
+msgid "Could not check"
+msgstr "تعذّر التحقق"
+
+#: crates/gui/src/views/updates.rs:529
+#, rust-format
+msgid "Up to date, from {}"
+msgstr "محدَّث، من {}"
+
+#: crates/gui/src/views/updates.rs:531
+#, rust-format
+msgid "New version from {new}, yours is from {old}"
+msgstr "إصدار جديد من {new}، وإصدارك من {old}"
+
+#: crates/gui/src/views/updates.rs:566
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr "مثبَّت {age}، بلا تحديثات أمنية"
 
-#: crates/gui/src/views/updates.rs:448
+#: crates/gui/src/views/updates.rs:593
 msgid "Held Apps"
 msgstr "التطبيقات المثبَّتة على إصدار"
 
-#: crates/gui/src/views/updates.rs:455
+#: crates/gui/src/views/updates.rs:600
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr "يأتي nixpkgs من المُدخل «{}» في إعداداتك. حدّث ذلك الـ flake، ثم طبّق."
 
-#: crates/gui/src/views/updates.rs:458
+#: crates/gui/src/views/updates.rs:603
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr "لا يستطيع Nix App Center تحديث هذه الإعدادات بنفسه."
 
-#: crates/gui/src/views/updates.rs:466
+#: crates/gui/src/views/updates.rs:611
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
 "ready."
 msgstr "NixOS {0} متاح. انقل إعداداتك إلى nixos-{0} عندما تكون مستعدًا."
 
-#: crates/gui/src/views/updates.rs:469
+#: crates/gui/src/views/updates.rs:614
 msgid "Release _Notes"
 msgstr "_ملاحظات الإصدار"
 
-#: crates/gui/src/views/updates.rs:485
+#: crates/gui/src/views/updates.rs:630
 msgid "Everything is up to date"
 msgstr "كل شيء محدَّث"
