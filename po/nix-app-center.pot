@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-21 18:16+0200\n"
+"POT-Creation-Date: 2026-10-24 19:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -567,69 +567,90 @@ msgstr ""
 msgid "Package Set"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:22
-#: crates/gui/src/components/apply_dialog.rs:61
+#: crates/gui/src/components/apply_dialog.rs:27
+#: crates/gui/src/components/apply_dialog.rs:90
 msgid "Preparing…"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:29
 #, rust-format
 msgid "Downloading {done} of {} package"
 msgid_plural "Downloading {done} of {} packages"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:29
+#: crates/gui/src/components/apply_dialog.rs:34
 #, rust-format
 msgid "Building {done} of {total}"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:32
+#: crates/gui/src/components/apply_dialog.rs:37
 msgid "Activating the new configuration…"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:44
+#: crates/gui/src/components/apply_dialog.rs:49
 msgid "less than a minute left"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:47
+#: crates/gui/src/components/apply_dialog.rs:52
 #, rust-format
 msgid "about {} min left"
 msgid_plural "about {} min left"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:67
+#: crates/gui/src/components/apply_dialog.rs:81
+msgid "Another Operation Is Running"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:83
+msgid "Wait for the current apply, update or rollback to finish."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:86
+#: crates/gui/src/components/details/attach_dialog.rs:97
+msgid "_Close"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:96
 msgid "Starting…"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:111
-#: crates/gui/src/components/apply_dialog.rs:123
+#: crates/gui/src/components/apply_dialog.rs:140
+#: crates/gui/src/components/apply_dialog.rs:152
 msgid "Show _Details"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:142
 msgid "Show the full build log."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:121
+#: crates/gui/src/components/apply_dialog.rs:150
 msgid "Hide _Details"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:208
+#: crates/gui/src/components/apply_dialog.rs:246
 msgid "Working…"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:221
+#: crates/gui/src/components/apply_dialog.rs:276
 msgid "Done"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:222
+#: crates/gui/src/components/apply_dialog.rs:277
 msgid "finished"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:226
+#: crates/gui/src/components/apply_dialog.rs:281
 msgid "Failed"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:299
+msgid "_Undo"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:301
+msgid "Go back to the version running before."
 msgstr ""
 
 #: crates/gui/src/components/details/attach_dialog.rs:36
@@ -674,10 +695,6 @@ msgstr ""
 
 #: crates/gui/src/components/details/attach_dialog.rs:95
 msgid "_Do It Myself"
-msgstr ""
-
-#: crates/gui/src/components/details/attach_dialog.rs:97
-msgid "_Close"
 msgstr ""
 
 #: crates/gui/src/components/details/attach_dialog.rs:100
@@ -739,12 +756,12 @@ msgid ""
 msgstr ""
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:435
+#: crates/gui/src/views/updates.rs:533
 msgid "_Release"
 msgstr ""
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:437
+#: crates/gui/src/views/updates.rs:535
 msgid "Let the app follow your configuration again."
 msgstr ""
 
@@ -886,8 +903,9 @@ msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
-#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+#: crates/gui/src/components/go_back.rs:40 crates/gui/src/views/detail.rs:1407
+#: crates/gui/src/views/detail.rs:1578 crates/gui/src/views/storage.rs:652
+#: crates/gui/src/views/storage.rs:668
 msgid "_Cancel"
 msgstr ""
 
@@ -1040,6 +1058,50 @@ msgstr ""
 
 #: crates/gui/src/components/featured_carousel.rs:61
 msgid "Next"
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:29
+msgid ""
+"Your system switches to this version, and the apps you added with Nix App "
+"Center go back to what they were then."
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:30
+msgid ""
+"Your system switches to this version. It was not made by Nix App Center, so "
+"your configuration stays as it is: the next apply brings the newer version "
+"back."
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:34
+msgid "This affects every user of this computer."
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:37
+#, rust-format
+msgid "Go Back to {}?"
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:41
+msgid "_Go Back"
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:59
+msgid "This version no longer exists."
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:72
+#, rust-format
+msgid "Back to the version of {}."
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:73
+#, rust-format
+msgid "Back to the version of {}. Your configuration is unchanged."
+msgstr ""
+
+#: crates/gui/src/components/go_back.rs:83
+msgid "Going Back"
 msgstr ""
 
 #: crates/gui/src/components/install_options.rs:83
@@ -2580,116 +2642,160 @@ msgid ""
 "current user setup stay."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:175
+#: crates/gui/src/views/updates.rs:179
 msgid "Updating"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:185
+#: crates/gui/src/views/updates.rs:189
 msgid "Released. Update or apply your configuration to move it forward."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:260
+#: crates/gui/src/views/updates.rs:275
 #, rust-format
 msgid "Revision {rev}, {age}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:263
+#: crates/gui/src/views/updates.rs:278
 #, rust-format
 msgid "Revision {rev}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:264
+#: crates/gui/src/views/updates.rs:279
 msgid "Revision unknown"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:278
+#: crates/gui/src/views/updates.rs:302
 msgid "Checking for updates…"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:294
+#: crates/gui/src/views/updates.rs:318
 msgid ""
 "Nix App Center cannot tell which nixpkgs branch your configuration follows."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:296
+#: crates/gui/src/views/updates.rs:320
 msgid "Nix App Center could not reach nixpkgs to check for updates."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:324
+#: crates/gui/src/views/updates.rs:348
 msgid ""
 "Apps update together: they all come from the same nixpkgs revision. To keep "
 "one app as it is, hold its version from its page."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:332
+#: crates/gui/src/views/updates.rs:356
 #, rust-format
 msgid "nixpkgs {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:336
+#: crates/gui/src/views/updates.rs:360
 msgid "Apps in your user profile, updated with nix profile"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:338
+#: crates/gui/src/views/updates.rs:362
 #, rust-format
 msgid "Installed: {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:346
+#: crates/gui/src/views/updates.rs:370
 msgid "Check Again"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:364
+#: crates/gui/src/views/updates.rs:388
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/views/updates.rs:366
+#: crates/gui/src/views/updates.rs:390
 msgid "New nixpkgs revision"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:370
+#: crates/gui/src/views/updates.rs:394
 #, rust-format
 msgid "Available: {}"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:382
+#: crates/gui/src/views/updates.rs:406
 msgid "_Update"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:421
+#: crates/gui/src/views/updates.rs:452
+msgid "Current"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:456
+msgid "Started at boot"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:458
+msgid "Go _Back"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:470
+msgid "History"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:475
+msgid ""
+"Each apply keeps the version before it. Go back to one if something broke; "
+"cleaning old generations in Storage removes them from here."
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:491
+#, rust-format
+msgid "Added {}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:494
+#, rust-format
+msgid "Removed {}"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:497
+msgid "Same apps, updated or reconfigured"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:500
+msgid "Applied with Nix App Center"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:501
+msgid "Applied outside Nix App Center"
+msgstr ""
+
+#: crates/gui/src/views/updates.rs:519
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:448
+#: crates/gui/src/views/updates.rs:546
 msgid "Held Apps"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:455
+#: crates/gui/src/views/updates.rs:553
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:458
+#: crates/gui/src/views/updates.rs:556
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:466
+#: crates/gui/src/views/updates.rs:564
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
 "ready."
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:469
+#: crates/gui/src/views/updates.rs:567
 msgid "Release _Notes"
 msgstr ""
 
-#: crates/gui/src/views/updates.rs:485
+#: crates/gui/src/views/updates.rs:583
 msgid "Everything is up to date"
 msgstr ""

@@ -11,6 +11,11 @@ use nix_app_center_core::{ApplyOutcome, Phase, StreamEvent};
 
 use crate::i18n::t;
 
+thread_local! {
+    /// True while an apply, update or rollback runs.
+    static RUNNING: Cell<bool> = const { Cell::new(false) };
+}
+
 enum Event {
     Stream(StreamEvent),
     Done(Result<ApplyOutcome, String>),
@@ -58,6 +63,30 @@ pub fn present(
     steps: Vec<Vec<String>>,
     done: impl Fn(Result<ApplyOutcome, String>) + 'static,
 ) {
+    present_then(parent, title, steps, |_| None, done);
+}
+
+/// [`present`], with `after` running once the steps end and giving the
+/// message to show instead of the usual one.
+pub fn present_then(
+    parent: &impl IsA<gtk::Widget>,
+    title: &str,
+    steps: Vec<Vec<String>>,
+    after: impl Fn(&Result<ApplyOutcome, String>) -> Option<String> + 'static,
+    done: impl Fn(Result<ApplyOutcome, String>) + 'static,
+) {
+    // One Nix operation at a time: two switches would race.
+    if RUNNING.with(|r| r.replace(true)) {
+        let busy = adw::AlertDialog::new(
+            Some(&t("Another Operation Is Running")),
+            Some(&t(
+                "Wait for the current apply, update or rollback to finish.",
+            )),
+        );
+        busy.add_response("close", &t("_Close"));
+        busy.present(Some(parent));
+        return;
+    }
     let phase = gtk::Label::new(Some(&t("Preparing…")));
     phase.add_css_class("heading");
     phase.set_xalign(0.0);
@@ -174,6 +203,14 @@ pub fn present(
     });
 
     let applies = nix_app_center_core::apply_argv().is_some_and(|a| steps.contains(&a));
+    // The generation running before, to undo the apply.
+    let before = applies
+        .then(|| {
+            nix_app_center_core::history()
+                .into_iter()
+                .find(|p| p.current)
+        })
+        .flatten();
     let (tx, rx) = async_channel::unbounded::<Event>();
     std::thread::spawn(move || {
         let events = tx.clone();
@@ -187,6 +224,7 @@ pub fn present(
     let started = Instant::now();
     let last_phase: Rc<RefCell<Option<Phase>>> = Rc::new(RefCell::new(None));
     let title = title.to_string();
+    let outcome_label = outcome.clone();
     gtk::glib::spawn_future_local(async move {
         while let Ok(event) = rx.recv().await {
             match event {
@@ -209,12 +247,29 @@ pub fn present(
                     });
                 }
                 Event::Done(res) => {
+                    RUNNING.with(|r| r.set(false));
                     finished.set(true);
-                    let message = crate::util::describe_apply(res.clone());
+                    let message =
+                        after(&res).unwrap_or_else(|| crate::util::describe_apply(res.clone()));
                     match &res {
                         Ok(outcome) => {
                             if applies && matches!(outcome, ApplyOutcome::Done(_)) {
                                 nix_app_center_core::applied();
+                                nix_app_center_core::record_history();
+                                let changed = |b: &nix_app_center_core::HistoryPoint| {
+                                    nix_app_center_core::history()
+                                        .iter()
+                                        .any(|p| p.current && p.number != b.number)
+                                };
+                                if let (Some(point), Some(body)) = (
+                                    before.clone().filter(changed),
+                                    outcome_label.parent().and_downcast::<gtk::Box>(),
+                                ) {
+                                    body.insert_child_after(
+                                        &undo_button(&dialog, point),
+                                        Some(&outcome_label),
+                                    );
+                                }
                             }
                             crate::util::refresh_installed();
                             target.set(Some(1.0));
@@ -237,6 +292,22 @@ pub fn present(
             }
         }
     });
+}
+
+/// Goes back to the generation running before the apply.
+fn undo_button(dialog: &adw::Dialog, point: nix_app_center_core::HistoryPoint) -> gtk::Button {
+    let undo = gtk::Button::with_mnemonic(&t("_Undo"));
+    undo.set_halign(gtk::Align::Start);
+    undo.set_tooltip_text(Some(&t("Go back to the version running before.")));
+    let dialog = dialog.clone();
+    undo.connect_clicked(move |_| {
+        let parent = dialog.parent();
+        dialog.close();
+        if let Some(parent) = parent {
+            crate::components::go_back::run(&parent, point.clone(), |_| {});
+        }
+    });
+    undo
 }
 
 /// A desktop notification when the user is not looking at the app.
