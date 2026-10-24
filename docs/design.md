@@ -352,6 +352,18 @@ Center says which one and leaves it. Without a managed configuration
 (other Linux distributions), it compares the apps of ~/.nix-profile and
 updates with nix profile upgrade.
 
+Updates also lists the other inputs of the configuration's flake and of
+its local inputs (a small /etc/nixos importing the real configuration
+through git+file): one row per direct input, with the date of its locked
+revision and, from nix flake metadata on the same branch or tag, whether a
+newer one exists. Inputs that follow another and local inputs are left
+out. Update and Update All run nix flake update NAME… --flake DIR in the
+flake holding each input (as root only when its flake.lock is root's), then
+apply. When nixpkgs itself comes through such a local input, it is updated
+in that flake, not refused. Home Manager on another release than nixpkgs
+(release-25.11 against nixos-26.05, or a release against unstable) gets a
+warning: the fix is in flake.nix, which Nix App Center does not edit.
+
 ## Storage
 
 The Storage tab reads every store path once (nix path-info --all --json) and

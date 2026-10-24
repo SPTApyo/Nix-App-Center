@@ -99,9 +99,10 @@ pub use storage::{
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
-    app_updates, current_source, installable, latest, newer_in_unstable, newer_release,
-    nixpkgs_ref, pinned_rev, updatable_apps, update_command, version_newer, AppUpdate, Latest,
-    Source, UpdateMethod,
+    app_updates, current_source, flake_inputs, input_latest, inputs_update_command, installable,
+    latest, newer_in_unstable, newer_release, nixpkgs_ref, pinned_rev, release_mismatch,
+    updatable_apps, update_command, version_newer, AppUpdate, FlakeInput, Latest, Source,
+    UpdateMethod,
 };
 pub use user_profile::{
     nix_env_names, nix_env_remove, profile_add, profile_elements, profile_remove, ProfileElement,

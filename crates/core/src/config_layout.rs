@@ -107,6 +107,29 @@ pub(crate) fn local_overrides(dir: &Path) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// The folders of the flake in `dir` and of its local inputs, the flake first.
+pub(crate) fn flake_dirs(dir: &Path) -> Vec<PathBuf> {
+    let mut out = vec![dir.to_path_buf()];
+    for source in local_overrides(dir).chunks(3).filter_map(|c| c.get(2)) {
+        if let Some(local) = local_dir(dir, source).filter(|d| !out.contains(d)) {
+            out.push(local);
+        }
+    }
+    out
+}
+
+/// The folder of a local flake reference (`git+file:///x?ref=y`,
+/// `path:./x`), relative ones against `dir`; `None` when it is no folder.
+fn local_dir(dir: &Path, source: &str) -> Option<PathBuf> {
+    let path = source
+        .strip_prefix("git+file://")
+        .or_else(|| source.strip_prefix("path:"))?;
+    let path = path.split(['?', '#']).next().unwrap_or(path);
+    std::fs::canonicalize(dir.join(path))
+        .ok()
+        .filter(|p| p.is_dir())
+}
+
 /// The flakes the user added in Preferences, locked when the list changes,
 /// as (locked reference, locked reference): they are no input of the
 /// configuration, so the reference is their name.
@@ -218,13 +241,8 @@ fn config_sources() -> Vec<(String, String)> {
         LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => dir,
         _ => return Vec::new(),
     };
-    let locals: Vec<PathBuf> = local_overrides(&dir)
-        .iter()
-        .filter_map(|s| s.strip_prefix("git+file://").or(s.strip_prefix("path:")))
-        .map(PathBuf::from)
-        .collect();
     let mut out: Vec<(String, String)> = Vec::new();
-    for d in std::iter::once(dir).chain(locals) {
+    for d in flake_dirs(&dir) {
         let Some(lock) = std::fs::read_to_string(d.join("flake.lock"))
             .ok()
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
@@ -578,6 +596,20 @@ fn hm_standalone_layout(dir: PathBuf) -> Layout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_inputs_resolve_to_their_folder() {
+        let dir = std::env::temp_dir().join(format!("nix-app-center-local-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("real")).unwrap();
+        let real = std::fs::canonicalize(dir.join("real")).unwrap();
+        let abs = format!("git+file://{}?ref=main", real.display());
+        assert_eq!(local_dir(&dir, &abs), Some(real.clone()));
+        assert_eq!(local_dir(&dir, "path:./real"), Some(real));
+        assert_eq!(local_dir(&dir, "path:./missing"), None);
+        assert_eq!(local_dir(&dir, "github:o/r"), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn reads_the_suggested_flakes() {
