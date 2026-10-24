@@ -248,9 +248,11 @@ fn inputs_from_lock(lock: &Value, dir: &Path) -> Vec<FlakeInput> {
             }
             _ => continue,
         };
-        let name_ok = name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "-_".contains(c));
+        // Starts with a letter: never read as an option of nix.
+        let name_ok = name.starts_with(|c: char| c.is_ascii_alphabetic())
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_".contains(c));
         if !name_ok || !safe(&reference) {
             continue;
         }
@@ -699,7 +701,7 @@ mod tests {
     fn lists_the_inputs_that_can_move() {
         let lock: Value = serde_json::from_str(
             r#"{"root":"root","nodes":{
-              "root":{"inputs":{"nixpkgs":"nixpkgs","home-manager":"hm","local":"local","follows":["nixpkgs"],"gaming":"gaming"}},
+              "root":{"inputs":{"nixpkgs":"nixpkgs","home-manager":"hm","local":"local","follows":["nixpkgs"],"gaming":"gaming","-x":"gaming"}},
               "nixpkgs":{"original":{"type":"github","owner":"NixOS","repo":"nixpkgs","ref":"nixos-26.05"},"locked":{"rev":"aaa","lastModified":1}},
               "hm":{"original":{"type":"github","owner":"nix-community","repo":"home-manager","ref":"release-25.11"},"locked":{"rev":"bbb","lastModified":2}},
               "local":{"original":{"type":"git","url":"file:///home/me/config"},"locked":{}},
