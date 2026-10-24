@@ -6,6 +6,7 @@ mod appstream_db;
 mod build_flags;
 mod cache;
 mod categories;
+mod changes;
 mod config_attach;
 mod config_gen;
 mod config_layout;
@@ -49,11 +50,12 @@ pub use build_flags::BuildFlag;
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };
+pub use changes::{parse as parse_changes, Change, ChangeSet, Kind as ChangeKind};
 pub use config_attach::{
     commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan,
 };
 pub use config_gen::default_home_block;
-pub use config_gen::{apply_argv, apply_config, run_streaming, ApplyOutcome};
+pub use config_gen::{apply_argv, apply_config, run_reviewed, run_streaming, ApplyOutcome};
 pub use config_layout::{
     detect as detect_layout, suggested_flakes, verify as verify_layout, Layout, LayoutKind,
     ScopeTarget, Verified,

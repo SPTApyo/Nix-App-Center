@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-21 18:16+0200\n"
+"POT-Creation-Date: 2026-10-24 18:59+0200\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Hindi\n"
@@ -15,15 +15,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: crates/core/src/config_gen.rs:475
+#: crates/core/src/config_gen.rs:487
 msgid "The build gave an unexpected result."
 msgstr "बिल्ड का परिणाम अपेक्षित नहीं था।"
 
-#: crates/core/src/config_gen.rs:582 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:674 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "प्रमाणीकरण रद्द कर दिया गया।"
 
-#: crates/core/src/config_gen.rs:585 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:677 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "प्रशासक अधिकार अस्वीकार कर दिए गए।"
 
@@ -361,7 +361,7 @@ msgid "ODRS did not accept this app."
 msgstr "ODRS ने इस ऐप को स्वीकार नहीं किया।"
 
 #: crates/gui/src/app.rs:129 crates/gui/src/app.rs:573
-#: crates/gui/src/views/preferences.rs:108
+#: crates/gui/src/views/preferences.rs:122
 msgid "Search"
 msgstr "खोजें"
 
@@ -402,8 +402,8 @@ msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 "आपका कॉन्फ़िगरेशन बदल गया है: ऐप्स इंस्टॉल करने या हटाने के लिए इसे फिर से बिल्ड करें।"
 
-#: crates/gui/src/app.rs:169 crates/gui/src/views/detail.rs:1865
-#: crates/gui/src/views/installed.rs:239
+#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:294
+#: crates/gui/src/views/detail.rs:1865 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "कॉन्फ़िगरेशन लागू किया जा रहा है"
 
@@ -421,7 +421,7 @@ msgid "Installed"
 msgstr "इंस्टॉल किए गए"
 
 #: crates/gui/src/app.rs:313 crates/gui/src/app.rs:584
-#: crates/gui/src/views/preferences.rs:93
+#: crates/gui/src/views/preferences.rs:106
 msgid "Updates"
 msgstr "अपडेट"
 
@@ -565,70 +565,139 @@ msgstr "कोई पैकेज सेट नहीं"
 msgid "Package Set"
 msgstr "पैकेज सेट"
 
-#: crates/gui/src/components/apply_dialog.rs:22
-#: crates/gui/src/components/apply_dialog.rs:61
+#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:63
 msgid "Preparing…"
 msgstr "तैयारी हो रही है…"
 
-#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:26
 #, rust-format
 msgid "Downloading {done} of {} package"
 msgid_plural "Downloading {done} of {} packages"
 msgstr[0] "{} में से {done} पैकेज डाउनलोड हो रहा है"
 msgstr[1] "{} में से {done} पैकेज डाउनलोड हो रहे हैं"
 
-#: crates/gui/src/components/apply_dialog.rs:29
+#: crates/gui/src/components/apply_dialog.rs:31
 #, rust-format
 msgid "Building {done} of {total}"
 msgstr "{total} में से {done} बिल्ड हो रहे हैं"
 
-#: crates/gui/src/components/apply_dialog.rs:32
+#: crates/gui/src/components/apply_dialog.rs:34
 msgid "Activating the new configuration…"
 msgstr "नया कॉन्फ़िगरेशन सक्रिय किया जा रहा है…"
 
-#: crates/gui/src/components/apply_dialog.rs:44
+#: crates/gui/src/components/apply_dialog.rs:46
 msgid "less than a minute left"
 msgstr "एक मिनट से कम बाकी"
 
-#: crates/gui/src/components/apply_dialog.rs:47
+#: crates/gui/src/components/apply_dialog.rs:49
 #, rust-format
 msgid "about {} min left"
 msgid_plural "about {} min left"
 msgstr[0] "लगभग {} मिनट बाकी"
 msgstr[1] "लगभग {} मिनट बाकी"
 
-#: crates/gui/src/components/apply_dialog.rs:67
+#: crates/gui/src/components/apply_dialog.rs:69
 msgid "Starting…"
 msgstr "शुरू हो रहा है…"
 
-#: crates/gui/src/components/apply_dialog.rs:111
-#: crates/gui/src/components/apply_dialog.rs:123
+#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:125
 msgid "Show _Details"
 msgstr "विवरण दिखाएँ (_D)"
 
-#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:115
 msgid "Show the full build log."
 msgstr "पूरा बिल्ड लॉग दिखाएँ।"
 
-#: crates/gui/src/components/apply_dialog.rs:121
+#: crates/gui/src/components/apply_dialog.rs:123
 msgid "Hide _Details"
 msgstr "विवरण छिपाएँ (_D)"
 
-#: crates/gui/src/components/apply_dialog.rs:208
+#: crates/gui/src/components/apply_dialog.rs:234
 msgid "Working…"
 msgstr "काम चल रहा है…"
 
-#: crates/gui/src/components/apply_dialog.rs:221
+#: crates/gui/src/components/apply_dialog.rs:254
 msgid "Done"
 msgstr "हो गया"
 
-#: crates/gui/src/components/apply_dialog.rs:222
+#: crates/gui/src/components/apply_dialog.rs:255
 msgid "finished"
 msgstr "पूरा हुआ"
 
-#: crates/gui/src/components/apply_dialog.rs:226
+#: crates/gui/src/components/apply_dialog.rs:259
 msgid "Failed"
 msgstr "विफल"
+
+#: crates/gui/src/components/apply_dialog.rs:311
+msgid "Review the Changes"
+msgstr "बदलावों की समीक्षा करें"
+
+#: crates/gui/src/components/apply_dialog.rs:318
+msgid "The kernel changes: restart the computer to use the new one."
+msgstr "कर्नेल बदल रहा है: नया उपयोग करने के लिए कंप्यूटर को फिर से शुरू करें।"
+
+#: crates/gui/src/components/apply_dialog.rs:323
+msgid "These changes apply to every user of this computer."
+msgstr "ये बदलाव इस कंप्यूटर के हर उपयोगकर्ता पर लागू होते हैं।"
+
+#: crates/gui/src/components/apply_dialog.rs:363
+#: crates/gui/src/components/details/nix_editor.rs:126
+#: crates/gui/src/components/details/review_row.rs:113
+#: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
+#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+msgid "_Cancel"
+msgstr "रद्द करें (_C)"
+
+#: crates/gui/src/components/apply_dialog.rs:364
+msgid "_Apply Changes"
+msgstr "बदलाव लागू करें (_A)"
+
+#: crates/gui/src/components/apply_dialog.rs:389
+#, rust-format
+msgid "{} updated"
+msgid_plural "{} updated"
+msgstr[0] "{} अपडेट हुआ"
+msgstr[1] "{} अपडेट हुए"
+
+#: crates/gui/src/components/apply_dialog.rs:393
+#, rust-format
+msgid "{} added"
+msgid_plural "{} added"
+msgstr[0] "{} जोड़ा गया"
+msgstr[1] "{} जोड़े गए"
+
+#: crates/gui/src/components/apply_dialog.rs:397
+#, rust-format
+msgid "{} removed"
+msgid_plural "{} removed"
+msgstr[0] "{} हटाया गया"
+msgstr[1] "{} हटाए गए"
+
+#: crates/gui/src/components/apply_dialog.rs:401
+#, rust-format
+msgid "{} rebuilt"
+msgid_plural "{} rebuilt"
+msgstr[0] "{} फिर से बिल्ड हुआ"
+msgstr[1] "{} फिर से बिल्ड हुए"
+
+#: crates/gui/src/components/apply_dialog.rs:409
+msgid "No package changes, only settings."
+msgstr "कोई पैकेज नहीं बदलता, केवल सेटिंग्स।"
+
+#: crates/gui/src/components/apply_dialog.rs:422
+#, rust-format
+msgid "Added: {}"
+msgstr "जोड़ा गया: {}"
+
+#: crates/gui/src/components/apply_dialog.rs:423
+msgid "Removed"
+msgstr "हटाया गया"
+
+#: crates/gui/src/components/apply_dialog.rs:425
+msgid "Rebuilt"
+msgstr "फिर से बिल्ड किया गया"
 
 #: crates/gui/src/components/details/attach_dialog.rs:36
 #, rust-format
@@ -924,13 +993,6 @@ msgid ""
 msgstr ""
 "कुछ भी लागू किए बिना पूरे कॉन्फ़िगरेशन का मूल्यांकन करता है (dry-build)। इसमें 1 से 2 मिनट "
 "लग सकते हैं।"
-
-#: crates/gui/src/components/details/nix_editor.rs:126
-#: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
-#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
-msgid "_Cancel"
-msgstr "रद्द करें (_C)"
 
 #: crates/gui/src/components/details/nix_editor.rs:136
 msgid "User scope:"
@@ -1281,12 +1343,12 @@ msgid "Apps you add go to the system packages, for every user of this computer"
 msgstr "आपके जोड़े गए ऐप्स सिस्टम पैकेजों में जाते हैं, इस कंप्यूटर के हर उपयोगकर्ता के लिए"
 
 #: crates/gui/src/components/welcome.rs:104
-#: crates/gui/src/views/preferences.rs:95
+#: crates/gui/src/views/preferences.rs:108
 msgid "Check for Updates Automatically"
 msgstr "अपडेट की जाँच स्वचालित रूप से करें"
 
 #: crates/gui/src/components/welcome.rs:106
-#: crates/gui/src/views/preferences.rs:97
+#: crates/gui/src/views/preferences.rs:110
 msgid "Once a day, with a notification when apps can be updated"
 msgstr "दिन में एक बार, ऐप्स अपडेट होने लायक हों तो सूचना के साथ"
 
@@ -1411,68 +1473,72 @@ msgid "Nix App Center cannot find your Nix configuration. Nothing was applied."
 msgstr ""
 "Nix App Center आपका Nix कॉन्फ़िगरेशन नहीं ढूँढ पा रहा है। कुछ भी लागू नहीं किया गया।"
 
-#: crates/gui/src/util.rs:60
+#: crates/gui/src/util.rs:43
+msgid "Nothing was changed."
+msgstr "कुछ भी नहीं बदला गया।"
+
+#: crates/gui/src/util.rs:61
 #, rust-format
 msgid "Failed: {}"
 msgstr "विफल: {}"
 
-#: crates/gui/src/util.rs:299
+#: crates/gui/src/util.rs:300
 msgid "Today"
 msgstr "आज"
 
-#: crates/gui/src/util.rs:300
+#: crates/gui/src/util.rs:301
 msgid "Yesterday"
 msgstr "कल"
 
-#: crates/gui/src/util.rs:301
+#: crates/gui/src/util.rs:302
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "{} दिन पहले"
 msgstr[1] "{} दिन पहले"
 
-#: crates/gui/src/util.rs:302
+#: crates/gui/src/util.rs:303
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] "{} सप्ताह पहले"
 msgstr[1] "{} सप्ताह पहले"
 
-#: crates/gui/src/util.rs:303
+#: crates/gui/src/util.rs:304
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] "{} महीना पहले"
 msgstr[1] "{} महीने पहले"
 
-#: crates/gui/src/util.rs:304
+#: crates/gui/src/util.rs:305
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
 msgstr[0] "{} साल पहले"
 msgstr[1] "{} साल पहले"
 
-#: crates/gui/src/util.rs:580
+#: crates/gui/src/util.rs:581
 msgid "Installed on the system, for every user"
 msgstr "सिस्टम पर इंस्टॉल, हर उपयोगकर्ता के लिए"
 
-#: crates/gui/src/util.rs:582
+#: crates/gui/src/util.rs:583
 msgid "Installed in your home"
 msgstr "आपकी होम निर्देशिका में इंस्टॉल"
 
-#: crates/gui/src/util.rs:583
+#: crates/gui/src/util.rs:584
 msgid "Installed with Flatpak"
 msgstr "Flatpak से इंस्टॉल"
 
-#: crates/gui/src/util.rs:584
+#: crates/gui/src/util.rs:585
 msgid "Installed as an AppImage"
 msgstr "AppImage के रूप में इंस्टॉल"
 
-#: crates/gui/src/util.rs:590
+#: crates/gui/src/util.rs:591
 msgid "through a module, with what it sets up around the app"
 msgstr "मॉड्यूल के ज़रिए, ऐप के आसपास सेट की गई चीज़ों के साथ"
 
-#: crates/gui/src/util.rs:592
+#: crates/gui/src/util.rs:593
 msgid "as a package"
 msgstr "पैकेज के रूप में"
 
@@ -2243,16 +2309,24 @@ msgstr "होस्ट (खाली: यह मशीन)"
 msgid "Installing"
 msgstr "इंस्टॉलेशन"
 
-#: crates/gui/src/views/preferences.rs:110
+#: crates/gui/src/views/preferences.rs:94
+msgid "Show Changes Before Applying"
+msgstr "लागू करने से पहले बदलाव दिखाएँ"
+
+#: crates/gui/src/views/preferences.rs:96
+msgid "What gets updated, added or removed, before the system switches"
+msgstr "सिस्टम बदलने से पहले, क्या अपडेट, जोड़ा या हटाया जाता है"
+
+#: crates/gui/src/views/preferences.rs:124
 msgid "Search by Command"
 msgstr "कमांड से खोजें"
 
-#: crates/gui/src/views/preferences.rs:112
-#: crates/gui/src/views/preferences.rs:131
+#: crates/gui/src/views/preferences.rs:126
+#: crates/gui/src/views/preferences.rs:145
 msgid "Ready: searching a command also lists the packages that provide it."
 msgstr "तैयार: कोई कमांड खोजने पर उसे प्रदान करने वाले पैकेज भी दिखते हैं।"
 
-#: crates/gui/src/views/preferences.rs:114
+#: crates/gui/src/views/preferences.rs:128
 msgid ""
 "Lists the packages that provide a command. Needs the nix-index database, "
 "about 100 MB."
@@ -2260,23 +2334,23 @@ msgstr ""
 "किसी कमांड को प्रदान करने वाले पैकेज दिखाता है। इसके लिए nix-index डेटाबेस चाहिए, लगभग "
 "100 MB।"
 
-#: crates/gui/src/views/preferences.rs:118
+#: crates/gui/src/views/preferences.rs:132
 msgid "_Download"
 msgstr "डाउनलोड करें (_D)"
 
-#: crates/gui/src/views/preferences.rs:119
+#: crates/gui/src/views/preferences.rs:133
 msgid "Download the nix-index database, about 100 MB."
 msgstr "nix-index डेटाबेस डाउनलोड करें, लगभग 100 MB।"
 
-#: crates/gui/src/views/preferences.rs:125
+#: crates/gui/src/views/preferences.rs:139
 msgid "Downloading the nix-index database…"
 msgstr "nix-index डेटाबेस डाउनलोड हो रहा है…"
 
-#: crates/gui/src/views/preferences.rs:148
+#: crates/gui/src/views/preferences.rs:162
 msgid "Advanced"
 msgstr "उन्नत"
 
-#: crates/gui/src/views/preferences.rs:150
+#: crates/gui/src/views/preferences.rs:164
 msgid ""
 "For unusual setups only, such as a configuration kept in another folder and "
 "built with your own script. Leave it empty if Apply already works."
@@ -2284,15 +2358,15 @@ msgstr ""
 "केवल असामान्य सेटअप के लिए, जैसे किसी दूसरे फ़ोल्डर में रखा और आपकी अपनी स्क्रिप्ट से बिल्ड "
 "किया गया कॉन्फ़िगरेशन। अगर लागू करें पहले से काम करता है तो इसे खाली छोड़ें।"
 
-#: crates/gui/src/views/preferences.rs:154
+#: crates/gui/src/views/preferences.rs:168
 msgid "Apply command (empty: found by itself)"
 msgstr "लागू करने का कमांड (खाली: अपने आप मिलता है)"
 
-#: crates/gui/src/views/preferences.rs:165
+#: crates/gui/src/views/preferences.rs:179
 msgid "How It Runs"
 msgstr "यह कैसे चलता है"
 
-#: crates/gui/src/views/preferences.rs:167
+#: crates/gui/src/views/preferences.rs:181
 msgid ""
 "Run by the shell. Start it with sudo to run it as administrator: Nix App "
 "Center asks for the password itself, so tools that call sudo on their own, "
@@ -2303,92 +2377,92 @@ msgstr ""
 "Center खुद पासवर्ड माँगता है, इसलिए जो टूल खुद sudo चलाते हैं, जैसे nh, वे यहाँ काम नहीं "
 "करते। प्रगति पट्टी nixos-rebuild और सामान्य Nix लॉग का अनुसरण करती है।"
 
-#: crates/gui/src/views/preferences.rs:173
+#: crates/gui/src/views/preferences.rs:187
 msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr "खोजने के लिए अन्य flakes (github:owner/repo, अल्पविराम से अलग)"
 
-#: crates/gui/src/views/preferences.rs:190
+#: crates/gui/src/views/preferences.rs:204
 msgid "Flakes Suggested by search.nixos.org"
 msgstr "search.nixos.org द्वारा सुझाए गए flakes"
 
-#: crates/gui/src/views/preferences.rs:191
+#: crates/gui/src/views/preferences.rs:205
 msgid "Search their packages too"
 msgstr "उनके पैकेज भी खोजें"
 
-#: crates/gui/src/views/preferences.rs:208
+#: crates/gui/src/views/preferences.rs:222
 msgid "The list could not be read."
 msgstr "सूची पढ़ी नहीं जा सकी।"
 
-#: crates/gui/src/views/preferences.rs:251
+#: crates/gui/src/views/preferences.rs:265
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "{dir} में NixOS flake, होस्ट {host}"
 
-#: crates/gui/src/views/preferences.rs:255
+#: crates/gui/src/views/preferences.rs:269
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "{} में channels के साथ NixOS"
 
-#: crates/gui/src/views/preferences.rs:258
+#: crates/gui/src/views/preferences.rs:272
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "{} में Home Manager flake"
 
-#: crates/gui/src/views/preferences.rs:261
+#: crates/gui/src/views/preferences.rs:275
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "{} में Home Manager"
 
-#: crates/gui/src/views/preferences.rs:263
+#: crates/gui/src/views/preferences.rs:277
 msgid "No configuration found."
 msgstr "कोई कॉन्फ़िगरेशन नहीं मिला।"
 
-#: crates/gui/src/views/preferences.rs:267
+#: crates/gui/src/views/preferences.rs:281
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "{} के लिए Home Manager मॉड्यूल"
 
-#: crates/gui/src/views/preferences.rs:270
+#: crates/gui/src/views/preferences.rs:284
 #, rust-format
 msgid "Applied with: {}"
 msgstr "इससे लागू: {}"
 
-#: crates/gui/src/views/preferences.rs:278
+#: crates/gui/src/views/preferences.rs:292
 #, rust-format
 msgid "Configurations: {}"
 msgstr "कॉन्फ़िगरेशन: {}"
 
-#: crates/gui/src/views/preferences.rs:282
+#: crates/gui/src/views/preferences.rs:296
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Home Manager उपयोगकर्ता: {}"
 
-#: crates/gui/src/views/preferences.rs:284
+#: crates/gui/src/views/preferences.rs:298
 msgid "No Home Manager module."
 msgstr "कोई Home Manager मॉड्यूल नहीं।"
 
-#: crates/gui/src/views/preferences.rs:285
+#: crates/gui/src/views/preferences.rs:299
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "इस होस्ट का मूल्यांकन नहीं होता: {}"
 
-#: crates/gui/src/views/preferences.rs:292
+#: crates/gui/src/views/preferences.rs:306
 msgid "Check with Nix"
 msgstr "Nix से जाँचें"
 
-#: crates/gui/src/views/preferences.rs:294
+#: crates/gui/src/views/preferences.rs:308
 msgid "Nix says"
 msgstr "Nix का कहना"
 
-#: crates/gui/src/views/preferences.rs:295
+#: crates/gui/src/views/preferences.rs:309
 msgid "Not checked yet."
 msgstr "अभी जाँचा नहीं गया।"
 
-#: crates/gui/src/views/preferences.rs:302
+#: crates/gui/src/views/preferences.rs:316
 msgid "Evaluating your configuration…"
 msgstr "आपके कॉन्फ़िगरेशन का मूल्यांकन हो रहा है…"
 
-#: crates/gui/src/views/preferences.rs:312
+#: crates/gui/src/views/preferences.rs:326
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix इसका मूल्यांकन नहीं कर सका: {}"

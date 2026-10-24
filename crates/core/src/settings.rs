@@ -26,6 +26,13 @@ pub struct Settings {
     /// (`github:owner/repo`).
     #[serde(default)]
     pub extra_flakes: Vec<String>,
+    /// Show what an apply changes before activating it.
+    #[serde(default = "yes")]
+    pub review_changes: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -40,6 +47,7 @@ impl Default for Settings {
             onboarded: false,
             apply_command: None,
             extra_flakes: Vec::new(),
+            review_changes: true,
         }
     }
 }

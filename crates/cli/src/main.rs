@@ -384,6 +384,10 @@ fn main() -> ExitCode {
                     eprintln!("Nix configuration not found, nothing was applied");
                     ExitCode::FAILURE
                 }
+                Ok(Cancelled) => {
+                    eprintln!("cancelled, nothing was changed");
+                    ExitCode::FAILURE
+                }
                 Err(e) => {
                     eprintln!("failed: {e}");
                     ExitCode::FAILURE

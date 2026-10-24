@@ -157,6 +157,27 @@ fn build_index(
     }
     content.append(&detail_list);
 
+    content.append(&heading("Apply"));
+    let apply_list = crate::util::boxed_list();
+    let row = scenario_row(
+        "Review before applying",
+        "Summary, kernel and every-user banners, kept apps first, sizes; nothing runs",
+    );
+    row.connect_activated(|row| {
+        let set = nix_app_center_core::ChangeSet {
+            changes: nix_app_center_core::parse_changes(
+                "firefox: 131.0 → 132.0, 5.2 MiB\nsteam: ∅ → 1.0.0.85, 3.1 MiB\n\
+                 vlc: 3.0.21 → ∅, -45.0 MiB\nglibc: 2.40-36 → 2.40-66, 1.0 MiB\n\
+                 libfoo: -12.0 KiB\nlinux: 6.12.1 → 6.12.4, 2.0 MiB\n",
+            ),
+            reboot: true,
+            system: true,
+        };
+        crate::components::apply_dialog::present_review(row, &set);
+    });
+    apply_list.append(&row);
+    content.append(&apply_list);
+
     content.append(&heading("Home"));
     let note = gtk::Label::new(Some(
         "Icon states to check: loading (shimmer), colored fallback, real icon.",

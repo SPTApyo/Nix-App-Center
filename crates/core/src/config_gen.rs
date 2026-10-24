@@ -354,6 +354,8 @@ pub enum ApplyOutcome {
     NoTerminal(Vec<String>),
     /// Unknown layout: nothing applied.
     UnknownLayout,
+    /// The user saw the changes and kept the running system.
+    Cancelled,
 }
 
 /// Applies the configuration with the layout's command.
@@ -397,6 +399,16 @@ pub fn run_streaming(
     steps: &[Vec<String>],
     on_event: impl Fn(crate::progress::StreamEvent) + Send + Sync + 'static,
 ) -> std::io::Result<ApplyOutcome> {
+    run_reviewed(steps, on_event, |_| true)
+}
+
+/// [`run_streaming`], showing `review` what changes once it is built: it
+/// activates only when `review` returns true. Blocking.
+pub fn run_reviewed(
+    steps: &[Vec<String>],
+    on_event: impl Fn(crate::progress::StreamEvent) + Send + Sync + 'static,
+    review: impl Fn(crate::changes::ChangeSet) -> bool + Send + Sync + 'static,
+) -> std::io::Result<ApplyOutcome> {
     if steps.iter().all(Vec::is_empty) {
         return Ok(ApplyOutcome::UnknownLayout);
     }
@@ -404,12 +416,16 @@ pub fn run_streaming(
         last: std::sync::Arc::new(std::sync::Mutex::new(String::new())),
         tracker: std::sync::Arc::new(std::sync::Mutex::new(crate::progress::Tracker::default())),
         on_event: std::sync::Arc::new(on_event),
+        review: std::sync::Arc::new(review),
     };
     let mut outcome = Ok(ApplyOutcome::UnknownLayout);
     for step in steps.iter().filter(|s| !s.is_empty()) {
-        outcome = match split_flake_switch(step) {
-            Some((build, action)) => build_then_activate(&build, &action, &shared),
-            None => run_step(step, &shared),
+        outcome = if let Some((build, action)) = split_flake_switch(step) {
+            build_then_activate(&build, &action, &shared)
+        } else if let Some(build) = split_home_switch(step) {
+            build_then_activate_home(&build, &shared)
+        } else {
+            run_step(step, &shared)
         };
         if !matches!(outcome, Ok(ApplyOutcome::Done(_))) {
             break;
@@ -423,6 +439,96 @@ struct Shared<F> {
     last: std::sync::Arc<std::sync::Mutex<String>>,
     tracker: std::sync::Arc<std::sync::Mutex<crate::progress::Tracker>>,
     on_event: std::sync::Arc<F>,
+    review: std::sync::Arc<dyn Fn(crate::changes::ChangeSet) -> bool + Send + Sync>,
+}
+
+/// For `home-manager switch …`: the same command building only.
+fn split_home_switch(step: &[String]) -> Option<Vec<String>> {
+    let first = step.first()?;
+    if first != "home-manager" && !first.ends_with("/home-manager") {
+        return None;
+    }
+    let i = step.iter().position(|a| a == "switch")?;
+    let mut build = step.to_vec();
+    build[i] = "build".into();
+    Some(build)
+}
+
+/// Builds `build` as the user in a fresh folder: the store path of
+/// `./result`, checked to be a plain one.
+fn build_result<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    build: &[String],
+    shared: &Shared<F>,
+) -> std::io::Result<Result<String, ApplyOutcome>> {
+    use std::os::unix::fs::DirBuilderExt;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.subsec_nanos());
+    let dir = std::env::temp_dir().join(format!(
+        "nix-app-center-build-{}-{nanos}",
+        std::process::id()
+    ));
+    std::fs::DirBuilder::new().mode(0o700).create(&dir)?;
+    let built = run_in(build, &dir, shared);
+    let out = std::fs::canonicalize(dir.join("result"));
+    let _ = std::fs::remove_dir_all(&dir);
+    match built {
+        Ok(ApplyOutcome::Done(_)) => {}
+        Ok(other) => return Ok(Err(other)),
+        Err(e) => return Err(e),
+    }
+    let out = out?.to_string_lossy().to_string();
+    let safe = out.starts_with("/nix/store/")
+        && out[11..]
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"+-._".contains(&b));
+    if !safe {
+        return Err(std::io::Error::other(crate::util::n_(
+            "The build gave an unexpected result.",
+        )));
+    }
+    Ok(Ok(out))
+}
+
+/// True unless the user saw what `new` changes over `old` and declined.
+fn reviewed<F>(shared: &Shared<F>, old: &std::path::Path, new: &str, system: bool) -> bool {
+    match crate::changes::review(old, std::path::Path::new(new), system) {
+        Some(r) => (shared.review)(r),
+        None => true,
+    }
+}
+
+/// The current Home Manager generation, where it keeps it.
+fn home_profile() -> Option<std::path::PathBuf> {
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| crate::util::home().join(".local/state"));
+    let user = std::env::var("USER").unwrap_or_default();
+    [
+        state.join("nix/profiles/home-manager"),
+        std::path::PathBuf::from(format!(
+            "/nix/var/nix/profiles/per-user/{user}/home-manager"
+        )),
+    ]
+    .into_iter()
+    .find(|p| p.exists())
+}
+
+/// Builds the home as the user, shows the changes, then activates it.
+fn build_then_activate_home<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    build: &[String],
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    let out = match build_result(build, shared)? {
+        Ok(out) => out,
+        Err(outcome) => return Ok(outcome),
+    };
+    if let Some(old) = home_profile() {
+        if !reviewed(shared, &old, &out, false) {
+            return Ok(ApplyOutcome::Cancelled);
+        }
+    }
+    run_step(&[format!("{out}/activate")], shared)
 }
 
 /// For `sudo nixos-rebuild <switch|boot|test> --flake …`: the same command
@@ -443,37 +549,23 @@ fn split_flake_switch(step: &[String]) -> Option<(Vec<String>, String)> {
     Some((build, action))
 }
 
-/// Builds as the user, then activates the result as root.
+/// Builds as the user, shows the changes, then activates the result as root.
 fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     build: &[String],
     action: &str,
     shared: &Shared<F>,
 ) -> std::io::Result<ApplyOutcome> {
-    use std::os::unix::fs::DirBuilderExt;
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.subsec_nanos());
-    let dir = std::env::temp_dir().join(format!(
-        "nix-app-center-build-{}-{nanos}",
-        std::process::id()
-    ));
-    std::fs::DirBuilder::new().mode(0o700).create(&dir)?;
-    let built = run_in(build, &dir, shared);
-    let out = std::fs::canonicalize(dir.join("result"));
-    let _ = std::fs::remove_dir_all(&dir);
-    if !matches!(built, Ok(ApplyOutcome::Done(_))) {
-        return built;
-    }
-    let out = out?;
-    let out = out.to_string_lossy().to_string();
-    let safe = out.starts_with("/nix/store/")
-        && out[11..]
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"+-._".contains(&b));
-    if !safe {
-        return Err(std::io::Error::other(crate::util::n_(
-            "The build gave an unexpected result.",
-        )));
+    let out = match build_result(build, shared)? {
+        Ok(out) => out,
+        Err(outcome) => return Ok(outcome),
+    };
+    if !reviewed(
+        shared,
+        std::path::Path::new("/run/current-system"),
+        &out,
+        true,
+    ) {
+        return Ok(ApplyOutcome::Cancelled);
     }
     let profile = if action == "test" {
         String::new()
@@ -634,6 +726,20 @@ mod tests {
 
     fn argv(script: &str) -> Vec<String> {
         vec!["sh".into(), "-c".into(), script.into()]
+    }
+
+    #[test]
+    fn home_manager_switch_builds_first() {
+        let step = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(
+            split_home_switch(&step(&["home-manager", "switch", "--flake", "/h#me"])),
+            Some(step(&["home-manager", "build", "--flake", "/h#me"]))
+        );
+        assert_eq!(split_home_switch(&step(&["home-manager", "news"])), None);
+        assert_eq!(
+            split_home_switch(&step(&["sudo", "nixos-rebuild", "switch"])),
+            None
+        );
     }
 
     #[test]

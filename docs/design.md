@@ -204,6 +204,21 @@ successful apply removes it: while it is there, an Apply button shows in the
 header bar. A closed dialog keeps working and a desktop notification reports
 the end when the app is not in front.
 
+Before switching, Nix App Center shows what changes. A NixOS flake and Home
+Manager (flake or not) build first, as the user, into a result outside the
+configuration; nix store diff-closures then compares it with
+/run/current-system or the current Home Manager generation. The dialog
+lists updated, added and removed packages, apps the user has or keeps
+first, with the size difference; rebuilt packages are only counted. A
+kernel or initrd different from /run/booted-system's asks for a restart, and
+a system change says it touches every user. Cancel leaves the running
+system as it is, and the build stays in the store until the next
+cleanup, so applying again does not rebuild. Closing the dialog while it asks counts as Cancel. NixOS on
+channels and a custom apply command run as before, without the review:
+building a channel system as the user could miss files only root reads, and
+an update moves the channel before anything is built. Preferences turns the
+review off.
+
 ## What is installed
 
 One index answers for tiles, search rows and app pages
