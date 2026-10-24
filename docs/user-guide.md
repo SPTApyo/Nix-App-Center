@@ -37,6 +37,12 @@ configuration's nixpkgs, then applies.
 To stay on a version, open the app, then Choose a Version… under its
 version. Release it from the same place or from Updates.
 
+## Going back
+
+Something broke after an apply? Undo is right in the apply dialog. Later,
+the History list at the bottom of Updates shows every earlier version: Go
+Back switches to it, and the apps you added with Nix App Center go back too.
+
 ## Storage
 
 The Storage tab shows what fills the Nix store. Free Up Space removes what

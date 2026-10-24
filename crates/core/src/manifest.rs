@@ -140,7 +140,7 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
 }
 
 /// Writes the Nix files, then the manifest: a failed write keeps it unchanged.
-fn commit(m: &Manifest) -> std::io::Result<()> {
+pub(crate) fn commit(m: &Manifest) -> std::io::Result<()> {
     config_gen::sync_config(&m.kept)?;
     save_manifest(m)?;
     std::fs::write(pending_path(), "")
