@@ -674,9 +674,14 @@ fn confirm_delete_generations(parent: &gtk::Box, s: relm4::Sender<StorageMsg>) {
     dialog.set_default_response(Some("cancel"));
     dialog.connect_response(None, move |_, response| {
         if response == "delete" {
-            // Root only reaches its own and the system's profiles.
+            // Root only reaches its own and the system's profiles; the
+            // user step deletes generations only, root then collects once.
             let _ = s.send(StorageMsg::Clean(vec![
-                vec!["nix-collect-garbage".into(), "--delete-old".into()],
+                vec![
+                    "sh".into(),
+                    "-c".into(),
+                    r#"for p in "${XDG_STATE_HOME:-$HOME/.local/state}"/nix/profiles/* /nix/var/nix/profiles/per-user/"$USER"/*; do case "$p" in *-link) continue ;; esac; [ -e "$p" ] || continue; nix-env -p "$p" --delete-generations old || exit 1; done"#.into(),
+                ],
                 vec![
                     "sudo".into(),
                     "nix-collect-garbage".into(),
