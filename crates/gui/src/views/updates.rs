@@ -425,6 +425,7 @@ impl UpdatesModel {
                     let _ = s.send(UpdatesMsg::Update);
                 }
             });
+            crate::components::apply_dialog::guard(&btn);
             hb.append(&btn);
         }
         hb
@@ -462,6 +463,7 @@ fn history_section(sender: &ComponentSender<UpdatesModel>) -> Option<gtk::Box> {
             back.connect_clicked(move |_| {
                 let _ = s.send(UpdatesMsg::GoBack(point.clone()));
             });
+            crate::components::apply_dialog::guard(&back);
             row.add_suffix(&back);
         }
         list.append(&row);
@@ -533,6 +535,7 @@ fn held_list(
         let release = gtk::Button::with_mnemonic(&t("_Release"));
         release.set_valign(gtk::Align::Center);
         release.set_tooltip_text(Some(&t("Let the app follow your configuration again.")));
+        crate::components::apply_dialog::guard(&release);
         release.connect_clicked({
             let s = sender.input_sender().clone();
             let attr = entry.package.attr.clone();

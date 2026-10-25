@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-24 19:13+0200\n"
+"POT-Creation-Date: 2026-10-25 20:20+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Arabic\n"
@@ -20,11 +20,11 @@ msgstr ""
 msgid "The build gave an unexpected result."
 msgstr "أعطى البناء نتيجة غير متوقعة."
 
-#: crates/core/src/config_gen.rs:582 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:583 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "أُلغيت المصادقة."
 
-#: crates/core/src/config_gen.rs:585 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:586 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "رُفضت صلاحيات المدير."
 
@@ -363,7 +363,7 @@ msgstr "لا يمكن الوصول إلى ODRS."
 msgid "ODRS did not accept this app."
 msgstr "لم يقبل ODRS هذا التطبيق."
 
-#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:573
+#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:572
 #: crates/gui/src/views/preferences.rs:108
 msgid "Search"
 msgstr "بحث"
@@ -404,38 +404,38 @@ msgstr "_طبّق"
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr "تغيّرت إعداداتك: أعد بناءها لتثبيت التطبيقات أو إزالتها."
 
-#: crates/gui/src/app.rs:169 crates/gui/src/views/detail.rs:1865
+#: crates/gui/src/app.rs:167 crates/gui/src/views/detail.rs:1865
 #: crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "جارٍ تطبيق الإعدادات"
 
-#: crates/gui/src/app.rs:234
+#: crates/gui/src/app.rs:233
 msgid "Search Nix packages…"
 msgstr "ابحث في حزم Nix…"
 
-#: crates/gui/src/app.rs:306 crates/gui/src/app.rs:582
+#: crates/gui/src/app.rs:305 crates/gui/src/app.rs:581
 msgid "Explore"
 msgstr "استكشاف"
 
-#: crates/gui/src/app.rs:310 crates/gui/src/app.rs:583
+#: crates/gui/src/app.rs:309 crates/gui/src/app.rs:582
 #: crates/gui/src/components/app_list.rs:527
 msgid "Installed"
 msgstr "المثبَّتة"
 
-#: crates/gui/src/app.rs:313 crates/gui/src/app.rs:584
+#: crates/gui/src/app.rs:312 crates/gui/src/app.rs:583
 #: crates/gui/src/views/preferences.rs:93
 msgid "Updates"
 msgstr "التحديثات"
 
-#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:585
+#: crates/gui/src/app.rs:315 crates/gui/src/app.rs:584
 msgid "Storage"
 msgstr "التخزين"
 
-#: crates/gui/src/app.rs:524
+#: crates/gui/src/app.rs:523
 msgid "Updates Available"
 msgstr "تحديثات متاحة"
 
-#: crates/gui/src/app.rs:526
+#: crates/gui/src/app.rs:525
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
@@ -446,39 +446,39 @@ msgstr[3] "يمكن تحديث {} تطبيقات."
 msgstr[4] "يمكن تحديث {} تطبيقًا."
 msgstr[5] "يمكن تحديث {} تطبيق."
 
-#: crates/gui/src/app.rs:571
+#: crates/gui/src/app.rs:570
 msgid "General"
 msgstr "عام"
 
-#: crates/gui/src/app.rs:574
+#: crates/gui/src/app.rs:573
 msgid "Preferences"
 msgstr "التفضيلات"
 
-#: crates/gui/src/app.rs:575
+#: crates/gui/src/app.rs:574
 msgid "Keyboard Shortcuts"
 msgstr "اختصارات لوحة المفاتيح"
 
-#: crates/gui/src/app.rs:576
+#: crates/gui/src/app.rs:575
 msgid "Quit"
 msgstr "إنهاء"
 
-#: crates/gui/src/app.rs:580
+#: crates/gui/src/app.rs:579
 msgid "Navigation"
 msgstr "التنقل"
 
-#: crates/gui/src/app.rs:586
+#: crates/gui/src/app.rs:585
 msgid "Go Back"
 msgstr "رجوع"
 
-#: crates/gui/src/app.rs:587
+#: crates/gui/src/app.rs:586
 msgid "Underlined letter of a button"
 msgstr "الحرف المسطّر في زر"
 
-#: crates/gui/src/app.rs:609
+#: crates/gui/src/app.rs:608
 msgid "Icon"
 msgstr "أيقونة"
 
-#: crates/gui/src/app.rs:616
+#: crates/gui/src/app.rs:615
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -571,12 +571,16 @@ msgstr "بلا مجموعة حزم"
 msgid "Package Set"
 msgstr "مجموعة الحزم"
 
-#: crates/gui/src/components/apply_dialog.rs:27
-#: crates/gui/src/components/apply_dialog.rs:90
+#: crates/gui/src/components/apply_dialog.rs:33
+msgid "Another operation is running"
+msgstr "هناك عملية أخرى قيد التشغيل"
+
+#: crates/gui/src/components/apply_dialog.rs:53
+#: crates/gui/src/components/apply_dialog.rs:116
 msgid "Preparing…"
 msgstr "جارٍ التحضير…"
 
-#: crates/gui/src/components/apply_dialog.rs:29
+#: crates/gui/src/components/apply_dialog.rs:55
 #, rust-format
 msgid "Downloading {done} of {} package"
 msgid_plural "Downloading {done} of {} packages"
@@ -587,20 +591,20 @@ msgstr[3] "جارٍ تنزيل {done} من {} حزم"
 msgstr[4] "جارٍ تنزيل {done} من {} حزمة"
 msgstr[5] "جارٍ تنزيل {done} من {} حزمة"
 
-#: crates/gui/src/components/apply_dialog.rs:34
+#: crates/gui/src/components/apply_dialog.rs:60
 #, rust-format
 msgid "Building {done} of {total}"
 msgstr "جارٍ بناء {done} من {total}"
 
-#: crates/gui/src/components/apply_dialog.rs:37
+#: crates/gui/src/components/apply_dialog.rs:63
 msgid "Activating the new configuration…"
 msgstr "جارٍ تفعيل الإعدادات الجديدة…"
 
-#: crates/gui/src/components/apply_dialog.rs:49
+#: crates/gui/src/components/apply_dialog.rs:75
 msgid "less than a minute left"
 msgstr "بقي أقل من دقيقة"
 
-#: crates/gui/src/components/apply_dialog.rs:52
+#: crates/gui/src/components/apply_dialog.rs:78
 #, rust-format
 msgid "about {} min left"
 msgid_plural "about {} min left"
@@ -611,57 +615,57 @@ msgstr[3] "بقي نحو {} دقائق"
 msgstr[4] "بقي نحو {} دقيقة"
 msgstr[5] "بقي نحو {} دقيقة"
 
-#: crates/gui/src/components/apply_dialog.rs:81
+#: crates/gui/src/components/apply_dialog.rs:107
 msgid "Another Operation Is Running"
 msgstr "توجد عملية أخرى قيد التشغيل"
 
-#: crates/gui/src/components/apply_dialog.rs:83
+#: crates/gui/src/components/apply_dialog.rs:109
 msgid "Wait for the current apply, update or rollback to finish."
 msgstr "انتظر انتهاء التطبيق أو التحديث أو الرجوع الجاري."
 
-#: crates/gui/src/components/apply_dialog.rs:86
+#: crates/gui/src/components/apply_dialog.rs:112
 #: crates/gui/src/components/details/attach_dialog.rs:97
 msgid "_Close"
 msgstr "_أغلق"
 
-#: crates/gui/src/components/apply_dialog.rs:96
+#: crates/gui/src/components/apply_dialog.rs:122
 msgid "Starting…"
 msgstr "جارٍ البدء…"
 
-#: crates/gui/src/components/apply_dialog.rs:140
-#: crates/gui/src/components/apply_dialog.rs:152
+#: crates/gui/src/components/apply_dialog.rs:166
+#: crates/gui/src/components/apply_dialog.rs:178
 msgid "Show _Details"
 msgstr "إظهار ال_تفاصيل"
 
-#: crates/gui/src/components/apply_dialog.rs:142
+#: crates/gui/src/components/apply_dialog.rs:168
 msgid "Show the full build log."
 msgstr "إظهار سجل البناء الكامل."
 
-#: crates/gui/src/components/apply_dialog.rs:150
+#: crates/gui/src/components/apply_dialog.rs:176
 msgid "Hide _Details"
 msgstr "إخفاء ال_تفاصيل"
 
-#: crates/gui/src/components/apply_dialog.rs:246
+#: crates/gui/src/components/apply_dialog.rs:272
 msgid "Working…"
 msgstr "جارٍ العمل…"
 
-#: crates/gui/src/components/apply_dialog.rs:276
+#: crates/gui/src/components/apply_dialog.rs:302
 msgid "Done"
 msgstr "تم"
 
-#: crates/gui/src/components/apply_dialog.rs:277
+#: crates/gui/src/components/apply_dialog.rs:303
 msgid "finished"
 msgstr "انتهى"
 
-#: crates/gui/src/components/apply_dialog.rs:281
+#: crates/gui/src/components/apply_dialog.rs:307
 msgid "Failed"
 msgstr "فشل"
 
-#: crates/gui/src/components/apply_dialog.rs:299
+#: crates/gui/src/components/apply_dialog.rs:325
 msgid "_Undo"
 msgstr "_تراجع"
 
-#: crates/gui/src/components/apply_dialog.rs:301
+#: crates/gui/src/components/apply_dialog.rs:327
 msgid "Go back to the version running before."
 msgstr "ارجع إلى الإصدار الذي كان يعمل من قبل."
 
@@ -791,12 +795,12 @@ msgstr ""
 "تحرّره."
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:533
+#: crates/gui/src/views/updates.rs:535
 msgid "_Release"
 msgstr "_حرّر"
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:535
+#: crates/gui/src/views/updates.rs:537
 msgid "Let the app follow your configuration again."
 msgstr "دع التطبيق يتبع إعداداتك من جديد."
 
@@ -957,7 +961,7 @@ msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/components/go_back.rs:40 crates/gui/src/views/detail.rs:1407
+#: crates/gui/src/components/go_back.rs:51 crates/gui/src/views/detail.rs:1407
 #: crates/gui/src/views/detail.rs:1578 crates/gui/src/views/storage.rs:652
 #: crates/gui/src/views/storage.rs:668
 msgid "_Cancel"
@@ -1146,29 +1150,40 @@ msgid "This affects every user of this computer."
 msgstr "يؤثر هذا في كل مستخدمي هذا الحاسوب."
 
 #: crates/gui/src/components/go_back.rs:37
+msgid "It uses another kernel: restart to finish."
+msgstr "يستخدم نواة أخرى: أعد التشغيل للإنهاء."
+
+#: crates/gui/src/components/go_back.rs:42
+#, rust-format
+msgid ""
+"You are running the {} specialisation: going back starts the default "
+"configuration of that version."
+msgstr "أنت تستخدم التخصيص {}: الرجوع يبدأ الإعداد الافتراضي لتلك النسخة."
+
+#: crates/gui/src/components/go_back.rs:48
 #, rust-format
 msgid "Go Back to {}?"
 msgstr "أترجع إلى {}؟"
 
-#: crates/gui/src/components/go_back.rs:41
+#: crates/gui/src/components/go_back.rs:52
 msgid "_Go Back"
 msgstr "ا_رجع"
 
-#: crates/gui/src/components/go_back.rs:59
+#: crates/gui/src/components/go_back.rs:70
 msgid "This version no longer exists."
 msgstr "لم يعد هذا الإصدار موجودًا."
 
-#: crates/gui/src/components/go_back.rs:72
+#: crates/gui/src/components/go_back.rs:83
 #, rust-format
 msgid "Back to the version of {}."
 msgstr "عدت إلى إصدار {}."
 
-#: crates/gui/src/components/go_back.rs:73
+#: crates/gui/src/components/go_back.rs:84
 #, rust-format
 msgid "Back to the version of {}. Your configuration is unchanged."
 msgstr "عدت إلى إصدار {}. لم تتغيّر إعداداتك."
 
-#: crates/gui/src/components/go_back.rs:83
+#: crates/gui/src/components/go_back.rs:94
 msgid "Going Back"
 msgstr "جارٍ الرجوع"
 
@@ -2871,23 +2886,23 @@ msgstr "المتاح: {}"
 msgid "_Update"
 msgstr "_حدّث"
 
-#: crates/gui/src/views/updates.rs:452
+#: crates/gui/src/views/updates.rs:453
 msgid "Current"
 msgstr "الحالي"
 
-#: crates/gui/src/views/updates.rs:456
+#: crates/gui/src/views/updates.rs:457
 msgid "Started at boot"
 msgstr "بدأ عند الإقلاع"
 
-#: crates/gui/src/views/updates.rs:458
+#: crates/gui/src/views/updates.rs:459
 msgid "Go _Back"
 msgstr "ا_رجع"
 
-#: crates/gui/src/views/updates.rs:470
+#: crates/gui/src/views/updates.rs:472
 msgid "History"
 msgstr "السجل"
 
-#: crates/gui/src/views/updates.rs:475
+#: crates/gui/src/views/updates.rs:477
 msgid ""
 "Each apply keeps the version before it. Go back to one if something broke; "
 "cleaning old generations in Storage removes them from here."
@@ -2895,59 +2910,59 @@ msgstr ""
 "يحتفظ كل تطبيق بالإصدار الذي قبله. ارجع إلى أحدها إن تعطّل شيء؛ تنظيف الأجيال "
 "القديمة في التخزين يزيلها من هنا."
 
-#: crates/gui/src/views/updates.rs:491
+#: crates/gui/src/views/updates.rs:493
 #, rust-format
 msgid "Added {}"
 msgstr "أُضيف: {}"
 
-#: crates/gui/src/views/updates.rs:494
+#: crates/gui/src/views/updates.rs:496
 #, rust-format
 msgid "Removed {}"
 msgstr "أُزيل: {}"
 
-#: crates/gui/src/views/updates.rs:497
+#: crates/gui/src/views/updates.rs:499
 msgid "Same apps, updated or reconfigured"
 msgstr "التطبيقات نفسها، محدَّثة أو معاد ضبطها"
 
-#: crates/gui/src/views/updates.rs:500
+#: crates/gui/src/views/updates.rs:502
 msgid "Applied with Nix App Center"
 msgstr "طُبّق بواسطة Nix App Center"
 
-#: crates/gui/src/views/updates.rs:501
+#: crates/gui/src/views/updates.rs:503
 msgid "Applied outside Nix App Center"
 msgstr "طُبّق خارج Nix App Center"
 
-#: crates/gui/src/views/updates.rs:519
+#: crates/gui/src/views/updates.rs:521
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr "مثبَّت {age}، بلا تحديثات أمنية"
 
-#: crates/gui/src/views/updates.rs:546
+#: crates/gui/src/views/updates.rs:549
 msgid "Held Apps"
 msgstr "التطبيقات المثبَّتة على إصدار"
 
-#: crates/gui/src/views/updates.rs:553
+#: crates/gui/src/views/updates.rs:556
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr "يأتي nixpkgs من المُدخل «{}» في إعداداتك. حدّث ذلك الـ flake، ثم طبّق."
 
-#: crates/gui/src/views/updates.rs:556
+#: crates/gui/src/views/updates.rs:559
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr "لا يستطيع Nix App Center تحديث هذه الإعدادات بنفسه."
 
-#: crates/gui/src/views/updates.rs:564
+#: crates/gui/src/views/updates.rs:567
 #, rust-format
 msgid ""
 "NixOS {0} is available. Switch your configuration to nixos-{0} when you are "
 "ready."
 msgstr "NixOS {0} متاح. انقل إعداداتك إلى nixos-{0} عندما تكون مستعدًا."
 
-#: crates/gui/src/views/updates.rs:567
+#: crates/gui/src/views/updates.rs:570
 msgid "Release _Notes"
 msgstr "_ملاحظات الإصدار"
 
-#: crates/gui/src/views/updates.rs:583
+#: crates/gui/src/views/updates.rs:586
 msgid "Everything is up to date"
 msgstr "كل شيء محدَّث"

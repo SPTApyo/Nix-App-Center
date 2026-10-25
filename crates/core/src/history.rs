@@ -240,6 +240,35 @@ pub fn go_back_steps(point: &Point) -> Option<Vec<Vec<String>>> {
     }
 }
 
+/// True when `point` boots another kernel or initrd than the running
+/// computer: it fully applies after a restart.
+pub fn needs_restart(point: &Point) -> bool {
+    let Some(link) = (point.scope == Scope::System)
+        .then(|| links(Path::new("/nix/var/nix/profiles/system")))
+        .and_then(|l| l.into_iter().find(|(n, _)| *n == point.number))
+    else {
+        return false;
+    };
+    differs(&link.1, Path::new("/run/booted-system"))
+}
+
+fn differs(a: &Path, b: &Path) -> bool {
+    ["kernel", "initrd"]
+        .iter()
+        .any(|f| std::fs::canonicalize(a.join(f)).ok() != std::fs::canonicalize(b.join(f)).ok())
+}
+
+/// The specialisation running now, if any: going back starts the default
+/// configuration of a generation.
+pub fn running_specialisation() -> Option<String> {
+    let current = std::fs::canonicalize("/run/current-system").ok()?;
+    let system = Path::new("/nix/var/nix/profiles/system/specialisation");
+    std::fs::read_dir(system).ok()?.flatten().find_map(|e| {
+        (std::fs::canonicalize(e.path()).ok()? == current)
+            .then(|| e.file_name().to_string_lossy().into_owned())
+    })
+}
+
 /// After going back to `point`: puts back the manifest and flake.lock it
 /// recorded, so the configuration matches the running system again.
 /// False when Nix App Center did not make that generation.
@@ -316,6 +345,21 @@ mod tests {
         let numbers: Vec<(u32, bool)> = points.iter().map(|p| (p.number, p.current)).collect();
         assert_eq!(numbers, [(3, false), (2, true), (1, false)]);
         assert!(points.iter().all(|p| !p.booted));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn another_kernel_needs_a_restart() {
+        let dir =
+            std::env::temp_dir().join(format!("nix-app-center-kernel-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        for (name, kernel) in [("a", "k1"), ("b", "k1"), ("c", "k2")] {
+            std::fs::create_dir_all(dir.join(name)).unwrap();
+            std::fs::write(dir.join(kernel), "").unwrap();
+            std::os::unix::fs::symlink(dir.join(kernel), dir.join(name).join("kernel")).unwrap();
+        }
+        assert!(!differs(&dir.join("a"), &dir.join("b")));
+        assert!(differs(&dir.join("a"), &dir.join("c")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

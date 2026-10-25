@@ -16,6 +16,32 @@ thread_local! {
     static RUNNING: Cell<bool> = const { Cell::new(false) };
 }
 
+/// Greys `widget` out while an apply, update or rollback runs, then gives
+/// it back the state it had.
+pub fn guard(widget: &impl IsA<gtk::Widget>) {
+    let weak = widget.downgrade();
+    let before: Cell<Option<(bool, Option<gtk::glib::GString>)>> = Cell::new(None);
+    gtk::glib::timeout_add_local(Duration::from_millis(500), move || {
+        let Some(w) = weak.upgrade() else {
+            return gtk::glib::ControlFlow::Break;
+        };
+        let busy = RUNNING.with(Cell::get);
+        match before.take() {
+            None if busy => {
+                before.set(Some((w.is_sensitive(), w.tooltip_text())));
+                w.set_sensitive(false);
+                w.set_tooltip_text(Some(&t("Another operation is running")));
+            }
+            Some((sensitive, tooltip)) if !busy => {
+                w.set_sensitive(sensitive);
+                w.set_tooltip_text(tooltip.as_deref());
+            }
+            kept => before.set(kept),
+        }
+        gtk::glib::ControlFlow::Continue
+    });
+}
+
 enum Event {
     Stream(StreamEvent),
     Done(Result<ApplyOutcome, String>),

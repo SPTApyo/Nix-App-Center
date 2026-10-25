@@ -99,8 +99,15 @@ back, since the configuration still says so. A generation another tool made
 has nothing recorded: only the system switches, and the dialog says the
 next apply undoes it. The user's own files are never rewritten. Right after
 an apply that made a new generation, its dialog offers Undo. Only one apply,
-update or rollback runs at a time. Records of generations that are gone are
-dropped at the next apply.
+update or rollback runs at a time: while one runs, the buttons starting
+another are greyed out. Going back to a generation with another kernel or
+initrd than /run/booted-system says a restart finishes it, and from a
+specialisation, that the default configuration of the generation starts.
+Records of generations that are gone are dropped at the next apply.
+
+The CLI has the same commands (history, go-back N), and the NixOS test in
+nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
+applies, removes it, goes back and checks the configuration came back.
 
 ## What is installed
 

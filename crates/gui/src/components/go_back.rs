@@ -32,6 +32,17 @@ pub fn confirm(
     if point.scope == HistoryScope::System {
         body.push_str("\n\n");
         body.push_str(&t("This affects every user of this computer."));
+        if nix_app_center_core::needs_restart(&point) {
+            body.push(' ');
+            body.push_str(&t("It uses another kernel: restart to finish."));
+        }
+        if let Some(name) = nix_app_center_core::running_specialisation() {
+            body.push_str("\n\n");
+            body.push_str(
+                &t("You are running the {} specialisation: going back starts the default configuration of that version.")
+                    .replace("{}", &name),
+            );
+        }
     }
     let dialog = adw::AlertDialog::new(
         Some(&t("Go Back to {}?").replace("{}", &when(&point))),
