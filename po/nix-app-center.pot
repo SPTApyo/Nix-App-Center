@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-24 19:00+0200\n"
+"POT-Creation-Date: 2026-10-25 20:09+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,11 +22,15 @@ msgstr ""
 msgid "The build gave an unexpected result."
 msgstr ""
 
-#: crates/core/src/config_gen.rs:674 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:575
+msgid "Building as administrator: the changes cannot be shown first."
+msgstr ""
+
+#: crates/core/src/config_gen.rs:713 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr ""
 
-#: crates/core/src/config_gen.rs:677 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:716 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr ""
 
@@ -404,7 +408,7 @@ msgstr ""
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 
-#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:294
+#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:320
 #: crates/gui/src/views/detail.rs:1865 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr ""
@@ -616,35 +620,48 @@ msgstr ""
 msgid "Hide _Details"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:234
-msgid "Working…"
+#: crates/gui/src/components/apply_dialog.rs:150
+msgid "Open Storage"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:204
+msgid ""
+"Your own apply command runs as it is: the changes cannot be shown first."
 msgstr ""
 
 #: crates/gui/src/components/apply_dialog.rs:254
+msgid "Working…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:268
+msgid "The disk is full. Free up space in Storage, then apply again."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:279
 msgid "Done"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:255
+#: crates/gui/src/components/apply_dialog.rs:280
 msgid "finished"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:259
+#: crates/gui/src/components/apply_dialog.rs:285
 msgid "Failed"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:311
+#: crates/gui/src/components/apply_dialog.rs:337
 msgid "Review the Changes"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:318
+#: crates/gui/src/components/apply_dialog.rs:344
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:323
+#: crates/gui/src/components/apply_dialog.rs:349
 msgid "These changes apply to every user of this computer."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:363
+#: crates/gui/src/components/apply_dialog.rs:389
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
@@ -652,52 +669,52 @@ msgstr ""
 msgid "_Cancel"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:364
+#: crates/gui/src/components/apply_dialog.rs:390
 msgid "_Apply Changes"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:389
+#: crates/gui/src/components/apply_dialog.rs:415
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:393
+#: crates/gui/src/components/apply_dialog.rs:419
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:397
+#: crates/gui/src/components/apply_dialog.rs:423
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:401
+#: crates/gui/src/components/apply_dialog.rs:427
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:409
+#: crates/gui/src/components/apply_dialog.rs:435
 msgid "No package changes, only settings."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:422
+#: crates/gui/src/components/apply_dialog.rs:448
 #, rust-format
 msgid "Added: {}"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:423
+#: crates/gui/src/components/apply_dialog.rs:449
 msgid "Removed"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:425
+#: crates/gui/src/components/apply_dialog.rs:451
 msgid "Rebuilt"
 msgstr ""
 

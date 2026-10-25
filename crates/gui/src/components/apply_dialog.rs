@@ -146,6 +146,14 @@ pub fn present(
     }
     body.append(&progress);
     body.append(&review);
+    let storage = gtk::Button::builder()
+        .label(t("Open Storage"))
+        .halign(gtk::Align::Start)
+        .action_name("app.show-tab")
+        .action_target(&"storage".to_variant())
+        .visible(false)
+        .build();
+    progress.append(&storage);
     body.append(&toggle);
     body.append(&revealer);
     let toolbar = adw::ToolbarView::new();
@@ -157,6 +165,12 @@ pub fn present(
         .child(&toolbar)
         .build();
     dialog.present(Some(parent));
+    storage.connect_clicked({
+        let dialog = dialog.clone();
+        move |_| {
+            dialog.close();
+        }
+    });
 
     let target: Rc<Cell<Option<f64>>> = Rc::new(Cell::new(None));
     let finished = Rc::new(Cell::new(false));
@@ -183,7 +197,13 @@ pub fn present(
     let applies = nix_app_center_core::apply_argv().is_some_and(|a| steps.contains(&a));
     let (tx, rx) = async_channel::unbounded::<Event>();
     let (answer_tx, answer_rx) = async_channel::bounded::<bool>(1);
-    let ask = nix_app_center_core::load_settings().review_changes;
+    let settings = nix_app_center_core::load_settings();
+    let ask = settings.review_changes;
+    if applies && ask && settings.apply_command.is_some() {
+        progress.append(&crate::util::dim_label(&t(
+            "Your own apply command runs as it is: the changes cannot be shown first.",
+        )));
+    }
     std::thread::spawn(move || {
         let events = tx.clone();
         let reviews = tx.clone();
@@ -243,7 +263,12 @@ pub fn present(
                     finished.set(true);
                     progress.set_visible(true);
                     review.set_visible(false);
-                    let message = crate::util::describe_apply(res.clone());
+                    let full = matches!(&res, Err(e) if e.contains("No space left on device"));
+                    let message = if full {
+                        t("The disk is full. Free up space in Storage, then apply again.")
+                    } else {
+                        crate::util::describe_apply(res.clone())
+                    };
                     match &res {
                         Ok(outcome) => {
                             if applies && matches!(outcome, ApplyOutcome::Done(_)) {
@@ -255,6 +280,7 @@ pub fn present(
                             detail.set_label(&format!("100 % · {}", t("finished")));
                         }
                         Err(_) => {
+                            storage.set_visible(full);
                             target.set(Some(bar.fraction()));
                             phase.set_label(&t("Failed"));
                             detail.set_visible(false);

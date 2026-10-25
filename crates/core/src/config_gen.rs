@@ -420,8 +420,8 @@ pub fn run_reviewed(
     };
     let mut outcome = Ok(ApplyOutcome::UnknownLayout);
     for step in steps.iter().filter(|s| !s.is_empty()) {
-        outcome = if let Some((build, action)) = split_flake_switch(step) {
-            build_then_activate(&build, &action, &shared)
+        outcome = if let Some((build, action, upgrade)) = split_rebuild(step) {
+            rebuild_reviewed(step, &build, &action, upgrade, &shared)
         } else if let Some(build) = split_home_switch(step) {
             build_then_activate_home(&build, &shared)
         } else {
@@ -533,12 +533,12 @@ fn build_then_activate_home<F: Fn(crate::progress::StreamEvent) + Send + Sync + 
 
 /// For `sudo nixos-rebuild <switch|boot|test> --flake …`: the same command
 /// building as the user, and the action to activate.
-fn split_flake_switch(step: &[String]) -> Option<(Vec<String>, String)> {
+fn split_rebuild(step: &[String]) -> Option<(Vec<String>, String, bool)> {
     let (sudo, rest) = step.split_first()?;
     let is_rebuild = rest
         .first()
         .is_some_and(|b| b == "nixos-rebuild" || b.ends_with("/nixos-rebuild"));
-    if sudo != "sudo" || !is_rebuild || !rest.iter().any(|a| a == "--flake") {
+    if sudo != "sudo" || !is_rebuild {
         return None;
     }
     let i = rest
@@ -546,7 +546,46 @@ fn split_flake_switch(step: &[String]) -> Option<(Vec<String>, String)> {
         .position(|a| matches!(a.as_str(), "switch" | "boot" | "test"))?;
     let mut build = rest.to_vec();
     let action = std::mem::replace(&mut build[i], "build".into());
-    Some((build, action))
+    let upgrade = build.iter().any(|a| a == "--upgrade");
+    build.retain(|a| a != "--upgrade");
+    Some((build, action, upgrade))
+}
+
+/// `step`, a nixos-rebuild as root, built first as the user to show its
+/// changes. Channels update first and roll back when the user cancels.
+fn rebuild_reviewed<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    step: &[String],
+    build: &[String],
+    action: &str,
+    upgrade: bool,
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    let channels =
+        |what: &str| -> Vec<String> { ["sudo", "nix-channel", what].map(String::from).to_vec() };
+    if upgrade {
+        match run_step(&channels("--update"), shared)? {
+            ApplyOutcome::Done(_) => {}
+            other => return Ok(other),
+        }
+    }
+    let outcome = match build_then_activate(build, action, shared) {
+        // Some files of the configuration only root reads.
+        Err(e) if e.to_string().contains("Permission denied") => {
+            (shared.on_event)(crate::progress::StreamEvent::Line(
+                crate::util::n_("Building as administrator: the changes cannot be shown first.")
+                    .into(),
+            ));
+            let mut step = step.to_vec();
+            step.retain(|a| a != "--upgrade");
+            run_step(&step, shared)
+        }
+        other => other,
+    };
+    if upgrade && matches!(outcome, Ok(ApplyOutcome::Cancelled)) {
+        run_step(&channels("--rollback"), shared)?;
+        return Ok(ApplyOutcome::Cancelled);
+    }
+    outcome
 }
 
 /// Builds as the user, shows the changes, then activates the result as root.
@@ -785,16 +824,16 @@ mod tests {
         let step: Vec<String> = ["sudo", "nixos-rebuild", "switch", "--flake", "/etc/nixos#h"]
             .map(String::from)
             .to_vec();
-        let (build, action) = split_flake_switch(&step).unwrap();
+        let (build, action, upgrade) = split_rebuild(&step).unwrap();
         assert_eq!(build, ["nixos-rebuild", "build", "--flake", "/etc/nixos#h"]);
         assert_eq!(action, "switch");
+        assert!(!upgrade);
         let channels: Vec<String> = ["sudo", "nixos-rebuild", "switch", "--upgrade"]
             .map(String::from)
             .to_vec();
-        assert!(
-            split_flake_switch(&channels).is_none(),
-            "channels need root to update"
-        );
+        let (build, _, upgrade) = split_rebuild(&channels).unwrap();
+        assert_eq!(build, ["nixos-rebuild", "build"]);
+        assert!(upgrade, "channels update as root first");
     }
 
     #[test]

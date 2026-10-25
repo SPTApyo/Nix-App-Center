@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-24 18:59+0200\n"
+"POT-Creation-Date: 2026-10-25 20:08+0100\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -19,11 +19,17 @@ msgstr ""
 msgid "The build gave an unexpected result."
 msgstr "La construction a donné un résultat inattendu."
 
-#: crates/core/src/config_gen.rs:674 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:575
+msgid "Building as administrator: the changes cannot be shown first."
+msgstr ""
+"Compilation en administrateur : les changements ne peuvent pas être montrés "
+"avant."
+
+#: crates/core/src/config_gen.rs:713 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "Authentification annulée."
 
-#: crates/core/src/config_gen.rs:677 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:716 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "Les droits administrateur ont été refusés."
 
@@ -407,7 +413,7 @@ msgstr ""
 "Votre configuration a changé : reconstruisez-la pour installer ou retirer "
 "les applications."
 
-#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:294
+#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:320
 #: crates/gui/src/views/detail.rs:1865 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "Application de la configuration"
@@ -619,36 +625,53 @@ msgstr "Afficher le journal de build complet."
 msgid "Hide _Details"
 msgstr "Masquer les _détails"
 
-#: crates/gui/src/components/apply_dialog.rs:234
+#: crates/gui/src/components/apply_dialog.rs:150
+msgid "Open Storage"
+msgstr "Ouvrir le stockage"
+
+#: crates/gui/src/components/apply_dialog.rs:204
+msgid ""
+"Your own apply command runs as it is: the changes cannot be shown first."
+msgstr ""
+"Votre propre commande d'application s'exécute telle quelle : les changements "
+"ne peuvent pas être montrés avant."
+
+#: crates/gui/src/components/apply_dialog.rs:254
 msgid "Working…"
 msgstr "En cours…"
 
-#: crates/gui/src/components/apply_dialog.rs:254
+#: crates/gui/src/components/apply_dialog.rs:268
+msgid "The disk is full. Free up space in Storage, then apply again."
+msgstr ""
+"Le disque est plein. Libérez de l'espace dans Stockage, puis appliquez à "
+"nouveau."
+
+#: crates/gui/src/components/apply_dialog.rs:279
 msgid "Done"
 msgstr "Terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:255
+#: crates/gui/src/components/apply_dialog.rs:280
 msgid "finished"
 msgstr "terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:259
+#: crates/gui/src/components/apply_dialog.rs:285
 msgid "Failed"
 msgstr "Échec"
 
-#: crates/gui/src/components/apply_dialog.rs:311
+#: crates/gui/src/components/apply_dialog.rs:337
 msgid "Review the Changes"
 msgstr "Vérifier les changements"
 
-#: crates/gui/src/components/apply_dialog.rs:318
+#: crates/gui/src/components/apply_dialog.rs:344
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr "Le noyau change : redémarrez l'ordinateur pour utiliser le nouveau."
 
-#: crates/gui/src/components/apply_dialog.rs:323
+#: crates/gui/src/components/apply_dialog.rs:349
 msgid "These changes apply to every user of this computer."
 msgstr ""
 "Ces changements s'appliquent à tous les utilisateurs de cet ordinateur."
 
-#: crates/gui/src/components/apply_dialog.rs:363
+#: crates/gui/src/components/apply_dialog.rs:389
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
@@ -656,52 +679,52 @@ msgstr ""
 msgid "_Cancel"
 msgstr "_Annuler"
 
-#: crates/gui/src/components/apply_dialog.rs:364
+#: crates/gui/src/components/apply_dialog.rs:390
 msgid "_Apply Changes"
 msgstr "_Appliquer les changements"
 
-#: crates/gui/src/components/apply_dialog.rs:389
+#: crates/gui/src/components/apply_dialog.rs:415
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] "{} mis à jour"
 msgstr[1] "{} mis à jour"
 
-#: crates/gui/src/components/apply_dialog.rs:393
+#: crates/gui/src/components/apply_dialog.rs:419
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] "{} ajouté"
 msgstr[1] "{} ajoutés"
 
-#: crates/gui/src/components/apply_dialog.rs:397
+#: crates/gui/src/components/apply_dialog.rs:423
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] "{} retiré"
 msgstr[1] "{} retirés"
 
-#: crates/gui/src/components/apply_dialog.rs:401
+#: crates/gui/src/components/apply_dialog.rs:427
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] "{} reconstruit"
 msgstr[1] "{} reconstruits"
 
-#: crates/gui/src/components/apply_dialog.rs:409
+#: crates/gui/src/components/apply_dialog.rs:435
 msgid "No package changes, only settings."
 msgstr "Aucun paquet ne change, seulement des réglages."
 
-#: crates/gui/src/components/apply_dialog.rs:422
+#: crates/gui/src/components/apply_dialog.rs:448
 #, rust-format
 msgid "Added: {}"
 msgstr "Ajouté : {}"
 
-#: crates/gui/src/components/apply_dialog.rs:423
+#: crates/gui/src/components/apply_dialog.rs:449
 msgid "Removed"
 msgstr "Retiré"
 
-#: crates/gui/src/components/apply_dialog.rs:425
+#: crates/gui/src/components/apply_dialog.rs:451
 msgid "Rebuilt"
 msgstr "Reconstruit"
 
