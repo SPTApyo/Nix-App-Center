@@ -17,16 +17,15 @@ pub fn flake_cache(source: &str) -> Option<Cache> {
         .into_iter()
         .find(|(name, _)| name == source)?
         .1;
-    // The reference goes through the environment, never the expression.
+    // Pure mode: flake.nix cannot read files or environment.
+    if !safe(&reference, ":/.-_?=&+~@") {
+        return None;
+    }
+    let expr = format!(
+        "(import ((builtins.getFlake \"{reference}\").outPath + \"/flake.nix\")).nixConfig or {{ }}"
+    );
     let out = crate::util::nix()
-        .env("NIX_APP_CENTER_REF", reference)
-        .args([
-            "eval",
-            "--json",
-            "--impure",
-            "--expr",
-            "(import ((builtins.getFlake (builtins.getEnv \"NIX_APP_CENTER_REF\")).outPath + \"/flake.nix\")).nixConfig or { }",
-        ])
+        .args(["eval", "--json", "--expr", &expr])
         .output()
         .ok()
         .filter(|o| o.status.success())?;
