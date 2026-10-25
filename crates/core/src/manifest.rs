@@ -140,7 +140,15 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
 }
 
 /// Writes the Nix files, then the manifest: a failed write keeps it unchanged.
+/// Refuses while kept.json is unreadable, since `m` then lost its apps.
 fn commit(m: &Manifest) -> std::io::Result<()> {
+    let damaged = std::fs::read(manifest_path())
+        .is_ok_and(|b| serde_json::from_slice::<Manifest>(&b).is_err());
+    if damaged {
+        return Err(std::io::Error::other(crate::util::n_(
+            "The list of your apps (kept.json) is damaged. Fix or remove it, then try again.",
+        )));
+    }
     config_gen::sync_config(&m.kept)?;
     save_manifest(m)?;
     std::fs::write(pending_path(), "")
@@ -465,6 +473,19 @@ mod tests {
     fn cleanup() {
         std::env::remove_var("XDG_DATA_HOME");
         std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
+    }
+
+    #[test]
+    fn a_damaged_manifest_is_never_overwritten() {
+        let _g = crate::env_lock();
+        let base = sandbox("damaged");
+        let path = base.join("nix-app-center/kept.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "{ broken").unwrap();
+        assert!(keep(&Package::from_attr("vlc")).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ broken");
+        assert!(!base.join("nix-app-center-system.nix").exists());
+        cleanup();
     }
 
     #[test]
