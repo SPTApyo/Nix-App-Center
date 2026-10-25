@@ -59,7 +59,7 @@ pub use config_layout::{
     ScopeTarget, Verified,
 };
 pub use detail::{closure_size, detail, PackageDetail};
-pub use enabled::{declared_in, enabled_modules};
+pub use enabled::{config_allows, declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use foreign::{appimage_files, remove_foreign};
 pub use http::exists as url_exists;

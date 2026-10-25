@@ -294,7 +294,11 @@ A proprietary app, or one nixpkgs marks insecure, is kept only once the user
 allows it: Add to Configuration, a hold, build options and the Nix editor all
 ask first, and the answer is stored on the kept app (allow_unfree,
 allow_insecure). Allow All Proprietary Apps in Preferences stops the
-question for proprietary apps, never for insecure ones. The allowance never
+question for proprietary apps, never for insecure ones. No question either
+when the configuration's own nixpkgs already accepts the app: its page
+evaluates meta.available of the app in the pkgs of the scope it would go to
+(Home Manager's own pkgs only tell whether allowUnfree is on), and then
+nothing is written. The allowance never
 touches the global nixpkgs.config, where an allowUnfreePredicate written by
 both the user and Nix App Center would silently replace one another.
 Instead the app is taken from a nixpkgs instance that allows it, imported

@@ -54,6 +54,8 @@ pub struct DetailModel {
     keep_pending: bool,
     /// What the user allowed on this page for a proprietary or insecure app.
     consent: nix_app_center_core::Allowance,
+    /// The configuration's own nixpkgs already accepts the app.
+    config_allows: bool,
     /// The revision the app is held at.
     pin: Option<nix_app_center_core::Pin>,
     holding: bool,
@@ -98,6 +100,7 @@ pub struct DetailModel {
 
 #[derive(Debug)]
 pub enum DetailMsg {
+    ConfigAllows(bool),
     Loaded(Box<AppMeta>),
     LoadFailed,
     RatingLoaded(Rating),
@@ -953,6 +956,7 @@ impl SimpleComponent for DetailModel {
             lookups: 0,
             keep_pending: false,
             consent: Default::default(),
+            config_allows: false,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -1080,6 +1084,19 @@ impl SimpleComponent for DetailModel {
                 let meta = *meta;
                 self.loading = false;
                 self.stack.set_visible_child_name("ready");
+                let refused = meta.insecure || meta.is_free_license == Some(false);
+                if refused && self.package.source.is_none() {
+                    let attr = self.package.attr.clone();
+                    let insecure = meta.insecure;
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let home = nix_app_center_core::detect_layout().home.is_some()
+                            && !nix_app_center_core::load_settings().install_for_everyone;
+                        let _ = s.send(DetailMsg::ConfigAllows(
+                            nix_app_center_core::config_allows(&attr, home, insecure),
+                        ));
+                    });
+                }
                 if self.installed.is_none() {
                     let desktop_id = meta
                         .launchable
@@ -1304,6 +1321,7 @@ impl SimpleComponent for DetailModel {
                     });
                 });
             }
+            DetailMsg::ConfigAllows(allows) => self.config_allows = allows,
             DetailMsg::AddonMissing(name) => crate::util::toast(
                 &self.toast_overlay,
                 &t("{} is not in nixpkgs.").replace("{}", &name),
@@ -2032,6 +2050,9 @@ impl DetailModel {
     /// What nixpkgs needs allowed to build this app, and the user has not
     /// allowed yet.
     fn missing_consent(&self) -> nix_app_center_core::Allowance {
+        if self.config_allows {
+            return Default::default();
+        }
         let entry = nix_app_center_core::load_manifest()
             .entry(&self.package.attr)
             .map(|e| (e.allow_unfree, e.allow_insecure))
