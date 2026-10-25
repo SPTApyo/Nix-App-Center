@@ -274,6 +274,31 @@ pub fn import_flake_module(source: &str, module: &str, home: bool) -> std::io::R
     commit(&m)
 }
 
+/// Makes the system use `cache`, which the caller checked is plain.
+pub fn trust_cache(cache: &crate::Cache) -> std::io::Result<()> {
+    let quoted = |l: &[String]| {
+        l.iter()
+            .map(|s| format!("\"{s}\""))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let line = format!(
+        "nix.settings.substituters = [ \"{}\" ];\nnix.settings.trusted-public-keys = [ {} ];",
+        cache.url,
+        quoted(&cache.keys)
+    );
+    let key = format!("cache:{}", cache.url);
+    let mut m = load_manifest();
+    m.kept.retain(|e| !(e.option && e.package.attr == key));
+    m.kept.push(KeptEntry {
+        option: true,
+        home_nix: Some(String::new()),
+        system_nix: Some(line),
+        ..KeptEntry::simple(Package::from_attr(key))
+    });
+    commit(&m)
+}
+
 /// Stops setting `option`.
 pub fn unset_option(option: &str) -> std::io::Result<()> {
     let mut m = load_manifest();
@@ -483,6 +508,25 @@ mod tests {
         assert!(set_option("x; y = 1", "true", false).is_err());
         unset_option("services.printing.enable").unwrap();
         assert!(load_manifest().kept.is_empty());
+        cleanup();
+    }
+
+    #[test]
+    fn trusted_caches_merge_in_the_system_file() {
+        let _g = crate::env_lock();
+        let base = sandbox("caches");
+        for url in ["https://a.cachix.org", "https://b.cachix.org"] {
+            let keys = vec![format!("{url}-1:k=")];
+            trust_cache(&crate::Cache {
+                url: url.into(),
+                keys,
+            })
+            .unwrap();
+        }
+        let system = std::fs::read_to_string(base.join("nix-app-center-system.nix")).unwrap();
+        assert_eq!(system.matches("nix.settings.substituters = [").count(), 2);
+        assert!(system.contains("trusted-public-keys = [ \"https://b.cachix.org-1:k=\" ];"));
+        assert!(load_manifest().packages().is_empty());
         cleanup();
     }
 

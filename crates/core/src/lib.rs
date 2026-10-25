@@ -5,6 +5,7 @@ mod app_meta;
 mod appstream_db;
 mod build_flags;
 mod cache;
+mod caches;
 mod categories;
 mod config_attach;
 mod config_gen;
@@ -46,6 +47,7 @@ pub use appstream_db::{
     LocalHit,
 };
 pub use build_flags::BuildFlag;
+pub use caches::{cache_trusted, flake_cache, Cache};
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };
@@ -68,8 +70,8 @@ pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutco
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{
     applied, apply_pending, import_flake_module, keep, load_manifest, pin_at, pin_current,
-    set_blocks, set_flags, set_mode, set_option, set_pin, unkeep, unset_option, InstallMode,
-    KeptEntry, Manifest, Pin,
+    set_blocks, set_flags, set_mode, set_option, set_pin, trust_cache, unkeep, unset_option,
+    InstallMode, KeptEntry, Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use nixsoftware::similar_apps;

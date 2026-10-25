@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-21 18:16+0200\n"
+"POT-Creation-Date: 2026-10-25 18:24+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Hindi\n"
@@ -35,11 +35,11 @@ msgstr "Flatpak ऐप को हटा नहीं सका।"
 msgid "This option cannot be set here."
 msgstr "यह विकल्प यहाँ सेट नहीं किया जा सकता।"
 
-#: crates/core/src/manifest.rs:357
+#: crates/core/src/manifest.rs:382
 msgid "The nixpkgs revision in use is unknown."
 msgstr "उपयोग में nixpkgs संशोधन अज्ञात है।"
 
-#: crates/core/src/manifest.rs:369
+#: crates/core/src/manifest.rs:394
 msgid "This is not a nixpkgs revision."
 msgstr "यह nixpkgs संशोधन नहीं है।"
 
@@ -402,7 +402,7 @@ msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 "आपका कॉन्फ़िगरेशन बदल गया है: ऐप्स इंस्टॉल करने या हटाने के लिए इसे फिर से बिल्ड करें।"
 
-#: crates/gui/src/app.rs:169 crates/gui/src/views/detail.rs:1865
+#: crates/gui/src/app.rs:169 crates/gui/src/views/detail.rs:1911
 #: crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "कॉन्फ़िगरेशन लागू किया जा रहा है"
@@ -630,6 +630,48 @@ msgstr "पूरा हुआ"
 msgid "Failed"
 msgstr "विफल"
 
+#: crates/gui/src/components/cache_dialog.rs:18
+#, rust-format
+msgid ""
+"Apps from {flake} then download from its server instead of building on this "
+"computer. Whoever runs that server can sign the programs you install: only "
+"use it if you trust {flake}."
+msgstr ""
+"तब {flake} के ऐप इस कंप्यूटर पर बनने के बजाय उसके सर्वर से डाउनलोड होते हैं। जो उस सर्वर "
+"को चलाता है वह आपके इंस्टॉल किए प्रोग्राम पर हस्ताक्षर कर सकता है: इसे केवल तभी उपयोग "
+"करें जब आप {flake} पर भरोसा करते हों।"
+
+#: crates/gui/src/components/cache_dialog.rs:20
+#, rust-format
+msgid ""
+"Apps from {flake} could download from its server instead of building. "
+"Without NixOS, only an administrator can add it, in /etc/nix/nix.conf:"
+msgstr ""
+"{flake} के ऐप बनाने के बजाय उसके सर्वर से डाउनलोड हो सकते हैं। NixOS के बिना, केवल "
+"व्यवस्थापक इसे /etc/nix/nix.conf में जोड़ सकता है:"
+
+#: crates/gui/src/components/cache_dialog.rs:24
+#, rust-format
+msgid "Use the Binary Cache of {}?"
+msgstr "{} का बाइनरी कैश उपयोग करें?"
+
+#: crates/gui/src/components/cache_dialog.rs:59
+#: crates/gui/src/components/details/attach_dialog.rs:97
+msgid "_Close"
+msgstr "बंद करें (_C)"
+
+#: crates/gui/src/components/cache_dialog.rs:63
+#: crates/gui/src/components/details/nix_editor.rs:126
+#: crates/gui/src/components/details/review_row.rs:113
+#: crates/gui/src/views/detail.rs:1453 crates/gui/src/views/detail.rs:1624
+#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+msgid "_Cancel"
+msgstr "रद्द करें (_C)"
+
+#: crates/gui/src/components/cache_dialog.rs:64
+msgid "_Use Cache"
+msgstr "कैश उपयोग करें(_U)"
+
 #: crates/gui/src/components/details/attach_dialog.rs:36
 #, rust-format
 msgid ""
@@ -690,10 +732,6 @@ msgstr "Nix App Center को अपने कॉन्फ़िगरेशन 
 #: crates/gui/src/components/details/attach_dialog.rs:95
 msgid "_Do It Myself"
 msgstr "मैं खुद करूँगा (_D)"
-
-#: crates/gui/src/components/details/attach_dialog.rs:97
-msgid "_Close"
-msgstr "बंद करें (_C)"
 
 #: crates/gui/src/components/details/attach_dialog.rs:100
 msgid "Copy the lines to paste yourself, and change nothing."
@@ -925,13 +963,6 @@ msgstr ""
 "कुछ भी लागू किए बिना पूरे कॉन्फ़िगरेशन का मूल्यांकन करता है (dry-build)। इसमें 1 से 2 मिनट "
 "लग सकते हैं।"
 
-#: crates/gui/src/components/details/nix_editor.rs:126
-#: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/views/detail.rs:1407 crates/gui/src/views/detail.rs:1578
-#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
-msgid "_Cancel"
-msgstr "रद्द करें (_C)"
-
 #: crates/gui/src/components/details/nix_editor.rs:136
 msgid "User scope:"
 msgstr "उपयोगकर्ता दायरा:"
@@ -1122,7 +1153,7 @@ msgid "Through Its Module"
 msgstr "इसके मॉड्यूल के ज़रिए"
 
 #: crates/gui/src/components/install_options.rs:102
-#: crates/gui/src/views/detail.rs:1999
+#: crates/gui/src/views/detail.rs:2045
 msgid "_Add to Configuration"
 msgstr "कॉन्फ़िगरेशन में जोड़ें (_A)"
 
@@ -1186,6 +1217,7 @@ msgstr "सेट करना बंद करें (_S)"
 
 #: crates/gui/src/components/option_dialog.rs:114
 #: crates/gui/src/components/option_dialog.rs:215
+#: crates/gui/src/views/detail.rs:1344
 msgid "Saved. Apply your configuration to use it."
 msgstr "सहेजा गया। इसका उपयोग करने के लिए अपना कॉन्फ़िगरेशन लागू करें।"
 
@@ -1236,7 +1268,7 @@ msgid "Builds on your computer"
 msgstr "आपके कंप्यूटर पर बिल्ड होता है"
 
 #: crates/gui/src/components/version_dialog.rs:78
-#: crates/gui/src/views/detail.rs:2517
+#: crates/gui/src/views/detail.rs:2575
 msgctxt "version badge"
 msgid "Installed"
 msgstr "इंस्टॉल है"
@@ -1492,108 +1524,108 @@ msgstr "नए और अपडेट किए गए"
 msgid "Other Software"
 msgstr "अन्य सॉफ़्टवेयर"
 
-#: crates/gui/src/views/detail.rs:182
+#: crates/gui/src/views/detail.rs:186
 msgid "Added to your configuration. Apply it to install."
 msgstr "आपके कॉन्फ़िगरेशन में जोड़ा गया। इंस्टॉल करने के लिए इसे लागू करें।"
 
-#: crates/gui/src/views/detail.rs:194
+#: crates/gui/src/views/detail.rs:198
 msgid "Connected to your configuration. Apply it to install."
 msgstr "आपके कॉन्फ़िगरेशन से जोड़ा गया। इंस्टॉल करने के लिए इसे लागू करें।"
 
-#: crates/gui/src/views/detail.rs:198
+#: crates/gui/src/views/detail.rs:202
 #, rust-format
 msgid "Could not connect: {}"
 msgstr "जोड़ा नहीं जा सका: {}"
 
-#: crates/gui/src/views/detail.rs:209
+#: crates/gui/src/views/detail.rs:213
 msgid "Apply"
 msgstr "लागू करें"
 
-#: crates/gui/src/views/detail.rs:240
+#: crates/gui/src/views/detail.rs:244
 msgid "Help _Translate"
 msgstr "अनुवाद में मदद करें (_T)"
 
-#: crates/gui/src/views/detail.rs:345
+#: crates/gui/src/views/detail.rs:349
 #, rust-format
 msgid "Copy the package name to write in a configuration: pkgs.{}"
 msgstr "कॉन्फ़िगरेशन में लिखने के लिए पैकेज का नाम कॉपी करें: pkgs.{}"
 
-#: crates/gui/src/views/detail.rs:388
+#: crates/gui/src/views/detail.rs:392
 msgid "The developer identity is verified"
 msgstr "डेवलपर की पहचान सत्यापित है"
 
-#: crates/gui/src/views/detail.rs:392
+#: crates/gui/src/views/detail.rs:396
 msgid "Verified"
 msgstr "सत्यापित"
 
-#: crates/gui/src/views/detail.rs:435
+#: crates/gui/src/views/detail.rs:439
 msgid "_Open"
 msgstr "खोलें (_O)"
 
-#: crates/gui/src/views/detail.rs:437 crates/gui/src/views/detail.rs:490
+#: crates/gui/src/views/detail.rs:441 crates/gui/src/views/detail.rs:494
 msgid "Try in a _Shell"
 msgstr "शेल में आज़माएँ (_S)"
 
-#: crates/gui/src/views/detail.rs:439
+#: crates/gui/src/views/detail.rs:443
 msgid "_Try"
 msgstr "आज़माएँ (_T)"
 
-#: crates/gui/src/views/detail.rs:444 crates/gui/src/views/detail.rs:1613
+#: crates/gui/src/views/detail.rs:448 crates/gui/src/views/detail.rs:1659
 msgid "This is the app you are using."
 msgstr "यह वही ऐप है जिसका आप उपयोग कर रहे हैं।"
 
-#: crates/gui/src/views/detail.rs:446
+#: crates/gui/src/views/detail.rs:450
 msgid "Open the installed app"
 msgstr "इंस्टॉल किया गया ऐप खोलें"
 
-#: crates/gui/src/views/detail.rs:448
+#: crates/gui/src/views/detail.rs:452
 msgid ""
 "Open a terminal where this package can be used. Nothing is added to your "
 "system."
 msgstr ""
 "एक टर्मिनल खोलें जहाँ इस पैकेज का उपयोग किया जा सके। आपके सिस्टम में कुछ नहीं जोड़ा जाता।"
 
-#: crates/gui/src/views/detail.rs:450
+#: crates/gui/src/views/detail.rs:454
 msgid "Start the app without installing it. Nothing is added to your system."
 msgstr "ऐप को इंस्टॉल किए बिना शुरू करें। आपके सिस्टम में कुछ नहीं जोड़ा जाता।"
 
-#: crates/gui/src/views/detail.rs:467
+#: crates/gui/src/views/detail.rs:471
 msgid "More Actions"
 msgstr "और कार्य"
 
-#: crates/gui/src/views/detail.rs:490
+#: crates/gui/src/views/detail.rs:494
 msgid "_Try the App"
 msgstr "ऐप आज़माएँ (_T)"
 
-#: crates/gui/src/views/detail.rs:494
+#: crates/gui/src/views/detail.rs:498
 msgid "Open a terminal where this package can be used, without installing it."
 msgstr "एक टर्मिनल खोलें जहाँ इस पैकेज का उपयोग किया जा सके, बिना इंस्टॉल किए।"
 
-#: crates/gui/src/views/detail.rs:494
+#: crates/gui/src/views/detail.rs:498
 msgid "Start the app now, without installing it."
 msgstr "ऐप को अभी शुरू करें, बिना इंस्टॉल किए।"
 
-#: crates/gui/src/views/detail.rs:499
+#: crates/gui/src/views/detail.rs:503
 msgid "_Copy Command"
 msgstr "कमांड कॉपी करें (_C)"
 
-#: crates/gui/src/views/detail.rs:501
+#: crates/gui/src/views/detail.rs:505
 msgid "Copy the command that tries this package, to paste in a terminal."
 msgstr "इस पैकेज को आज़माने वाला कमांड कॉपी करें, टर्मिनल में पेस्ट करने के लिए।"
 
-#: crates/gui/src/views/detail.rs:506
+#: crates/gui/src/views/detail.rs:510
 msgid "Ad_vanced Options…"
 msgstr "उन्नत विकल्प… (_V)"
 
-#: crates/gui/src/views/detail.rs:510
+#: crates/gui/src/views/detail.rs:514
 msgid "Write your own Nix for this app: services, options, overrides."
 msgstr "इस ऐप के लिए अपना Nix लिखें: सेवाएँ, विकल्प, overrides।"
 
-#: crates/gui/src/views/detail.rs:515
+#: crates/gui/src/views/detail.rs:519
 msgid "I_nstallation Options…"
 msgstr "इंस्टॉलेशन विकल्प… (_N)"
 
-#: crates/gui/src/views/detail.rs:519
+#: crates/gui/src/views/detail.rs:523
 msgid ""
 "Install this app another way: in your home, for every user, or through its "
 "module."
@@ -1601,58 +1633,58 @@ msgstr ""
 "इस ऐप को दूसरे तरीके से इंस्टॉल करें: आपकी होम निर्देशिका में, हर उपयोगकर्ता के लिए, या "
 "इसके मॉड्यूल के ज़रिए।"
 
-#: crates/gui/src/views/detail.rs:527
+#: crates/gui/src/views/detail.rs:531
 msgid "A_pply Configuration"
 msgstr "कॉन्फ़िगरेशन लागू करें (_P)"
 
-#: crates/gui/src/views/detail.rs:529
+#: crates/gui/src/views/detail.rs:533
 msgid "Rebuild your system now with the apps you added or removed."
 msgstr "आपके जोड़े या हटाए गए ऐप्स के साथ अभी अपने सिस्टम को फिर से बिल्ड करें।"
 
-#: crates/gui/src/views/detail.rs:579
+#: crates/gui/src/views/detail.rs:583
 msgid "Nix package collection"
 msgstr "Nix पैकेज संग्रह"
 
-#: crates/gui/src/views/detail.rs:665
+#: crates/gui/src/views/detail.rs:669
 msgid "Show _Less"
 msgstr "कम दिखाएँ (_L)"
 
-#: crates/gui/src/views/detail.rs:665
+#: crates/gui/src/views/detail.rs:669
 msgid "Show _More"
 msgstr "और दिखाएँ (_M)"
 
-#: crates/gui/src/views/detail.rs:887
+#: crates/gui/src/views/detail.rs:891
 msgid "Add-ons"
 msgstr "ऐड-ऑन"
 
-#: crates/gui/src/views/detail.rs:899
+#: crates/gui/src/views/detail.rs:903
 msgid "Similar Apps"
 msgstr "मिलते-जुलते ऐप्स"
 
-#: crates/gui/src/views/detail.rs:1267
+#: crates/gui/src/views/detail.rs:1280
 msgid "Other Apps"
 msgstr "अन्य ऐप्स"
 
-#: crates/gui/src/views/detail.rs:1269
+#: crates/gui/src/views/detail.rs:1282
 #, rust-format
 msgid "Other Apps by {}"
 msgstr "{} के अन्य ऐप्स"
 
-#: crates/gui/src/views/detail.rs:1304
+#: crates/gui/src/views/detail.rs:1317
 #, rust-format
 msgid "{} is not in nixpkgs."
 msgstr "{} nixpkgs में नहीं है।"
 
-#: crates/gui/src/views/detail.rs:1328
+#: crates/gui/src/views/detail.rs:1374
 #, rust-format
 msgid "Taken over. Delete line {line} of {file}, then apply."
 msgstr "अपने हाथ में लिया गया। {file} की पंक्ति {line} हटाएँ, फिर लागू करें।"
 
-#: crates/gui/src/views/detail.rs:1402
+#: crates/gui/src/views/detail.rs:1448
 msgid "Delete the AppImage?"
 msgstr "AppImage हटाएँ?"
 
-#: crates/gui/src/views/detail.rs:1404
+#: crates/gui/src/views/detail.rs:1450
 #, rust-format
 msgid ""
 "These files are deleted:\n"
@@ -1661,35 +1693,35 @@ msgstr ""
 "ये फ़ाइलें हटाई जाएँगी:\n"
 "{}"
 
-#: crates/gui/src/views/detail.rs:1408 crates/gui/src/views/storage.rs:669
+#: crates/gui/src/views/detail.rs:1454 crates/gui/src/views/storage.rs:669
 msgid "_Delete"
 msgstr "हटाएँ (_D)"
 
-#: crates/gui/src/views/detail.rs:1432
+#: crates/gui/src/views/detail.rs:1478
 #, rust-format
 msgid "{} removed."
 msgstr "{} हटाया गया।"
 
-#: crates/gui/src/views/detail.rs:1473
+#: crates/gui/src/views/detail.rs:1519
 msgid "Looking for versions…"
 msgstr "संस्करण खोजे जा रहे हैं…"
 
-#: crates/gui/src/views/detail.rs:1512
+#: crates/gui/src/views/detail.rs:1558
 #, rust-format
 msgid "{} install on Flathub last month"
 msgid_plural "{} installs on Flathub last month"
 msgstr[0] "पिछले महीने Flathub पर {} इंस्टॉल"
 msgstr[1] "पिछले महीने Flathub पर {} इंस्टॉल"
 
-#: crates/gui/src/views/detail.rs:1549
+#: crates/gui/src/views/detail.rs:1595
 msgid "Enlarge"
 msgstr "बड़ा करें"
 
-#: crates/gui/src/views/detail.rs:1573
+#: crates/gui/src/views/detail.rs:1619
 msgid "Not the Same App?"
 msgstr "एक ही ऐप नहीं है?"
 
-#: crates/gui/src/views/detail.rs:1574
+#: crates/gui/src/views/detail.rs:1620
 #, rust-format
 msgid ""
 "Nix App Center matched the nixpkgs package “{attr}” with the Flathub app "
@@ -1700,414 +1732,418 @@ msgstr ""
 "ये अलग-अलग ऐप्स हैं, तो Nix App Center इस पैकेज के लिए Flathub डेटा (आइकन, स्क्रीनशॉट, "
 "समीक्षाएँ) दिखाना बंद कर देगा।"
 
-#: crates/gui/src/views/detail.rs:1579
+#: crates/gui/src/views/detail.rs:1625
 msgid "_Not the Same App"
 msgstr "एक ही ऐप नहीं है (_N)"
 
-#: crates/gui/src/views/detail.rs:1593
+#: crates/gui/src/views/detail.rs:1639
 msgid "Saved. Open the page again to see the package alone."
 msgstr "सहेजा गया। केवल पैकेज देखने के लिए पेज फिर से खोलें।"
 
-#: crates/gui/src/views/detail.rs:1609
+#: crates/gui/src/views/detail.rs:1655
 msgid "Could not open the app."
 msgstr "ऐप नहीं खोला जा सका।"
 
-#: crates/gui/src/views/detail.rs:1636
+#: crates/gui/src/views/detail.rs:1682
 #, rust-format
 msgid "{} is marked broken in nixpkgs. Trying anyway…"
 msgstr "nixpkgs में {} टूटा हुआ चिह्नित है। फिर भी कोशिश की जा रही है…"
 
-#: crates/gui/src/views/detail.rs:1641
+#: crates/gui/src/views/detail.rs:1687
 #, rust-format
 msgid "Starting {}…"
 msgstr "{} शुरू हो रहा है…"
 
-#: crates/gui/src/views/detail.rs:1656
+#: crates/gui/src/views/detail.rs:1702
 #, rust-format
 msgid "Could not start: {}"
 msgstr "शुरू नहीं हो सका: {}"
 
-#: crates/gui/src/views/detail.rs:1665
+#: crates/gui/src/views/detail.rs:1711
 #, rust-format
 msgid "{name} stopped with an error: {err}"
 msgstr "{name} एक त्रुटि के साथ रुक गया: {err}"
 
-#: crates/gui/src/views/detail.rs:1681
+#: crates/gui/src/views/detail.rs:1727
 msgid "Uninstalling…"
 msgstr "अनइंस्टॉल हो रहा है…"
 
-#: crates/gui/src/views/detail.rs:1683
+#: crates/gui/src/views/detail.rs:1729
 msgid "Installing…"
 msgstr "इंस्टॉल हो रहा है…"
 
-#: crates/gui/src/views/detail.rs:1705
+#: crates/gui/src/views/detail.rs:1751
 msgid "Installed for your user."
 msgstr "आपके उपयोगकर्ता के लिए इंस्टॉल किया गया।"
 
-#: crates/gui/src/views/detail.rs:1709
+#: crates/gui/src/views/detail.rs:1755
 msgid "Uninstalled."
 msgstr "अनइंस्टॉल किया गया।"
 
-#: crates/gui/src/views/detail.rs:1730
+#: crates/gui/src/views/detail.rs:1776
 #, rust-format
 msgid "{} opened in a terminal…"
 msgstr "{} टर्मिनल में खोला गया…"
 
-#: crates/gui/src/views/detail.rs:1743
+#: crates/gui/src/views/detail.rs:1789
 msgid "No terminal found. Command copied."
 msgstr "कोई टर्मिनल नहीं मिला। कमांड कॉपी किया गया।"
 
-#: crates/gui/src/views/detail.rs:1748
+#: crates/gui/src/views/detail.rs:1794
 #, rust-format
 msgid "Could not open a shell: {}"
 msgstr "शेल नहीं खोला जा सका: {}"
 
-#: crates/gui/src/views/detail.rs:1760
+#: crates/gui/src/views/detail.rs:1806
 msgid "Checking how this app can be installed…"
 msgstr "जाँचा जा रहा है कि यह ऐप कैसे इंस्टॉल किया जा सकता है…"
 
-#: crates/gui/src/views/detail.rs:1807
+#: crates/gui/src/views/detail.rs:1853
 msgid "Removed from your configuration. Apply it to uninstall."
 msgstr "आपके कॉन्फ़िगरेशन से हटाया गया। अनइंस्टॉल करने के लिए इसे लागू करें।"
 
-#: crates/gui/src/views/detail.rs:1885
+#: crates/gui/src/views/detail.rs:1931
 #, rust-format
 msgid "{} copied."
 msgstr "{} कॉपी किया गया।"
 
-#: crates/gui/src/views/detail.rs:1897
+#: crates/gui/src/views/detail.rs:1943
 msgid "Command copied."
 msgstr "कमांड कॉपी किया गया।"
 
-#: crates/gui/src/views/detail.rs:1919
+#: crates/gui/src/views/detail.rs:1965
 msgid "Downloading nixpkgs to hold this version…"
 msgstr "इस संस्करण को रोकने के लिए nixpkgs डाउनलोड हो रहा है…"
 
-#: crates/gui/src/views/detail.rs:1959 crates/gui/src/views/detail.rs:1981
+#: crates/gui/src/views/detail.rs:2005 crates/gui/src/views/detail.rs:2027
 msgid ""
 "Take the app out of your configuration. It is uninstalled when you apply."
 msgstr "ऐप को अपने कॉन्फ़िगरेशन से निकालें। लागू करने पर यह अनइंस्टॉल हो जाता है।"
 
-#: crates/gui/src/views/detail.rs:1961
+#: crates/gui/src/views/detail.rs:2007
 msgid "Uninstall the app from your user profile."
 msgstr "ऐप को अपनी उपयोगकर्ता प्रोफ़ाइल से अनइंस्टॉल करें।"
 
-#: crates/gui/src/views/detail.rs:1964
+#: crates/gui/src/views/detail.rs:2010
 msgid "Uninstall the Flatpak."
 msgstr "Flatpak अनइंस्टॉल करें।"
 
-#: crates/gui/src/views/detail.rs:1966
+#: crates/gui/src/views/detail.rs:2012
 msgid "Delete the AppImage and its menu entry."
 msgstr "AppImage और उसकी मेनू प्रविष्टि हटाएँ।"
 
-#: crates/gui/src/views/detail.rs:1968
+#: crates/gui/src/views/detail.rs:2014
 msgid "Uninstall the app from your nix-env profile."
 msgstr "ऐप को अपनी nix-env प्रोफ़ाइल से अनइंस्टॉल करें।"
 
-#: crates/gui/src/views/detail.rs:1971
+#: crates/gui/src/views/detail.rs:2017
 msgid "Delete the tried app from the store."
 msgstr "आज़माए गए ऐप को store से हटाएँ।"
 
-#: crates/gui/src/views/detail.rs:1977
+#: crates/gui/src/views/detail.rs:2023
 msgid ""
 "Your own configuration installs this app; Nix App Center leaves it alone."
 msgstr "आपका अपना कॉन्फ़िगरेशन यह ऐप इंस्टॉल करता है; Nix App Center इसे नहीं छूता।"
 
-#: crates/gui/src/views/detail.rs:1984
+#: crates/gui/src/views/detail.rs:2030
 msgid "Add the app to your configuration. It is installed when you apply."
 msgstr "ऐप को अपने कॉन्फ़िगरेशन में जोड़ें। लागू करने पर यह इंस्टॉल हो जाता है।"
 
-#: crates/gui/src/views/detail.rs:1986
+#: crates/gui/src/views/detail.rs:2032
 msgid "Install or remove the app for your user only, with nix profile."
 msgstr "nix profile के साथ, केवल अपने उपयोगकर्ता के लिए ऐप इंस्टॉल करें या हटाएँ।"
 
-#: crates/gui/src/views/detail.rs:1993
+#: crates/gui/src/views/detail.rs:2039
 msgid "In Your System Configuration"
 msgstr "आपके सिस्टम कॉन्फ़िगरेशन में"
 
-#: crates/gui/src/views/detail.rs:1994
+#: crates/gui/src/views/detail.rs:2040
 msgid "In Your User Configuration"
 msgstr "आपके उपयोगकर्ता कॉन्फ़िगरेशन में"
 
-#: crates/gui/src/views/detail.rs:1998
+#: crates/gui/src/views/detail.rs:2044
 msgid "_Remove from Configuration"
 msgstr "कॉन्फ़िगरेशन से हटाएँ (_R)"
 
-#: crates/gui/src/views/detail.rs:2000
+#: crates/gui/src/views/detail.rs:2046
 msgid "_Uninstall"
 msgstr "अनइंस्टॉल करें (_U)"
 
-#: crates/gui/src/views/detail.rs:2001
+#: crates/gui/src/views/detail.rs:2047
 msgid "_Install for This User"
 msgstr "इस उपयोगकर्ता के लिए इंस्टॉल करें (_I)"
 
-#: crates/gui/src/views/detail.rs:2059
+#: crates/gui/src/views/detail.rs:2105
 msgid "Loading App Details"
 msgstr "ऐप का विवरण लोड हो रहा है"
 
-#: crates/gui/src/views/detail.rs:2066
+#: crates/gui/src/views/detail.rs:2112
 msgid "Unable to Show App Details"
 msgstr "ऐप का विवरण नहीं दिखाया जा सका"
 
-#: crates/gui/src/views/detail.rs:2067
+#: crates/gui/src/views/detail.rs:2113
 msgid "No metadata could be retrieved for this package."
 msgstr "इस पैकेज का कोई मेटाडेटा प्राप्त नहीं हो सका।"
 
-#: crates/gui/src/views/detail.rs:2176
+#: crates/gui/src/views/detail.rs:2228
 msgid "Build Options"
 msgstr "बिल्ड विकल्प"
 
-#: crates/gui/src/views/detail.rs:2178
+#: crates/gui/src/views/detail.rs:2230
 msgid ""
 "Changing an option builds the app on your computer, which can take a long "
 "time."
 msgstr "कोई विकल्प बदलने से ऐप आपके कंप्यूटर पर बिल्ड होता है, जिसमें काफ़ी समय लग सकता है।"
 
-#: crates/gui/src/views/detail.rs:2190
+#: crates/gui/src/views/detail.rs:2242
 msgid "On by default"
 msgstr "डिफ़ॉल्ट रूप से चालू"
 
-#: crates/gui/src/views/detail.rs:2192
+#: crates/gui/src/views/detail.rs:2244
 msgid "Off by default"
 msgstr "डिफ़ॉल्ट रूप से बंद"
 
-#: crates/gui/src/views/detail.rs:2200
+#: crates/gui/src/views/detail.rs:2252
 msgid "_Save Build Options"
 msgstr "बिल्ड विकल्प सहेजें (_S)"
 
-#: crates/gui/src/views/detail.rs:2267
+#: crates/gui/src/views/detail.rs:2319
 msgid "Ratings & Reviews"
 msgstr "रेटिंग और समीक्षाएँ"
 
-#: crates/gui/src/views/detail.rs:2292
+#: crates/gui/src/views/detail.rs:2344
 msgid "_Write a Review"
 msgstr "समीक्षा लिखें (_W)"
 
-#: crates/gui/src/views/detail.rs:2306
+#: crates/gui/src/views/detail.rs:2358
 msgid "Thanks, your review was sent."
 msgstr "धन्यवाद, आपकी समीक्षा भेज दी गई।"
 
-#: crates/gui/src/views/detail.rs:2324 crates/gui/src/views/detail.rs:2349
+#: crates/gui/src/views/detail.rs:2376 crates/gui/src/views/detail.rs:2401
 msgid "All Reviews"
 msgstr "सभी समीक्षाएँ"
 
-#: crates/gui/src/views/detail.rs:2391
+#: crates/gui/src/views/detail.rs:2444
 msgid "Computing size…"
 msgstr "आकार की गणना हो रही है…"
 
-#: crates/gui/src/views/detail.rs:2395
+#: crates/gui/src/views/detail.rs:2448
 msgid "Total download including dependencies"
 msgstr "निर्भरताओं सहित कुल डाउनलोड"
 
-#: crates/gui/src/views/detail.rs:2398
+#: crates/gui/src/views/detail.rs:2453
+msgid "Needs a local build, or its flake's binary cache"
+msgstr "स्थानीय बिल्ड चाहिए, या इसके flake का बाइनरी कैश"
+
+#: crates/gui/src/views/detail.rs:2456
 msgid "Needs a local build"
 msgstr "स्थानीय बिल्ड चाहिए"
 
-#: crates/gui/src/views/detail.rs:2403
+#: crates/gui/src/views/detail.rs:2461
 msgid "Download Size"
 msgstr "डाउनलोड आकार"
 
-#: crates/gui/src/views/detail.rs:2411
+#: crates/gui/src/views/detail.rs:2469
 msgid "Broken"
 msgstr "टूटा हुआ"
 
-#: crates/gui/src/views/detail.rs:2412
+#: crates/gui/src/views/detail.rs:2470
 msgid "Marked broken in nixpkgs: running it will probably fail"
 msgstr "nixpkgs में टूटा हुआ चिह्नित: इसे चलाना संभवतः विफल होगा"
 
-#: crates/gui/src/views/detail.rs:2416
+#: crates/gui/src/views/detail.rs:2474
 msgid "Marked insecure in nixpkgs"
 msgstr "nixpkgs में असुरक्षित चिह्नित"
 
-#: crates/gui/src/views/detail.rs:2418
+#: crates/gui/src/views/detail.rs:2476
 #, rust-format
 msgid "Known vulnerabilities: {}"
 msgstr "ज्ञात कमज़ोरियाँ: {}"
 
-#: crates/gui/src/views/detail.rs:2423
+#: crates/gui/src/views/detail.rs:2481
 msgid "Vulnerable"
 msgstr "असुरक्षित"
 
-#: crates/gui/src/views/detail.rs:2428
+#: crates/gui/src/views/detail.rs:2486
 msgid "Free software with your full user rights"
 msgstr "आपके पूरे उपयोगकर्ता अधिकारों के साथ मुक्त सॉफ़्टवेयर"
 
-#: crates/gui/src/views/detail.rs:2429
+#: crates/gui/src/views/detail.rs:2487
 msgid "Proprietary, with your full user rights"
 msgstr "मालिकाना, आपके पूरे उपयोगकर्ता अधिकारों के साथ"
 
-#: crates/gui/src/views/detail.rs:2430
+#: crates/gui/src/views/detail.rs:2488
 msgid "Runs with your full user rights"
 msgstr "आपके पूरे उपयोगकर्ता अधिकारों के साथ चलता है"
 
-#: crates/gui/src/views/detail.rs:2435
+#: crates/gui/src/views/detail.rs:2493
 msgid "Not Sandboxed"
 msgstr "सैंडबॉक्स नहीं"
 
-#: crates/gui/src/views/detail.rs:2443
+#: crates/gui/src/views/detail.rs:2501
 msgid "Desktop Only"
 msgstr "केवल डेस्कटॉप"
 
-#: crates/gui/src/views/detail.rs:2444
+#: crates/gui/src/views/detail.rs:2502
 msgid "Works on desktops and laptops"
 msgstr "डेस्कटॉप और लैपटॉप पर काम करता है"
 
-#: crates/gui/src/views/detail.rs:2450
+#: crates/gui/src/views/detail.rs:2508
 msgid "No inappropriate content"
 msgstr "कोई अनुचित सामग्री नहीं"
 
-#: crates/gui/src/views/detail.rs:2462 crates/gui/src/views/detail.rs:2469
+#: crates/gui/src/views/detail.rs:2520 crates/gui/src/views/detail.rs:2527
 msgid "Age Rating"
 msgstr "आयु रेटिंग"
 
-#: crates/gui/src/views/detail.rs:2470
+#: crates/gui/src/views/detail.rs:2528
 msgid "No age rating information"
 msgstr "आयु रेटिंग की कोई जानकारी नहीं"
 
-#: crates/gui/src/views/detail.rs:2519
+#: crates/gui/src/views/detail.rs:2577
 msgid "Available"
 msgstr "उपलब्ध"
 
-#: crates/gui/src/views/detail.rs:2544 crates/gui/src/views/detail.rs:2558
+#: crates/gui/src/views/detail.rs:2602 crates/gui/src/views/detail.rs:2616
 msgid "Version History"
 msgstr "संस्करण इतिहास"
 
-#: crates/gui/src/views/detail.rs:2564
+#: crates/gui/src/views/detail.rs:2622
 #, rust-format
 msgid "Version {} in Unstable"
 msgstr "Unstable में संस्करण {}"
 
-#: crates/gui/src/views/detail.rs:2565
+#: crates/gui/src/views/detail.rs:2623
 msgid ""
 "Newer than your configuration's nixpkgs. Installing it holds the app at that "
 "revision."
 msgstr ""
 "आपके कॉन्फ़िगरेशन के nixpkgs से नया। इसे इंस्टॉल करने से ऐप उस संशोधन पर रुक जाता है।"
 
-#: crates/gui/src/views/detail.rs:2567
+#: crates/gui/src/views/detail.rs:2625
 msgid "_Install"
 msgstr "इंस्टॉल करें (_I)"
 
-#: crates/gui/src/views/detail.rs:2576
+#: crates/gui/src/views/detail.rs:2634
 msgid "Choose a Version…"
 msgstr "संस्करण चुनें…"
 
-#: crates/gui/src/views/detail.rs:2579
+#: crates/gui/src/views/detail.rs:2637
 msgid "Keep the installed version, or pick an earlier one."
 msgstr "इंस्टॉल किया गया संस्करण रखें, या कोई पुराना चुनें।"
 
-#: crates/gui/src/views/detail.rs:2611
+#: crates/gui/src/views/detail.rs:2669
 msgid "_Project Website"
 msgstr "प्रोजेक्ट वेबसाइट (_P)"
 
-#: crates/gui/src/views/detail.rs:2615
+#: crates/gui/src/views/detail.rs:2673
 msgid "_Donate"
 msgstr "दान करें (_D)"
 
-#: crates/gui/src/views/detail.rs:2617
+#: crates/gui/src/views/detail.rs:2675
 msgid "Contribute _Translations"
 msgstr "अनुवाद में योगदान दें (_T)"
 
-#: crates/gui/src/views/detail.rs:2622
+#: crates/gui/src/views/detail.rs:2680
 msgid "_Report an Issue"
 msgstr "समस्या की रिपोर्ट करें (_R)"
 
-#: crates/gui/src/views/detail.rs:2626
+#: crates/gui/src/views/detail.rs:2684
 msgid "_Help"
 msgstr "सहायता (_H)"
 
-#: crates/gui/src/views/detail.rs:2628
+#: crates/gui/src/views/detail.rs:2686
 msgid "Package _Recipe"
 msgstr "पैकेज रेसिपी (_R)"
 
-#: crates/gui/src/views/detail.rs:2633
+#: crates/gui/src/views/detail.rs:2691
 msgid "Download _Page"
 msgstr "डाउनलोड पेज (_P)"
 
-#: crates/gui/src/views/detail.rs:2665
+#: crates/gui/src/views/detail.rs:2723
 msgid "Wrong App?"
 msgstr "गलत ऐप?"
 
-#: crates/gui/src/views/detail.rs:2667
+#: crates/gui/src/views/detail.rs:2725
 msgid "This page shows another app's name, icon or pictures"
 msgstr "यह पेज किसी दूसरे ऐप का नाम, आइकन या चित्र दिखाता है"
 
-#: crates/gui/src/views/detail.rs:2703
+#: crates/gui/src/views/detail.rs:2761
 msgid "Commands"
 msgstr "कमांड"
 
-#: crates/gui/src/views/detail.rs:2726
+#: crates/gui/src/views/detail.rs:2784
 msgid "Video"
 msgstr "वीडियो"
 
-#: crates/gui/src/views/detail.rs:2727
+#: crates/gui/src/views/detail.rs:2785
 msgid "Audio"
 msgstr "ऑडियो"
 
-#: crates/gui/src/views/detail.rs:2728
+#: crates/gui/src/views/detail.rs:2786
 msgid "Images"
 msgstr "चित्र"
 
-#: crates/gui/src/views/detail.rs:2729
+#: crates/gui/src/views/detail.rs:2787
 msgid "Text"
 msgstr "टेक्स्ट"
 
-#: crates/gui/src/views/detail.rs:2730
+#: crates/gui/src/views/detail.rs:2788
 msgid "Other files"
 msgstr "अन्य फ़ाइलें"
 
-#: crates/gui/src/views/detail.rs:2739
+#: crates/gui/src/views/detail.rs:2797
 #, rust-format
 msgid "{} file type"
 msgid_plural "{} file types"
 msgstr[0] "{} फ़ाइल प्रकार"
 msgstr[1] "{} फ़ाइल प्रकार"
 
-#: crates/gui/src/views/detail.rs:2742
+#: crates/gui/src/views/detail.rs:2800
 msgid "Opens"
 msgstr "खोलता है"
 
-#: crates/gui/src/views/detail.rs:2754
+#: crates/gui/src/views/detail.rs:2812
 msgid "nixpkgs Maintainers"
 msgstr "nixpkgs अनुरक्षक"
 
-#: crates/gui/src/views/detail.rs:2756
+#: crates/gui/src/views/detail.rs:2814
 msgid "Nobody maintains this package in nixpkgs."
 msgstr "nixpkgs में इस पैकेज का कोई अनुरक्षक नहीं है।"
 
-#: crates/gui/src/views/detail.rs:2814
+#: crates/gui/src/views/detail.rs:2872
 msgid "No description."
 msgstr "कोई विवरण नहीं।"
 
-#: crates/gui/src/views/detail.rs:2893 crates/gui/src/views/detail.rs:2930
+#: crates/gui/src/views/detail.rs:2951 crates/gui/src/views/detail.rs:2988
 msgid "Install by Hand"
 msgstr "हाथ से इंस्टॉल करें"
 
-#: crates/gui/src/views/detail.rs:2894
+#: crates/gui/src/views/detail.rs:2952
 msgid "The lines to write yourself"
 msgstr "खुद लिखने वाली पंक्तियाँ"
 
-#: crates/gui/src/views/detail.rs:2906
+#: crates/gui/src/views/detail.rs:2964
 msgid "NixOS Configuration"
 msgstr "NixOS कॉन्फ़िगरेशन"
 
-#: crates/gui/src/views/detail.rs:2910 crates/gui/src/views/storage.rs:484
+#: crates/gui/src/views/detail.rs:2968 crates/gui/src/views/storage.rs:484
 msgid "Home Manager"
 msgstr "Home Manager"
 
-#: crates/gui/src/views/detail.rs:2913
+#: crates/gui/src/views/detail.rs:2971
 msgid "nix profile"
 msgstr "nix profile"
 
-#: crates/gui/src/views/detail.rs:2914
+#: crates/gui/src/views/detail.rs:2972
 msgid "Temporary Shell"
 msgstr "अस्थायी शेल"
 
-#: crates/gui/src/views/detail.rs:2925
+#: crates/gui/src/views/detail.rs:2983
 msgid "Copy"
 msgstr "कॉपी करें"
 
-#: crates/gui/src/views/detail.rs:2946
+#: crates/gui/src/views/detail.rs:3004
 msgid "NixOS _Wiki"
 msgstr "NixOS विकी (_W)"
 

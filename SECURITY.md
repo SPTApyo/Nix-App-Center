@@ -27,7 +27,9 @@ In scope:
 - text from outside reaching a shell, a Nix file or the UI markup: AppStream,
   Flathub, ODRS reviews, the Devbox index, nixsoftware.org, names from other
   flakes and their lock files;
-- deletion of store paths, Flatpaks and AppImages.
+- deletion of store paths, Flatpaks and AppImages;
+- binary caches written on the user's consent: the server and keys come
+  from another flake.
 
 Out of scope: vulnerabilities in the packages Nix App Center lets you run,
 which come from nixpkgs or the flakes you add, and what you write yourself:

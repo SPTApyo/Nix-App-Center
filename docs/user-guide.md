@@ -37,6 +37,10 @@ configuration's nixpkgs, then applies.
 To stay on a version, open the app, then Choose a Version… under its
 version. Release it from the same place or from Updates.
 
+An app from another flake may have no ready build. If its flake has its own
+binary cache, the Download Size tile on its page offers it. Use it only for
+a flake you trust: its server signs what you install.
+
 ## Storage
 
 The Storage tab shows what fills the Nix store. Free Up Space removes what
