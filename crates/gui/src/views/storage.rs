@@ -31,8 +31,8 @@ pub enum StorageMsg {
     Reload,
     Refresh,
     Loaded(Result<StorageReport, String>),
-    /// Runs a clean-up command in the build log dialog.
-    Clean(Vec<String>),
+    /// Runs clean-up steps in the build log dialog.
+    Clean(Vec<Vec<String>>),
     Cleaned,
     HomeLoaded(Vec<HomeDir>),
     /// Deletes this cache folder, once confirmed.
@@ -140,12 +140,12 @@ impl SimpleComponent for StorageModel {
                 self.report = Some(res);
                 self.rebuild(&sender);
             }
-            StorageMsg::Clean(argv) => {
+            StorageMsg::Clean(steps) => {
                 let s = sender.input_sender().clone();
                 crate::components::apply_dialog::present(
                     &self.content,
                     &t("Cleaning Up"),
-                    vec![argv],
+                    steps,
                     move |_| {
                         let _ = s.send(StorageMsg::Cleaned);
                     },
@@ -324,7 +324,10 @@ impl StorageModel {
         garbage.add_suffix(&button(&t("_Clean"), false, {
             let s = sender.input_sender().clone();
             move || {
-                let _ = s.send(StorageMsg::Clean(vec!["nix-store".into(), "--gc".into()]));
+                let _ = s.send(StorageMsg::Clean(vec![vec![
+                    "nix-store".into(),
+                    "--gc".into(),
+                ]]));
             }
         }));
         list.append(&garbage);
@@ -671,11 +674,14 @@ fn confirm_delete_generations(parent: &gtk::Box, s: relm4::Sender<StorageMsg>) {
     dialog.set_default_response(Some("cancel"));
     dialog.connect_response(None, move |_, response| {
         if response == "delete" {
-            // The system profile is root's.
+            // Root only reaches its own and the system's profiles.
             let _ = s.send(StorageMsg::Clean(vec![
-                "sudo".into(),
-                "nix-collect-garbage".into(),
-                "--delete-old".into(),
+                vec!["nix-collect-garbage".into(), "--delete-old".into()],
+                vec![
+                    "sudo".into(),
+                    "nix-collect-garbage".into(),
+                    "--delete-old".into(),
+                ],
             ]));
         }
     });
