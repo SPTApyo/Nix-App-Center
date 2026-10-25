@@ -70,6 +70,8 @@ pub struct AppSize {
     pub own: u64,
     /// The package with every dependency.
     pub closure: u64,
+    /// Its store paths.
+    pub paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -569,7 +571,8 @@ fn apps(g: &Graph) -> Vec<AppSize> {
         .into_iter()
         .filter(|a| seen.insert(a.store_path.clone()))
         .map(|a| {
-            let (own, closure) = sized(&[a.store_path.display().to_string()]);
+            let paths = vec![a.store_path.display().to_string()];
+            let (own, closure) = sized(&paths);
             let origin = if kept.contains(&a.pname.to_lowercase()) {
                 AppOrigin::Kept
             } else if a.scope == crate::Scope::System {
@@ -583,6 +586,7 @@ fn apps(g: &Graph) -> Vec<AppSize> {
                 desktop_file: Some(a.desktop_file),
                 own,
                 closure,
+                paths,
             }
         })
         .collect();
@@ -598,6 +602,7 @@ fn apps(g: &Graph) -> Vec<AppSize> {
             desktop_file: None,
             own,
             closure,
+            paths: e.out_paths.clone(),
         });
     }
     out.sort_by_key(|a| std::cmp::Reverse(a.closure));
@@ -626,8 +631,103 @@ pub fn storage_report() -> std::io::Result<StorageReport> {
     })
 }
 
+/// How the automatic clean-up is set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutoCleanup {
+    Off,
+    /// Written by Nix App Center.
+    On,
+    /// The user's own files set nix.gc: left alone.
+    ByConfig,
+}
+
+/// The options Nix App Center writes for the automatic clean-up: weekly,
+/// keeping 30 days of generations, and the store deduplicated (NixOS only).
+fn cleanup_options(system: bool) -> Vec<(&'static str, &'static str)> {
+    let mut options = vec![
+        ("nix.gc.automatic", "true"),
+        ("nix.gc.dates", "\"weekly\""),
+        ("nix.gc.options", "\"--delete-older-than 30d\""),
+    ];
+    if system {
+        options.push(("nix.optimise.automatic", "true"));
+    }
+    options
+}
+
+/// How the automatic clean-up is set now.
+pub fn auto_cleanup() -> AutoCleanup {
+    if crate::load_manifest()
+        .option_value("nix.gc.automatic")
+        .is_some()
+    {
+        return AutoCleanup::On;
+    }
+    let own = crate::enabled::config_files()
+        .into_iter()
+        .any(|(path, text)| {
+            let generated = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("nix-app-center-"));
+            !generated && sets_gc(&text)
+        });
+    if own {
+        AutoCleanup::ByConfig
+    } else {
+        AutoCleanup::Off
+    }
+}
+
+/// True when a Nix file sets nix.gc, as `nix.gc.x` or inside `gc = {`.
+fn sets_gc(text: &str) -> bool {
+    text.lines()
+        .map(|l| l.split('#').next().unwrap_or(l).trim())
+        .any(|l| l.contains("nix.gc") || l.starts_with("gc = {") || l.starts_with("gc.automatic"))
+}
+
+/// Turns the automatic clean-up on or off, in the system file when Nix App
+/// Center writes one, else the home file.
+pub fn set_auto_cleanup(on: bool) -> std::io::Result<()> {
+    let system = crate::detect_layout().system.is_some();
+    for (option, value) in cleanup_options(system) {
+        if on {
+            crate::set_option(option, value, !system)?;
+        } else {
+            crate::unset_option(option)?;
+        }
+    }
+    Ok(())
+}
+
+/// True when the store already deduplicates files as they arrive.
+pub fn auto_optimise_on() -> bool {
+    crate::util::nix()
+        .args(["config", "show", "auto-optimise-store"])
+        .output()
+        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim() == "true")
+}
+
+/// Hard links identical files of the store together.
+pub fn optimise_command() -> Vec<String> {
+    ["sudo", "nix-store", "--optimise"]
+        .map(String::from)
+        .to_vec()
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn finds_a_gc_setting_in_the_users_files() {
+        assert!(super::sets_gc("  nix.gc.automatic = true;"));
+        assert!(super::sets_gc(
+            "nix = {\n  gc = {\n    automatic = true;\n  };\n};"
+        ));
+        assert!(!super::sets_gc(
+            "# nix.gc.automatic = true;\nservices.foo.enable = true;"
+        ));
+    }
+
     use super::*;
 
     /// Store: system (sys→libc), user env (env→app→libc), an old generation

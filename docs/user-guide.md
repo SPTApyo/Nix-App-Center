@@ -40,7 +40,10 @@ version. Release it from the same place or from Updates.
 ## Storage
 
 The Storage tab shows what fills the Nix store. Free Up Space removes what
-nothing uses anymore.
+nothing uses anymore. Why? on an app says what keeps it in the store: old
+generations, the running system or a running program. Clean Up Automatically,
+in Preferences, deletes unused paths and generations older than 30 days every
+week.
 
 ## Keyboard
 
