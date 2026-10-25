@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-25 18:24+0100\n"
+"POT-Creation-Date: 2026-10-25 18:58+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Hindi\n"
@@ -1217,12 +1217,13 @@ msgstr "सेट करना बंद करें (_S)"
 
 #: crates/gui/src/components/option_dialog.rs:114
 #: crates/gui/src/components/option_dialog.rs:215
-#: crates/gui/src/views/detail.rs:1344
+#: crates/gui/src/views/detail.rs:1344 crates/gui/src/views/preferences.rs:282
 msgid "Saved. Apply your configuration to use it."
 msgstr "सहेजा गया। इसका उपयोग करने के लिए अपना कॉन्फ़िगरेशन लागू करें।"
 
 #: crates/gui/src/components/option_dialog.rs:127
 #: crates/gui/src/components/option_dialog.rs:229
+#: crates/gui/src/views/preferences.rs:325
 msgid "Removed. Apply your configuration to undo it."
 msgstr "हटाया गया। इसे पूर्ववत करने के लिए अपना कॉन्फ़िगरेशन लागू करें।"
 
@@ -2343,88 +2344,100 @@ msgstr ""
 msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr "खोजने के लिए अन्य flakes (github:owner/repo, अल्पविराम से अलग)"
 
-#: crates/gui/src/views/preferences.rs:190
+#: crates/gui/src/views/preferences.rs:198
 msgid "Flakes Suggested by search.nixos.org"
 msgstr "search.nixos.org द्वारा सुझाए गए flakes"
 
-#: crates/gui/src/views/preferences.rs:191
+#: crates/gui/src/views/preferences.rs:199
 msgid "Search their packages too"
 msgstr "उनके पैकेज भी खोजें"
 
-#: crates/gui/src/views/preferences.rs:208
+#: crates/gui/src/views/preferences.rs:216
 msgid "The list could not be read."
 msgstr "सूची पढ़ी नहीं जा सकी।"
 
-#: crates/gui/src/views/preferences.rs:251
+#: crates/gui/src/views/preferences.rs:302
+msgid "Binary Caches"
+msgstr "बाइनरी कैश"
+
+#: crates/gui/src/views/preferences.rs:304
+msgid "Servers your system downloads apps from, besides cache.nixos.org."
+msgstr "cache.nixos.org के अलावा वे सर्वर जिनसे आपका सिस्टम ऐप डाउनलोड करता है।"
+
+#: crates/gui/src/views/preferences.rs:311
+msgid "Stop Using It"
+msgstr "इसका उपयोग बंद करें"
+
+#: crates/gui/src/views/preferences.rs:338
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "{dir} में NixOS flake, होस्ट {host}"
 
-#: crates/gui/src/views/preferences.rs:255
+#: crates/gui/src/views/preferences.rs:342
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "{} में channels के साथ NixOS"
 
-#: crates/gui/src/views/preferences.rs:258
+#: crates/gui/src/views/preferences.rs:345
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "{} में Home Manager flake"
 
-#: crates/gui/src/views/preferences.rs:261
+#: crates/gui/src/views/preferences.rs:348
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "{} में Home Manager"
 
-#: crates/gui/src/views/preferences.rs:263
+#: crates/gui/src/views/preferences.rs:350
 msgid "No configuration found."
 msgstr "कोई कॉन्फ़िगरेशन नहीं मिला।"
 
-#: crates/gui/src/views/preferences.rs:267
+#: crates/gui/src/views/preferences.rs:354
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "{} के लिए Home Manager मॉड्यूल"
 
-#: crates/gui/src/views/preferences.rs:270
+#: crates/gui/src/views/preferences.rs:357
 #, rust-format
 msgid "Applied with: {}"
 msgstr "इससे लागू: {}"
 
-#: crates/gui/src/views/preferences.rs:278
+#: crates/gui/src/views/preferences.rs:365
 #, rust-format
 msgid "Configurations: {}"
 msgstr "कॉन्फ़िगरेशन: {}"
 
-#: crates/gui/src/views/preferences.rs:282
+#: crates/gui/src/views/preferences.rs:369
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Home Manager उपयोगकर्ता: {}"
 
-#: crates/gui/src/views/preferences.rs:284
+#: crates/gui/src/views/preferences.rs:371
 msgid "No Home Manager module."
 msgstr "कोई Home Manager मॉड्यूल नहीं।"
 
-#: crates/gui/src/views/preferences.rs:285
+#: crates/gui/src/views/preferences.rs:372
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "इस होस्ट का मूल्यांकन नहीं होता: {}"
 
-#: crates/gui/src/views/preferences.rs:292
+#: crates/gui/src/views/preferences.rs:379
 msgid "Check with Nix"
 msgstr "Nix से जाँचें"
 
-#: crates/gui/src/views/preferences.rs:294
+#: crates/gui/src/views/preferences.rs:381
 msgid "Nix says"
 msgstr "Nix का कहना"
 
-#: crates/gui/src/views/preferences.rs:295
+#: crates/gui/src/views/preferences.rs:382
 msgid "Not checked yet."
 msgstr "अभी जाँचा नहीं गया।"
 
-#: crates/gui/src/views/preferences.rs:302
+#: crates/gui/src/views/preferences.rs:389
 msgid "Evaluating your configuration…"
 msgstr "आपके कॉन्फ़िगरेशन का मूल्यांकन हो रहा है…"
 
-#: crates/gui/src/views/preferences.rs:312
+#: crates/gui/src/views/preferences.rs:399
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix इसका मूल्यांकन नहीं कर सका: {}"

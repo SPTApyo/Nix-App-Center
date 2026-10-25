@@ -47,7 +47,7 @@ pub use appstream_db::{
     LocalHit,
 };
 pub use build_flags::BuildFlag;
-pub use caches::{cache_trusted, flake_cache, Cache};
+pub use caches::{cache_trusted, flake_cache, trusted_caches, untrust_cache, Cache};
 pub use categories::{
     category_sections_union, popular_packages, recently_updated_packages, resolve_dev_apps,
 };

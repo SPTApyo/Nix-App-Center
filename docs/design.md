@@ -333,14 +333,15 @@ the flake. Names coming from other flakes are written only when they are
 plain identifiers, since they end up in Nix run as root.
 
 A flake can declare a binary cache in its nixConfig. Nix ignores it unless
-the user is trusted, so an app from such a flake builds locally. When the
-official cache has no build of the app, its page offers the flake's cache: a
-dialog names the flake, the server and its keys, and only on consent writes
+the user is trusted, so an app from such a flake builds locally. Adding the
+flake in Preferences offers its cache, and so does the page of an app the
+official cache has no build of: a dialog names the flake, the server and its
+keys, and only on consent writes
 nix.settings.substituters and trusted-public-keys in their own region of
 the system file. NixOS merges these lists, so cache.nixos.org stays. The
 server must be plain https and the keys plain base64, since both end up in
-Nix. Without NixOS the dialog only shows the nix.conf lines for an
-administrator.
+Nix. Preferences lists the caches written this way, each removable. Without
+NixOS the dialog only shows the nix.conf lines for an administrator.
 
 Results then get their license and platform from one evaluation for the
 whole page. Packages that do not build for this machine

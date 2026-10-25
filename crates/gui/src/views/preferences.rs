@@ -183,8 +183,16 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             .filter(|f| !f.is_empty())
             .collect();
         let mut s = nix_app_center_core::load_settings();
+        let added: Vec<String> = list
+            .iter()
+            .filter(|f| !s.extra_flakes.contains(f))
+            .cloned()
+            .collect();
         s.extra_flakes = list;
         let _ = nix_app_center_core::save_settings(&s);
+        for flake in added {
+            offer_cache(row, flake);
+        }
     });
     let suggested = adw::ExpanderRow::builder()
         .title(t("Flakes Suggested by search.nixos.org"))
@@ -226,6 +234,9 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
                         }
                         flakes.set_text(&s.extra_flakes.join(", "));
                         let _ = nix_app_center_core::save_settings(&s);
+                        if sw.is_active() {
+                            offer_cache(sw, flake.clone());
+                        }
                     });
                     row.add_row(&switch);
                 }
@@ -242,8 +253,84 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     page.add(&updates);
     page.add(&search);
     page.add(&advanced);
+    if let Some(caches) = caches_group() {
+        page.add(&caches);
+    }
     dialog.add(&page);
     dialog.present(Some(parent));
+}
+
+/// Offers the binary cache `flake` declares, once it is added.
+fn offer_cache(widget: &impl IsA<gtk::Widget>, flake: String) {
+    let widget = widget.clone().upcast::<gtk::Widget>();
+    gtk::glib::spawn_future_local(async move {
+        let name = flake.clone();
+        let cache = gtk::gio::spawn_blocking(move || {
+            nix_app_center_core::flake_cache(&name)
+                .filter(|c| !nix_app_center_core::cache_trusted(&c.url))
+        })
+        .await
+        .ok()
+        .flatten();
+        let Some(cache) = cache else {
+            return;
+        };
+        let dialog = widget.ancestor(adw::PreferencesDialog::static_type());
+        let shown = flake.trim_start_matches("github:").to_string();
+        crate::components::cache_dialog::present(&widget, &shown, cache, move |saved| {
+            let text = match saved {
+                Ok(()) => t("Saved. Apply your configuration to use it."),
+                Err(e) => crate::util::failed(&e),
+            };
+            if let Some(d) = dialog
+                .as_ref()
+                .and_then(|d| d.downcast_ref::<adw::PreferencesDialog>())
+            {
+                d.add_toast(adw::Toast::new(&text));
+            }
+        });
+    });
+}
+
+/// The caches Nix App Center makes the system use, each removable.
+fn caches_group() -> Option<adw::PreferencesGroup> {
+    let urls = nix_app_center_core::trusted_caches();
+    if urls.is_empty() {
+        return None;
+    }
+    let group = adw::PreferencesGroup::builder()
+        .title(t("Binary Caches"))
+        .description(t(
+            "Servers your system downloads apps from, besides cache.nixos.org.",
+        ))
+        .build();
+    for url in urls {
+        let row = adw::ActionRow::builder().title(esc(&url)).build();
+        let remove = gtk::Button::builder()
+            .icon_name("user-trash-symbolic")
+            .tooltip_text(t("Stop Using It"))
+            .valign(gtk::Align::Center)
+            .build();
+        remove.add_css_class("flat");
+        let (group2, row2) = (group.clone(), row.clone());
+        remove.connect_clicked(move |_| {
+            if nix_app_center_core::untrust_cache(&url).is_ok() {
+                group2.remove(&row2);
+                group2.set_visible(!nix_app_center_core::trusted_caches().is_empty());
+                if let Some(d) = group2
+                    .ancestor(adw::PreferencesDialog::static_type())
+                    .and_downcast::<adw::PreferencesDialog>()
+                {
+                    d.add_toast(adw::Toast::new(&t(
+                        "Removed. Apply your configuration to undo it.",
+                    )));
+                }
+            }
+        });
+        row.add_suffix(&remove);
+        group.add(&row);
+    }
+    Some(group)
 }
 
 pub(crate) fn describe(layout: &Layout) -> String {

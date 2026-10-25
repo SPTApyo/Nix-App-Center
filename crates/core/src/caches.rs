@@ -10,12 +10,13 @@ pub struct Cache {
     pub keys: Vec<String>,
 }
 
-/// The cache the flake of `source` (an input name or a locked reference)
-/// declares, if any. Blocking.
+/// The cache the flake of `source` (an input name, a locked reference or
+/// a flake added in Preferences) declares, if any. Blocking.
 pub fn flake_cache(source: &str) -> Option<Cache> {
+    let added = format!("{source}/");
     let reference = crate::config_layout::flake_sources()
         .into_iter()
-        .find(|(name, _)| name == source)?
+        .find(|(name, _)| name == source || name.starts_with(&added))?
         .1;
     // Pure mode: flake.nix cannot read files or environment.
     if !safe(&reference, ":/.-_?=&+~@") {
@@ -48,6 +49,21 @@ pub fn cache_trusted(url: &str) -> bool {
         .kept
         .iter()
         .any(|e| e.option && e.package.attr.strip_prefix("cache:").is_some_and(same))
+}
+
+/// The servers of the caches Nix App Center makes the system use.
+pub fn trusted_caches() -> Vec<String> {
+    crate::manifest::load_manifest()
+        .kept
+        .iter()
+        .filter(|e| e.option)
+        .filter_map(|e| e.package.attr.strip_prefix("cache:").map(str::to_string))
+        .collect()
+}
+
+/// Stops using the cache at `url`.
+pub fn untrust_cache(url: &str) -> std::io::Result<()> {
+    crate::unset_option(&format!("cache:{url}"))
 }
 
 /// The first cache of a nixConfig, with its keys. Refuses anything that

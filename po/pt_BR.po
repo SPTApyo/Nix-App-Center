@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-25 18:24+0100\n"
+"POT-Creation-Date: 2026-10-25 18:58+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -1242,12 +1242,13 @@ msgstr "_Parar de definir"
 
 #: crates/gui/src/components/option_dialog.rs:114
 #: crates/gui/src/components/option_dialog.rs:215
-#: crates/gui/src/views/detail.rs:1344
+#: crates/gui/src/views/detail.rs:1344 crates/gui/src/views/preferences.rs:282
 msgid "Saved. Apply your configuration to use it."
 msgstr "Salvo. Aplique sua configuração para usar."
 
 #: crates/gui/src/components/option_dialog.rs:127
 #: crates/gui/src/components/option_dialog.rs:229
+#: crates/gui/src/views/preferences.rs:325
 msgid "Removed. Apply your configuration to undo it."
 msgstr "Removido. Aplique sua configuração para desfazer."
 
@@ -2397,88 +2398,100 @@ msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr ""
 "Outros flakes para pesquisar (github:dono/repositório, separados por vírgula)"
 
-#: crates/gui/src/views/preferences.rs:190
+#: crates/gui/src/views/preferences.rs:198
 msgid "Flakes Suggested by search.nixos.org"
 msgstr "Flakes sugeridos pelo search.nixos.org"
 
-#: crates/gui/src/views/preferences.rs:191
+#: crates/gui/src/views/preferences.rs:199
 msgid "Search their packages too"
 msgstr "Pesquisar nos pacotes deles também"
 
-#: crates/gui/src/views/preferences.rs:208
+#: crates/gui/src/views/preferences.rs:216
 msgid "The list could not be read."
 msgstr "Não foi possível ler a lista."
 
-#: crates/gui/src/views/preferences.rs:251
+#: crates/gui/src/views/preferences.rs:302
+msgid "Binary Caches"
+msgstr "Caches binários"
+
+#: crates/gui/src/views/preferences.rs:304
+msgid "Servers your system downloads apps from, besides cache.nixos.org."
+msgstr "Servidores de onde o seu sistema baixa apps, além de cache.nixos.org."
+
+#: crates/gui/src/views/preferences.rs:311
+msgid "Stop Using It"
+msgstr "Parar de usar"
+
+#: crates/gui/src/views/preferences.rs:338
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "Flake do NixOS em {dir}, host {host}"
 
-#: crates/gui/src/views/preferences.rs:255
+#: crates/gui/src/views/preferences.rs:342
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "NixOS com canais em {}"
 
-#: crates/gui/src/views/preferences.rs:258
+#: crates/gui/src/views/preferences.rs:345
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "Flake do Home Manager em {}"
 
-#: crates/gui/src/views/preferences.rs:261
+#: crates/gui/src/views/preferences.rs:348
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "Home Manager em {}"
 
-#: crates/gui/src/views/preferences.rs:263
+#: crates/gui/src/views/preferences.rs:350
 msgid "No configuration found."
 msgstr "Nenhuma configuração encontrada."
 
-#: crates/gui/src/views/preferences.rs:267
+#: crates/gui/src/views/preferences.rs:354
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "Módulo do Home Manager para {}"
 
-#: crates/gui/src/views/preferences.rs:270
+#: crates/gui/src/views/preferences.rs:357
 #, rust-format
 msgid "Applied with: {}"
 msgstr "Aplicado com: {}"
 
-#: crates/gui/src/views/preferences.rs:278
+#: crates/gui/src/views/preferences.rs:365
 #, rust-format
 msgid "Configurations: {}"
 msgstr "Configurações: {}"
 
-#: crates/gui/src/views/preferences.rs:282
+#: crates/gui/src/views/preferences.rs:369
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Usuários do Home Manager: {}"
 
-#: crates/gui/src/views/preferences.rs:284
+#: crates/gui/src/views/preferences.rs:371
 msgid "No Home Manager module."
 msgstr "Sem módulo do Home Manager."
 
-#: crates/gui/src/views/preferences.rs:285
+#: crates/gui/src/views/preferences.rs:372
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "Este host não é avaliado: {}"
 
-#: crates/gui/src/views/preferences.rs:292
+#: crates/gui/src/views/preferences.rs:379
 msgid "Check with Nix"
 msgstr "Verificar com o Nix"
 
-#: crates/gui/src/views/preferences.rs:294
+#: crates/gui/src/views/preferences.rs:381
 msgid "Nix says"
 msgstr "O Nix diz"
 
-#: crates/gui/src/views/preferences.rs:295
+#: crates/gui/src/views/preferences.rs:382
 msgid "Not checked yet."
 msgstr "Ainda não verificado."
 
-#: crates/gui/src/views/preferences.rs:302
+#: crates/gui/src/views/preferences.rs:389
 msgid "Evaluating your configuration…"
 msgstr "Avaliando sua configuração…"
 
-#: crates/gui/src/views/preferences.rs:312
+#: crates/gui/src/views/preferences.rs:399
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr "O Nix não conseguiu avaliá-la: {}"
