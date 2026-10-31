@@ -4,8 +4,10 @@
 pub mod app_list;
 pub mod app_tile;
 pub mod apply_dialog;
+pub mod consent_dialog;
 pub mod details;
 pub mod featured_carousel;
+pub mod go_back;
 pub mod install_options;
 pub mod option_dialog;
 pub mod package_row;

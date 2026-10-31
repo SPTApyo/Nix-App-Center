@@ -88,7 +88,33 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         let _ = nix_app_center_core::save_settings(&s);
     });
     installing.add(&everyone);
-    installing.set_visible(nix_app_center_core::detect_layout().system.is_some());
+    everyone.set_visible(nix_app_center_core::detect_layout().system.is_some());
+    let unfree = adw::SwitchRow::builder()
+        .title(t("Allow Proprietary Apps"))
+        .subtitle(t(
+            "Without asking for each one. Only the apps you add are allowed.",
+        ))
+        .active(settings.allow_all_unfree)
+        .build();
+    unfree.connect_active_notify(move |row| {
+        let mut s = nix_app_center_core::load_settings();
+        s.allow_all_unfree = row.is_active();
+        let _ = nix_app_center_core::save_settings(&s);
+    });
+    installing.add(&unfree);
+
+    let review = adw::SwitchRow::builder()
+        .title(t("Show Changes Before Applying"))
+        .subtitle(t(
+            "What gets updated, added or removed, before the system switches",
+        ))
+        .active(settings.review_changes)
+        .build();
+    review.connect_active_notify(move |row| {
+        let mut s = nix_app_center_core::load_settings();
+        s.review_changes = row.is_active();
+        let _ = nix_app_center_core::save_settings(&s);
+    });
 
     let updates = adw::PreferencesGroup::builder().title(t("Updates")).build();
     let auto = adw::SwitchRow::builder()
@@ -104,6 +130,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         let _ = nix_app_center_core::save_settings(&s);
     });
     updates.add(&auto);
+    updates.add(&review);
 
     let search = adw::PreferencesGroup::builder().title(t("Search")).build();
     let by_command = adw::ActionRow::builder()

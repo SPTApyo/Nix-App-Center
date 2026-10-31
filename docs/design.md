@@ -85,7 +85,31 @@ screenshots, links). Nix wins for what runs: the version, whether it is
 broken or insecure, the license when AppStream has none. The version list
 follows nixpkgs, with Flathub release notes only for versions nixpkgs ships.
 
-### What is installed
+### Going back
+
+Updates lists the generations of the system, or of standalone Home Manager
+when Nix App Center only writes a home, read straight from the profile links
+(/nix/var/nix/profiles/system-N-link). Each successful apply records, under
+the number of the generation it made, the manifest and the configuration's
+flake.lock ($XDG_DATA_HOME/nix-app-center/history). Going back switches the
+generation (nix-env --switch-generation, then switch-to-configuration
+switch as root; a Home Manager generation's activate script), then puts back
+what was recorded: otherwise the next apply would bring the newer state
+back, since the configuration still says so. A generation another tool made
+has nothing recorded: only the system switches, and the dialog says the
+next apply undoes it. The user's own files are never rewritten. Right after
+an apply that made a new generation, its dialog offers Undo. Only one apply,
+update or rollback runs at a time: while one runs, the buttons starting
+another are greyed out. Going back to a generation with another kernel or
+initrd than /run/booted-system says a restart finishes it, and from a
+specialisation, that the default configuration of the generation starts.
+Records of generations that are gone are dropped at the next apply.
+
+The CLI has the same commands (history, go-back N), and the NixOS test in
+nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
+applies, removes it, goes back and checks the configuration came back.
+
+## What is installed
 
 ```mermaid
 flowchart LR
@@ -204,6 +228,159 @@ successful apply removes it: while it is there, an Apply button shows in the
 header bar. A closed dialog keeps working and a desktop notification reports
 the end when the app is not in front.
 
+Before switching, Nix App Center shows what changes. NixOS (flake or
+channels) and Home Manager build first, as the user, into a result outside
+the configuration; nix store diff-closures then compares it with
+/run/current-system or the current Home Manager generation. The dialog
+lists updated, added and removed packages, apps the user has or keeps
+first, with the size difference; rebuilt packages are only counted. A
+kernel or initrd different from /run/booted-system's asks for a restart, and
+a system change says it touches every user. Cancel leaves the running
+system as it is, and the build stays in the store until the next cleanup,
+so applying again does not rebuild. Closing the dialog while it asks counts
+as Cancel. Preferences turns the review off.
+
+A channel update runs nix-channel --update as root first, then builds;
+Cancel then runs nix-channel --rollback, so the channel is back where it
+was. When the user build hits a file only root reads, the step runs as root
+as before, without the review, and the log says so. A custom apply command
+runs as it is and the dialog says it cannot be shown first. A build that
+fails with No space left on device points to the Storage tab.
+
+## What is installed
+
+```mermaid
+flowchart LR
+    subgraph machine [read from the machine]
+        SYS["/run/current-system<br/>system profile"]
+        HM[Home Manager<br/>profile]
+        NP[nix profile /<br/>nix-env]
+        FC[fontconfig cache:<br/>fonts.packages]
+        FP[flatpak list]
+        AI[AppImage desktop<br/>files]
+        EN[enabled modules:<br/>files, then nix eval]
+    end
+    machine --> IDX[(installed index)]
+    IDX --> PILL[pill on tiles,<br/>rows and pages]
+    MAN[(kept.json:<br/>apps kept by<br/>Nix App Center)] --> PILL
+```
+
+The index says where an app is (system, home, Flatpak, AppImage) and
+whether a module brings it; the manifest says whether Nix App Center owns
+it. Details follow in What is installed.
+
+## How a Nix machine keeps its software
+
+Nix App Center has to handle every common setup. What matters is where
+packages are declared, where they end up once applied, and where the nixpkgs
+revision is pinned.
+
+| Setup | Declared in | Ends up in | nixpkgs pinned by | Apply | Update nixpkgs |
+| --- | --- | --- | --- | --- | --- |
+| NixOS, flake | environment.systemPackages | /run/current-system/sw | flake.lock of the system flake | nixos-rebuild switch --flake dir#host | nix flake update nixpkgs --flake dir, then apply |
+| NixOS, channels | environment.systemPackages | /run/current-system/sw | root channel nixos | nixos-rebuild switch | nixos-rebuild switch --upgrade |
+| NixOS user packages | users.users.NAME.packages | /etc/profiles/per-user/NAME | same as the system | same as the system | same as the system |
+| Home Manager as a NixOS module | home-manager.users.NAME home.packages | /etc/profiles/per-user/NAME or ~/.nix-profile | the system nixpkgs or its own | same as the system | same as the system |
+| Home Manager standalone, flake | home.packages | ~/.nix-profile | ~/.config/home-manager/flake.lock | home-manager switch --flake dir | nix flake update nixpkgs --flake dir, then apply |
+| Home Manager standalone, channels | home.packages | ~/.nix-profile | user channels | home-manager switch | nix-channel --update, then apply |
+| nix profile, nix-env | imperative | ~/.nix-profile | per package | none | nix profile upgrade |
+| nix run, nix shell (Try) | nothing | store only, no GC root | the configuration's nixpkgs | none | none |
+
+Facts that hold without evaluating anything:
+
+- A profile is a store path whose references are the packages in it, through
+  buildEnv layers (user-environment, home-manager-path, system-path). The
+  store path name of a package gives its pname and version.
+- nixos-version --json gives the nixpkgs revision the system was built from.
+- A flake.lock holds every transitive input. The node whose locked rev
+  matches that revision tells the branch it follows and whether it is a
+  direct input of the root flake (updatable there) or comes through another
+  flake (updated in that flake).
+- A store path no GC root reaches is dead. nix store delete removes dead
+  paths only, so deleting a tried app never breaks the system. With
+  keep-outputs and keep-derivations set, the deriver .drv goes with its
+  outputs.
+
+## Reading the configuration
+
+The layout is detected by scanning text, never by parsing Nix
+(crates/core/src/config_layout.rs): NixOS flake, NixOS with channels, Home
+Manager as a flake or standalone, or unknown. The host is the
+nixosConfigurations entry named like the machine, whatever its case.
+Preferences can override the folder and the host, and check the result with
+Nix itself. NIX_APP_CENTER_CONFIG_DIR overrides the folder too; the tests use
+it so they never touch /etc/nixos.
+
+Nix App Center writes nix-app-center-home.nix and nix-app-center-system.nix from
+its manifest, kept.json. On NixOS both are imported from the imports list of
+configuration.nix; a flake without configuration.nix gets them in the
+modules list of flake.nix. When Home Manager is a NixOS module, the home file
+wraps its content in home-manager.users.NAME; without Home Manager it fills
+users.users.NAME.packages. In a git repository the files are added with
+git add --intent-to-add, or a flake would not see them.
+
+Files the user cannot write go through one pkexec call, so the password is
+asked once per change: the content travels inside the script, each file goes
+through mktemp in its own folder, and root runs with the system PATH only.
+The Nix files are written before the manifest, so a refused password leaves
+everything as it was.
+
+A plain kept app is one entry of the aggregated package list. An app with
+its own Nix (advanced editor, module, option) gets its own module region,
+between nix-app-center:begin and nix-app-center:end markers. Each region is a
+separate module, so two blocks defining the same option merge instead of
+clashing. The advanced editor checks syntax on every keystroke
+(nix-instantiate --parse, about 50 ms) and offers a dry build on demand.
+
+## Applying
+
+An apply is a list of steps run in order, stopping at the first failure; an
+update is two: refresh the lock or channel, then apply. A step starting with
+sudo runs through pkexec, so the password prompt is graphical; pkexec gets a
+SHELL listed in /etc/shells, or it refuses.
+
+A NixOS flake switch is split in two. nixos-rebuild build runs as the user in
+a fresh private folder, then root only activates the result (nix-env sets
+the system profile, switch-to-configuration switches to it). Root can read
+neither a git repository it does not own nor the user's credentials, so
+building as root fails on a configuration kept in a private repository. The
+result is checked to be a plain store path before root runs anything from
+it.
+
+Flake inputs that point to a local folder (git+file, path) are passed again
+with --override-input, so the build uses the files on disk, uncommitted
+changes included. That covers a small /etc/nixos flake importing the real
+configuration from the home folder. Setups the detection cannot guess can
+set their own apply command in Preferences.
+
+Progress comes from --log-format internal-json (crates/core/src/progress.rs):
+copy and build activities carry done and expected counts, which give the
+percentage, and the time left extrapolates once five percent is done.
+Evaluation and activation report no counts, so the bar pulses there. Plain
+text logs (a custom command, Home Manager) are counted from their "these N
+paths will be fetched" and "copying path" lines. The last error line of a
+failure becomes the message shown.
+
+Every change to the configuration leaves a marker in the data folder, and a
+successful apply removes it: while it is there, an Apply button shows in the
+header bar. A closed dialog keeps working and a desktop notification reports
+the end when the app is not in front.
+
+Before switching, Nix App Center shows what changes. A NixOS flake and Home
+Manager (flake or not) build first, as the user, into a result outside the
+configuration; nix store diff-closures then compares it with
+/run/current-system or the current Home Manager generation. The dialog
+lists updated, added and removed packages, apps the user has or keeps
+first, with the size difference; rebuilt packages are only counted. A
+kernel or initrd different from /run/booted-system's asks for a restart, and
+a system change says it touches every user. Cancel leaves the running
+system as it is, and the build stays in the store until the next
+cleanup, so applying again does not rebuild. Closing the dialog while it asks counts as Cancel. NixOS on
+channels and a custom apply command run as before, without the review:
+building a channel system as the user could miss files only root reads, and
+an update moves the channel before anything is built. Preferences turns the
+review off.
+
 ## What is installed
 
 One index answers for tiles, search rows and app pages
@@ -290,6 +467,37 @@ a request to cache.nixos.org says whether it downloads or builds. Only the
 package name is sent. When nixos-unstable has a newer version, the page
 offers it as a hold at the unstable revision.
 
+A proprietary app, or one nixpkgs marks insecure, is kept only once the user
+allows it: Add to Configuration, a hold, build options and the Nix editor all
+ask first, and the answer is stored on the kept app (allow_unfree,
+allow_insecure). Allow All Proprietary Apps in Preferences stops the
+question for proprietary apps, never for insecure ones. No question either
+when the configuration's own nixpkgs already accepts the app: its page
+evaluates meta.available of the app in the pkgs of the scope it would go to
+(Home Manager's own pkgs only tell whether allowUnfree is on), and then
+nothing is written. The allowance never
+touches the global nixpkgs.config, where an allowUnfreePredicate written by
+both the user and Nix App Center would silently replace one another.
+Instead the app is taken from a nixpkgs instance that allows it, imported
+like a held revision:
+
+```nix
+nixpkgs-unfree = import pkgs.path {
+  config = lib.filterAttrs (_: v: v != null) pkgs.config // { allowUnfree = true; };
+  system = pkgs.stdenv.hostPlatform.system;
+};
+```
+
+allowUnfree, not a predicate on the app's name, because an app pulls
+proprietary dependencies too (steam needs steam-unwrapped). An app kept
+through its module reads pkgs.X, so an overlay replaces it with the allowed
+one; nixpkgs.overlays merge, unlike the predicate. When Home Manager runs as
+a NixOS module, the overlay is written for the system, and for the user too
+when home-manager.useGlobalPkgs is off, since Home Manager then builds its
+own pkgs. Overlays of the main nixpkgs do not apply to the allowed instance.
+An apply that fails because a kept app turned proprietary or insecure says
+which one and where to allow it.
+
 ## Package identity
 
 nixpkgs and Flathub have no official mapping. Nix App Center matches them in
@@ -352,6 +560,29 @@ Center says which one and leaves it. Without a managed configuration
 (other Linux distributions), it compares the apps of ~/.nix-profile and
 updates with nix profile upgrade.
 
+Updates also lists the other inputs of the configuration's flake and of
+its local inputs (a small /etc/nixos importing the real configuration
+through git+file): one row per direct input, with the date of its locked
+revision and, from nix flake metadata on the same branch or tag, whether a
+newer one exists. Inputs that follow another and local inputs are left
+out. Update and Update All run nix flake update NAME… --flake DIR in the
+flake holding each input (as root only when its flake.lock is root's), then
+apply. When nixpkgs itself comes through such a local input, it is updated
+in that flake, not refused. Home Manager on another release than nixpkgs
+(release-25.11 against nixos-26.05, or a release against unstable) gets a
+warning: the fix is in flake.nix, which Nix App Center does not edit.
+
+When a newer NixOS release exists, Updates offers to switch to it. For a
+flake, the flake.nix holding nixpkgs (the local input one when /etc/nixos
+imports it) gets its nixos-YY.MM and release-YY.MM branches moved, after a
+backup next to it; the dialog lists each changed line. nixpkgs and the
+inputs that followed the old release are then updated and the configuration
+applied, with the usual review. If anything fails or the review is
+cancelled, flake.nix and flake.lock are written back. On channels the nixos
+channel moves before nixos-rebuild switch --upgrade; going back is the
+History list then. system.stateVersion is never touched, and the dialog says
+why.
+
 ## Storage
 
 The Storage tab reads every store path once (nix path-info --all --json) and
@@ -361,6 +592,11 @@ current system, user environments, running programs, old generations,
 development (other roots, and build inputs keep-outputs keeps alive), tried
 apps, and garbage, which is only what nothing keeps alive. A generation's
 figure is what only it reaches.
+Delete Old Generations first deletes the old generations of the user's
+profiles (nix-env --delete-generations old), then runs
+nix-collect-garbage --delete-old as root: root only reaches its own profiles
+and the system's, not the user's Home Manager and profile generations the
+figure counts, and the store is walked once.
 
 Why? on an app asks nix-store --query --roots for its paths and groups the
 roots: generations by number, the running system, the user profile, running

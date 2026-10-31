@@ -33,8 +33,8 @@ pub enum StorageMsg {
     Reload,
     Refresh,
     Loaded(Result<StorageReport, String>),
-    /// Runs a clean-up command in the build log dialog.
-    Clean(Vec<String>),
+    /// Runs clean-up steps in the build log dialog.
+    Clean(Vec<Vec<String>>),
     Cleaned,
     HomeLoaded(Vec<HomeDir>),
     /// Deletes this cache folder, once confirmed.
@@ -150,12 +150,12 @@ impl SimpleComponent for StorageModel {
                 self.report = Some(res);
                 self.rebuild(&sender);
             }
-            StorageMsg::Clean(argv) => {
+            StorageMsg::Clean(steps) => {
                 let s = sender.input_sender().clone();
                 crate::components::apply_dialog::present(
                     &self.content,
                     &t("Cleaning Up"),
-                    vec![argv],
+                    steps,
                     move |_| {
                         let _ = s.send(StorageMsg::Cleaned);
                     },
@@ -348,7 +348,10 @@ impl StorageModel {
         garbage.add_suffix(&button(&t("_Clean"), false, {
             let s = sender.input_sender().clone();
             move || {
-                let _ = s.send(StorageMsg::Clean(vec!["nix-store".into(), "--gc".into()]));
+                let _ = s.send(StorageMsg::Clean(vec![vec![
+                    "nix-store".into(),
+                    "--gc".into(),
+                ]]));
             }
         }));
         list.append(&garbage);
@@ -786,11 +789,19 @@ fn confirm_delete_generations(parent: &gtk::Box, s: relm4::Sender<StorageMsg>) {
     dialog.set_default_response(Some("cancel"));
     dialog.connect_response(None, move |_, response| {
         if response == "delete" {
-            // The system profile is root's.
+            // Root only reaches its own and the system's profiles; the
+            // user step deletes generations only, root then collects once.
             let _ = s.send(StorageMsg::Clean(vec![
-                "sudo".into(),
-                "nix-collect-garbage".into(),
-                "--delete-old".into(),
+                vec![
+                    "sh".into(),
+                    "-c".into(),
+                    r#"for p in "${XDG_STATE_HOME:-$HOME/.local/state}"/nix/profiles/* /nix/var/nix/profiles/per-user/"$USER"/*; do case "$p" in *-link) continue ;; esac; [ -e "$p" ] || continue; nix-env -p "$p" --delete-generations old || exit 1; done"#.into(),
+                ],
+                vec![
+                    "sudo".into(),
+                    "nix-collect-garbage".into(),
+                    "--delete-old".into(),
+                ],
             ]));
         }
     });
@@ -804,5 +815,6 @@ fn button(label: &str, destructive: bool, on_click: impl Fn() + 'static) -> gtk:
         b.add_css_class("destructive-action");
     }
     b.connect_clicked(move |_| on_click());
+    crate::components::apply_dialog::guard(&b);
     b
 }

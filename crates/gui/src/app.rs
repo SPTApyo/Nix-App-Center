@@ -162,15 +162,14 @@ impl SimpleComponent for AppModel {
             let Some(argv) = nix_app_center_core::apply_argv() else {
                 return;
             };
-            btn.set_sensitive(false);
-            let btn2 = btn.clone();
             crate::components::apply_dialog::present(
                 btn,
                 &t("Applying Configuration"),
                 vec![argv],
-                move |_| btn2.set_sensitive(true),
+                |_| {},
             );
         });
+        crate::components::apply_dialog::guard(&apply);
         gtk::glib::timeout_add_seconds_local(2, {
             let apply = apply.clone();
             move || {

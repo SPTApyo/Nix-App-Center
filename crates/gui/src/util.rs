@@ -40,7 +40,18 @@ pub fn describe_apply(res: Result<nix_app_center_core::ApplyOutcome, String>) ->
         Ok(UnknownLayout) => {
             t("Nix App Center cannot find your Nix configuration. Nothing was applied.")
         }
-        Err(e) => failed(e),
+        Ok(Cancelled) => t("Nothing was changed."),
+        Err(e) => match nix_app_center_core::refusal(&e) {
+            Some(nix_app_center_core::Refusal::Unfree(name)) => t(
+                "{} is now proprietary and was not allowed. Open its page to allow it, then apply again.",
+            )
+            .replace("{}", &name),
+            Some(nix_app_center_core::Refusal::Insecure(name)) => t(
+                "nixpkgs now marks {} as insecure. Open its page to allow it or remove it, then apply again.",
+            )
+            .replace("{}", &name),
+            None => failed(e),
+        },
     }
 }
 
