@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-31 14:44+0100\n"
+"POT-Creation-Date: 2026-10-31 14:52+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Chinese (Simplified)\n"
@@ -15,15 +15,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: crates/core/src/config_gen.rs:600
+#: crates/core/src/config_gen.rs:612
 msgid "The build gave an unexpected result."
 msgstr "构建得到了意外的结果。"
 
-#: crates/core/src/config_gen.rs:707 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:700
+msgid "Building as administrator: the changes cannot be shown first."
+msgstr "以管理员身份构建：无法预先显示更改。"
+
+#: crates/core/src/config_gen.rs:838 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "认证已取消。"
 
-#: crates/core/src/config_gen.rs:710 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:841 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "管理员权限被拒绝。"
 
@@ -367,7 +371,7 @@ msgid "ODRS did not accept this app."
 msgstr "ODRS 不接受此应用。"
 
 #: crates/gui/src/app.rs:129 crates/gui/src/app.rs:573
-#: crates/gui/src/views/preferences.rs:121
+#: crates/gui/src/views/preferences.rs:135
 msgid "Search"
 msgstr "搜索"
 
@@ -407,8 +411,8 @@ msgstr "应用(_A)"
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr "您的配置已更改：请重新构建以安装或移除应用。"
 
-#: crates/gui/src/app.rs:169 crates/gui/src/views/detail.rs:1910
-#: crates/gui/src/views/installed.rs:239
+#: crates/gui/src/app.rs:169 crates/gui/src/components/apply_dialog.rs:320
+#: crates/gui/src/views/detail.rs:1910 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "正在应用配置"
 
@@ -426,7 +430,7 @@ msgid "Installed"
 msgstr "已安装"
 
 #: crates/gui/src/app.rs:313 crates/gui/src/app.rs:584
-#: crates/gui/src/views/preferences.rs:106
+#: crates/gui/src/views/preferences.rs:119
 msgid "Updates"
 msgstr "更新"
 
@@ -569,68 +573,148 @@ msgstr "无软件包集"
 msgid "Package Set"
 msgstr "软件包集"
 
-#: crates/gui/src/components/apply_dialog.rs:22
-#: crates/gui/src/components/apply_dialog.rs:61
+#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:63
 msgid "Preparing…"
 msgstr "正在准备…"
 
-#: crates/gui/src/components/apply_dialog.rs:24
+#: crates/gui/src/components/apply_dialog.rs:26
 #, rust-format
 msgid "Downloading {done} of {} package"
 msgid_plural "Downloading {done} of {} packages"
 msgstr[0] "正在下载第 {done} 个，共 {} 个软件包"
 
-#: crates/gui/src/components/apply_dialog.rs:29
+#: crates/gui/src/components/apply_dialog.rs:31
 #, rust-format
 msgid "Building {done} of {total}"
 msgstr "正在构建第 {done} 个，共 {total} 个"
 
-#: crates/gui/src/components/apply_dialog.rs:32
+#: crates/gui/src/components/apply_dialog.rs:34
 msgid "Activating the new configuration…"
 msgstr "正在激活新配置…"
 
-#: crates/gui/src/components/apply_dialog.rs:44
+#: crates/gui/src/components/apply_dialog.rs:46
 msgid "less than a minute left"
 msgstr "剩余不到一分钟"
 
-#: crates/gui/src/components/apply_dialog.rs:47
+#: crates/gui/src/components/apply_dialog.rs:49
 #, rust-format
 msgid "about {} min left"
 msgid_plural "about {} min left"
 msgstr[0] "剩余约 {} 分钟"
 
-#: crates/gui/src/components/apply_dialog.rs:67
+#: crates/gui/src/components/apply_dialog.rs:69
 msgid "Starting…"
 msgstr "正在启动…"
 
-#: crates/gui/src/components/apply_dialog.rs:111
-#: crates/gui/src/components/apply_dialog.rs:123
+#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:125
 msgid "Show _Details"
 msgstr "显示详情(_D)"
 
-#: crates/gui/src/components/apply_dialog.rs:113
+#: crates/gui/src/components/apply_dialog.rs:115
 msgid "Show the full build log."
 msgstr "显示完整的构建日志。"
 
-#: crates/gui/src/components/apply_dialog.rs:121
+#: crates/gui/src/components/apply_dialog.rs:123
 msgid "Hide _Details"
 msgstr "隐藏详情(_D)"
 
-#: crates/gui/src/components/apply_dialog.rs:208
+#: crates/gui/src/components/apply_dialog.rs:150
+msgid "Open Storage"
+msgstr "打开存储"
+
+#: crates/gui/src/components/apply_dialog.rs:204
+msgid ""
+"Your own apply command runs as it is: the changes cannot be shown first."
+msgstr "您自己的应用命令将按原样运行：无法预先显示更改。"
+
+#: crates/gui/src/components/apply_dialog.rs:254
 msgid "Working…"
 msgstr "正在处理…"
 
-#: crates/gui/src/components/apply_dialog.rs:221
+#: crates/gui/src/components/apply_dialog.rs:268
+msgid "The disk is full. Free up space in Storage, then apply again."
+msgstr "磁盘已满。请在“存储”中释放空间，然后重新应用。"
+
+#: crates/gui/src/components/apply_dialog.rs:279
 msgid "Done"
 msgstr "完成"
 
-#: crates/gui/src/components/apply_dialog.rs:222
+#: crates/gui/src/components/apply_dialog.rs:280
 msgid "finished"
 msgstr "已完成"
 
-#: crates/gui/src/components/apply_dialog.rs:226
+#: crates/gui/src/components/apply_dialog.rs:285
 msgid "Failed"
 msgstr "失败"
+
+#: crates/gui/src/components/apply_dialog.rs:337
+msgid "Review the Changes"
+msgstr "查看更改"
+
+#: crates/gui/src/components/apply_dialog.rs:344
+msgid "The kernel changes: restart the computer to use the new one."
+msgstr "内核有变化：重启计算机以使用新内核。"
+
+#: crates/gui/src/components/apply_dialog.rs:349
+msgid "These changes apply to every user of this computer."
+msgstr "这些更改适用于此计算机的所有用户。"
+
+#: crates/gui/src/components/apply_dialog.rs:389
+#: crates/gui/src/components/consent_dialog.rs:26
+#: crates/gui/src/components/consent_dialog.rs:40
+#: crates/gui/src/components/details/nix_editor.rs:126
+#: crates/gui/src/components/details/review_row.rs:113
+#: crates/gui/src/views/detail.rs:1445 crates/gui/src/views/detail.rs:1617
+#: crates/gui/src/views/storage.rs:655 crates/gui/src/views/storage.rs:671
+msgid "_Cancel"
+msgstr "取消(_C)"
+
+#: crates/gui/src/components/apply_dialog.rs:390
+msgid "_Apply Changes"
+msgstr "应用更改(_A)"
+
+#: crates/gui/src/components/apply_dialog.rs:415
+#, rust-format
+msgid "{} updated"
+msgid_plural "{} updated"
+msgstr[0] "{} 个已更新"
+
+#: crates/gui/src/components/apply_dialog.rs:419
+#, rust-format
+msgid "{} added"
+msgid_plural "{} added"
+msgstr[0] "{} 个新增"
+
+#: crates/gui/src/components/apply_dialog.rs:423
+#, rust-format
+msgid "{} removed"
+msgid_plural "{} removed"
+msgstr[0] "{} 个已移除"
+
+#: crates/gui/src/components/apply_dialog.rs:427
+#, rust-format
+msgid "{} rebuilt"
+msgid_plural "{} rebuilt"
+msgstr[0] "{} 个已重新构建"
+
+#: crates/gui/src/components/apply_dialog.rs:435
+msgid "No package changes, only settings."
+msgstr "没有软件包变化，只有设置变化。"
+
+#: crates/gui/src/components/apply_dialog.rs:448
+#, rust-format
+msgid "Added: {}"
+msgstr "新增：{}"
+
+#: crates/gui/src/components/apply_dialog.rs:449
+msgid "Removed"
+msgstr "已移除"
+
+#: crates/gui/src/components/apply_dialog.rs:451
+msgid "Rebuilt"
+msgstr "已重新构建"
 
 #: crates/gui/src/components/consent_dialog.rs:20
 msgid "Allow a Proprietary App?"
@@ -642,15 +726,6 @@ msgid ""
 "{} is proprietary software: its source code is not public. Nix installs it "
 "only with your permission."
 msgstr "{} 是专有软件：其源代码不公开。只有在您允许后，Nix 才会安装它。"
-
-#: crates/gui/src/components/consent_dialog.rs:26
-#: crates/gui/src/components/consent_dialog.rs:40
-#: crates/gui/src/components/details/nix_editor.rs:126
-#: crates/gui/src/components/details/review_row.rs:113
-#: crates/gui/src/views/detail.rs:1445 crates/gui/src/views/detail.rs:1617
-#: crates/gui/src/views/storage.rs:655 crates/gui/src/views/storage.rs:671
-msgid "_Cancel"
-msgstr "取消(_C)"
 
 #: crates/gui/src/components/consent_dialog.rs:27
 msgid "Allow All _Proprietary Apps"
@@ -1312,12 +1387,12 @@ msgid "Apps you add go to the system packages, for every user of this computer"
 msgstr "您添加的应用会进入系统软件包，供此计算机的所有用户使用"
 
 #: crates/gui/src/components/welcome.rs:104
-#: crates/gui/src/views/preferences.rs:108
+#: crates/gui/src/views/preferences.rs:121
 msgid "Check for Updates Automatically"
 msgstr "自动检查更新"
 
 #: crates/gui/src/components/welcome.rs:106
-#: crates/gui/src/views/preferences.rs:110
+#: crates/gui/src/views/preferences.rs:123
 msgid "Once a day, with a notification when apps can be updated"
 msgstr "每天一次，有应用可以更新时发送通知"
 
@@ -1438,14 +1513,18 @@ msgstr "找不到终端。已复制应用命令。"
 msgid "Nix App Center cannot find your Nix configuration. Nothing was applied."
 msgstr "Nix App Center 找不到您的 Nix 配置。没有应用任何更改。"
 
-#: crates/gui/src/util.rs:45
+#: crates/gui/src/util.rs:43
+msgid "Nothing was changed."
+msgstr "未做任何更改。"
+
+#: crates/gui/src/util.rs:46
 #, rust-format
 msgid ""
 "{} is now proprietary and was not allowed. Open its page to allow it, then "
 "apply again."
 msgstr "{} 现在是专有软件，且未被允许。请打开其页面允许它，然后重新应用。"
 
-#: crates/gui/src/util.rs:49
+#: crates/gui/src/util.rs:50
 #, rust-format
 msgid ""
 "nixpkgs now marks {} as insecure. Open its page to allow it or remove it, "
@@ -1453,64 +1532,64 @@ msgid ""
 msgstr ""
 "nixpkgs 现在将 {} 标记为不安全。请打开其页面允许或移除它，然后重新应用。"
 
-#: crates/gui/src/util.rs:70
+#: crates/gui/src/util.rs:71
 #, rust-format
 msgid "Failed: {}"
 msgstr "失败：{}"
 
-#: crates/gui/src/util.rs:309
+#: crates/gui/src/util.rs:310
 msgid "Today"
 msgstr "今天"
 
-#: crates/gui/src/util.rs:310
+#: crates/gui/src/util.rs:311
 msgid "Yesterday"
 msgstr "昨天"
 
-#: crates/gui/src/util.rs:311
+#: crates/gui/src/util.rs:312
 #, rust-format
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "{} 天前"
 
-#: crates/gui/src/util.rs:312
+#: crates/gui/src/util.rs:313
 #, rust-format
 msgid "{} week ago"
 msgid_plural "{} weeks ago"
 msgstr[0] "{} 周前"
 
-#: crates/gui/src/util.rs:313
+#: crates/gui/src/util.rs:314
 #, rust-format
 msgid "{} month ago"
 msgid_plural "{} months ago"
 msgstr[0] "{} 个月前"
 
-#: crates/gui/src/util.rs:314
+#: crates/gui/src/util.rs:315
 #, rust-format
 msgid "{} year ago"
 msgid_plural "{} years ago"
 msgstr[0] "{} 年前"
 
-#: crates/gui/src/util.rs:590
+#: crates/gui/src/util.rs:591
 msgid "Installed on the system, for every user"
 msgstr "已安装在系统中，供所有用户使用"
 
-#: crates/gui/src/util.rs:592
+#: crates/gui/src/util.rs:593
 msgid "Installed in your home"
 msgstr "已安装在您的主目录中"
 
-#: crates/gui/src/util.rs:593
+#: crates/gui/src/util.rs:594
 msgid "Installed with Flatpak"
 msgstr "通过 Flatpak 安装"
 
-#: crates/gui/src/util.rs:594
+#: crates/gui/src/util.rs:595
 msgid "Installed as an AppImage"
 msgstr "以 AppImage 形式安装"
 
-#: crates/gui/src/util.rs:600
+#: crates/gui/src/util.rs:601
 msgid "through a module, with what it sets up around the app"
 msgstr "通过模块，包括它为应用配置的周边内容"
 
-#: crates/gui/src/util.rs:602
+#: crates/gui/src/util.rs:603
 msgid "as a package"
 msgstr "作为软件包"
 
@@ -2274,38 +2353,46 @@ msgstr "允许专有应用"
 msgid "Without asking for each one. Only the apps you add are allowed."
 msgstr "无需逐个询问。仅允许您添加的应用。"
 
-#: crates/gui/src/views/preferences.rs:123
+#: crates/gui/src/views/preferences.rs:107
+msgid "Show Changes Before Applying"
+msgstr "应用前显示更改"
+
+#: crates/gui/src/views/preferences.rs:109
+msgid "What gets updated, added or removed, before the system switches"
+msgstr "在系统切换前，显示更新、新增或移除的内容"
+
+#: crates/gui/src/views/preferences.rs:137
 msgid "Search by Command"
 msgstr "按命令搜索"
 
-#: crates/gui/src/views/preferences.rs:125
-#: crates/gui/src/views/preferences.rs:144
+#: crates/gui/src/views/preferences.rs:139
+#: crates/gui/src/views/preferences.rs:158
 msgid "Ready: searching a command also lists the packages that provide it."
 msgstr "已就绪：搜索命令时也会列出提供该命令的软件包。"
 
-#: crates/gui/src/views/preferences.rs:127
+#: crates/gui/src/views/preferences.rs:141
 msgid ""
 "Lists the packages that provide a command. Needs the nix-index database, "
 "about 100 MB."
 msgstr "列出提供某个命令的软件包。需要 nix-index 数据库，约 100 MB。"
 
-#: crates/gui/src/views/preferences.rs:131
+#: crates/gui/src/views/preferences.rs:145
 msgid "_Download"
 msgstr "下载(_D)"
 
-#: crates/gui/src/views/preferences.rs:132
+#: crates/gui/src/views/preferences.rs:146
 msgid "Download the nix-index database, about 100 MB."
 msgstr "下载 nix-index 数据库，约 100 MB。"
 
-#: crates/gui/src/views/preferences.rs:138
+#: crates/gui/src/views/preferences.rs:152
 msgid "Downloading the nix-index database…"
 msgstr "正在下载 nix-index 数据库…"
 
-#: crates/gui/src/views/preferences.rs:161
+#: crates/gui/src/views/preferences.rs:175
 msgid "Advanced"
 msgstr "高级"
 
-#: crates/gui/src/views/preferences.rs:163
+#: crates/gui/src/views/preferences.rs:177
 msgid ""
 "For unusual setups only, such as a configuration kept in another folder and "
 "built with your own script. Leave it empty if Apply already works."
@@ -2313,15 +2400,15 @@ msgstr ""
 "仅用于不常见的设置，例如保存在其他文件夹中、用您自己的脚本构建的配置。如果“应"
 "用”已能正常工作，请留空。"
 
-#: crates/gui/src/views/preferences.rs:167
+#: crates/gui/src/views/preferences.rs:181
 msgid "Apply command (empty: found by itself)"
 msgstr "应用命令（留空：自动检测）"
 
-#: crates/gui/src/views/preferences.rs:178
+#: crates/gui/src/views/preferences.rs:192
 msgid "How It Runs"
 msgstr "运行方式"
 
-#: crates/gui/src/views/preferences.rs:180
+#: crates/gui/src/views/preferences.rs:194
 msgid ""
 "Run by the shell. Start it with sudo to run it as administrator: Nix App "
 "Center asks for the password itself, so tools that call sudo on their own, "
@@ -2332,92 +2419,92 @@ msgstr ""
 "密码，因此像 nh 这样自行调用 sudo 的工具在这里无法使用。进度条会跟踪 nixos-"
 "rebuild 和普通 Nix 日志。"
 
-#: crates/gui/src/views/preferences.rs:186
+#: crates/gui/src/views/preferences.rs:200
 msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr "要搜索的其他 flake（github:所有者/仓库，用逗号分隔）"
 
-#: crates/gui/src/views/preferences.rs:203
+#: crates/gui/src/views/preferences.rs:217
 msgid "Flakes Suggested by search.nixos.org"
 msgstr "search.nixos.org 推荐的 flake"
 
-#: crates/gui/src/views/preferences.rs:204
+#: crates/gui/src/views/preferences.rs:218
 msgid "Search their packages too"
 msgstr "同时搜索它们的软件包"
 
-#: crates/gui/src/views/preferences.rs:221
+#: crates/gui/src/views/preferences.rs:235
 msgid "The list could not be read."
 msgstr "无法读取列表。"
 
-#: crates/gui/src/views/preferences.rs:264
+#: crates/gui/src/views/preferences.rs:278
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "{dir} 中的 NixOS flake，主机 {host}"
 
-#: crates/gui/src/views/preferences.rs:268
+#: crates/gui/src/views/preferences.rs:282
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "{} 中使用 channel 的 NixOS"
 
-#: crates/gui/src/views/preferences.rs:271
+#: crates/gui/src/views/preferences.rs:285
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "{} 中的 Home Manager flake"
 
-#: crates/gui/src/views/preferences.rs:274
+#: crates/gui/src/views/preferences.rs:288
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "{} 中的 Home Manager"
 
-#: crates/gui/src/views/preferences.rs:276
+#: crates/gui/src/views/preferences.rs:290
 msgid "No configuration found."
 msgstr "未找到配置。"
 
-#: crates/gui/src/views/preferences.rs:280
+#: crates/gui/src/views/preferences.rs:294
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "{} 的 Home Manager 模块"
 
-#: crates/gui/src/views/preferences.rs:283
+#: crates/gui/src/views/preferences.rs:297
 #, rust-format
 msgid "Applied with: {}"
 msgstr "应用方式：{}"
 
-#: crates/gui/src/views/preferences.rs:291
+#: crates/gui/src/views/preferences.rs:305
 #, rust-format
 msgid "Configurations: {}"
 msgstr "配置：{}"
 
-#: crates/gui/src/views/preferences.rs:295
+#: crates/gui/src/views/preferences.rs:309
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Home Manager 用户：{}"
 
-#: crates/gui/src/views/preferences.rs:297
+#: crates/gui/src/views/preferences.rs:311
 msgid "No Home Manager module."
 msgstr "没有 Home Manager 模块。"
 
-#: crates/gui/src/views/preferences.rs:298
+#: crates/gui/src/views/preferences.rs:312
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "此主机无法评估：{}"
 
-#: crates/gui/src/views/preferences.rs:305
+#: crates/gui/src/views/preferences.rs:319
 msgid "Check with Nix"
 msgstr "用 Nix 检查"
 
-#: crates/gui/src/views/preferences.rs:307
+#: crates/gui/src/views/preferences.rs:321
 msgid "Nix says"
 msgstr "Nix 的输出"
 
-#: crates/gui/src/views/preferences.rs:308
+#: crates/gui/src/views/preferences.rs:322
 msgid "Not checked yet."
 msgstr "尚未检查。"
 
-#: crates/gui/src/views/preferences.rs:315
+#: crates/gui/src/views/preferences.rs:329
 msgid "Evaluating your configuration…"
 msgstr "正在评估您的配置…"
 
-#: crates/gui/src/views/preferences.rs:325
+#: crates/gui/src/views/preferences.rs:339
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix 无法评估它：{}"

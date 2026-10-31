@@ -9,7 +9,9 @@ How to use Nix App Center. Short on purpose.
 2. **Add to Configuration**: the app is written into your configuration.
    Nothing is installed yet.
 3. **Apply**: your system is rebuilt and the app is installed. The Apply
-   button shows at the top of the window whenever something changed.
+   button shows at the top of the window whenever something changed. Once
+   built, Nix App Center lists what changes (updated, added, removed apps)
+   and switches only when you confirm.
 
 The first time you add an app, Nix App Center asks to add one import line to
 your configuration. It shows the change before writing anything.
