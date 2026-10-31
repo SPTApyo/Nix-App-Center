@@ -47,25 +47,6 @@ fn parse_flags(src: &str) -> Vec<BuildFlag> {
     out
 }
 
-/// The flags a saved block sets in `pkgs.<attr>.override { … }`.
-pub(crate) fn overridden_flags(block: &str, attr: &str) -> Vec<(String, bool)> {
-    let Some(rest) = block.split_once(&format!("pkgs.{attr}.override {{")) else {
-        return Vec::new();
-    };
-    let body = rest.1.split('}').next().unwrap_or_default();
-    body.split(';')
-        .filter_map(|pair| {
-            let (name, value) = pair.split_once('=')?;
-            let value = match value.trim() {
-                "true" => true,
-                "false" => false,
-                _ => return None,
-            };
-            Some((name.trim().to_string(), value))
-        })
-        .collect()
-}
-
 /// `(<base>.override { … })`, or `base` when nothing changes.
 pub(crate) fn with_flags(base: &str, changes: &[(String, bool)]) -> String {
     if changes.is_empty() {
@@ -99,7 +80,7 @@ mod tests {
     }
 
     #[test]
-    fn override_round_trips() {
+    fn override_writes_the_changed_flags() {
         let changes = vec![
             ("withQt5".to_string(), false),
             ("jackSupport".to_string(), true),
@@ -109,9 +90,6 @@ mod tests {
             pkg,
             "(pkgs.vlc.override { withQt5 = false; jackSupport = true; })"
         );
-        let block = format!("home.packages = [ {pkg} ];");
-        assert_eq!(overridden_flags(&block, "vlc"), changes);
         assert_eq!(with_flags("pkgs.vlc", &[]), "pkgs.vlc");
-        assert!(overridden_flags("home.packages = [ pkgs.vlc ];", "vlc").is_empty());
     }
 }
