@@ -87,10 +87,32 @@ fn appimage_entry(desktop_file: &Path, text: &str) -> Option<Installed> {
 fn appimage_file(desktop_file: &Path) -> Option<PathBuf> {
     let text = std::fs::read_to_string(desktop_file).ok()?;
     let exec = text.lines().find_map(|l| l.strip_prefix("Exec="))?;
-    let file = exec
-        .split_whitespace()
-        .find(|w| w.to_lowercase().trim_matches('"').ends_with(".appimage"))?;
-    Some(PathBuf::from(file.trim_matches('"')))
+    exec_words(exec)
+        .into_iter()
+        .find(|w| w.to_lowercase().ends_with(".appimage"))
+        .map(PathBuf::from)
+}
+
+/// The words of an Exec line; a quoted one keeps its spaces.
+fn exec_words(exec: &str) -> Vec<String> {
+    let (mut words, mut word, mut quoted) = (Vec::new(), String::new(), false);
+    let mut chars = exec.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => quoted = !quoted,
+            '\\' if quoted => word.extend(chars.next()),
+            ' ' | '\t' if !quoted => {
+                if !word.is_empty() {
+                    words.push(std::mem::take(&mut word));
+                }
+            }
+            _ => word.push(c),
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
 }
 
 /// The files removing an AppImage deletes: the image and its desktop file.
@@ -146,8 +168,8 @@ mod tests {
     fn removing_an_appimage_deletes_both_files() {
         let dir =
             std::env::temp_dir().join(format!("nix-app-center-appimage-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let image = dir.join("kdenlive.AppImage");
+        std::fs::create_dir_all(dir.join("My Apps")).unwrap();
+        let image = dir.join("My Apps/kdenlive.AppImage");
         let desktop = dir.join("kdenlive.desktop");
         std::fs::write(&image, "").unwrap();
         std::fs::write(

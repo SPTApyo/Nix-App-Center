@@ -221,10 +221,12 @@ fn imports_list(regions: &[String]) -> String {
 
 /// The app regions of a scope, sorted.
 fn regions(kept: &[KeptEntry], scope: fn(&KeptEntry) -> Option<&String>) -> Vec<String> {
-    // An empty block means nothing in this scope.
+    // An empty block means nothing in this scope. A line break in a
+    // name would end its marker comment and run as Nix.
     let mut promues: Vec<&KeptEntry> = kept
         .iter()
         .filter(|e| scope(e).is_some_and(|b| !b.trim().is_empty()))
+        .filter(|e| !e.package.attr.chars().any(char::is_control))
         .collect();
     promues.sort_by(|a, b| a.package.attr.cmp(&b.package.attr));
     promues
@@ -869,6 +871,13 @@ mod tests {
         let system = render_system(&kept);
         assert!(system.contains("# nix-app-center:begin steam"));
         assert!(system.contains("programs.steam.enable = true;"));
+    }
+
+    #[test]
+    fn a_name_cannot_leave_its_marker() {
+        let evil = promue("x\nsystem.activationScripts.a = \"id\";", Some("{ }"), None);
+        let out = render_home(&[evil], &HomeShape::HomeManager);
+        assert!(!out.contains("activationScripts"), "{out}");
     }
 
     #[test]

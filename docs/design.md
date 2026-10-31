@@ -361,6 +361,11 @@ current system, user environments, running programs, old generations,
 development (other roots, and build inputs keep-outputs keeps alive), tried
 apps, and garbage, which is only what nothing keeps alive. A generation's
 figure is what only it reaches.
+Delete Old Generations first deletes the old generations of the user's
+profiles (nix-env --delete-generations old), then runs
+nix-collect-garbage --delete-old as root: root only reaches its own profiles
+and the system's, not the user's Home Manager and profile generations the
+figure counts, and the store is walked once.
 
 ## Integration
 

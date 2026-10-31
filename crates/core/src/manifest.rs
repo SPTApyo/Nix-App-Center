@@ -57,29 +57,6 @@ impl KeptEntry {
     pub fn is_promoted(&self) -> bool {
         self.home_nix.is_some() || self.system_nix.is_some()
     }
-
-    /// Turns blocks older versions generated into structured fields.
-    fn migrate(&mut self) {
-        let attr = self.package.attr.clone();
-        let wide = format!("environment.systemPackages = [ pkgs.{attr} ];");
-        if self.home_nix.as_deref() == Some("") && self.system_nix.as_deref() == Some(&wide) {
-            self.system_wide = true;
-            self.home_nix = None;
-            self.system_nix = None;
-        }
-        let Some(block) = self.home_nix.as_deref() else {
-            return;
-        };
-        let flags = crate::build_flags::overridden_flags(block, &attr);
-        let generated = format!(
-            "= [ {} ];",
-            crate::build_flags::with_flags(&format!("pkgs.{attr}"), &flags)
-        );
-        if !flags.is_empty() && !block.contains('\n') && block.trim_end().ends_with(&generated) {
-            self.flags = flags;
-            self.home_nix = None;
-        }
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -126,12 +103,10 @@ fn manifest_path() -> PathBuf {
 
 /// The manifest; empty when missing or unreadable.
 pub fn load_manifest() -> Manifest {
-    let mut m: Manifest = std::fs::read(manifest_path())
+    std::fs::read(manifest_path())
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default();
-    m.kept.iter_mut().for_each(KeptEntry::migrate);
-    m
+        .unwrap_or_default()
 }
 
 fn save_manifest(m: &Manifest) -> std::io::Result<()> {
@@ -140,7 +115,15 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
 }
 
 /// Writes the Nix files, then the manifest: a failed write keeps it unchanged.
+/// Refuses while kept.json is unreadable, since `m` then lost its apps.
 fn commit(m: &Manifest) -> std::io::Result<()> {
+    let damaged = std::fs::read(manifest_path())
+        .is_ok_and(|b| serde_json::from_slice::<Manifest>(&b).is_err());
+    if damaged {
+        return Err(std::io::Error::other(crate::util::n_(
+            "The list of your apps (kept.json) is damaged. Fix or remove it, then try again.",
+        )));
+    }
     config_gen::sync_config(&m.kept)?;
     save_manifest(m)?;
     std::fs::write(pending_path(), "")
@@ -428,43 +411,22 @@ mod tests {
         );
     }
 
-    #[test]
-    fn old_generated_blocks_become_fields() {
-        let mut wide = KeptEntry {
-            home_nix: Some(String::new()),
-            system_nix: Some("environment.systemPackages = [ pkgs.vlc ];".into()),
-            ..KeptEntry::simple(Package::from_attr("vlc"))
-        };
-        wide.migrate();
-        assert!(wide.system_wide && !wide.is_promoted());
-
-        let mut flagged = KeptEntry {
-            home_nix: Some(
-                "home.packages = [ (pkgs.obs-studio.override { browserSupport = false; }) ];"
-                    .into(),
-            ),
-            ..KeptEntry::simple(Package::from_attr("obs-studio"))
-        };
-        flagged.migrate();
-        assert_eq!(flagged.flags, [("browserSupport".to_string(), false)]);
-        assert!(flagged.home_nix.is_none());
-
-        let custom = "home.packages = [ (pkgs.obs-studio.override { browserSupport = false; }) ];\nprograms.x = 1;";
-        let mut kept = KeptEntry {
-            home_nix: Some(custom.into()),
-            ..KeptEntry::simple(Package::from_attr("obs-studio"))
-        };
-        kept.migrate();
-        assert_eq!(
-            kept.home_nix.as_deref(),
-            Some(custom),
-            "a user's own block stays"
-        );
-    }
-
     fn cleanup() {
         std::env::remove_var("XDG_DATA_HOME");
         std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
+    }
+
+    #[test]
+    fn a_damaged_manifest_is_never_overwritten() {
+        let _g = crate::env_lock();
+        let base = sandbox("damaged");
+        let path = base.join("nix-app-center/kept.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "{ broken").unwrap();
+        assert!(keep(&Package::from_attr("vlc")).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ broken");
+        assert!(!base.join("nix-app-center-system.nix").exists());
+        cleanup();
     }
 
     #[test]
