@@ -873,6 +873,31 @@ mod tests {
     }
 
     #[test]
+    fn a_release_edit_is_written_then_reverted() {
+        let dir =
+            std::env::temp_dir().join(format!("nix-app-center-release-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let original = "nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.05\";\n";
+        let edit = ReleaseEdit {
+            file: dir.join("flake.nix"),
+            original: original.into(),
+            patched: retarget(original, "26.05", "26.11"),
+            lock: b"{ \"old\": 1 }".to_vec(),
+        };
+        std::fs::write(&edit.file, original).unwrap();
+        write_release_edit(&edit).unwrap();
+        let read = |name: &str| std::fs::read_to_string(dir.join(name)).unwrap();
+        assert!(read("flake.nix").contains("nixos-26.11"));
+        assert_eq!(read("flake.nix.nix-app-center-bak"), original);
+        std::fs::write(dir.join("flake.lock"), "{ \"new\": 2 }").unwrap();
+        revert_release_edit(&edit).unwrap();
+        assert_eq!(read("flake.nix"), original);
+        assert_eq!(read("flake.lock"), "{ \"old\": 1 }");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn retargets_the_release_branches_only() {
         let flake = "{\n  inputs = {\n    nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.05\";\n    home-manager.url = \"github:nix-community/home-manager/release-26.05\";\n    other.url = \"github:me/nixos-26.05-notes\";\n  };\n}\n";
         let patched = retarget(flake, "26.05", "26.11");
