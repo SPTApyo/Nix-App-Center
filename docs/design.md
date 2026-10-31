@@ -85,7 +85,31 @@ screenshots, links). Nix wins for what runs: the version, whether it is
 broken or insecure, the license when AppStream has none. The version list
 follows nixpkgs, with Flathub release notes only for versions nixpkgs ships.
 
-### What is installed
+### Going back
+
+Updates lists the generations of the system, or of standalone Home Manager
+when Nix App Center only writes a home, read straight from the profile links
+(/nix/var/nix/profiles/system-N-link). Each successful apply records, under
+the number of the generation it made, the manifest and the configuration's
+flake.lock ($XDG_DATA_HOME/nix-app-center/history). Going back switches the
+generation (nix-env --switch-generation, then switch-to-configuration
+switch as root; a Home Manager generation's activate script), then puts back
+what was recorded: otherwise the next apply would bring the newer state
+back, since the configuration still says so. A generation another tool made
+has nothing recorded: only the system switches, and the dialog says the
+next apply undoes it. The user's own files are never rewritten. Right after
+an apply that made a new generation, its dialog offers Undo. Only one apply,
+update or rollback runs at a time: while one runs, the buttons starting
+another are greyed out. Going back to a generation with another kernel or
+initrd than /run/booted-system says a restart finishes it, and from a
+specialisation, that the default configuration of the generation starts.
+Records of generations that are gone are dropped at the next apply.
+
+The CLI has the same commands (history, go-back N), and the NixOS test in
+nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
+applies, removes it, goes back and checks the configuration came back.
+
+## What is installed
 
 ```mermaid
 flowchart LR

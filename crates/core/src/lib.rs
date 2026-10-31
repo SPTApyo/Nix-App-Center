@@ -14,6 +14,7 @@ mod detail;
 mod enabled;
 mod flathub;
 mod foreign;
+mod history;
 mod http;
 mod installed;
 mod launch;
@@ -64,6 +65,11 @@ pub use detail::{closure_size, detail, PackageDetail};
 pub use enabled::{config_allows, declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use foreign::{appimage_files, remove_foreign};
+pub use history::{
+    go_back_steps, history, kept_diff, needs_restart, record as record_history,
+    restore as restore_history, running_specialisation, Point as HistoryPoint,
+    Scope as HistoryScope,
+};
 pub use http::exists as url_exists;
 pub use installed::{find as find_installed, installed_index, Installed, Origin};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};

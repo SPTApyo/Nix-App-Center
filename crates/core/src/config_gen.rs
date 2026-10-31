@@ -763,6 +763,7 @@ fn run_in<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     use std::io::BufRead;
     let elevated = argv.first().is_some_and(|b| b == "sudo");
     let argv: Vec<String> = match argv.split_first() {
+        Some((_, rest)) if elevated && crate::util::is_root() => rest.to_vec(),
         Some((_, rest)) if elevated => {
             let (Some(pkexec), Some(env)) = (
                 crate::launch::find_in_path("pkexec"),

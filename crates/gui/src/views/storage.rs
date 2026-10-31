@@ -700,5 +700,6 @@ fn button(label: &str, destructive: bool, on_click: impl Fn() + 'static) -> gtk:
         b.add_css_class("destructive-action");
     }
     b.connect_clicked(move |_| on_click());
+    crate::components::apply_dialog::guard(&b);
     b
 }

@@ -12,6 +12,13 @@ pub(crate) fn nix() -> std::process::Command {
     c
 }
 
+/// True when running as root, which needs no elevation.
+pub(crate) fn is_root() -> bool {
+    use std::os::unix::fs::MetadataExt;
+    // /proc/self belongs to the effective user.
+    std::fs::metadata("/proc/self").is_ok_and(|m| m.uid() == 0)
+}
+
 /// The user's home folder.
 pub(crate) fn home() -> std::path::PathBuf {
     std::env::var_os("HOME")

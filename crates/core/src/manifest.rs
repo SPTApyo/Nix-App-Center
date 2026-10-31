@@ -122,7 +122,7 @@ fn save_manifest(m: &Manifest) -> std::io::Result<()> {
 
 /// Writes the Nix files, then the manifest: a failed write keeps it unchanged.
 /// Refuses while kept.json is unreadable, since `m` then lost its apps.
-fn commit(m: &Manifest) -> std::io::Result<()> {
+pub(crate) fn commit(m: &Manifest) -> std::io::Result<()> {
     let damaged = std::fs::read(manifest_path())
         .is_ok_and(|b| serde_json::from_slice::<Manifest>(&b).is_err());
     if damaged {

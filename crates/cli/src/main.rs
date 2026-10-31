@@ -16,6 +16,8 @@
 //!   nix-app-center-cli detach            remove the Nix App Center import line
 //!   nix-app-center-cli edit <attr>       read a Nix block (home scope) on stdin, then set_blocks
 //!   nix-app-center-cli apply             apply the config (command derived from the layout)
+//!   nix-app-center-cli history           generations one can go back to
+//!   nix-app-center-cli go-back <n>       switch to generation n, restore its configuration
 //!   nix-app-center-cli gc                store garbage collection (nix-collect-garbage)
 //!   nix-app-center-cli list              print the manifest
 
@@ -370,34 +372,64 @@ fn main() -> ExitCode {
             }
         },
 
-        Some("apply") => {
-            use nix_app_center_core::ApplyOutcome::*;
-            match nix_app_center_core::apply_config() {
-                Ok(Done(line)) => {
-                    println!("configuration applied: {line}");
+        Some("apply") => match nix_app_center_core::apply_argv() {
+            Some(argv) => match stream(&[argv]) {
+                ExitCode::SUCCESS => {
+                    nix_app_center_core::applied();
+                    nix_app_center_core::record_history();
                     ExitCode::SUCCESS
                 }
-                Ok(Launched) => {
-                    println!("applying in a terminal");
-                    ExitCode::SUCCESS
-                }
-                Ok(NoTerminal(argv)) => {
-                    eprintln!("no terminal found; run it yourself:\n  {}", argv.join(" "));
-                    ExitCode::FAILURE
-                }
-                Ok(UnknownLayout) => {
-                    eprintln!("Nix configuration not found, nothing was applied");
-                    ExitCode::FAILURE
-                }
-                Ok(Cancelled) => {
-                    eprintln!("cancelled, nothing was changed");
-                    ExitCode::FAILURE
-                }
+                failed => failed,
+            },
+            None => {
+                eprintln!("Nix configuration not found, nothing was applied");
+                ExitCode::FAILURE
+            }
+        },
+
+        Some("history") => {
+            for p in nix_app_center_core::history() {
+                let mark = match (p.current, p.booted) {
+                    (true, _) => "current",
+                    (_, true) => "booted",
+                    _ => "",
+                };
+                let kept = p
+                    .kept
+                    .map_or("not made by Nix App Center".into(), |k| k.join(" "));
+                println!("{:>4} {:<8} {kept}", p.number, mark);
+            }
+            ExitCode::SUCCESS
+        }
+
+        Some("go-back") => {
+            let number = args.get(2).and_then(|n| n.parse::<u32>().ok());
+            let Some(point) = nix_app_center_core::history()
+                .into_iter()
+                .find(|p| Some(p.number) == number && !p.current)
+            else {
+                return usage();
+            };
+            let Some(steps) = nix_app_center_core::go_back_steps(&point) else {
+                eprintln!("generation {} is gone", point.number);
+                return ExitCode::FAILURE;
+            };
+            if stream(&steps) != ExitCode::SUCCESS {
+                return ExitCode::FAILURE;
+            }
+            let restored = nix_app_center_core::restore_history(&point);
+            nix_app_center_core::record_history();
+            match restored {
+                Ok(true) => println!("configuration restored"),
+                Ok(false) => println!(
+                    "configuration not changed: the next apply brings the newer state back"
+                ),
                 Err(e) => {
                     eprintln!("failed: {e}");
-                    ExitCode::FAILURE
+                    return ExitCode::FAILURE;
                 }
             }
+            ExitCode::SUCCESS
         }
 
         Some("list") => {
@@ -416,9 +448,38 @@ fn main() -> ExitCode {
     }
 }
 
+/// Runs `steps` as the app does, printing their output.
+fn stream(steps: &[Vec<String>]) -> ExitCode {
+    use nix_app_center_core::{ApplyOutcome, StreamEvent};
+    let res = nix_app_center_core::run_streaming(steps, |e| {
+        if let StreamEvent::Line(line) = e {
+            println!("{line}");
+        }
+    });
+    match res {
+        Ok(ApplyOutcome::Done(_)) => ExitCode::SUCCESS,
+        Ok(ApplyOutcome::Launched) => {
+            println!("running in a terminal");
+            ExitCode::SUCCESS
+        }
+        Ok(ApplyOutcome::NoTerminal(argv)) => {
+            eprintln!("no terminal found; run it yourself:\n  {}", argv.join(" "));
+            ExitCode::FAILURE
+        }
+        Ok(other) => {
+            eprintln!("nothing was applied: {other:?}");
+            ExitCode::FAILURE
+        }
+        Err(e) => {
+            eprintln!("failed: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: nix-app-center-cli <--version | search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> [--allow-unfree] [--allow-insecure] | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | gc | list>"
+        "usage: nix-app-center-cli <--version | search <query…> | info <attr> | run <attr> | shell <attr> | keep <attr> | unkeep <attr> | updates | versions <attr> | locate <bin> | layout | attach [--commit] | detach | edit <attr> | apply | history | go-back <generation> | gc | list>"
     );
     ExitCode::FAILURE
 }
