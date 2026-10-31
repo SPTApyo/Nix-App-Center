@@ -364,6 +364,49 @@ mod tests {
     }
 
     #[test]
+    fn going_back_restores_the_recorded_apps() {
+        let _g = crate::env_lock();
+        let base =
+            std::env::temp_dir().join(format!("nix-app-center-restore-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("configuration.nix"), "{ imports = [ ]; }").unwrap();
+        std::env::set_var("XDG_DATA_HOME", &base);
+        std::env::set_var("XDG_CONFIG_HOME", &base);
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &base);
+        let point = |number| Point {
+            scope: Scope::System,
+            number,
+            date: 0,
+            version: None,
+            current: false,
+            booted: false,
+            kept: None,
+        };
+        let dir = snapshot_dir(Scope::System, 5);
+        std::fs::create_dir_all(&dir).unwrap();
+        let kept = crate::Manifest {
+            kept: ["vlc", "gimp"]
+                .map(|a| crate::KeptEntry::simple(crate::Package::from_attr(a)))
+                .into(),
+        };
+        std::fs::write(dir.join("kept.json"), serde_json::to_vec(&kept).unwrap()).unwrap();
+        assert_eq!(snapshot_kept(Scope::System, 5).unwrap(), ["gimp", "vlc"]);
+        assert!(!restore(&point(4)).unwrap(), "nothing recorded for 4");
+        assert!(restore(&point(5)).unwrap());
+        assert_eq!(crate::load_manifest().packages().len(), 2);
+        let home = std::fs::read_to_string(base.join("nix-app-center-home.nix")).unwrap();
+        assert!(home.contains("vlc") && home.contains("gimp"), "{home}");
+        assert!(
+            !crate::apply_pending(),
+            "the restored state is the running one"
+        );
+        std::env::remove_var("XDG_DATA_HOME");
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
     fn diffs_kept_apps() {
         let (added, removed) = kept_diff(
             &["firefox".into(), "vlc".into()],
