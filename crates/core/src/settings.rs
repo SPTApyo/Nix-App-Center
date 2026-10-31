@@ -29,6 +29,9 @@ pub struct Settings {
     /// Show what an apply changes before activating it.
     #[serde(default = "yes")]
     pub review_changes: bool,
+    /// Keep proprietary apps without asking for each one.
+    #[serde(default)]
+    pub allow_all_unfree: bool,
 }
 
 fn yes() -> bool {
@@ -48,6 +51,7 @@ impl Default for Settings {
             apply_command: None,
             extra_flakes: Vec::new(),
             review_changes: true,
+            allow_all_unfree: false,
         }
     }
 }

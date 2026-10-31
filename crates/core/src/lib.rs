@@ -61,7 +61,7 @@ pub use config_layout::{
     ScopeTarget, Verified,
 };
 pub use detail::{closure_size, detail, PackageDetail};
-pub use enabled::{declared_in, enabled_modules};
+pub use enabled::{config_allows, declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use foreign::{appimage_files, remove_foreign};
 pub use http::exists as url_exists;
@@ -69,9 +69,9 @@ pub use installed::{find as find_installed, installed_index, Installed, Origin};
 pub use launch::{run, run_command, run_failure, shell, shell_command, ShellOutcome};
 pub use locate::{download_locate_db, locate_binary, locate_ready};
 pub use manifest::{
-    applied, apply_pending, import_flake_module, keep, load_manifest, pin_at, pin_current,
-    set_blocks, set_flags, set_mode, set_option, set_pin, unkeep, unset_option, InstallMode,
-    KeptEntry, Manifest, Pin,
+    allow, applied, apply_pending, import_flake_module, keep, keep_allowing, load_manifest, pin_at,
+    pin_current, set_blocks, set_flags, set_mode, set_option, set_pin, unkeep, unset_option,
+    Allowance, InstallMode, KeptEntry, Manifest, Pin,
 };
 pub use nix_check::{dry_build, parse_block, DryRun};
 pub use nixsoftware::similar_apps;
@@ -83,7 +83,7 @@ pub use package::{actions_for, Action, Actions, IconKind, Kind, Package};
 pub use profiles::{
     installed_app, profile_apps, profile_packages, store_sizes, ProfileApp, ProfilePackage, Scope,
 };
-pub use progress::{Phase, StreamEvent};
+pub use progress::{refusal, Phase, Refusal, StreamEvent};
 pub use ratings::{rating_for, Rating};
 pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{

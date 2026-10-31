@@ -443,6 +443,37 @@ a request to cache.nixos.org says whether it downloads or builds. Only the
 package name is sent. When nixos-unstable has a newer version, the page
 offers it as a hold at the unstable revision.
 
+A proprietary app, or one nixpkgs marks insecure, is kept only once the user
+allows it: Add to Configuration, a hold, build options and the Nix editor all
+ask first, and the answer is stored on the kept app (allow_unfree,
+allow_insecure). Allow All Proprietary Apps in Preferences stops the
+question for proprietary apps, never for insecure ones. No question either
+when the configuration's own nixpkgs already accepts the app: its page
+evaluates meta.available of the app in the pkgs of the scope it would go to
+(Home Manager's own pkgs only tell whether allowUnfree is on), and then
+nothing is written. The allowance never
+touches the global nixpkgs.config, where an allowUnfreePredicate written by
+both the user and Nix App Center would silently replace one another.
+Instead the app is taken from a nixpkgs instance that allows it, imported
+like a held revision:
+
+```nix
+nixpkgs-unfree = import pkgs.path {
+  config = lib.filterAttrs (_: v: v != null) pkgs.config // { allowUnfree = true; };
+  system = pkgs.stdenv.hostPlatform.system;
+};
+```
+
+allowUnfree, not a predicate on the app's name, because an app pulls
+proprietary dependencies too (steam needs steam-unwrapped). An app kept
+through its module reads pkgs.X, so an overlay replaces it with the allowed
+one; nixpkgs.overlays merge, unlike the predicate. When Home Manager runs as
+a NixOS module, the overlay is written for the system, and for the user too
+when home-manager.useGlobalPkgs is off, since Home Manager then builds its
+own pkgs. Overlays of the main nixpkgs do not apply to the allowed instance.
+An apply that fails because a kept app turned proprietary or insecure says
+which one and where to allow it.
+
 ## Package identity
 
 nixpkgs and Flathub have no official mapping. Nix App Center matches them in
@@ -514,6 +545,11 @@ current system, user environments, running programs, old generations,
 development (other roots, and build inputs keep-outputs keeps alive), tried
 apps, and garbage, which is only what nothing keeps alive. A generation's
 figure is what only it reaches.
+Delete Old Generations first deletes the old generations of the user's
+profiles (nix-env --delete-generations old), then runs
+nix-collect-garbage --delete-old as root: root only reaches its own profiles
+and the system's, not the user's Home Manager and profile generations the
+figure counts, and the store is walked once.
 
 ## Integration
 

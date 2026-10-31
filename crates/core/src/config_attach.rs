@@ -62,9 +62,16 @@ pub fn is_attached(layout: &Layout) -> bool {
     }
     needed.iter().all(|(site, line)| {
         std::fs::read_to_string(site)
-            .map(|src| src.contains(line.trim_start_matches("./")))
+            .map(|src| imports(&src, line))
             .unwrap_or(false)
     })
+}
+
+/// True when `src` names `line`'s file outside a comment.
+fn imports(src: &str, line: &str) -> bool {
+    let name = line.trim_start_matches("./");
+    src.lines()
+        .any(|l| l.find(name).is_some_and(|i| !l[..i].contains('#')))
 }
 
 /// The attach plan. Writes nothing.
@@ -90,7 +97,7 @@ pub fn plan(layout: &Layout) -> AttachPlan {
     let src = std::fs::read_to_string(&site).unwrap_or_default();
     let missing: Vec<String> = lines
         .iter()
-        .filter(|l| !src.contains(l.trim_start_matches("./")))
+        .filter(|l| !imports(&src, l))
         .cloned()
         .collect();
 
@@ -99,9 +106,9 @@ pub fn plan(layout: &Layout) -> AttachPlan {
     }
 
     match splice_imports(&src, &missing) {
-        Some((patched, at)) => AttachPlan::Patch {
+        Some(patched) => AttachPlan::Patch {
             backup: backup_path(&site),
-            diff: unified_insert_diff(&site, &src, &patched, missing.len(), at),
+            diff: unified_diff(&site, &src, &patched),
             added: missing,
             site,
             patched,
@@ -168,8 +175,8 @@ fn backup_path(site: &Path) -> PathBuf {
 }
 
 /// `src` with `lines` inserted before the `]` of its `imports` (or flake
-/// `modules`) list, and the insertion line index. `None` without one.
-fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
+/// `modules`) list. `None` without one.
+fn splice_imports(src: &str, lines: &[String]) -> Option<String> {
     let open = find_list_bracket(src, "imports").or_else(|| find_list_bracket(src, "modules"))?;
     let close = matching_bracket(src, open)?;
 
@@ -184,14 +191,27 @@ fn splice_imports(src: &str, lines: &[String]) -> Option<(String, usize)> {
 
     let insert: String = lines.iter().map(|l| format!("{pad}{l}\n")).collect();
 
-    let line_start = src[..close].rfind('\n').map(|i| i + 1).unwrap_or(close);
-    let mut patched = String::with_capacity(src.len() + insert.len());
-    patched.push_str(&src[..line_start]);
-    patched.push_str(&insert);
-    patched.push_str(&src[line_start..]);
-
-    let at = src[..line_start].lines().count();
-    Some((patched, at))
+    let line_start = src[..close].rfind('\n').map_or(0, |i| i + 1);
+    let mut patched = String::with_capacity(src.len() + insert.len() + 2);
+    if line_start > open {
+        patched.push_str(&src[..line_start]);
+        patched.push_str(&insert);
+        patched.push_str(&src[line_start..]);
+    } else {
+        // `[` and `]` on one line: break the list before `]`.
+        let indent: String = src[line_start..]
+            .chars()
+            .take_while(|c| *c == ' ')
+            .collect();
+        patched.push_str(src[..close].trim_end());
+        patched.push('\n');
+        for l in lines {
+            patched.push_str(&format!("{indent}  {l}\n"));
+        }
+        patched.push_str(&indent);
+        patched.push_str(&src[close..]);
+    }
+    Some(patched)
 }
 
 /// Index of the `[` of `<key> = [`, outside comments.
@@ -272,29 +292,38 @@ fn matching_bracket(src: &str, open: usize) -> Option<usize> {
     None
 }
 
-/// Unified diff of inserting `added` lines at line `at`.
-fn unified_insert_diff(site: &Path, src: &str, patched: &str, added: usize, at: usize) -> String {
-    let lines: Vec<&str> = src.lines().collect();
-    let inserted: Vec<&str> = patched.lines().skip(at).take(added).collect();
+/// Unified diff of `src` to `patched`: one hunk around what changed.
+fn unified_diff(site: &Path, src: &str, patched: &str) -> String {
+    let (a, b): (Vec<&str>, Vec<&str>) = (src.lines().collect(), patched.lines().collect());
+    let same = a.iter().zip(&b).take_while(|(x, y)| x == y).count();
+    let tail = a[same..]
+        .iter()
+        .rev()
+        .zip(b[same..].iter().rev())
+        .take_while(|(x, y)| x == y)
+        .count();
     let ctx = 3usize;
-    let start = at.saturating_sub(ctx);
-    let end = (at + ctx).min(lines.len());
-
+    let start = same.saturating_sub(ctx);
+    let (a_end, b_end) = (a.len() - tail, b.len() - tail);
+    let after = tail.min(ctx);
     let mut out = format!("--- {}\n+++ {}\n", site.display(), site.display());
     out.push_str(&format!(
         "@@ -{},{} +{},{} @@\n",
         start + 1,
-        end - start,
+        a_end + after - start,
         start + 1,
-        end - start + added
+        b_end + after - start
     ));
-    for line in &lines[start..at] {
+    for line in &a[start..same] {
         out.push_str(&format!(" {line}\n"));
     }
-    for a in inserted {
-        out.push_str(&format!("+{a}\n"));
+    for line in &a[same..a_end] {
+        out.push_str(&format!("-{line}\n"));
     }
-    for line in &lines[at..end] {
+    for line in &b[same..b_end] {
+        out.push_str(&format!("+{line}\n"));
+    }
+    for line in &a[a_end..a_end + after] {
         out.push_str(&format!(" {line}\n"));
     }
     out
@@ -307,8 +336,7 @@ mod tests {
     #[test]
     fn flake_without_configuration_nix_gets_a_modules_line() {
         let flake = "{\n  outputs = { c, ... }: {\n    nixosConfigurations.pc = c.extendModules {\n      modules = [\n        ./hardware-configuration.nix\n        ./custom.nix\n      ];\n    };\n  };\n}\n";
-        let (patched, _) =
-            splice_imports(flake, &["./nix-app-center-system.nix".to_string()]).unwrap();
+        let patched = splice_imports(flake, &["./nix-app-center-system.nix".to_string()]).unwrap();
         assert!(
             patched.contains("        ./custom.nix\n        ./nix-app-center-system.nix\n      ];"),
             "{patched}"
@@ -446,9 +474,29 @@ mod tests {
     }
 
     #[test]
+    fn a_commented_import_does_not_count() {
+        let line = "./nix-app-center-home.nix";
+        assert!(imports("  imports = [ ./nix-app-center-home.nix ];", line));
+        assert!(!imports("  # ./nix-app-center-home.nix\n", line));
+        assert!(!imports("  ./a.nix # ./nix-app-center-home.nix\n", line));
+    }
+
+    #[test]
+    fn a_one_line_list_is_broken_before_its_bracket() {
+        let src = "{ ... }:\n{\n  imports = [ ./hardware-configuration.nix ];\n}\n";
+        let patched = splice_imports(src, &["./nix-app-center-system.nix".to_string()]).unwrap();
+        assert_eq!(
+            patched,
+            "{ ... }:\n{\n  imports = [ ./hardware-configuration.nix\n    ./nix-app-center-system.nix\n  ];\n}\n"
+        );
+        let diff = unified_diff(Path::new("c.nix"), src, &patched);
+        assert!(diff.contains("-  imports = [ ./hardware-configuration.nix ];\n+  imports = [ ./hardware-configuration.nix\n+    ./nix-app-center-system.nix\n+  ];\n }"), "{diff}");
+    }
+
+    #[test]
     fn ignores_imports_inside_a_comment() {
         let src = "{\n  # imports = [ ./vieux.nix ];\n  imports = [\n    ./vrai.nix\n  ];\n}\n";
-        let (patched, _) = splice_imports(src, &["./nix-app-center-home.nix".to_string()]).unwrap();
+        let patched = splice_imports(src, &["./nix-app-center-home.nix".to_string()]).unwrap();
         assert!(patched.contains("./vrai.nix"));
         assert!(patched.contains("./nix-app-center-home.nix"));
         // The commented line stays commented, and untouched.
