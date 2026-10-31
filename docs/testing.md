@@ -33,8 +33,14 @@ runs commands as root or deletes store paths comes first.
 nix build .#checks.x86_64-linux.module starts a NixOS virtual machine with
 programs.nix-app-center enabled and checks the app, its desktop entry and its
 search provider are there (nix/test.nix, the same test nixpkgs runs).
+nix build .#checks.x86_64-linux.apply runs a real nixos-rebuild in a
+virtual machine, offline (nix/test-apply.nix): the CLI attaches, keeps hello,
+applies, removes it, goes back to the generation that had it, and checks the
+configuration came back with it. It takes a few minutes and several GB, so
+run it when you change applying or going back.
 nix build .#nix-app-center.tests.version checks the packaged CLI answers.
-CI runs both, and builds on aarch64-linux too.
+CI runs the module test and the version check, and builds on aarch64-linux
+too.
 
 ## End-to-end tests
 

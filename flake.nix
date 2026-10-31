@@ -25,18 +25,27 @@
         };
 
       # The maintainer entry only exists in nixpkgs.
-      checks = forAll (pkgs: {
-        module = pkgs.testers.runNixOSTest {
-          imports = [
-            ./nix/test.nix
-            { meta.maintainers = pkgs.lib.mkForce [ ]; }
-          ];
-          defaults = {
-            imports = [ self.nixosModules.default ];
-            meta.maintainers = pkgs.lib.mkForce [ ];
-          };
-        };
-      });
+      checks = forAll (
+        pkgs:
+        let
+          test =
+            file:
+            pkgs.testers.runNixOSTest {
+              imports = [
+                file
+                { meta.maintainers = pkgs.lib.mkForce [ ]; }
+              ];
+              defaults = {
+                imports = [ self.nixosModules.default ];
+                meta.maintainers = pkgs.lib.mkForce [ ];
+              };
+            };
+        in
+        {
+          module = test ./nix/test.nix;
+          apply = test ./nix/test-apply.nix;
+        }
+      );
 
       packages = forAll (pkgs: {
         default = package pkgs;
