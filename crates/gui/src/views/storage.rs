@@ -21,6 +21,8 @@ pub struct StorageModel {
     status: Option<String>,
     loaded_at: Option<Instant>,
     loading: bool,
+    /// The store deduplicates by itself: no button for it.
+    optimised: bool,
     content: gtk::Box,
     home_slot: gtk::Box,
 }
@@ -38,6 +40,11 @@ pub enum StorageMsg {
     /// Deletes this cache folder, once confirmed.
     ClearCache(HomeDir),
     CacheCleared(Result<(), String>),
+    /// Whether the store deduplicates by itself.
+    Optimised(bool),
+    /// Finds what keeps this app's paths alive.
+    Why(String, Vec<String>),
+    WhyLoaded(String, Vec<nix_app_center_core::Keeper>, Vec<String>),
 }
 
 #[relm4::component(pub)]
@@ -78,6 +85,7 @@ impl SimpleComponent for StorageModel {
             status: None,
             loaded_at: None,
             loading: false,
+            optimised: true,
             content: content.clone(),
             home_slot: gtk::Box::new(gtk::Orientation::Vertical, 0),
         };
@@ -102,6 +110,8 @@ impl SimpleComponent for StorageModel {
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
+                    let optimised = nix_app_center_core::auto_optimise_on();
+                    let _ = s.send(StorageMsg::Optimised(optimised));
                     let res = nix_app_center_core::storage_report().map_err(|e| e.to_string());
                     let _ = s.send(StorageMsg::Loaded(res));
                 });
@@ -150,6 +160,20 @@ impl SimpleComponent for StorageModel {
                         let _ = s.send(StorageMsg::Cleaned);
                     },
                 );
+            }
+            StorageMsg::Optimised(on) => self.optimised = on,
+            StorageMsg::Why(name, paths) => {
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let (keepers, chain) = paths
+                        .first()
+                        .map(|p| nix_app_center_core::why(p))
+                        .unwrap_or_default();
+                    let _ = s.send(StorageMsg::WhyLoaded(name, keepers, chain));
+                });
+            }
+            StorageMsg::WhyLoaded(name, keepers, chain) => {
+                why_dialog(&self.content, &name, &keepers, &chain);
             }
             StorageMsg::Cleaned => {
                 self.loaded_at = None;
@@ -279,7 +303,7 @@ impl StorageModel {
             overview(report, sender),
             self.cleanups(report, sender),
             generations(report),
-            apps(report),
+            apps(report, sender),
         ];
         for (i, sec) in sections.iter().enumerate() {
             util::appear(sec, i * 2);
@@ -345,8 +369,89 @@ impl StorageModel {
             move || confirm_delete_generations(&parent, s.clone())
         }));
         list.append(&old);
+
+        if !self.optimised {
+            let dedupe = adw::ActionRow::builder()
+                .title(t("Deduplicate Files"))
+                .subtitle(t("Replaces identical files in the store with links to a single copy. Can take a long time on a big store."))
+                .build();
+            dedupe.add_suffix(&button(&t("De_duplicate"), false, {
+                let s = sender.input_sender().clone();
+                move || {
+                    let _ = s.send(StorageMsg::Clean(vec![
+                        nix_app_center_core::optimise_command(),
+                    ]));
+                }
+            }));
+            list.append(&dedupe);
+        }
         util::section(&t("Free Up Space"), None, &list)
     }
+}
+
+/// What keeps an app in the store, and the chain from the system to it.
+fn why_dialog(
+    parent: &gtk::Box,
+    name: &str,
+    keepers: &[nix_app_center_core::Keeper],
+    chain: &[String],
+) {
+    use nix_app_center_core::Keeper;
+    // "(3, 5)" for a few, "(38 to 64)" for many.
+    let numbers = |n: &[u32]| match n {
+        [first, _, _, _, ..] => t(" ({first} to {last})")
+            .replace("{first}", &first.to_string())
+            .replace("{last}", &n[n.len() - 1].to_string()),
+        _ => format!(
+            " ({})",
+            n.iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    };
+    let mut lines: Vec<String> = keepers
+        .iter()
+        .map(|k| match k {
+            Keeper::System(n) => {
+                util::plural(
+                    "{} system generation",
+                    "{} system generations",
+                    n.len() as i64,
+                ) + &numbers(n)
+            }
+            Keeper::HomeManager(n) => {
+                util::plural(
+                    "{} Home Manager generation",
+                    "{} Home Manager generations",
+                    n.len() as i64,
+                ) + &numbers(n)
+            }
+            Keeper::CurrentSystem => t("The system running now"),
+            Keeper::BootedSystem => t("The system the computer started with"),
+            Keeper::CurrentHome => t("Your Home Manager setup"),
+            Keeper::UserProfile => t("Your user profile"),
+            Keeper::Running => t("A program running now"),
+            Keeper::Other(link) => link.clone(),
+        })
+        .map(|l| format!("• {l}"))
+        .collect();
+    if lines.is_empty() {
+        lines.push(t("Nothing keeps it anymore: the next clean-up deletes it."));
+    } else {
+        lines.insert(0, t("Kept by:"));
+    }
+    if chain.len() > 1 {
+        lines.push(String::new());
+        lines.push(t("Used by the running system through:"));
+        lines.push(chain.join(" → "));
+    }
+    let dialog = adw::AlertDialog::new(
+        Some(&t("Why Is {} Here?").replace("{}", name)),
+        Some(&lines.join("\n")),
+    );
+    dialog.add_response("close", &t("_Close"));
+    dialog.present(Some(parent));
 }
 
 /// Totals, the pie chart and its legend.
@@ -546,7 +651,7 @@ fn generations(r: &StorageReport) -> gtk::Box {
     )
 }
 
-fn apps(r: &StorageReport) -> gtk::Box {
+fn apps(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::Box {
     let list = util::boxed_list();
     for (origins, title) in [
         (vec![AppOrigin::System], t("System Apps")),
@@ -591,6 +696,18 @@ fn apps(r: &StorageReport) -> gtk::Box {
                         .subtitle(esc(&detail))
                         .build()
                 });
+            if !a.paths.is_empty() {
+                let why = gtk::Button::with_mnemonic(&t("_Why?"));
+                why.set_valign(gtk::Align::Center);
+                why.add_css_class("flat");
+                why.set_tooltip_text(Some(&t("What keeps it in the store")));
+                let s = sender.input_sender().clone();
+                let (name, paths) = (a.name.clone(), a.paths.clone());
+                why.connect_clicked(move |_| {
+                    let _ = s.send(StorageMsg::Why(name.clone(), paths.clone()));
+                });
+                row.add_suffix(&why);
+            }
             exp.add_row(&row);
         }
         list.append(&exp);

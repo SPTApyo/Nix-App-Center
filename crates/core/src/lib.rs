@@ -40,6 +40,7 @@ mod updates;
 mod user_profile;
 mod util;
 mod versions;
+mod why;
 
 pub use app_meta::{app_meta, nix_releases, AppMeta};
 pub use appstream_db::{
@@ -102,8 +103,9 @@ pub use session_cache::{
 };
 pub use settings::{load_settings, save_settings, Settings};
 pub use storage::{
-    clear_cache, home_usage, storage_report, AppOrigin, AppSize, Category, GenProfile, Generation,
-    HomeDir, HomeKind, StorageReport,
+    auto_cleanup, auto_optimise_on, clear_cache, home_usage, optimise_command, set_auto_cleanup,
+    storage_report, AppOrigin, AppSize, AutoCleanup, Category, GenProfile, Generation, HomeDir,
+    HomeKind, StorageReport,
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
@@ -118,6 +120,7 @@ pub use user_profile::{
 };
 pub use util::now_unix;
 pub use versions::{versions, VersionChoice};
+pub use why::{why, Keeper};
 
 // Serializes tests that change environment variables.
 #[cfg(test)]

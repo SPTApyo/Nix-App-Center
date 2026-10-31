@@ -598,6 +598,16 @@ nix-collect-garbage --delete-old as root: root only reaches its own profiles
 and the system's, not the user's Home Manager and profile generations the
 figure counts, and the store is walked once.
 
+Why? on an app asks nix-store --query --roots for its paths and groups the
+roots: generations by number, the running system, the user profile, running
+programs. nix why-depends then shows the chain from /run/current-system.
+
+Deduplicate runs nix-store --optimise as root and only shows when
+auto-optimise-store is off. Clean Up Automatically writes nix.gc.automatic
+(weekly, older than 30 days) and nix.optimise.automatic into the generated
+file. When the user's own configuration already sets nix.gc, the switch is
+read only, since two definitions would conflict.
+
 ## Integration
 
 - Settings live in $XDG_CONFIG_HOME/nix-app-center/settings.json. Reading

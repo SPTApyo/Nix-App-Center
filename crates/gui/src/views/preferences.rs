@@ -266,7 +266,29 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
 
     page.add(&config);
     page.add(&installing);
+    let storage = adw::PreferencesGroup::builder().title(t("Storage")).build();
+    let cleanup = adw::SwitchRow::builder()
+        .title(t("Clean Up Automatically"))
+        .subtitle(t("Every week, deletes what nothing uses and generations older than 30 days, which then leave History. Applies with your configuration."))
+        .build();
+    match nix_app_center_core::auto_cleanup() {
+        nix_app_center_core::AutoCleanup::ByConfig => {
+            cleanup.set_active(true);
+            cleanup.set_sensitive(false);
+            cleanup.set_subtitle(&t("Set by your own configuration."));
+        }
+        state => cleanup.set_active(state == nix_app_center_core::AutoCleanup::On),
+    }
+    cleanup.connect_active_notify(|row| {
+        if let Err(e) = nix_app_center_core::set_auto_cleanup(row.is_active()) {
+            row.set_subtitle(&crate::util::failed(&e));
+        }
+    });
+    storage.add(&cleanup);
+    storage.set_visible(nix_app_center_core::detect_layout().is_usable());
+
     page.add(&updates);
+    page.add(&storage);
     page.add(&search);
     page.add(&advanced);
     dialog.add(&page);
