@@ -364,6 +364,23 @@ mod tests {
     }
 
     #[test]
+    fn finds_the_home_manager_profile_in_the_state_folder() {
+        let _g = crate::env_lock();
+        let dir = std::env::temp_dir().join(format!("nix-app-center-state-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let profiles = dir.join("nix/profiles");
+        std::fs::create_dir_all(&profiles).unwrap();
+        std::os::unix::fs::symlink("/", profiles.join("home-manager-1-link")).unwrap();
+        std::os::unix::fs::symlink("home-manager-1-link", profiles.join("home-manager")).unwrap();
+        std::env::set_var("XDG_STATE_HOME", &dir);
+        assert_eq!(home_profile(), Some(profiles.join("home-manager")));
+        let numbers: Vec<u32> = points(Scope::Home).iter().map(|p| p.number).collect();
+        std::env::remove_var("XDG_STATE_HOME");
+        assert_eq!(numbers, [1]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn going_back_restores_the_recorded_apps() {
         let _g = crate::env_lock();
         let base =
