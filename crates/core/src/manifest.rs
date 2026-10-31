@@ -43,6 +43,12 @@ pub struct KeptEntry {
     /// An option setting, not a package: `package.attr` is the option.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub option: bool,
+    /// The user allowed this proprietary app.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub allow_unfree: bool,
+    /// The user allowed this app although nixpkgs marks it insecure.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub allow_insecure: bool,
 }
 
 impl KeptEntry {
@@ -145,17 +151,53 @@ pub fn applied() {
 
 /// Keeps `pkg`; nothing when already kept.
 pub fn keep(pkg: &Package) -> std::io::Result<()> {
-    let mut m = load_manifest();
-    if !m.kept.iter().any(|e| e.package.attr == pkg.attr) {
-        let everyone = crate::settings::load_settings().install_for_everyone
-            && crate::detect_layout().system.is_some();
-        m.kept.push(KeptEntry {
-            system_wide: everyone,
-            ..KeptEntry::simple(pkg.clone())
-        });
-        commit(&m)?;
+    keep_allowing(pkg, Allowance::default())
+}
+
+/// What the user allowed for an app nixpkgs would otherwise refuse.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Allowance {
+    pub unfree: bool,
+    pub insecure: bool,
+}
+
+/// Records what the user allowed for a kept app; nothing when not kept.
+pub fn allow(attr: &str, allow: Allowance) -> std::io::Result<()> {
+    if allow == Allowance::default() {
+        return Ok(());
     }
-    Ok(())
+    let mut m = load_manifest();
+    let Some(e) = m.kept.iter_mut().find(|e| e.package.attr == attr) else {
+        return Ok(());
+    };
+    if (e.allow_unfree || !allow.unfree) && (e.allow_insecure || !allow.insecure) {
+        return Ok(());
+    }
+    e.allow_unfree |= allow.unfree;
+    e.allow_insecure |= allow.insecure;
+    commit(&m)
+}
+
+/// Keeps `pkg`, allowing it although it is proprietary or insecure.
+pub fn keep_allowing(pkg: &Package, allow: Allowance) -> std::io::Result<()> {
+    let mut m = load_manifest();
+    match m.kept.iter_mut().find(|e| e.package.attr == pkg.attr) {
+        Some(e) => {
+            e.allow_unfree |= allow.unfree;
+            e.allow_insecure |= allow.insecure;
+        }
+        None => {
+            let everyone = crate::settings::load_settings().install_for_everyone
+                && crate::detect_layout().system.is_some();
+            m.kept.push(KeptEntry {
+                system_wide: everyone,
+                allow_unfree: allow.unfree,
+                allow_insecure: allow.insecure,
+                ..KeptEntry::simple(pkg.clone())
+            });
+        }
+    }
+    commit(&m)
 }
 
 /// Stops keeping `attr`.

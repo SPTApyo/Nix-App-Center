@@ -26,6 +26,9 @@ pub struct Settings {
     /// (`github:owner/repo`).
     #[serde(default)]
     pub extra_flakes: Vec<String>,
+    /// Keep proprietary apps without asking for each one.
+    #[serde(default)]
+    pub allow_all_unfree: bool,
 }
 
 impl Default for Settings {
@@ -40,6 +43,7 @@ impl Default for Settings {
             onboarded: false,
             apply_command: None,
             extra_flakes: Vec::new(),
+            allow_all_unfree: false,
         }
     }
 }

@@ -29,6 +29,17 @@ installed it.
 
 The Installed tab lists them all, with what you tried and can clean up.
 
+## Proprietary and insecure apps
+
+Nix installs a proprietary app, such as Steam or Discord, only with your
+permission. When you add one, Nix App Center asks: allow this app, or allow
+every proprietary app you add from now on (Preferences can change that
+later). Only the apps you add are allowed, nothing else on your system.
+If your configuration already allows the app, nothing is asked.
+
+An app nixpkgs marks insecure asks every time, with its known
+vulnerabilities.
+
 ## Updates
 
 The Updates tab shows what can be updated. Update refreshes your
