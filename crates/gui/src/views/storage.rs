@@ -378,7 +378,9 @@ impl StorageModel {
             dedupe.add_suffix(&button(&t("De_duplicate"), false, {
                 let s = sender.input_sender().clone();
                 move || {
-                    let _ = s.send(StorageMsg::Clean(nix_app_center_core::optimise_command()));
+                    let _ = s.send(StorageMsg::Clean(vec![
+                        nix_app_center_core::optimise_command(),
+                    ]));
                 }
             }));
             list.append(&dedupe);

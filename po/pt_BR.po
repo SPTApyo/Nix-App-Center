@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-31 16:09+0100\n"
+"POT-Creation-Date: 2026-10-31 16:10+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -633,7 +633,7 @@ msgstr "Aguarde a aplicação, atualização ou retorno em andamento terminar."
 
 #: crates/gui/src/components/apply_dialog.rs:114
 #: crates/gui/src/components/details/attach_dialog.rs:97
-#: crates/gui/src/views/storage.rs:451
+#: crates/gui/src/views/storage.rs:453
 msgid "_Close"
 msgstr "_Fechar"
 
@@ -711,8 +711,8 @@ msgstr "Estas alterações valem para todos os usuários deste computador."
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/components/go_back.rs:51 crates/gui/src/views/detail.rs:1445
-#: crates/gui/src/views/detail.rs:1617 crates/gui/src/views/storage.rs:770
-#: crates/gui/src/views/storage.rs:786 crates/gui/src/views/updates.rs:831
+#: crates/gui/src/views/detail.rs:1617 crates/gui/src/views/storage.rs:772
+#: crates/gui/src/views/storage.rs:788 crates/gui/src/views/updates.rs:831
 msgid "_Cancel"
 msgstr "_Cancelar"
 
@@ -1074,7 +1074,7 @@ msgstr ""
 #: crates/gui/src/components/details/nix_editor.rs:97
 #: crates/gui/src/components/details/nix_editor.rs:108
 #: crates/gui/src/views/installed.rs:381 crates/gui/src/views/storage.rs:191
-#: crates/gui/src/views/storage.rs:589
+#: crates/gui/src/views/storage.rs:591
 msgid "System"
 msgstr "Sistema"
 
@@ -1937,7 +1937,7 @@ msgstr ""
 "Estes arquivos serão excluídos:\n"
 "{}"
 
-#: crates/gui/src/views/detail.rs:1446 crates/gui/src/views/storage.rs:787
+#: crates/gui/src/views/detail.rs:1446 crates/gui/src/views/storage.rs:789
 msgid "_Delete"
 msgstr "_Excluir"
 
@@ -2371,7 +2371,7 @@ msgstr "As linhas para você mesmo escrever"
 msgid "NixOS Configuration"
 msgstr "Configuração do NixOS"
 
-#: crates/gui/src/views/detail.rs:3014 crates/gui/src/views/storage.rs:590
+#: crates/gui/src/views/detail.rs:3014 crates/gui/src/views/storage.rs:592
 msgid "Home Manager"
 msgstr "Home Manager"
 
@@ -2833,67 +2833,67 @@ msgstr ""
 msgid "De_duplicate"
 msgstr "_Desduplicar"
 
-#: crates/gui/src/views/storage.rs:386
+#: crates/gui/src/views/storage.rs:388
 msgid "Free Up Space"
 msgstr "Liberar espaço"
 
-#: crates/gui/src/views/storage.rs:400
+#: crates/gui/src/views/storage.rs:402
 #, rust-format
 msgid " ({first} to {last})"
 msgstr " ({first} a {last})"
 
-#: crates/gui/src/views/storage.rs:416
+#: crates/gui/src/views/storage.rs:418
 #, rust-format
 msgid "{} system generation"
 msgid_plural "{} system generations"
 msgstr[0] "{} geração do sistema"
 msgstr[1] "{} gerações do sistema"
 
-#: crates/gui/src/views/storage.rs:423
+#: crates/gui/src/views/storage.rs:425
 #, rust-format
 msgid "{} Home Manager generation"
 msgid_plural "{} Home Manager generations"
 msgstr[0] "{} geração do Home Manager"
 msgstr[1] "{} gerações do Home Manager"
 
-#: crates/gui/src/views/storage.rs:428
+#: crates/gui/src/views/storage.rs:430
 msgid "The system running now"
 msgstr "O sistema em uso"
 
-#: crates/gui/src/views/storage.rs:429
+#: crates/gui/src/views/storage.rs:431
 msgid "The system the computer started with"
 msgstr "O sistema com que o computador iniciou"
 
-#: crates/gui/src/views/storage.rs:430
+#: crates/gui/src/views/storage.rs:432
 msgid "Your Home Manager setup"
 msgstr "Sua configuração do Home Manager"
 
-#: crates/gui/src/views/storage.rs:431
+#: crates/gui/src/views/storage.rs:433
 msgid "Your user profile"
 msgstr "Seu perfil de usuário"
 
-#: crates/gui/src/views/storage.rs:432
+#: crates/gui/src/views/storage.rs:434
 msgid "A program running now"
 msgstr "Um programa em execução"
 
-#: crates/gui/src/views/storage.rs:438
+#: crates/gui/src/views/storage.rs:440
 msgid "Nothing keeps it anymore: the next clean-up deletes it."
 msgstr "Nada mais o mantém: a próxima limpeza o apaga."
 
-#: crates/gui/src/views/storage.rs:440
+#: crates/gui/src/views/storage.rs:442
 msgid "Kept by:"
 msgstr "Mantido por:"
 
-#: crates/gui/src/views/storage.rs:444
+#: crates/gui/src/views/storage.rs:446
 msgid "Used by the running system through:"
 msgstr "Usado pelo sistema em uso através de:"
 
-#: crates/gui/src/views/storage.rs:448
+#: crates/gui/src/views/storage.rs:450
 #, rust-format
 msgid "Why Is {} Here?"
 msgstr "Por que {} está aqui?"
 
-#: crates/gui/src/views/storage.rs:565
+#: crates/gui/src/views/storage.rs:567
 #, rust-format
 msgid ""
 "{store} in {paths} store paths, before hard link sharing. The disk has "
@@ -2902,59 +2902,59 @@ msgstr ""
 "{store} em {paths} caminhos do armazenamento, antes do compartilhamento por "
 "links físicos. O disco tem {free} livres de {disk}."
 
-#: crates/gui/src/views/storage.rs:572
+#: crates/gui/src/views/storage.rs:574
 msgid "Measure Again"
 msgstr "Medir novamente"
 
-#: crates/gui/src/views/storage.rs:579
+#: crates/gui/src/views/storage.rs:581
 msgid "Nix Store"
 msgstr "Armazenamento do Nix"
 
-#: crates/gui/src/views/storage.rs:591
+#: crates/gui/src/views/storage.rs:593
 msgid "User Profile"
 msgstr "Perfil de usuário"
 
-#: crates/gui/src/views/storage.rs:606
+#: crates/gui/src/views/storage.rs:608
 #, rust-format
 msgid "{} generation"
 msgid_plural "{} generations"
 msgstr[0] "{} geração"
 msgstr[1] "{} gerações"
 
-#: crates/gui/src/views/storage.rs:607
+#: crates/gui/src/views/storage.rs:609
 #, rust-format
 msgid "{} old"
 msgid_plural "{} old"
 msgstr[0] "{} antiga"
 msgstr[1] "{} antigas"
 
-#: crates/gui/src/views/storage.rs:613
+#: crates/gui/src/views/storage.rs:615
 msgid "current"
 msgstr "atual"
 
-#: crates/gui/src/views/storage.rs:616
+#: crates/gui/src/views/storage.rs:618
 msgid "same as current"
 msgstr "igual à atual"
 
-#: crates/gui/src/views/storage.rs:619
+#: crates/gui/src/views/storage.rs:621
 msgid "booted"
 msgstr "inicializada"
 
-#: crates/gui/src/views/storage.rs:622 crates/gui/src/views/storage.rs:626
+#: crates/gui/src/views/storage.rs:624 crates/gui/src/views/storage.rs:628
 #, rust-format
 msgid "Generation {}"
 msgstr "Geração {}"
 
-#: crates/gui/src/views/storage.rs:635
+#: crates/gui/src/views/storage.rs:637
 #, rust-format
 msgid "frees {}"
 msgstr "libera {}"
 
-#: crates/gui/src/views/storage.rs:646
+#: crates/gui/src/views/storage.rs:648
 msgid "Generations"
 msgstr "Gerações"
 
-#: crates/gui/src/views/storage.rs:647
+#: crates/gui/src/views/storage.rs:649
 msgid ""
 "Each rebuild keeps the previous state so you can roll back. Old ones share "
 "most of their files: deleting one frees only what it alone keeps."
@@ -2963,56 +2963,56 @@ msgstr ""
 "antigas compartilham a maior parte dos arquivos: excluir uma libera só o que "
 "apenas ela mantém."
 
-#: crates/gui/src/views/storage.rs:655
+#: crates/gui/src/views/storage.rs:657
 msgid "System Apps"
 msgstr "Aplicativos do sistema"
 
-#: crates/gui/src/views/storage.rs:656
+#: crates/gui/src/views/storage.rs:658
 msgid "User Apps"
 msgstr "Aplicativos do usuário"
 
-#: crates/gui/src/views/storage.rs:659
+#: crates/gui/src/views/storage.rs:661
 msgid "Nix App Center Apps"
 msgstr "Aplicativos do Nix App Center"
 
-#: crates/gui/src/views/storage.rs:672
+#: crates/gui/src/views/storage.rs:674
 #, rust-format
 msgid "{} app"
 msgid_plural "{} apps"
 msgstr[0] "{} aplicativo"
 msgstr[1] "{} aplicativos"
 
-#: crates/gui/src/views/storage.rs:676
+#: crates/gui/src/views/storage.rs:678
 #, rust-format
 msgid "{} itself"
 msgstr "{} sozinho"
 
-#: crates/gui/src/views/storage.rs:680
+#: crates/gui/src/views/storage.rs:682
 #, rust-format
 msgid "{} with its dependencies"
 msgstr "{} com suas dependências"
 
-#: crates/gui/src/views/storage.rs:683
+#: crates/gui/src/views/storage.rs:685
 msgid "kept by Nix App Center"
 msgstr "mantido pelo Nix App Center"
 
-#: crates/gui/src/views/storage.rs:684
+#: crates/gui/src/views/storage.rs:686
 msgid "tried"
 msgstr "experimentado"
 
-#: crates/gui/src/views/storage.rs:698
+#: crates/gui/src/views/storage.rs:700
 msgid "_Why?"
 msgstr "_Por quê?"
 
-#: crates/gui/src/views/storage.rs:701
+#: crates/gui/src/views/storage.rs:703
 msgid "What keeps it in the store"
 msgstr "O que o mantém no store"
 
-#: crates/gui/src/views/storage.rs:714
+#: crates/gui/src/views/storage.rs:716
 msgid "Apps"
 msgstr "Aplicativos"
 
-#: crates/gui/src/views/storage.rs:715
+#: crates/gui/src/views/storage.rs:717
 msgid ""
 "Sizes include every dependency, so apps sharing libraries add up to more "
 "than the store."
@@ -3020,32 +3020,32 @@ msgstr ""
 "Os tamanhos incluem todas as dependências, então aplicativos que "
 "compartilham bibliotecas somam mais que o armazenamento."
 
-#: crates/gui/src/views/storage.rs:730
+#: crates/gui/src/views/storage.rs:732
 msgid "Cache"
 msgstr "Cache"
 
-#: crates/gui/src/views/storage.rs:731
+#: crates/gui/src/views/storage.rs:733
 msgid "Data"
 msgstr "Dados"
 
-#: crates/gui/src/views/storage.rs:732
+#: crates/gui/src/views/storage.rs:734
 msgid "Settings"
 msgstr "Configurações"
 
-#: crates/gui/src/views/storage.rs:738
+#: crates/gui/src/views/storage.rs:740
 #, rust-format
 msgid "used by {}"
 msgstr "usado por {}"
 
-#: crates/gui/src/views/storage.rs:749
+#: crates/gui/src/views/storage.rs:751
 msgid "Clear…"
 msgstr "Limpar…"
 
-#: crates/gui/src/views/storage.rs:756
+#: crates/gui/src/views/storage.rs:758
 msgid "Your Files"
 msgstr "Seus arquivos"
 
-#: crates/gui/src/views/storage.rs:757
+#: crates/gui/src/views/storage.rs:759
 #, rust-format
 msgid ""
 "Folders apps keep in your home: {} in all. A cache is rebuilt when needed; "
@@ -3055,12 +3055,12 @@ msgstr ""
 "é reconstruído quando necessário; dados e configurações são seus, o Nix App "
 "Center nunca os exclui."
 
-#: crates/gui/src/views/storage.rs:764
+#: crates/gui/src/views/storage.rs:766
 #, rust-format
 msgid "Clear the “{}” Cache?"
 msgstr "Limpar o cache de “{}”?"
 
-#: crates/gui/src/views/storage.rs:766
+#: crates/gui/src/views/storage.rs:768
 #, rust-format
 msgid ""
 "This frees {}. The app rebuilds what it needs; close it first if it is "
@@ -3069,15 +3069,15 @@ msgstr ""
 "Isso libera {}. O aplicativo reconstrói o que precisa; feche-o antes se "
 "estiver em execução."
 
-#: crates/gui/src/views/storage.rs:771
+#: crates/gui/src/views/storage.rs:773
 msgid "C_lear"
 msgstr "_Limpar"
 
-#: crates/gui/src/views/storage.rs:783
+#: crates/gui/src/views/storage.rs:785
 msgid "Delete Old Generations?"
 msgstr "Excluir as gerações antigas?"
 
-#: crates/gui/src/views/storage.rs:784
+#: crates/gui/src/views/storage.rs:786
 msgid ""
 "You will not be able to roll back to them. The current system and your "
 "current user setup stay."
