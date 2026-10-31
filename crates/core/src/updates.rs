@@ -96,10 +96,6 @@ pub fn installable(pkg: &crate::Package) -> String {
 pub fn current_source() -> Source {
     let layout = detect();
     let system = nixos_version();
-    let lock = |dir: &Path| -> Option<Value> {
-        let text = std::fs::read_to_string(dir.join("flake.lock")).ok()?;
-        serde_json::from_str(&text).ok()
-    };
     let from_version = |method: UpdateMethod| {
         let (rev, version) = system.clone().unwrap_or_default();
         Source {
@@ -112,7 +108,7 @@ pub fn current_source() -> Source {
     match &layout.kind {
         LayoutKind::NixosFlake { dir, .. } => {
             let running = from_version(UpdateMethod::Unknown);
-            match lock(dir).and_then(|l| source_from_lock(&l, running.rev.as_deref(), dir)) {
+            match flake_source(dir, running.rev.as_deref()) {
                 Some(s) if s.rev == running.rev || running.rev.is_none() => s,
                 Some(s) => Source {
                     branch: s.branch,
@@ -123,14 +119,12 @@ pub fn current_source() -> Source {
             }
         }
         LayoutKind::NixosLegacy { .. } => from_version(UpdateMethod::Channel),
-        LayoutKind::HmFlake { dir, .. } => lock(dir)
-            .and_then(|l| source_from_lock(&l, None, dir))
-            .unwrap_or(Source {
-                branch: None,
-                rev: None,
-                last_modified: None,
-                method: UpdateMethod::Unknown,
-            }),
+        LayoutKind::HmFlake { dir, .. } => flake_source(dir, None).unwrap_or(Source {
+            branch: None,
+            rev: None,
+            last_modified: None,
+            method: UpdateMethod::Unknown,
+        }),
         LayoutKind::HmStandalone { .. } => Source {
             branch: None,
             rev: None,
@@ -148,6 +142,199 @@ pub fn current_source() -> Source {
         },
         LayoutKind::Unknown => from_version(UpdateMethod::Unknown),
     }
+}
+
+/// The nixpkgs of the flake in `dir`. When it comes through a local input
+/// (a small /etc/nixos importing the real configuration), that input's own
+/// lock is where it can be updated.
+fn flake_source(dir: &Path, rev: Option<&str>) -> Option<Source> {
+    let lock = |dir: &Path| -> Option<Value> {
+        let text = std::fs::read_to_string(dir.join("flake.lock")).ok()?;
+        serde_json::from_str(&text).ok()
+    };
+    let main = lock(dir).and_then(|l| source_from_lock(&l, rev, dir));
+    if matches!(&main, Some(s) if matches!(s.method, UpdateMethod::FlakeInput { .. })) {
+        return main;
+    }
+    crate::config_layout::flake_dirs(dir)
+        .iter()
+        .skip(1)
+        .filter_map(|local| source_from_lock(&lock(local)?, rev, local))
+        .find(|s| matches!(s.method, UpdateMethod::FlakeInput { .. }))
+        .or(main)
+}
+
+/// An input of the configuration's flakes besides its nixpkgs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlakeInput {
+    /// The flake folder whose lock holds it.
+    pub dir: PathBuf,
+    pub name: String,
+    /// Flake reference following the same branch, to find its head.
+    pub reference: String,
+    pub rev: Option<String>,
+    /// Commit time of the locked revision (Unix seconds).
+    pub last_modified: Option<u64>,
+    /// The branch or tag it follows, when the lock names one.
+    pub branch: Option<String>,
+}
+
+/// The inputs of the configuration's flake and its local inputs that can be
+/// updated, nixpkgs of `source` aside. Inputs that follow another, and local
+/// ones, are left out.
+pub fn flake_inputs(source: &Source) -> Vec<FlakeInput> {
+    let dir = match detect().kind {
+        LayoutKind::NixosFlake { dir, .. } | LayoutKind::HmFlake { dir, .. } => dir,
+        _ => return Vec::new(),
+    };
+    let skip = match &source.method {
+        UpdateMethod::FlakeInput { dir, input } => Some((dir.clone(), input.clone())),
+        _ => None,
+    };
+    let mut out = Vec::new();
+    for d in crate::config_layout::flake_dirs(&dir) {
+        let Some(lock) = std::fs::read_to_string(d.join("flake.lock"))
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        else {
+            continue;
+        };
+        out.extend(
+            inputs_from_lock(&lock, &d)
+                .into_iter()
+                .filter(|i| skip.as_ref() != Some(&(i.dir.clone(), i.name.clone()))),
+        );
+    }
+    out
+}
+
+fn inputs_from_lock(lock: &Value, dir: &Path) -> Vec<FlakeInput> {
+    let safe = |s: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.~/:+@".contains(c))
+    };
+    let root = lock["root"].as_str().unwrap_or("root");
+    let Some(inputs) = lock["nodes"][root]["inputs"].as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (name, node) in inputs {
+        // An array: the input follows another one.
+        let Some(node) = node.as_str() else { continue };
+        let original = &lock["nodes"][node]["original"];
+        let locked = &lock["nodes"][node]["locked"];
+        let branch = original["ref"].as_str().map(str::to_string);
+        let reference = match original["type"].as_str() {
+            Some(kind @ ("github" | "gitlab" | "sourcehut")) => {
+                let (Some(owner), Some(repo)) =
+                    (original["owner"].as_str(), original["repo"].as_str())
+                else {
+                    continue;
+                };
+                match &branch {
+                    Some(b) => format!("{kind}:{owner}/{repo}/{b}"),
+                    None => format!("{kind}:{owner}/{repo}"),
+                }
+            }
+            Some("git") => {
+                let Some(url) = original["url"].as_str().filter(|u| !u.starts_with("file:")) else {
+                    continue;
+                };
+                match &branch {
+                    Some(b) => format!("git+{url}?ref={b}"),
+                    None => format!("git+{url}"),
+                }
+            }
+            _ => continue,
+        };
+        // Starts with a letter: never read as an option of nix.
+        let name_ok = name.starts_with(|c: char| c.is_ascii_alphabetic())
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_".contains(c));
+        if !name_ok || !safe(&reference) {
+            continue;
+        }
+        out.push(FlakeInput {
+            dir: dir.to_path_buf(),
+            name: name.clone(),
+            reference,
+            rev: locked["rev"].as_str().map(str::to_string),
+            last_modified: locked["lastModified"].as_u64(),
+            branch,
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// The head of the branch `input` follows. Blocking; fetches it.
+pub fn input_latest(input: &FlakeInput) -> Option<Latest> {
+    let out = crate::util::nix()
+        .args(["flake", "metadata", "--json", &input.reference])
+        .output()
+        .ok()?;
+    let v: Value = serde_json::from_slice(&out.stdout).ok()?;
+    Some(Latest {
+        rev: v["revision"].as_str()?.to_string(),
+        last_modified: v["lastModified"].as_u64()?,
+    })
+}
+
+/// Updating `inputs` in their flakes, then applying.
+pub fn inputs_update_command(inputs: &[FlakeInput], layout: &Layout) -> Option<Vec<Vec<String>>> {
+    if inputs.is_empty() || layout.apply.is_empty() {
+        return None;
+    }
+    let mut dirs: Vec<&PathBuf> = inputs.iter().map(|i| &i.dir).collect();
+    dirs.sort();
+    dirs.dedup();
+    let mut steps = Vec::new();
+    for dir in dirs {
+        let owned = std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join("flake.lock"))
+            .is_ok();
+        let mut step: Vec<String> = if owned {
+            Vec::new()
+        } else {
+            vec!["sudo".into()]
+        };
+        step.extend(
+            [
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "flake",
+                "update",
+            ]
+            .map(String::from),
+        );
+        step.extend(
+            inputs
+                .iter()
+                .filter(|i| &i.dir == dir)
+                .map(|i| i.name.clone()),
+        );
+        step.extend(["--flake".to_string(), dir.to_string_lossy().to_string()]);
+        steps.push(step);
+    }
+    steps.push(layout.apply.clone());
+    Some(steps)
+}
+
+/// When Home Manager follows another NixOS release than nixpkgs:
+/// (Home Manager's branch, nixpkgs' branch).
+pub fn release_mismatch(source: &Source, inputs: &[FlakeInput]) -> Option<(String, String)> {
+    let nixpkgs = source.branch.as_deref()?;
+    let hm = inputs.iter().find(|i| i.name == "home-manager")?;
+    let hm_branch = hm.branch.clone().unwrap_or_else(|| "master".into());
+    let expected = match nixpkgs.strip_prefix("nixos-") {
+        Some("unstable") | None => "master".to_string(),
+        Some(release) => format!("release-{release}"),
+    };
+    (hm_branch != expected).then(|| (hm_branch, nixpkgs.to_string()))
 }
 
 fn registry_list() -> String {
@@ -509,6 +696,53 @@ pub fn version_newer(candidate: &str, current: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lists_the_inputs_that_can_move() {
+        let lock: Value = serde_json::from_str(
+            r#"{"root":"root","nodes":{
+              "root":{"inputs":{"nixpkgs":"nixpkgs","home-manager":"hm","local":"local","follows":["nixpkgs"],"gaming":"gaming","-x":"gaming"}},
+              "nixpkgs":{"original":{"type":"github","owner":"NixOS","repo":"nixpkgs","ref":"nixos-26.05"},"locked":{"rev":"aaa","lastModified":1}},
+              "hm":{"original":{"type":"github","owner":"nix-community","repo":"home-manager","ref":"release-25.11"},"locked":{"rev":"bbb","lastModified":2}},
+              "local":{"original":{"type":"git","url":"file:///home/me/config"},"locked":{}},
+              "gaming":{"original":{"type":"git","url":"https://example.org/gaming.git"},"locked":{"rev":"ccc"}}
+            }}"#,
+        )
+        .unwrap();
+        let inputs = inputs_from_lock(&lock, Path::new("/cfg"));
+        let names: Vec<&str> = inputs.iter().map(|i| i.name.as_str()).collect();
+        assert_eq!(names, ["gaming", "home-manager", "nixpkgs"]);
+        assert_eq!(inputs[0].reference, "git+https://example.org/gaming.git");
+        assert_eq!(
+            inputs[1].reference,
+            "github:nix-community/home-manager/release-25.11"
+        );
+        let source = Source {
+            branch: Some("nixos-26.05".into()),
+            rev: None,
+            last_modified: None,
+            method: UpdateMethod::Unknown,
+        };
+        assert_eq!(
+            release_mismatch(&source, &inputs),
+            Some(("release-25.11".into(), "nixos-26.05".into()))
+        );
+        let layout = Layout {
+            kind: LayoutKind::Unknown,
+            home: None,
+            system: None,
+            apply: vec!["sudo".into(), "nixos-rebuild".into(), "switch".into()],
+            hm_user: None,
+        };
+        let steps = inputs_update_command(&inputs[..2], &layout).unwrap();
+        assert_eq!(steps.len(), 2);
+        assert!(steps[0].ends_with(&[
+            "gaming".into(),
+            "home-manager".into(),
+            "--flake".into(),
+            "/cfg".into()
+        ]));
+    }
 
     #[test]
     fn held_packages_leave_the_updates() {

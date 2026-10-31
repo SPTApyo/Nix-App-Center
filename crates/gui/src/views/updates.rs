@@ -19,6 +19,10 @@ pub struct Check {
     apps: Vec<AppUpdate>,
     command: Option<Vec<Vec<String>>>,
     new_release: Option<String>,
+    /// The other inputs of the configuration's flakes, with their head.
+    inputs: Vec<(nix_app_center_core::FlakeInput, Option<Latest>)>,
+    /// Home Manager follows another release than nixpkgs.
+    mismatch: Option<(String, String)>,
 }
 
 impl Check {
@@ -68,6 +72,8 @@ pub enum UpdatesMsg {
     Updated(Result<nix_app_center_core::ApplyOutcome, String>),
     /// Releases the hold of an attr.
     Release(String),
+    /// Updates these flake inputs, then applies.
+    UpdateInputs(Vec<nix_app_center_core::FlakeInput>),
     /// Goes back to an earlier generation.
     GoBack(nix_app_center_core::HistoryPoint),
     /// Went back, with the message to show.
@@ -183,6 +189,27 @@ impl SimpleComponent for UpdatesModel {
                     },
                 );
             }
+            UpdatesMsg::UpdateInputs(inputs) => {
+                let layout = nix_app_center_core::detect_layout();
+                let Some(steps) = nix_app_center_core::inputs_update_command(&inputs, &layout)
+                else {
+                    return;
+                };
+                if self.updating {
+                    return;
+                }
+                self.updating = true;
+                self.rebuild(&sender);
+                let s = sender.input_sender().clone();
+                crate::components::apply_dialog::present(
+                    &self.content,
+                    &t("Updating"),
+                    steps,
+                    move |res| {
+                        let _ = s.send(UpdatesMsg::Updated(res));
+                    },
+                );
+            }
             UpdatesMsg::Release(attr) => {
                 let pkg = nix_app_center_core::Package::from_attr(attr);
                 self.status = Some(match nix_app_center_core::set_pin(&pkg, None) {
@@ -239,12 +266,36 @@ fn check() -> Check {
         .branch
         .as_deref()
         .and_then(nix_app_center_core::newer_release);
+    let inputs = nix_app_center_core::flake_inputs(&source);
+    let mismatch = nix_app_center_core::release_mismatch(&source, &inputs);
+    // A few fetches at a time: each one may download its source.
+    let inputs = inputs
+        .chunks(4)
+        .flat_map(|chunk| {
+            let handles: Vec<_> = chunk
+                .iter()
+                .cloned()
+                .map(|i| {
+                    std::thread::spawn(move || {
+                        let latest = nix_app_center_core::input_latest(&i);
+                        (i, latest)
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .filter_map(|h| h.join().ok())
+                .collect::<Vec<_>>()
+        })
+        .collect();
     Check {
         source,
         latest,
         apps,
         command,
         new_release,
+        inputs,
+        mismatch,
     }
 }
 
@@ -286,6 +337,11 @@ impl UpdatesModel {
             self.content.remove(&child);
         }
         self.rebuild_updates(sender);
+        if let Some(c) = self.check.as_ref().filter(|_| !self.checking) {
+            if let Some(section) = inputs_section(c, self.updating, sender) {
+                self.content.append(&section);
+            }
+        }
         if !self.checking {
             if let Some(history) = history_section(sender) {
                 self.content.append(&history);
@@ -433,6 +489,91 @@ impl UpdatesModel {
 }
 
 /// The held apps, each with a Release button.
+/// The other inputs of the configuration's flakes: which moved, and the
+/// buttons updating them.
+fn inputs_section(
+    c: &Check,
+    updating: bool,
+    sender: &ComponentSender<UpdatesModel>,
+) -> Option<gtk::Box> {
+    if c.inputs.is_empty() {
+        return None;
+    }
+    let section = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    let heading = gtk::Label::new(Some(&t("Other Sources")));
+    heading.add_css_class("heading");
+    heading.set_xalign(0.0);
+    heading.set_hexpand(true);
+    header.append(&heading);
+    let newer: Vec<nix_app_center_core::FlakeInput> = c
+        .inputs
+        .iter()
+        .filter(|(i, l)| {
+            l.as_ref()
+                .is_some_and(|l| i.rev.as_deref() != Some(l.rev.as_str()))
+        })
+        .map(|(i, _)| i.clone())
+        .collect();
+    if newer.len() > 1 {
+        let all = gtk::Button::with_mnemonic(&t("Update _All"));
+        all.set_sensitive(!updating);
+        let s = sender.input_sender().clone();
+        let newer = newer.clone();
+        all.connect_clicked(move |_| {
+            let _ = s.send(UpdatesMsg::UpdateInputs(newer.clone()));
+        });
+        header.append(&all);
+    }
+    section.append(&header);
+    section.append(&util::dim_label(&t(
+        "The flakes your configuration uses besides nixpkgs: modules, themes, apps from other sources.",
+    )));
+    if let Some((hm, nixpkgs)) = &c.mismatch {
+        let warning = util::dim_label(
+            &t("Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may warn or break. Change its branch in your flake.nix.")
+                .replace("{hm}", hm)
+                .replace("{nixpkgs}", nixpkgs),
+        );
+        warning.add_css_class("warning");
+        section.append(&warning);
+    }
+    let list = util::boxed_list();
+    for (input, latest) in &c.inputs {
+        let age = |ts: Option<u64>| {
+            ts.map(|t| util::format_relative(t as i64).to_lowercase())
+                .unwrap_or_default()
+        };
+        let subtitle = match latest {
+            None => t("Could not check"),
+            Some(l) if input.rev.as_deref() == Some(l.rev.as_str()) => {
+                t("Up to date, from {}").replace("{}", &age(input.last_modified))
+            }
+            Some(l) => t("New version from {new}, yours is from {old}")
+                .replace("{new}", &age(Some(l.last_modified)))
+                .replace("{old}", &age(input.last_modified)),
+        };
+        let row = adw::ActionRow::builder()
+            .title(esc(&input.name))
+            .subtitle(esc(&format!("{} · {subtitle}", input.reference)))
+            .build();
+        if newer.contains(input) {
+            let update = gtk::Button::with_mnemonic(&t("_Update"));
+            update.set_valign(gtk::Align::Center);
+            update.set_sensitive(!updating);
+            let s = sender.input_sender().clone();
+            let input = input.clone();
+            update.connect_clicked(move |_| {
+                let _ = s.send(UpdatesMsg::UpdateInputs(vec![input.clone()]));
+            });
+            row.add_suffix(&update);
+        }
+        list.append(&row);
+    }
+    section.append(&list);
+    Some(section)
+}
+
 /// How many earlier versions the history lists.
 const HISTORY_ROWS: usize = 12;
 
