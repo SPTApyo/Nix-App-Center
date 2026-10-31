@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-25 20:16+0100\n"
+"POT-Creation-Date: 2026-10-31 14:44+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Hindi\n"
@@ -15,31 +15,38 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: crates/core/src/config_gen.rs:598
+#: crates/core/src/config_gen.rs:600
 msgid "The build gave an unexpected result."
 msgstr "बिल्ड का परिणाम अपेक्षित नहीं था।"
 
-#: crates/core/src/config_gen.rs:705 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:707 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "प्रमाणीकरण रद्द कर दिया गया।"
 
-#: crates/core/src/config_gen.rs:708 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:710 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "प्रशासक अधिकार अस्वीकार कर दिए गए।"
 
-#: crates/core/src/foreign.rs:124
+#: crates/core/src/foreign.rs:146
 msgid "Flatpak could not remove the app."
 msgstr "Flatpak ऐप को हटा नहीं सका।"
 
-#: crates/core/src/manifest.rs:264 crates/core/src/manifest.rs:295
+#: crates/core/src/manifest.rs:130
+msgid ""
+"The list of your apps (kept.json) is damaged. Fix or remove it, then try "
+"again."
+msgstr ""
+"आपके ऐप की सूची (kept.json) खराब है। इसे ठीक करें या हटाएँ, फिर दोबारा कोशिश करें।"
+
+#: crates/core/src/manifest.rs:247 crates/core/src/manifest.rs:278
 msgid "This option cannot be set here."
 msgstr "यह विकल्प यहाँ सेट नहीं किया जा सकता।"
 
-#: crates/core/src/manifest.rs:399
+#: crates/core/src/manifest.rs:382
 msgid "The nixpkgs revision in use is unknown."
 msgstr "उपयोग में nixpkgs संशोधन अज्ञात है।"
 
-#: crates/core/src/manifest.rs:411
+#: crates/core/src/manifest.rs:394
 msgid "This is not a nixpkgs revision."
 msgstr "यह nixpkgs संशोधन नहीं है।"
 
@@ -648,7 +655,7 @@ msgstr ""
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/views/detail.rs:1445 crates/gui/src/views/detail.rs:1617
-#: crates/gui/src/views/storage.rs:652 crates/gui/src/views/storage.rs:668
+#: crates/gui/src/views/storage.rs:655 crates/gui/src/views/storage.rs:671
 msgid "_Cancel"
 msgstr "रद्द करें (_C)"
 
@@ -941,7 +948,7 @@ msgstr ""
 #: crates/gui/src/components/details/nix_editor.rs:97
 #: crates/gui/src/components/details/nix_editor.rs:108
 #: crates/gui/src/views/installed.rs:381 crates/gui/src/views/storage.rs:167
-#: crates/gui/src/views/storage.rs:483
+#: crates/gui/src/views/storage.rs:486
 msgid "System"
 msgstr "सिस्टम"
 
@@ -1721,7 +1728,7 @@ msgstr ""
 "ये फ़ाइलें हटाई जाएँगी:\n"
 "{}"
 
-#: crates/gui/src/views/detail.rs:1446 crates/gui/src/views/storage.rs:669
+#: crates/gui/src/views/detail.rs:1446 crates/gui/src/views/storage.rs:672
 msgid "_Delete"
 msgstr "हटाएँ (_D)"
 
@@ -2146,7 +2153,7 @@ msgstr "खुद लिखने वाली पंक्तियाँ"
 msgid "NixOS Configuration"
 msgstr "NixOS कॉन्फ़िगरेशन"
 
-#: crates/gui/src/views/detail.rs:3014 crates/gui/src/views/storage.rs:484
+#: crates/gui/src/views/detail.rs:3014 crates/gui/src/views/storage.rs:487
 msgid "Home Manager"
 msgstr "Home Manager"
 
@@ -2530,11 +2537,11 @@ msgstr ""
 msgid "_Clean"
 msgstr "साफ़ करें (_C)"
 
-#: crates/gui/src/views/storage.rs:333
+#: crates/gui/src/views/storage.rs:336
 msgid "Delete Old Generations"
 msgstr "पुरानी जनरेशन हटाएँ"
 
-#: crates/gui/src/views/storage.rs:334
+#: crates/gui/src/views/storage.rs:337
 #, rust-format
 msgid ""
 "About {}, and you can no longer roll back to them. The boot menu follows at "
@@ -2543,20 +2550,20 @@ msgstr ""
 "लगभग {}, और आप उन पर वापस नहीं लौट पाएँगे। बूट मेनू अगली बार फिर से बिल्ड करने पर "
 "अपडेट होगा।"
 
-#: crates/gui/src/views/storage.rs:337
+#: crates/gui/src/views/storage.rs:340
 msgid ""
 "Deletes the old generations: you can no longer boot or roll back to them."
 msgstr "पुरानी जनरेशन हटाता है: आप उनसे बूट नहीं कर पाएँगे और उन पर वापस नहीं लौट पाएँगे।"
 
-#: crates/gui/src/views/storage.rs:339
+#: crates/gui/src/views/storage.rs:342
 msgid "_Delete…"
 msgstr "हटाएँ… (_D)"
 
-#: crates/gui/src/views/storage.rs:345
+#: crates/gui/src/views/storage.rs:348
 msgid "Free Up Space"
 msgstr "जगह खाली करें"
 
-#: crates/gui/src/views/storage.rs:459
+#: crates/gui/src/views/storage.rs:462
 #, rust-format
 msgid ""
 "{store} in {paths} store paths, before hard link sharing. The disk has "
@@ -2565,59 +2572,59 @@ msgstr ""
 "{paths} store पथों में {store}, हार्ड लिंक साझा करने से पहले। डिस्क पर {disk} में से "
 "{free} खाली है।"
 
-#: crates/gui/src/views/storage.rs:466
+#: crates/gui/src/views/storage.rs:469
 msgid "Measure Again"
 msgstr "फिर से मापें"
 
-#: crates/gui/src/views/storage.rs:473
+#: crates/gui/src/views/storage.rs:476
 msgid "Nix Store"
 msgstr "Nix Store"
 
-#: crates/gui/src/views/storage.rs:485
+#: crates/gui/src/views/storage.rs:488
 msgid "User Profile"
 msgstr "उपयोगकर्ता प्रोफ़ाइल"
 
-#: crates/gui/src/views/storage.rs:500
+#: crates/gui/src/views/storage.rs:503
 #, rust-format
 msgid "{} generation"
 msgid_plural "{} generations"
 msgstr[0] "{} जनरेशन"
 msgstr[1] "{} जनरेशन"
 
-#: crates/gui/src/views/storage.rs:501
+#: crates/gui/src/views/storage.rs:504
 #, rust-format
 msgid "{} old"
 msgid_plural "{} old"
 msgstr[0] "{} पुरानी"
 msgstr[1] "{} पुरानी"
 
-#: crates/gui/src/views/storage.rs:507
+#: crates/gui/src/views/storage.rs:510
 msgid "current"
 msgstr "वर्तमान"
 
-#: crates/gui/src/views/storage.rs:510
+#: crates/gui/src/views/storage.rs:513
 msgid "same as current"
 msgstr "वर्तमान जैसी"
 
-#: crates/gui/src/views/storage.rs:513
+#: crates/gui/src/views/storage.rs:516
 msgid "booted"
 msgstr "बूट की गई"
 
-#: crates/gui/src/views/storage.rs:516 crates/gui/src/views/storage.rs:520
+#: crates/gui/src/views/storage.rs:519 crates/gui/src/views/storage.rs:523
 #, rust-format
 msgid "Generation {}"
 msgstr "जनरेशन {}"
 
-#: crates/gui/src/views/storage.rs:529
+#: crates/gui/src/views/storage.rs:532
 #, rust-format
 msgid "frees {}"
 msgstr "{} खाली करता है"
 
-#: crates/gui/src/views/storage.rs:540
+#: crates/gui/src/views/storage.rs:543
 msgid "Generations"
 msgstr "जनरेशन"
 
-#: crates/gui/src/views/storage.rs:541
+#: crates/gui/src/views/storage.rs:544
 msgid ""
 "Each rebuild keeps the previous state so you can roll back. Old ones share "
 "most of their files: deleting one frees only what it alone keeps."
@@ -2626,48 +2633,48 @@ msgstr ""
 "जनरेशन अपनी ज़्यादातर फ़ाइलें साझा करती हैं: किसी एक को हटाने से केवल वही खाली होता है "
 "जो सिर्फ़ उसने रखा है।"
 
-#: crates/gui/src/views/storage.rs:549
+#: crates/gui/src/views/storage.rs:552
 msgid "System Apps"
 msgstr "सिस्टम ऐप्स"
 
-#: crates/gui/src/views/storage.rs:550
+#: crates/gui/src/views/storage.rs:553
 msgid "User Apps"
 msgstr "उपयोगकर्ता ऐप्स"
 
-#: crates/gui/src/views/storage.rs:553
+#: crates/gui/src/views/storage.rs:556
 msgid "Nix App Center Apps"
 msgstr "Nix App Center ऐप्स"
 
-#: crates/gui/src/views/storage.rs:566
+#: crates/gui/src/views/storage.rs:569
 #, rust-format
 msgid "{} app"
 msgid_plural "{} apps"
 msgstr[0] "{} ऐप"
 msgstr[1] "{} ऐप्स"
 
-#: crates/gui/src/views/storage.rs:570
+#: crates/gui/src/views/storage.rs:573
 #, rust-format
 msgid "{} itself"
 msgstr "केवल {}"
 
-#: crates/gui/src/views/storage.rs:574
+#: crates/gui/src/views/storage.rs:577
 #, rust-format
 msgid "{} with its dependencies"
 msgstr "{} निर्भरताओं सहित"
 
-#: crates/gui/src/views/storage.rs:577
+#: crates/gui/src/views/storage.rs:580
 msgid "kept by Nix App Center"
 msgstr "Nix App Center द्वारा रखा गया"
 
-#: crates/gui/src/views/storage.rs:578
+#: crates/gui/src/views/storage.rs:581
 msgid "tried"
 msgstr "आज़माया गया"
 
-#: crates/gui/src/views/storage.rs:596
+#: crates/gui/src/views/storage.rs:599
 msgid "Apps"
 msgstr "ऐप्स"
 
-#: crates/gui/src/views/storage.rs:597
+#: crates/gui/src/views/storage.rs:600
 msgid ""
 "Sizes include every dependency, so apps sharing libraries add up to more "
 "than the store."
@@ -2675,32 +2682,32 @@ msgstr ""
 "आकारों में हर निर्भरता शामिल है, इसलिए लाइब्रेरी साझा करने वाले ऐप्स का जोड़ store से "
 "ज़्यादा होता है।"
 
-#: crates/gui/src/views/storage.rs:612
+#: crates/gui/src/views/storage.rs:615
 msgid "Cache"
 msgstr "कैश"
 
-#: crates/gui/src/views/storage.rs:613
+#: crates/gui/src/views/storage.rs:616
 msgid "Data"
 msgstr "डेटा"
 
-#: crates/gui/src/views/storage.rs:614
+#: crates/gui/src/views/storage.rs:617
 msgid "Settings"
 msgstr "सेटिंग्स"
 
-#: crates/gui/src/views/storage.rs:620
+#: crates/gui/src/views/storage.rs:623
 #, rust-format
 msgid "used by {}"
 msgstr "{} द्वारा उपयोग"
 
-#: crates/gui/src/views/storage.rs:631
+#: crates/gui/src/views/storage.rs:634
 msgid "Clear…"
 msgstr "साफ़ करें…"
 
-#: crates/gui/src/views/storage.rs:638
+#: crates/gui/src/views/storage.rs:641
 msgid "Your Files"
 msgstr "आपकी फ़ाइलें"
 
-#: crates/gui/src/views/storage.rs:639
+#: crates/gui/src/views/storage.rs:642
 #, rust-format
 msgid ""
 "Folders apps keep in your home: {} in all. A cache is rebuilt when needed; "
@@ -2709,12 +2716,12 @@ msgstr ""
 "वे फ़ोल्डर जो ऐप्स आपकी होम निर्देशिका में रखते हैं: कुल {}। कैश ज़रूरत पड़ने पर फिर से बनता "
 "है; डेटा और सेटिंग्स आपकी हैं, Nix App Center उन्हें कभी नहीं हटाता।"
 
-#: crates/gui/src/views/storage.rs:646
+#: crates/gui/src/views/storage.rs:649
 #, rust-format
 msgid "Clear the “{}” Cache?"
 msgstr "“{}” का कैश साफ़ करें?"
 
-#: crates/gui/src/views/storage.rs:648
+#: crates/gui/src/views/storage.rs:651
 #, rust-format
 msgid ""
 "This frees {}. The app rebuilds what it needs; close it first if it is "
@@ -2723,15 +2730,15 @@ msgstr ""
 "इससे {} खाली होगा। ऐप अपनी ज़रूरत की चीज़ें फिर से बनाता है; अगर यह चल रहा है तो पहले "
 "इसे बंद करें।"
 
-#: crates/gui/src/views/storage.rs:653
+#: crates/gui/src/views/storage.rs:656
 msgid "C_lear"
 msgstr "साफ़ करें (_L)"
 
-#: crates/gui/src/views/storage.rs:665
+#: crates/gui/src/views/storage.rs:668
 msgid "Delete Old Generations?"
 msgstr "पुरानी जनरेशन हटाएँ?"
 
-#: crates/gui/src/views/storage.rs:666
+#: crates/gui/src/views/storage.rs:669
 msgid ""
 "You will not be able to roll back to them. The current system and your "
 "current user setup stay."
