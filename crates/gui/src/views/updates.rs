@@ -78,6 +78,15 @@ pub enum UpdatesMsg {
     GoBack(nix_app_center_core::HistoryPoint),
     /// Went back, with the message to show.
     WentBack(String),
+    /// Asks to move the configuration to this NixOS release.
+    SwitchRelease(String),
+    ReleasePlanned(Option<Box<nix_app_center_core::ReleasePlan>>),
+    /// The user approved the plan.
+    RunRelease(Box<nix_app_center_core::ReleasePlan>),
+    ReleaseDone(
+        Box<nix_app_center_core::ReleasePlan>,
+        Result<nix_app_center_core::ApplyOutcome, String>,
+    ),
 }
 
 #[relm4::component(pub)]
@@ -209,6 +218,70 @@ impl SimpleComponent for UpdatesModel {
                         let _ = s.send(UpdatesMsg::Updated(res));
                     },
                 );
+            }
+            UpdatesMsg::SwitchRelease(release) => {
+                let s = sender.input_sender().clone();
+                std::thread::spawn(move || {
+                    let plan = nix_app_center_core::release_plan(&release).map(Box::new);
+                    let _ = s.send(UpdatesMsg::ReleasePlanned(plan));
+                });
+            }
+            UpdatesMsg::ReleasePlanned(None) => {
+                self.status = Some(t(
+                    "Nix App Center cannot change the release of this configuration. Switch it in your flake.nix or channel.",
+                ));
+                self.rebuild(&sender);
+            }
+            UpdatesMsg::ReleasePlanned(Some(plan)) => {
+                let s = sender.input_sender().clone();
+                release_dialog(&self.content, *plan, move |plan| {
+                    let _ = s.send(UpdatesMsg::RunRelease(Box::new(plan)));
+                });
+            }
+            UpdatesMsg::RunRelease(plan) => {
+                if let Some(edit) = &plan.edit {
+                    if let Err(e) = nix_app_center_core::write_release_edit(edit) {
+                        self.status = Some(util::failed(&e));
+                        self.rebuild(&sender);
+                        return;
+                    }
+                }
+                self.updating = true;
+                self.rebuild(&sender);
+                let s = sender.input_sender().clone();
+                let steps = plan.steps.clone();
+                crate::components::apply_dialog::present(
+                    &self.content,
+                    &t("Switching to NixOS {}").replace("{}", &plan.release),
+                    steps,
+                    move |res| {
+                        let _ = s.send(UpdatesMsg::ReleaseDone(plan.clone(), res));
+                    },
+                );
+            }
+            UpdatesMsg::ReleaseDone(plan, res) => {
+                self.updating = false;
+                let switched = matches!(res, Ok(nix_app_center_core::ApplyOutcome::Done(_)));
+                self.status = Some(if switched {
+                    t("Your configuration now follows NixOS {}.").replace("{}", &plan.release)
+                } else {
+                    // Nothing switched: the configuration stays on its release.
+                    match plan
+                        .edit
+                        .as_ref()
+                        .map(nix_app_center_core::revert_release_edit)
+                    {
+                        Some(Err(e)) => util::failed(&e),
+                        Some(Ok(())) => format!(
+                            "{} {}",
+                            util::describe_apply(res),
+                            t("flake.nix and flake.lock are back as they were.")
+                        ),
+                        None => util::describe_apply(res),
+                    }
+                });
+                self.checked_at = None;
+                sender.input(UpdatesMsg::Refresh);
             }
             UpdatesMsg::Release(attr) => {
                 let pkg = nix_app_center_core::Package::from_attr(attr);
@@ -361,7 +434,7 @@ impl UpdatesModel {
         };
 
         if let Some(release) = &c.new_release {
-            self.content.append(&release_banner(release));
+            self.content.append(&release_banner(release, sender));
         }
         self.content.append(&self.source_list(c, sender));
         let held = held_apps();
@@ -703,17 +776,69 @@ fn method_note(method: &UpdateMethod) -> Option<String> {
 }
 
 /// Banner for a newer NixOS release, which the user moves to on purpose.
-fn release_banner(release: &str) -> adw::Banner {
-    let banner = adw::Banner::new(
-        &t("NixOS {0} is available. Switch your configuration to nixos-{0} when you are ready.")
-            .replace("{0}", release),
-    );
-    banner.set_button_label(Some(&t("Release _Notes")));
+fn release_banner(release: &str, sender: &ComponentSender<UpdatesModel>) -> adw::Banner {
+    let banner = adw::Banner::new(&t("NixOS {0} is available.").replace("{0}", release));
+    banner.set_button_label(Some(&t("_Switch to NixOS {0}…").replace("{0}", release)));
     banner.set_revealed(true);
-    banner.connect_button_clicked(|_| {
-        crate::util::open_uri("https://nixos.org/manual/nixos/unstable/release-notes");
+    let s = sender.input_sender().clone();
+    let release = release.to_string();
+    banner.connect_button_clicked(move |_| {
+        let _ = s.send(UpdatesMsg::SwitchRelease(release.clone()));
     });
     banner
+}
+
+/// Shows what moving to the next release changes; `on_switch` gets the
+/// plan once approved.
+pub(crate) fn release_dialog(
+    parent: &impl IsA<gtk::Widget>,
+    plan: nix_app_center_core::ReleasePlan,
+    on_switch: impl Fn(nix_app_center_core::ReleasePlan) + 'static,
+) {
+    let body = match &plan.edit {
+        Some(edit) => t("Nix App Center changes these lines of {file}, a backup next to it first, then updates the flake and applies. If anything fails or you cancel, flake.nix and flake.lock go back as they were.")
+            .replace("{file}", &edit.file.display().to_string()),
+        None => t("Nix App Center points the nixos channel to the new release, then upgrades and applies. If you added Home Manager as a channel, switch it too."),
+    };
+    let dialog = adw::AlertDialog::new(
+        Some(&t("Switch to NixOS {}?").replace("{}", &plan.release)),
+        Some(&body),
+    );
+    let extra = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    let diff = gtk::Label::new(Some(plan.diff.trim_end()));
+    diff.add_css_class("monospace");
+    diff.add_css_class("caption");
+    diff.set_xalign(0.0);
+    diff.set_margin_top(8);
+    diff.set_margin_bottom(8);
+    diff.set_margin_start(10);
+    diff.set_margin_end(10);
+    diff.set_wrap(true);
+    let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    card.add_css_class("card");
+    card.append(&diff);
+    extra.append(&card);
+    extra.append(&util::dim_label(&t(
+        "system.stateVersion stays as it is: it is not the release you run, never change it to upgrade. Read the release notes first: some options change or go away.",
+    )));
+    let notes = gtk::LinkButton::with_label(
+        "https://nixos.org/manual/nixos/stable/release-notes",
+        &t("Release Notes"),
+    );
+    notes.set_halign(gtk::Align::Start);
+    extra.append(&notes);
+    dialog.set_extra_child(Some(&extra));
+    dialog.add_response("cancel", &t("_Cancel"));
+    dialog.add_response("switch", &t("_Switch"));
+    dialog.set_response_appearance("switch", adw::ResponseAppearance::Suggested);
+    dialog.set_default_response(Some("cancel"));
+    dialog.set_close_response("cancel");
+    dialog.connect_response(None, move |_, response| {
+        if response == "switch" {
+            on_switch(plan.clone());
+        }
+    });
+    dialog.present(Some(parent));
 }
 /// "Everything is up to date" view.
 fn up_to_date_view() -> gtk::Box {
