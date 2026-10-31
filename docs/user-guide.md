@@ -50,6 +50,12 @@ configuration's nixpkgs, then applies.
 To stay on a version, open the app, then Choose a Version… under its
 version. Release it from the same place or from Updates.
 
+An app from another flake may have no ready build. If its flake has its own
+binary cache, Nix App Center offers it when you add the flake in
+Preferences, and from the Download Size tile of the app's page. Use it only
+for a flake you trust: its server signs what you install. Preferences lists
+the caches in use and removes them.
+
 ## Going back
 
 Something broke after an apply? Undo is right in the apply dialog. Later,

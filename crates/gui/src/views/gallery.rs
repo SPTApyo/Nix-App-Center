@@ -157,6 +157,24 @@ fn build_index(
     }
     content.append(&detail_list);
 
+    content.append(&heading("Dialogs"));
+    let dialog_list = crate::util::boxed_list();
+    let row = scenario_row(
+        "Binary cache consent",
+        "Names the flake, its server and key; Use Cache is suggested",
+    );
+    row.connect_activated(|row| {
+        let cache = nix_app_center_core::Cache {
+            url: "https://nix-gaming.cachix.org".into(),
+            keys: vec![
+                "nix-gaming.cachix.org-1:nbjlureqMbRAxR1gJ/f3hxemL9svXaZF/Ees8vCUUs4=".into(),
+            ],
+        };
+        crate::components::cache_dialog::present(row, "fufexan/nix-gaming", cache, |_| {});
+    });
+    dialog_list.append(&row);
+    content.append(&dialog_list);
+
     content.append(&heading("Apply"));
     let apply_list = crate::util::boxed_list();
     let row = scenario_row(

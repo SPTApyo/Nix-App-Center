@@ -65,6 +65,8 @@ pub struct DetailModel {
     // Loaded apart; the flag tells pending from unknown.
     size_loaded: bool,
     closure_size: Option<u64>,
+    /// The binary cache its flake offers, not used yet.
+    offered_cache: Option<nix_app_center_core::Cache>,
     desc_expanded: bool,
     desc_needs_toggle: bool,
     // Screen scale, so images never upscale.
@@ -102,6 +104,8 @@ pub struct DetailModel {
 pub enum DetailMsg {
     ConfigAllows(bool),
     Loaded(Box<AppMeta>),
+    CacheOffered(Option<nix_app_center_core::Cache>),
+    UseCache,
     LoadFailed,
     RatingLoaded(Rating),
     InstallsLoaded(u64),
@@ -960,6 +964,7 @@ impl SimpleComponent for DetailModel {
             icon_tex,
             size_loaded: false,
             closure_size: None,
+            offered_cache: None,
             desc_expanded: false,
             desc_needs_toggle: false,
             scale,
@@ -1107,7 +1112,7 @@ impl SimpleComponent for DetailModel {
                         nix_app_center_core::installed_app(&self.package.attr, desktop_id);
                 }
 
-                self.rebuild_context_bar(&meta);
+                self.rebuild_context_bar(&meta, &sender);
                 self.rebuild_problems(&meta, &sender);
                 if std::path::Path::new("/etc/NIXOS").exists() {
                     self.lookups += 1;
@@ -1223,6 +1228,14 @@ impl SimpleComponent for DetailModel {
                         &pkg,
                     )));
                 });
+                if let Some(source) = self.package.source.clone() {
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let cache = nix_app_center_core::flake_cache(&source)
+                            .filter(|c| !nix_app_center_core::cache_trusted(&c.url));
+                        let _ = s.send(DetailMsg::CacheOffered(cache));
+                    });
+                }
 
                 if let Some(app_id) = meta.app_id.clone() {
                     let s = sender.input_sender().clone();
@@ -1326,11 +1339,44 @@ impl SimpleComponent for DetailModel {
                 &self.toast_overlay,
                 &t("{} is not in nixpkgs.").replace("{}", &name),
             ),
+            DetailMsg::CacheOffered(cache) => {
+                self.offered_cache = cache;
+                if let Some(meta) = self.meta.clone() {
+                    self.rebuild_context_bar(&meta, &sender);
+                }
+            }
+            DetailMsg::UseCache => {
+                let (Some(cache), Some(source)) =
+                    (self.offered_cache.clone(), self.package.source.as_deref())
+                else {
+                    return;
+                };
+                // "github:owner/repo/rev" reads as "owner/repo".
+                let flake = source.trim_start_matches("github:");
+                let flake: String = flake.split('/').take(2).collect::<Vec<_>>().join("/");
+                let s = sender.input_sender().clone();
+                let overlay = self.toast_overlay.clone();
+                crate::components::cache_dialog::present(
+                    &self.toast_overlay,
+                    &flake,
+                    cache,
+                    move |saved| match saved {
+                        Ok(()) => {
+                            crate::util::toast(
+                                &overlay,
+                                &t("Saved. Apply your configuration to use it."),
+                            );
+                            let _ = s.send(DetailMsg::CacheOffered(None));
+                        }
+                        Err(e) => crate::util::toast(&overlay, &crate::util::failed(&e)),
+                    },
+                );
+            }
             DetailMsg::SizeLoaded(size) => {
                 self.size_loaded = true;
                 self.closure_size = size;
                 if let Some(meta) = self.meta.clone() {
-                    self.rebuild_context_bar(&meta);
+                    self.rebuild_context_bar(&meta, &sender);
                 }
             }
             DetailMsg::DeclaredLoaded(declared) => {
@@ -2174,11 +2220,17 @@ impl DetailModel {
         self.stack.set_visible_child_name("spinner");
     }
 
-    fn rebuild_context_bar(&self, meta: &AppMeta) {
-        context_bar::fill(
-            &self.ctx_bar,
-            build_context_tiles(meta, self.size_loaded, self.closure_size),
-        );
+    fn rebuild_context_bar(&self, meta: &AppMeta, sender: &ComponentSender<Self>) {
+        let offered =
+            self.offered_cache.is_some() && self.size_loaded && self.closure_size.is_none();
+        let tiles = build_context_tiles(meta, self.size_loaded, self.closure_size, offered);
+        if offered {
+            let s = sender.input_sender().clone();
+            tiles[0].connect_clicked(move |_| {
+                let _ = s.send(DetailMsg::UseCache);
+            });
+        }
+        context_bar::fill(&self.ctx_bar, tiles);
     }
 
     /// The version section, with its version choice when the app can be held.
@@ -2490,6 +2542,7 @@ fn build_context_tiles(
     meta: &AppMeta,
     size_loaded: bool,
     closure_size: Option<u64>,
+    cache_offered: bool,
 ) -> [gtk::Button; 4] {
     let (storage_val, storage_desc) = if !size_loaded {
         ("…".into(), t("Computing size…"))
@@ -2497,6 +2550,11 @@ fn build_context_tiles(
         (
             gtk::glib::format_size(bytes).to_string(),
             t("Total download including dependencies"),
+        )
+    } else if cache_offered {
+        (
+            "?".into(),
+            t("Needs a local build, or its flake's binary cache"),
         )
     } else {
         ("?".into(), t("Needs a local build"))
