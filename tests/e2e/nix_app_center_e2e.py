@@ -108,12 +108,23 @@ class Environment:
         # be checked without a real terminal, root rights or a rebuild.
         self.bin = self.tmp / "bin"
         self.bin.mkdir()
+        # A fake built system in the store: the build gives it, root
+        # activates it.
+        system = self.tmp / "system"
+        (system / "bin").mkdir(parents=True)
+        activate = system / "bin" / "switch-to-configuration"
+        activate.write_text(f'#!/bin/sh\necho "$@" >> "{self.tmp}/switch.log"\n')
+        activate.chmod(0o755)
+        built = subprocess.run(["nix-store", "--add", str(system)], capture_output=True,
+                               text=True, check=True).stdout.strip()
         # pkexec gets "<env> PATH=<system dirs> cmd…": the fake drops the first
         # two so the other fakes, not the real tools, answer.
         fakes = {
             "xdg-terminal-exec": 'echo "$@" >> "{log}/terminal.log"',
             "pkexec": 'echo "$@" >> "{log}/pkexec.log"; shift 2; exec "$@"',
+            "nix-env": 'echo "$@" >> "{log}/nix-env.log"',
             "nixos-rebuild": 'echo "$@" >> "{log}/rebuild.log"; echo "building the system configuration..." >&2; '
+            + f'case " $* " in *" build "*) ln -sfn {built} result;; esac; '
             + "".join(
                 f"echo '@nix {line}' >&2; sleep 0.4; "
                 for line in [
@@ -318,10 +329,15 @@ def actions(env, s):
     # Apply: elevated through pkexec, never through a password prompt in a tty.
     s.do(MENU)
     s.do(MENU_APPLY)
-    wait_for(lambda: "nixos-rebuild" in env.logged("pkexec"), 20, "apply through pkexec")
-    s.shot("action-apply-progress")
-    assert "switch" in env.logged("rebuild"), "apply must switch"
+    # Built as the user first, then the changes, then root activates.
+    wait_for(lambda: "build" in env.logged("rebuild"), 20, "built as the user")
     assert "--log-format internal-json" in env.logged("rebuild"), "apply must ask for progress"
+    s.do("wait:3000")
+    s.shot("action-apply-review")
+    s.do("key:Enter")
+    wait_for(lambda: "switch-to-configuration" in env.logged("pkexec"), 20, "activated through pkexec")
+    assert "switch" in env.logged("switch"), "apply must switch"
+    s.shot("action-apply-progress")
     s.do("wait:1000")
     s.shot("action-apply")
     s.do("key:Escape")

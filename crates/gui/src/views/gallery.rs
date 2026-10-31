@@ -175,6 +175,51 @@ fn build_index(
     dialog_list.append(&row);
     content.append(&dialog_list);
 
+    content.append(&heading("Apply"));
+    let apply_list = crate::util::boxed_list();
+    let row = scenario_row(
+        "Review before applying",
+        "Summary, kernel and every-user banners, kept apps first, sizes; nothing runs",
+    );
+    row.connect_activated(|row| {
+        let set = nix_app_center_core::ChangeSet {
+            changes: nix_app_center_core::parse_changes(
+                "firefox: 131.0 → 132.0, 5.2 MiB\nsteam: ∅ → 1.0.0.85, 3.1 MiB\n\
+                 vlc: 3.0.21 → ∅, -45.0 MiB\nglibc: 2.40-36 → 2.40-66, 1.0 MiB\n\
+                 libfoo: -12.0 KiB\nlinux: 6.12.1 → 6.12.4, 2.0 MiB\n",
+            ),
+            reboot: true,
+            system: true,
+        };
+        crate::components::apply_dialog::present_review(row, &set);
+    });
+    apply_list.append(&row);
+    content.append(&apply_list);
+
+    content.append(&heading("Updates"));
+    let updates_list = crate::util::boxed_list();
+    let row = scenario_row(
+        "Switch to the next NixOS release",
+        "flake.nix diff, stateVersion warning, release notes link; Switch does nothing here",
+    );
+    row.connect_activated(|row| {
+        let original = "nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.05\";\nhome-manager.url = \"github:nix-community/home-manager/release-26.05\";\n";
+        let plan = nix_app_center_core::ReleasePlan {
+            release: "26.11".into(),
+            edit: Some(nix_app_center_core::ReleaseEdit {
+                file: "/etc/nixos/flake.nix".into(),
+                original: original.into(),
+                patched: original.replace("26.05", "26.11"),
+                lock: Vec::new(),
+            }),
+            diff: "nixpkgs.url: nixos-26.05 → nixos-26.11\nhome-manager.url: release-26.05 → release-26.11\n".into(),
+            steps: Vec::new(),
+        };
+        crate::views::updates::release_dialog(row, plan, |_| {});
+    });
+    updates_list.append(&row);
+    content.append(&updates_list);
+
     content.append(&heading("Home"));
     let note = gtk::Label::new(Some(
         "Icon states to check: loading (shimmer), colored fallback, real icon.",

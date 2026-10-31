@@ -88,7 +88,33 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         let _ = nix_app_center_core::save_settings(&s);
     });
     installing.add(&everyone);
-    installing.set_visible(nix_app_center_core::detect_layout().system.is_some());
+    everyone.set_visible(nix_app_center_core::detect_layout().system.is_some());
+    let unfree = adw::SwitchRow::builder()
+        .title(t("Allow Proprietary Apps"))
+        .subtitle(t(
+            "Without asking for each one. Only the apps you add are allowed.",
+        ))
+        .active(settings.allow_all_unfree)
+        .build();
+    unfree.connect_active_notify(move |row| {
+        let mut s = nix_app_center_core::load_settings();
+        s.allow_all_unfree = row.is_active();
+        let _ = nix_app_center_core::save_settings(&s);
+    });
+    installing.add(&unfree);
+
+    let review = adw::SwitchRow::builder()
+        .title(t("Show Changes Before Applying"))
+        .subtitle(t(
+            "What gets updated, added or removed, before the system switches",
+        ))
+        .active(settings.review_changes)
+        .build();
+    review.connect_active_notify(move |row| {
+        let mut s = nix_app_center_core::load_settings();
+        s.review_changes = row.is_active();
+        let _ = nix_app_center_core::save_settings(&s);
+    });
 
     let updates = adw::PreferencesGroup::builder().title(t("Updates")).build();
     let auto = adw::SwitchRow::builder()
@@ -104,6 +130,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         let _ = nix_app_center_core::save_settings(&s);
     });
     updates.add(&auto);
+    updates.add(&review);
 
     let search = adw::PreferencesGroup::builder().title(t("Search")).build();
     let by_command = adw::ActionRow::builder()
@@ -250,7 +277,29 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
 
     page.add(&config);
     page.add(&installing);
+    let storage = adw::PreferencesGroup::builder().title(t("Storage")).build();
+    let cleanup = adw::SwitchRow::builder()
+        .title(t("Clean Up Automatically"))
+        .subtitle(t("Every week, deletes what nothing uses and generations older than 30 days, which then leave History. Applies with your configuration."))
+        .build();
+    match nix_app_center_core::auto_cleanup() {
+        nix_app_center_core::AutoCleanup::ByConfig => {
+            cleanup.set_active(true);
+            cleanup.set_sensitive(false);
+            cleanup.set_subtitle(&t("Set by your own configuration."));
+        }
+        state => cleanup.set_active(state == nix_app_center_core::AutoCleanup::On),
+    }
+    cleanup.connect_active_notify(|row| {
+        if let Err(e) = nix_app_center_core::set_auto_cleanup(row.is_active()) {
+            row.set_subtitle(&crate::util::failed(&e));
+        }
+    });
+    storage.add(&cleanup);
+    storage.set_visible(nix_app_center_core::detect_layout().is_usable());
+
     page.add(&updates);
+    page.add(&storage);
     page.add(&search);
     page.add(&advanced);
     if let Some(caches) = caches_group() {

@@ -52,6 +52,10 @@ pub struct DetailModel {
     lookups: u8,
     /// Add to Configuration waits for them.
     keep_pending: bool,
+    /// What the user allowed on this page for a proprietary or insecure app.
+    consent: nix_app_center_core::Allowance,
+    /// The configuration's own nixpkgs already accepts the app.
+    config_allows: bool,
     /// The revision the app is held at.
     pin: Option<nix_app_center_core::Pin>,
     holding: bool,
@@ -98,6 +102,7 @@ pub struct DetailModel {
 
 #[derive(Debug)]
 pub enum DetailMsg {
+    ConfigAllows(bool),
     Loaded(Box<AppMeta>),
     CacheOffered(Option<nix_app_center_core::Cache>),
     UseCache,
@@ -161,6 +166,8 @@ pub enum DetailMsg {
     ChooseMode,
     KeepAs(nix_app_center_core::InstallMode),
     KeepNow,
+    /// The user allowed the app, then the action that asked.
+    Consent(nix_app_center_core::Allowance, Box<DetailMsg>),
     CopyName,
     Remove,
     TriedRemoved(Result<u64, String>),
@@ -952,6 +959,8 @@ impl SimpleComponent for DetailModel {
             unstable: None,
             lookups: 0,
             keep_pending: false,
+            consent: Default::default(),
+            config_allows: false,
             icon_tex,
             size_loaded: false,
             closure_size: None,
@@ -1080,6 +1089,19 @@ impl SimpleComponent for DetailModel {
                 let meta = *meta;
                 self.loading = false;
                 self.stack.set_visible_child_name("ready");
+                let refused = meta.insecure || meta.is_free_license == Some(false);
+                if refused && self.package.source.is_none() {
+                    let attr = self.package.attr.clone();
+                    let insecure = meta.insecure;
+                    let s = sender.input_sender().clone();
+                    std::thread::spawn(move || {
+                        let home = nix_app_center_core::detect_layout().home.is_some()
+                            && !nix_app_center_core::load_settings().install_for_everyone;
+                        let _ = s.send(DetailMsg::ConfigAllows(
+                            nix_app_center_core::config_allows(&attr, home, insecure),
+                        ));
+                    });
+                }
                 if self.installed.is_none() {
                     let desktop_id = meta
                         .launchable
@@ -1312,6 +1334,7 @@ impl SimpleComponent for DetailModel {
                     });
                 });
             }
+            DetailMsg::ConfigAllows(allows) => self.config_allows = allows,
             DetailMsg::AddonMissing(name) => crate::util::toast(
                 &self.toast_overlay,
                 &t("{} is not in nixpkgs.").replace("{}", &name),
@@ -1362,6 +1385,12 @@ impl SimpleComponent for DetailModel {
                     self.rebuild_problems(&meta, &sender);
                 }
             }
+            DetailMsg::Consent(allow, next) => {
+                self.consent.unfree |= allow.unfree;
+                self.consent.insecure |= allow.insecure;
+                sender.input(*next);
+            }
+            DetailMsg::TakeOver if !self.consented(DetailMsg::TakeOver, &sender) => {}
             DetailMsg::TakeOver => {
                 let Some((file, line)) = self.declared.take() else {
                     return;
@@ -1369,6 +1398,7 @@ impl SimpleComponent for DetailModel {
                 match nix_app_center_core::keep(&self.package) {
                     Ok(()) => {
                         self.kept = true;
+                        self.record_consent();
                         crate::util::toast(
                             &self.toast_overlay,
                             &t("Taken over. Delete line {line} of {file}, then apply.")
@@ -1389,6 +1419,8 @@ impl SimpleComponent for DetailModel {
                     self.rebuild_problems(&meta, &sender);
                 }
             }
+            DetailMsg::SaveBuildOptions
+                if !self.consented(DetailMsg::SaveBuildOptions, &sender) => {}
             DetailMsg::SaveBuildOptions => {
                 let changes: Vec<(String, bool)> = self
                     .flag_rows
@@ -1400,6 +1432,8 @@ impl SimpleComponent for DetailModel {
                     .map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
             }
+            DetailMsg::ToggleHold
+                if self.pin.is_none() && !self.consented(DetailMsg::ToggleHold, &sender) => {}
             DetailMsg::ToggleHold => {
                 if self.pin.is_some() {
                     let res = nix_app_center_core::set_pin(&self.package, None)
@@ -1410,7 +1444,11 @@ impl SimpleComponent for DetailModel {
                 }
                 self.start_hold(None, &sender);
             }
-            DetailMsg::HoldAt(choice) => self.start_hold(Some(choice), &sender),
+            DetailMsg::HoldAt(choice) => {
+                if self.consented(DetailMsg::HoldAt(choice.clone()), &sender) {
+                    self.start_hold(Some(choice), &sender);
+                }
+            }
             DetailMsg::OtherLoaded(other) => self.other = other,
             DetailMsg::HomeModuleLoaded(module) => {
                 self.home_module = module;
@@ -1543,6 +1581,7 @@ impl SimpleComponent for DetailModel {
                 self.holding = false;
                 match res {
                     Ok(pin) => {
+                        self.record_consent();
                         self.pin = pin;
                         sender.input(DetailMsg::BlocksSaved(Ok(())));
                     }
@@ -1830,15 +1869,19 @@ impl SimpleComponent for DetailModel {
                     sender.input(DetailMsg::Keep);
                 }
             }
+            DetailMsg::KeepAs(mode)
+                if !self.consented(DetailMsg::KeepAs(mode.clone()), &sender) => {}
             DetailMsg::KeepAs(mode) => {
                 let res = nix_app_center_core::keep(&self.package)
                     .and_then(|()| nix_app_center_core::set_mode(&self.package, &mode))
                     .map_err(|e| e.to_string());
                 sender.input(DetailMsg::BlocksSaved(res));
             }
+            DetailMsg::Keep if !self.consented(DetailMsg::Keep, &sender) => {}
             DetailMsg::Keep => match nix_app_center_core::keep(&self.package) {
                 Ok(()) => {
                     self.kept = true;
+                    self.record_consent();
                     self.prompt_apply_or_attach(&sender);
                 }
                 Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
@@ -1856,6 +1899,7 @@ impl SimpleComponent for DetailModel {
                 Err(e) => crate::util::toast(&self.toast_overlay, &crate::util::failed(&e)),
             },
             DetailMsg::AdvancedEdit if self.installed_elsewhere() => {}
+            DetailMsg::AdvancedEdit if !self.consented(DetailMsg::AdvancedEdit, &sender) => {}
             DetailMsg::AdvancedEdit => {
                 let m = nix_app_center_core::load_manifest();
                 let (home, system) = m
@@ -1890,6 +1934,7 @@ impl SimpleComponent for DetailModel {
             }
             DetailMsg::BlocksSaved(res) => match res {
                 Ok(()) => {
+                    self.record_consent();
                     // Editing an app keeps it.
                     self.kept = true;
                     self.custom_blocks = nix_app_center_core::load_manifest()
@@ -2045,6 +2090,65 @@ impl DetailModel {
             (true, false, _) => t("_Add to Configuration"),
             (false, _, true) => t("_Uninstall"),
             (false, _, false) => t("_Install for This User"),
+        }
+    }
+
+    /// What nixpkgs needs allowed to build this app, and the user has not
+    /// allowed yet.
+    fn missing_consent(&self) -> nix_app_center_core::Allowance {
+        if self.config_allows {
+            return Default::default();
+        }
+        let entry = nix_app_center_core::load_manifest()
+            .entry(&self.package.attr)
+            .map(|e| (e.allow_unfree, e.allow_insecure))
+            .unwrap_or_default();
+        let insecure = self.meta.as_ref().is_some_and(|m| m.insecure);
+        nix_app_center_core::Allowance {
+            unfree: self.unfree()
+                && !self.consent.unfree
+                && !entry.0
+                && !nix_app_center_core::load_settings().allow_all_unfree,
+            insecure: insecure && !self.consent.insecure && !entry.1,
+        }
+    }
+
+    /// True when `next` may go on; otherwise asks first and sends it again
+    /// once allowed.
+    fn consented(&self, next: DetailMsg, sender: &ComponentSender<Self>) -> bool {
+        let missing = self.missing_consent();
+        if missing == nix_app_center_core::Allowance::default() {
+            return true;
+        }
+        let s = sender.input_sender().clone();
+        let name = meta_name(&self.meta, &self.package.name);
+        let vulnerabilities = self
+            .meta
+            .as_ref()
+            .map(|m| m.known_vulnerabilities.join(", "))
+            .unwrap_or_default();
+        crate::components::consent_dialog::present(
+            &self.toast_overlay,
+            &name,
+            missing,
+            &vulnerabilities,
+            move |allow| {
+                let _ = s.send(DetailMsg::Consent(allow, Box::new(next)));
+            },
+        );
+        false
+    }
+
+    /// Writes what the user allowed into the kept entry.
+    fn record_consent(&self) {
+        let insecure = self.meta.as_ref().is_some_and(|m| m.insecure);
+        let all = nix_app_center_core::load_settings().allow_all_unfree;
+        let allow = nix_app_center_core::Allowance {
+            unfree: self.unfree() && (self.consent.unfree || all),
+            insecure: insecure && self.consent.insecure,
+        };
+        if let Err(e) = nix_app_center_core::allow(&self.package.attr, allow) {
+            crate::util::toast(&self.toast_overlay, &crate::util::failed(&e));
         }
     }
 
