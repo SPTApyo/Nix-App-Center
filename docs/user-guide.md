@@ -9,7 +9,9 @@ How to use Nix App Center. Short on purpose.
 2. **Add to Configuration**: the app is written into your configuration.
    Nothing is installed yet.
 3. **Apply**: your system is rebuilt and the app is installed. The Apply
-   button shows at the top of the window whenever something changed.
+   button shows at the top of the window whenever something changed. Once
+   built, Nix App Center lists what changes (updated, added, removed apps)
+   and switches only when you confirm.
 
 The first time you add an app, Nix App Center asks to add one import line to
 your configuration. It shows the change before writing anything.
@@ -29,6 +31,17 @@ installed it.
 
 The Installed tab lists them all, with what you tried and can clean up.
 
+## Proprietary and insecure apps
+
+Nix installs a proprietary app, such as Steam or Discord, only with your
+permission. When you add one, Nix App Center asks: allow this app, or allow
+every proprietary app you add from now on (Preferences can change that
+later). Only the apps you add are allowed, nothing else on your system.
+If your configuration already allows the app, nothing is asked.
+
+An app nixpkgs marks insecure asks every time, with its known
+vulnerabilities.
+
 ## Updates
 
 The Updates tab shows what can be updated. Update refreshes your
@@ -36,6 +49,12 @@ configuration's nixpkgs, then applies.
 
 To stay on a version, open the app, then Choose a Version… under its
 version. Release it from the same place or from Updates.
+
+## Going back
+
+Something broke after an apply? Undo is right in the apply dialog. Later,
+the History list at the bottom of Updates shows every earlier version: Go
+Back switches to it, and the apps you added with Nix App Center go back too.
 
 ## Storage
 

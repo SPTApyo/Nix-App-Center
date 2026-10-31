@@ -74,6 +74,10 @@ pub enum UpdatesMsg {
     Release(String),
     /// Updates these flake inputs, then applies.
     UpdateInputs(Vec<nix_app_center_core::FlakeInput>),
+    /// Goes back to an earlier generation.
+    GoBack(nix_app_center_core::HistoryPoint),
+    /// Went back, with the message to show.
+    WentBack(String),
     /// Asks to move the configuration to this NixOS release.
     SwitchRelease(String),
     ReleasePlanned(Option<Box<nix_app_center_core::ReleasePlan>>),
@@ -287,6 +291,17 @@ impl SimpleComponent for UpdatesModel {
                 });
                 sender.input(UpdatesMsg::Refresh);
             }
+            UpdatesMsg::GoBack(point) => {
+                let s = sender.input_sender().clone();
+                crate::components::go_back::confirm(&self.content, point, move |message| {
+                    let _ = s.send(UpdatesMsg::WentBack(message));
+                });
+            }
+            UpdatesMsg::WentBack(message) => {
+                self.status = Some(message);
+                self.checked_at = None;
+                sender.input(UpdatesMsg::Refresh);
+            }
             UpdatesMsg::Updated(res) => {
                 self.updating = false;
                 let ok = res.is_ok();
@@ -398,6 +413,11 @@ impl UpdatesModel {
         if let Some(c) = self.check.as_ref().filter(|_| !self.checking) {
             if let Some(section) = inputs_section(c, self.updating, sender) {
                 self.content.append(&section);
+            }
+        }
+        if !self.checking {
+            if let Some(history) = history_section(sender) {
+                self.content.append(&history);
             }
         }
     }
@@ -534,6 +554,7 @@ impl UpdatesModel {
                     let _ = s.send(UpdatesMsg::Update);
                 }
             });
+            crate::components::apply_dialog::guard(&btn);
             hb.append(&btn);
         }
         hb
@@ -626,6 +647,81 @@ fn inputs_section(
     Some(section)
 }
 
+/// How many earlier versions the history lists.
+const HISTORY_ROWS: usize = 12;
+
+/// Earlier generations to go back to, with what changed in each.
+fn history_section(sender: &ComponentSender<UpdatesModel>) -> Option<gtk::Box> {
+    let points = nix_app_center_core::history();
+    if points.len() < 2 {
+        return None;
+    }
+    let list = util::boxed_list();
+    for (i, p) in points.iter().take(HISTORY_ROWS).enumerate() {
+        let older = points.get(i + 1);
+        let row = adw::ActionRow::builder()
+            .title(esc(&crate::components::go_back::when(p)))
+            .subtitle(esc(&history_line(p, older)))
+            .build();
+        if p.current {
+            let tag = util::dim_label(&t("Current"));
+            row.add_suffix(&tag);
+        } else {
+            if p.booted {
+                row.add_suffix(&util::dim_label(&t("Started at boot")));
+            }
+            let back = gtk::Button::with_mnemonic(&t("Go _Back"));
+            back.set_valign(gtk::Align::Center);
+            let s = sender.input_sender().clone();
+            let point = p.clone();
+            back.connect_clicked(move |_| {
+                let _ = s.send(UpdatesMsg::GoBack(point.clone()));
+            });
+            crate::components::apply_dialog::guard(&back);
+            row.add_suffix(&back);
+        }
+        list.append(&row);
+    }
+    let section = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    let heading = gtk::Label::new(Some(&t("History")));
+    heading.add_css_class("heading");
+    heading.set_xalign(0.0);
+    section.append(&heading);
+    section.append(&util::dim_label(&t(
+        "Each apply keeps the version before it. Go back to one if something broke; cleaning old generations in Storage removes them from here.",
+    )));
+    section.append(&list);
+    Some(section)
+}
+
+/// "Added steam · Removed vlc", what Nix App Center changed in `p`.
+fn history_line(
+    p: &nix_app_center_core::HistoryPoint,
+    older: Option<&nix_app_center_core::HistoryPoint>,
+) -> String {
+    let mut parts = Vec::new();
+    match (&p.kept, older.and_then(|o| o.kept.as_ref())) {
+        (Some(now), Some(before)) => {
+            let (added, removed) = nix_app_center_core::kept_diff(before, now);
+            if !added.is_empty() {
+                parts.push(t("Added {}").replace("{}", &added.join(", ")));
+            }
+            if !removed.is_empty() {
+                parts.push(t("Removed {}").replace("{}", &removed.join(", ")));
+            }
+            if parts.is_empty() {
+                parts.push(t("Same apps, updated or reconfigured"));
+            }
+        }
+        (Some(_), None) => parts.push(t("Applied with Nix App Center")),
+        (None, _) => parts.push(t("Applied outside Nix App Center")),
+    }
+    if let Some(v) = &p.version {
+        parts.push(format!("NixOS {v}"));
+    }
+    parts.join(" · ")
+}
+
 fn held_list(
     held: &[(
         nix_app_center_core::KeptEntry,
@@ -653,6 +749,7 @@ fn held_list(
         let release = gtk::Button::with_mnemonic(&t("_Release"));
         release.set_valign(gtk::Align::Center);
         release.set_tooltip_text(Some(&t("Let the app follow your configuration again.")));
+        crate::components::apply_dialog::guard(&release);
         release.connect_clicked({
             let s = sender.input_sender().clone();
             let attr = entry.package.attr.clone();

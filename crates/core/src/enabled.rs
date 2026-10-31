@@ -95,6 +95,64 @@ fn confirm_later(key: u64, names: HashSet<String>, cache: PathBuf) {
     });
 }
 
+/// True when the configuration's own nixpkgs already accepts `attr`
+/// (unfree or insecure allowed there), for the scope it would go to; false
+/// when unknown. Blocking: evaluates the configuration.
+pub fn config_allows(attr: &str, home: bool, insecure: bool) -> bool {
+    let plain = !attr.is_empty()
+        && attr
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._-+".contains(c));
+    if !plain {
+        return false;
+    }
+    // meta.available is false for what nixpkgs config refuses.
+    let check = format!(
+        "(p: (p.lib.attrByPath (p.lib.splitString \".\" \"{attr}\") {{ }} p).meta.available or false)"
+    );
+    let layout = crate::detect_layout();
+    let user = layout.hm_user.as_deref().filter(|_| home);
+    // Home Manager with its own pkgs only says if unfree is allowed.
+    let system = |s: &str| {
+        match user {
+        Some(u) => format!(
+            "(if {s}.config.home-manager.useGlobalPkgs or false then {check} {s}.pkgs else !{insecure} && ({s}.config.home-manager.users.\"{u}\".nixpkgs.config.allowUnfree or false) == true)"
+        ),
+        None => format!("({check} {s}.pkgs)"),
+    }
+    };
+    let mut cmd = crate::util::nix();
+    match &layout.kind {
+        LayoutKind::NixosFlake { dir, host } => {
+            cmd.args(["eval", "--json"])
+                .arg(format!("{}#nixosConfigurations.\"{host}\"", dir.display()))
+                .args(["--apply", &format!("s: {}", system("s"))])
+                .args(crate::config_layout::local_overrides(dir));
+        }
+        LayoutKind::NixosLegacy { .. } => {
+            cmd.args(["eval", "--json", "--impure", "--expr"])
+                .arg(format!(
+                    "let s = import <nixpkgs/nixos> {{ }}; in {}",
+                    system("s")
+                ));
+        }
+        LayoutKind::HmFlake { dir, user } => {
+            cmd.args(["eval", "--json"])
+                .arg(format!(
+                    "{}#homeConfigurations.\"{user}\".pkgs",
+                    dir.display()
+                ))
+                .args(["--apply", &check])
+                .args(crate::config_layout::local_overrides(dir));
+        }
+        _ => return false,
+    }
+    cmd.output()
+        .ok()
+        .filter(|o| o.status.success())
+        .is_some_and(|o| o.stdout.trim_ascii() == b"true")
+}
+
 /// Where the user's own configuration lists `attr` as a package: file and
 /// line, 1-based. Blocking.
 pub fn declared_in(attr: &str) -> Option<(PathBuf, usize)> {

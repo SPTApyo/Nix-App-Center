@@ -48,9 +48,71 @@ pub(crate) fn nixpkgs_tarball(rev: &str) -> String {
     format!("https://github.com/NixOS/nixpkgs/archive/{rev}.tar.gz")
 }
 
-/// Name of the binding holding nixpkgs at `rev`.
-fn pin_binding(rev: &str) -> String {
-    format!("nixpkgs-{}", rev.get(..12).unwrap_or(rev))
+/// The nixpkgs an entry is built from when it is not `pkgs`: a held
+/// revision, or one that allows what the user allowed for this app.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Source<'a> {
+    rev: Option<&'a str>,
+    sha256: &'a str,
+    unfree: bool,
+    insecure: bool,
+}
+
+impl Source<'_> {
+    /// Name of the binding, shared by every app built from it.
+    fn binding(&self) -> String {
+        let mut name = String::from("nixpkgs");
+        if let Some(rev) = self.rev {
+            name.push('-');
+            name.push_str(rev.get(..12).unwrap_or(rev));
+        }
+        if self.unfree {
+            name.push_str("-unfree");
+        }
+        if self.insecure {
+            name.push_str("-insecure");
+        }
+        name
+    }
+
+    fn render(&self) -> String {
+        let src = match self.rev {
+            Some(rev) => format!(
+                "(builtins.fetchTarball {{\n    url = \"{}\";\n    sha256 = \"{}\";\n  }})",
+                nixpkgs_tarball(rev),
+                self.sha256
+            ),
+            None => "pkgs.path".to_string(),
+        };
+        let mut allow = Vec::new();
+        if self.unfree {
+            allow.push("allowUnfree = true;");
+        }
+        if self.insecure {
+            allow.push("allowInsecurePredicate = _: true;");
+        }
+        let extra = if allow.is_empty() {
+            String::new()
+        } else {
+            format!(" // {{ {} }}", allow.join(" "))
+        };
+        format!(
+            "  {} = import {src} {{\n    config = lib.filterAttrs (_: v: v != null) pkgs.config{extra};\n    system = pkgs.stdenv.hostPlatform.system;\n  }};\n",
+            self.binding()
+        )
+    }
+}
+
+/// Where `e` is built from, `None` for `pkgs` itself.
+fn source(e: &KeptEntry) -> Option<Source<'_>> {
+    let pin = valid_pin(e);
+    let s = Source {
+        rev: pin.map(|p| p.rev.as_str()),
+        sha256: pin.map_or("", |p| p.sha256.as_str()),
+        unfree: e.allow_unfree,
+        insecure: e.allow_insecure,
+    };
+    (s.rev.is_some() || s.unfree || s.insecure).then_some(s)
 }
 
 /// The package expression of a plain entry: its attr, from the held
@@ -94,12 +156,12 @@ fn package_expr(e: &KeptEntry) -> Option<String> {
             "inputs.{input}.packages.${{pkgs.stdenv.hostPlatform.system}}.{attr}"
         ));
     }
-    let pin = valid_pin(e);
-    if pin.is_none() && e.flags.is_empty() {
+    let src = source(e);
+    if src.is_none() && e.flags.is_empty() {
         return Some(attr.clone());
     }
-    let base = match pin {
-        Some(p) => format!("{}.{attr}", pin_binding(&p.rev)),
+    let base = match src {
+        Some(s) => format!("{}.{attr}", s.binding()),
         None => format!("pkgs.{attr}"),
     };
     Some(crate::build_flags::with_flags(&base, &e.flags))
@@ -114,31 +176,60 @@ fn valid_pin(e: &KeptEntry) -> Option<&crate::manifest::Pin> {
     })
 }
 
-/// `let` bindings importing each held revision once, shared by its apps.
-fn pin_bindings<'a>(entries: impl Iterator<Item = &'a KeptEntry>) -> String {
-    let mut pins: Vec<&crate::manifest::Pin> = entries.filter_map(valid_pin).collect();
-    pins.sort_by(|a, b| a.rev.cmp(&b.rev));
-    pins.dedup_by(|a, b| a.rev == b.rev);
-    if pins.is_empty() {
+/// `let` bindings importing each nixpkgs the entries need once.
+fn source_bindings<'a>(entries: impl Iterator<Item = &'a KeptEntry>) -> String {
+    let mut sources: Vec<Source> = entries.filter_map(source).collect();
+    sources.sort();
+    sources.dedup();
+    if sources.is_empty() {
         return String::new();
     }
-    let mut out = String::from(
-        "let
-",
-    );
-    for p in pins {
-        out.push_str(&format!(
-            "  {} = import (builtins.fetchTarball {{\n    url = \"{}\";\n    sha256 = \"{}\";\n  }}) {{\n    config = lib.filterAttrs (_: v: v != null) pkgs.config;\n    system = pkgs.stdenv.hostPlatform.system;\n  }};\n",
-            pin_binding(&p.rev),
-            nixpkgs_tarball(&p.rev),
-            p.sha256
-        ));
+    let mut out = String::from("let\n");
+    for s in sources {
+        out.push_str(&s.render());
     }
-    out.push_str(
-        "in
-",
-    );
+    out.push_str("in\n");
     out
+}
+
+/// Entries kept through a module whose package must come from a nixpkgs
+/// that allows it, by their own block of `scope`.
+fn overlaid(
+    kept: &[KeptEntry],
+    scope: fn(&KeptEntry) -> Option<&String>,
+) -> impl Iterator<Item = &KeptEntry> {
+    kept.iter().filter(move |e| {
+        (e.allow_unfree || e.allow_insecure)
+            && !e.package.attr.contains('.')
+            && e.package.source.is_none()
+            && scope(e).is_some_and(|b| !b.trim().is_empty())
+    })
+}
+
+/// An overlay giving modules the allowed package: they read `pkgs.X`.
+fn overlay(entries: Vec<&KeptEntry>) -> String {
+    let mut items: Vec<String> = entries
+        .iter()
+        .filter_map(|e| {
+            let s = source(e)?;
+            package_expr(&KeptEntry::simple(e.package.clone()))?;
+            Some(format!(
+                "{} = {}.{};",
+                e.package.attr,
+                s.binding(),
+                e.package.attr
+            ))
+        })
+        .collect();
+    if items.is_empty() {
+        return String::new();
+    }
+    items.sort();
+    items.dedup();
+    format!(
+        "nixpkgs.overlays = [\n  (final: prev: {{\n{}\n  }})\n];\n",
+        indent(&items.join("\n"), 4)
+    )
 }
 
 /// True for a plain entry of the user scope.
@@ -221,10 +312,12 @@ fn imports_list(regions: &[String]) -> String {
 
 /// The app regions of a scope, sorted.
 fn regions(kept: &[KeptEntry], scope: fn(&KeptEntry) -> Option<&String>) -> Vec<String> {
-    // An empty block means nothing in this scope.
+    // An empty block means nothing in this scope. A line break in a
+    // name would end its marker comment and run as Nix.
     let mut promues: Vec<&KeptEntry> = kept
         .iter()
         .filter(|e| scope(e).is_some_and(|b| !b.trim().is_empty()))
+        .filter(|e| !e.package.attr.chars().any(char::is_control))
         .collect();
     promues.sort_by(|a, b| a.package.attr.cmp(&b.package.attr));
     promues
@@ -279,18 +372,42 @@ fn module_args(kept: &[KeptEntry]) -> String {
 /// `nix-app-center-home.nix`, shaped by the layout: a Home Manager module,
 /// or a NixOS module using `home-manager.users` or `users.users`.
 pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
-    let body = home_body(kept, &shape.packages_option());
+    let mut body = home_body(kept, &shape.packages_option());
+    let modules: Vec<&KeptEntry> = overlaid(kept, |e| e.home_nix.as_ref()).collect();
+    let overlay = overlay(modules.clone());
     let mut out = header("User scope.");
     out.push_str(&module_args(kept));
-    out.push_str(&pin_bindings(kept.iter().filter(|e| in_home_list(e))));
+    out.push_str(&source_bindings(
+        kept.iter().filter(|e| in_home_list(e)).chain(modules),
+    ));
     out.push_str("{\n");
     match shape {
         HomeShape::NixosHm(user) => {
             out.push_str(&format!("  home-manager.users.{user} = {{\n"));
             out.push_str(&indent(&body, 4));
             out.push_str("\n  };\n");
+            // Home Manager modules read the system's pkgs, or their own
+            // when useGlobalPkgs is off.
+            if !overlay.is_empty() {
+                out.push_str(&indent(&overlay, 2));
+                out.push_str(&indent(
+                    &overlay.replacen(
+                        "nixpkgs.overlays = [",
+                        &format!(
+                            "home-manager.users.{user}.nixpkgs.overlays = lib.mkIf (!config.home-manager.useGlobalPkgs) ["
+                        ),
+                        1,
+                    ),
+                    2,
+                ));
+                out.push('\n');
+            }
         }
         HomeShape::HomeManager | HomeShape::NixosUser(_) => {
+            if !overlay.is_empty() {
+                body.push('\n');
+                body.push_str(&overlay);
+            }
             out.push_str(&indent(&body, 2));
             out.push('\n');
         }
@@ -301,10 +418,18 @@ pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
 
 /// `nix-app-center-system.nix`, written even when empty since it is imported.
 pub(crate) fn render_system(kept: &[KeptEntry]) -> String {
-    let body = system_body(kept);
+    let mut body = system_body(kept);
+    let modules: Vec<&KeptEntry> = overlaid(kept, |e| e.system_nix.as_ref()).collect();
+    let overlay = overlay(modules.clone());
+    if !overlay.is_empty() {
+        body.push('\n');
+        body.push_str(&overlay);
+    }
     let mut out = header("System scope (NixOS).");
     out.push_str(&module_args(kept));
-    out.push_str(&pin_bindings(kept.iter().filter(|e| e.system_wide)));
+    out.push_str(&source_bindings(
+        kept.iter().filter(|e| e.system_wide).chain(modules),
+    ));
     out.push_str("{\n");
     if !body.trim().is_empty() {
         out.push_str(&indent(body.trim_end(), 2));
@@ -354,6 +479,8 @@ pub enum ApplyOutcome {
     NoTerminal(Vec<String>),
     /// Unknown layout: nothing applied.
     UnknownLayout,
+    /// The user saw the changes and kept the running system.
+    Cancelled,
 }
 
 /// Applies the configuration with the layout's command.
@@ -397,6 +524,16 @@ pub fn run_streaming(
     steps: &[Vec<String>],
     on_event: impl Fn(crate::progress::StreamEvent) + Send + Sync + 'static,
 ) -> std::io::Result<ApplyOutcome> {
+    run_reviewed(steps, on_event, |_| true)
+}
+
+/// [`run_streaming`], showing `review` what changes once it is built: it
+/// activates only when `review` returns true. Blocking.
+pub fn run_reviewed(
+    steps: &[Vec<String>],
+    on_event: impl Fn(crate::progress::StreamEvent) + Send + Sync + 'static,
+    review: impl Fn(crate::changes::ChangeSet) -> bool + Send + Sync + 'static,
+) -> std::io::Result<ApplyOutcome> {
     if steps.iter().all(Vec::is_empty) {
         return Ok(ApplyOutcome::UnknownLayout);
     }
@@ -404,12 +541,16 @@ pub fn run_streaming(
         last: std::sync::Arc::new(std::sync::Mutex::new(String::new())),
         tracker: std::sync::Arc::new(std::sync::Mutex::new(crate::progress::Tracker::default())),
         on_event: std::sync::Arc::new(on_event),
+        review: std::sync::Arc::new(review),
     };
     let mut outcome = Ok(ApplyOutcome::UnknownLayout);
     for step in steps.iter().filter(|s| !s.is_empty()) {
-        outcome = match split_flake_switch(step) {
-            Some((build, action)) => build_then_activate(&build, &action, &shared),
-            None => run_step(step, &shared),
+        outcome = if let Some((build, action, upgrade)) = split_rebuild(step) {
+            rebuild_reviewed(step, &build, &action, upgrade, &shared)
+        } else if let Some(build) = split_home_switch(step) {
+            build_then_activate_home(&build, &shared)
+        } else {
+            run_step(step, &shared)
         };
         if !matches!(outcome, Ok(ApplyOutcome::Done(_))) {
             break;
@@ -423,32 +564,27 @@ struct Shared<F> {
     last: std::sync::Arc<std::sync::Mutex<String>>,
     tracker: std::sync::Arc<std::sync::Mutex<crate::progress::Tracker>>,
     on_event: std::sync::Arc<F>,
+    review: std::sync::Arc<dyn Fn(crate::changes::ChangeSet) -> bool + Send + Sync>,
 }
 
-/// For `sudo nixos-rebuild <switch|boot|test> --flake …`: the same command
-/// building as the user, and the action to activate.
-fn split_flake_switch(step: &[String]) -> Option<(Vec<String>, String)> {
-    let (sudo, rest) = step.split_first()?;
-    let is_rebuild = rest
-        .first()
-        .is_some_and(|b| b == "nixos-rebuild" || b.ends_with("/nixos-rebuild"));
-    if sudo != "sudo" || !is_rebuild || !rest.iter().any(|a| a == "--flake") {
+/// For `home-manager switch …`: the same command building only.
+fn split_home_switch(step: &[String]) -> Option<Vec<String>> {
+    let first = step.first()?;
+    if first != "home-manager" && !first.ends_with("/home-manager") {
         return None;
     }
-    let i = rest
-        .iter()
-        .position(|a| matches!(a.as_str(), "switch" | "boot" | "test"))?;
-    let mut build = rest.to_vec();
-    let action = std::mem::replace(&mut build[i], "build".into());
-    Some((build, action))
+    let i = step.iter().position(|a| a == "switch")?;
+    let mut build = step.to_vec();
+    build[i] = "build".into();
+    Some(build)
 }
 
-/// Builds as the user, then activates the result as root.
-fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+/// Builds `build` as the user in a fresh folder: the store path of
+/// `./result`, checked to be a plain one.
+fn build_result<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     build: &[String],
-    action: &str,
     shared: &Shared<F>,
-) -> std::io::Result<ApplyOutcome> {
+) -> std::io::Result<Result<String, ApplyOutcome>> {
     use std::os::unix::fs::DirBuilderExt;
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -461,11 +597,12 @@ fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'stat
     let built = run_in(build, &dir, shared);
     let out = std::fs::canonicalize(dir.join("result"));
     let _ = std::fs::remove_dir_all(&dir);
-    if !matches!(built, Ok(ApplyOutcome::Done(_))) {
-        return built;
+    match built {
+        Ok(ApplyOutcome::Done(_)) => {}
+        Ok(other) => return Ok(Err(other)),
+        Err(e) => return Err(e),
     }
-    let out = out?;
-    let out = out.to_string_lossy().to_string();
+    let out = out?.to_string_lossy().to_string();
     let safe = out.starts_with("/nix/store/")
         && out[11..]
             .bytes()
@@ -474,6 +611,125 @@ fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'stat
         return Err(std::io::Error::other(crate::util::n_(
             "The build gave an unexpected result.",
         )));
+    }
+    Ok(Ok(out))
+}
+
+/// True unless the user saw what `new` changes over `old` and declined.
+fn reviewed<F>(shared: &Shared<F>, old: &std::path::Path, new: &str, system: bool) -> bool {
+    match crate::changes::review(old, std::path::Path::new(new), system) {
+        Some(r) => (shared.review)(r),
+        None => true,
+    }
+}
+
+/// The current Home Manager generation, where it keeps it.
+fn home_profile() -> Option<std::path::PathBuf> {
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| crate::util::home().join(".local/state"));
+    let user = std::env::var("USER").unwrap_or_default();
+    [
+        state.join("nix/profiles/home-manager"),
+        std::path::PathBuf::from(format!(
+            "/nix/var/nix/profiles/per-user/{user}/home-manager"
+        )),
+    ]
+    .into_iter()
+    .find(|p| p.exists())
+}
+
+/// Builds the home as the user, shows the changes, then activates it.
+fn build_then_activate_home<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    build: &[String],
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    let out = match build_result(build, shared)? {
+        Ok(out) => out,
+        Err(outcome) => return Ok(outcome),
+    };
+    if let Some(old) = home_profile() {
+        if !reviewed(shared, &old, &out, false) {
+            return Ok(ApplyOutcome::Cancelled);
+        }
+    }
+    run_step(&[format!("{out}/activate")], shared)
+}
+
+/// For `sudo nixos-rebuild <switch|boot|test> --flake …`: the same command
+/// building as the user, and the action to activate.
+fn split_rebuild(step: &[String]) -> Option<(Vec<String>, String, bool)> {
+    let (sudo, rest) = step.split_first()?;
+    let is_rebuild = rest
+        .first()
+        .is_some_and(|b| b == "nixos-rebuild" || b.ends_with("/nixos-rebuild"));
+    if sudo != "sudo" || !is_rebuild {
+        return None;
+    }
+    let i = rest
+        .iter()
+        .position(|a| matches!(a.as_str(), "switch" | "boot" | "test"))?;
+    let mut build = rest.to_vec();
+    let action = std::mem::replace(&mut build[i], "build".into());
+    let upgrade = build.iter().any(|a| a == "--upgrade");
+    build.retain(|a| a != "--upgrade");
+    Some((build, action, upgrade))
+}
+
+/// `step`, a nixos-rebuild as root, built first as the user to show its
+/// changes. Channels update first and roll back when the user cancels.
+fn rebuild_reviewed<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    step: &[String],
+    build: &[String],
+    action: &str,
+    upgrade: bool,
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    let channels =
+        |what: &str| -> Vec<String> { ["sudo", "nix-channel", what].map(String::from).to_vec() };
+    if upgrade {
+        match run_step(&channels("--update"), shared)? {
+            ApplyOutcome::Done(_) => {}
+            other => return Ok(other),
+        }
+    }
+    let outcome = match build_then_activate(build, action, shared) {
+        // Some files of the configuration only root reads.
+        Err(e) if e.to_string().contains("Permission denied") => {
+            (shared.on_event)(crate::progress::StreamEvent::Line(
+                crate::util::n_("Building as administrator: the changes cannot be shown first.")
+                    .into(),
+            ));
+            let mut step = step.to_vec();
+            step.retain(|a| a != "--upgrade");
+            run_step(&step, shared)
+        }
+        other => other,
+    };
+    if upgrade && matches!(outcome, Ok(ApplyOutcome::Cancelled)) {
+        run_step(&channels("--rollback"), shared)?;
+        return Ok(ApplyOutcome::Cancelled);
+    }
+    outcome
+}
+
+/// Builds as the user, shows the changes, then activates the result as root.
+fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
+    build: &[String],
+    action: &str,
+    shared: &Shared<F>,
+) -> std::io::Result<ApplyOutcome> {
+    let out = match build_result(build, shared)? {
+        Ok(out) => out,
+        Err(outcome) => return Ok(outcome),
+    };
+    if !reviewed(
+        shared,
+        std::path::Path::new("/run/current-system"),
+        &out,
+        true,
+    ) {
+        return Ok(ApplyOutcome::Cancelled);
     }
     let profile = if action == "test" {
         String::new()
@@ -507,6 +763,7 @@ fn run_in<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     use std::io::BufRead;
     let elevated = argv.first().is_some_and(|b| b == "sudo");
     let argv: Vec<String> = match argv.split_first() {
+        Some((_, rest)) if elevated && crate::util::is_root() => rest.to_vec(),
         Some((_, rest)) if elevated => {
             let (Some(pkexec), Some(env)) = (
                 crate::launch::find_in_path("pkexec"),
@@ -637,6 +894,20 @@ mod tests {
     }
 
     #[test]
+    fn home_manager_switch_builds_first() {
+        let step = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(
+            split_home_switch(&step(&["home-manager", "switch", "--flake", "/h#me"])),
+            Some(step(&["home-manager", "build", "--flake", "/h#me"]))
+        );
+        assert_eq!(split_home_switch(&step(&["home-manager", "news"])), None);
+        assert_eq!(
+            split_home_switch(&step(&["sudo", "nixos-rebuild", "switch"])),
+            None
+        );
+    }
+
+    #[test]
     fn run_streaming_forwards_lines_and_reports_the_last() {
         let lines = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let sink = lines.clone();
@@ -679,16 +950,16 @@ mod tests {
         let step: Vec<String> = ["sudo", "nixos-rebuild", "switch", "--flake", "/etc/nixos#h"]
             .map(String::from)
             .to_vec();
-        let (build, action) = split_flake_switch(&step).unwrap();
+        let (build, action, upgrade) = split_rebuild(&step).unwrap();
         assert_eq!(build, ["nixos-rebuild", "build", "--flake", "/etc/nixos#h"]);
         assert_eq!(action, "switch");
+        assert!(!upgrade);
         let channels: Vec<String> = ["sudo", "nixos-rebuild", "switch", "--upgrade"]
             .map(String::from)
             .to_vec();
-        assert!(
-            split_flake_switch(&channels).is_none(),
-            "channels need root to update"
-        );
+        let (build, _, upgrade) = split_rebuild(&channels).unwrap();
+        assert_eq!(build, ["nixos-rebuild", "build"]);
+        assert!(upgrade, "channels update as root first");
     }
 
     #[test]
@@ -799,6 +1070,74 @@ mod tests {
     }
 
     #[test]
+    fn allowed_apps_come_from_a_nixpkgs_that_allows_them() {
+        let steam = KeptEntry {
+            allow_unfree: true,
+            ..simple("steam")
+        };
+        let old = KeptEntry {
+            allow_insecure: true,
+            ..simple("olm")
+        };
+        let out = render_home(&[simple("firefox"), steam, old], &HomeShape::HomeManager);
+        assert!(out.contains("nixpkgs-unfree = import pkgs.path {"), "{out}");
+        assert!(out.contains("pkgs.config // { allowUnfree = true; };"));
+        assert!(out.contains("pkgs.config // { allowInsecurePredicate = _: true; };"));
+        assert!(out.contains("  nixpkgs-unfree.steam\n"));
+        assert!(out.contains("  nixpkgs-insecure.olm\n"));
+        assert!(out.contains("  firefox\n"));
+        assert!(!out.contains("nixpkgs.overlays"));
+    }
+
+    #[test]
+    fn a_module_reads_the_allowed_package_through_an_overlay() {
+        let steam = KeptEntry {
+            allow_unfree: true,
+            ..promue("steam", Some(""), Some("programs.steam.enable = true;"))
+        };
+        let system = render_system(std::slice::from_ref(&steam));
+        assert!(
+            system.contains("nixpkgs-unfree = import pkgs.path {"),
+            "{system}"
+        );
+        assert!(system.contains("steam = nixpkgs-unfree.steam;"));
+        assert!(system.contains("programs.steam.enable = true;"));
+
+        let home = KeptEntry {
+            allow_unfree: true,
+            ..promue("spotify", Some("programs.spotify.enable = true;"), None)
+        };
+        let nixos_hm = render_home(
+            std::slice::from_ref(&home),
+            &HomeShape::NixosHm("alice".into()),
+        );
+        let users = nixos_hm.find("home-manager.users.alice").unwrap();
+        let overlay = nixos_hm.find("nixpkgs.overlays").unwrap();
+        assert!(overlay > users, "the overlay is NixOS level: {nixos_hm}");
+        assert!(nixos_hm.contains(
+            "home-manager.users.alice.nixpkgs.overlays = lib.mkIf (!config.home-manager.useGlobalPkgs) ["
+        ));
+        let standalone = render_home(&[home], &HomeShape::HomeManager);
+        assert!(
+            standalone.contains("spotify = nixpkgs-unfree.spotify;"),
+            "{standalone}"
+        );
+    }
+
+    #[test]
+    fn a_held_proprietary_app_allows_it_in_its_revision() {
+        let rev = "0123456789abcdef0123456789abcdef01234567";
+        let steam = KeptEntry {
+            allow_unfree: true,
+            ..pinned("steam", rev)
+        };
+        let out = render_home(&[steam, pinned("vlc", rev)], &HomeShape::HomeManager);
+        assert!(out.contains("nixpkgs-0123456789ab-unfree.steam"), "{out}");
+        assert!(out.contains("nixpkgs-0123456789ab.vlc"));
+        assert_eq!(out.matches("builtins.fetchTarball").count(), 2);
+    }
+
+    #[test]
     fn apps_held_at_one_revision_share_its_import() {
         let rev = "0123456789abcdef0123456789abcdef01234567";
         let mut gimp = pinned("gimp", rev);
@@ -869,6 +1208,13 @@ mod tests {
         let system = render_system(&kept);
         assert!(system.contains("# nix-app-center:begin steam"));
         assert!(system.contains("programs.steam.enable = true;"));
+    }
+
+    #[test]
+    fn a_name_cannot_leave_its_marker() {
+        let evil = promue("x\nsystem.activationScripts.a = \"id\";", Some("{ }"), None);
+        let out = render_home(&[evil], &HomeShape::HomeManager);
+        assert!(!out.contains("activationScripts"), "{out}");
     }
 
     #[test]
