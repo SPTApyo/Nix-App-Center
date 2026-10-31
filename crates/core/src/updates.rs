@@ -873,6 +873,48 @@ mod tests {
     }
 
     #[test]
+    fn plans_a_release_switch_of_a_flake_configuration() {
+        let _g = crate::env_lock();
+        let dir = std::env::temp_dir().join(format!("nix-app-center-plan-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("flake.nix"),
+            "{\n  inputs.nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.05\";\n  inputs.home-manager.url = \"github:nix-community/home-manager/release-26.05\";\n  outputs = { nixpkgs, ... }: {\n    nixosConfigurations.pc = nixpkgs.lib.nixosSystem { modules = [ ./configuration.nix ]; };\n  };\n}\n",
+        )
+        .unwrap();
+        let node = |owner: &str, repo: &str, branch: &str| {
+            serde_json::json!({
+                "locked": { "type": "github", "owner": owner, "repo": repo,
+                    "rev": "0123456789abcdef0123456789abcdef01234567", "lastModified": 1700000000 },
+                "original": { "type": "github", "owner": owner, "repo": repo, "ref": branch }
+            })
+        };
+        let lock = serde_json::json!({
+            "nodes": {
+                "nixpkgs": node("NixOS", "nixpkgs", "nixos-26.05"),
+                "home-manager": node("nix-community", "home-manager", "release-26.05"),
+                "root": { "inputs": { "nixpkgs": "nixpkgs", "home-manager": "home-manager" } }
+            },
+            "root": "root",
+            "version": 7
+        });
+        std::fs::write(dir.join("flake.lock"), lock.to_string()).unwrap();
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &dir);
+        let inputs = flake_inputs(&current_source());
+        let plan = release_plan("26.11");
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
+        assert_eq!(
+            inputs.iter().map(|i| i.name.as_str()).collect::<Vec<_>>(),
+            ["home-manager"]
+        );
+        let plan = plan.unwrap();
+        let edit = plan.edit.unwrap();
+        assert!(edit.patched.contains("nixos-26.11") && edit.patched.contains("release-26.11"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn a_release_edit_is_written_then_reverted() {
         let dir =
             std::env::temp_dir().join(format!("nix-app-center-release-{}", std::process::id()));
