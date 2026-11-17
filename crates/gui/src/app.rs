@@ -174,10 +174,12 @@ impl SimpleComponent for AppModel {
         gtk::glib::timeout_add_seconds_local(2, {
             let apply = apply.clone();
             move || {
-                apply.set_visible(
-                    nix_app_center_core::apply_pending()
-                        && !crate::components::apply_dialog::is_running(),
-                );
+                let pending = nix_app_center_core::apply_pending();
+                let show = pending && !crate::components::apply_dialog::is_running();
+                if show && !apply.is_visible() {
+                    apply.set_tooltip_text(Some(&pending_text()));
+                }
+                apply.set_visible(show);
                 gtk::glib::ControlFlow::Continue
             }
         });
@@ -392,7 +394,12 @@ impl SimpleComponent for AppModel {
             gtk::glib::idle_add_local_once(move || crate::components::welcome::present(&win));
         }
         let now = nix_app_center_core::now_unix();
-        if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
+        // A metered connection waits for one that is not.
+        let metered = gtk::gio::NetworkMonitor::default().is_network_metered();
+        if settings.auto_check_updates
+            && !metered
+            && now.saturating_sub(settings.last_update_check) > 86_400
+        {
             let su = updates.sender().clone();
             gtk::glib::timeout_add_seconds_local_once(30, move || {
                 let _ = su.send(UpdatesMsg::Background);
@@ -639,4 +646,20 @@ fn about_dialog() -> adw::AboutDialog {
         d.set_translator_credits(&credits);
     }
     d
+}
+
+/// The Apply button's tooltip: what the next apply adds and removes.
+fn pending_text() -> String {
+    let base = t("Your configuration changed: rebuild it to install or remove the apps.");
+    let Some((added, removed)) = nix_app_center_core::pending_changes() else {
+        return base;
+    };
+    let mut lines = vec![base];
+    if !added.is_empty() {
+        lines.push(t("Adds: {}").replace("{}", &added.join(", ")));
+    }
+    if !removed.is_empty() {
+        lines.push(t("Removes: {}").replace("{}", &removed.join(", ")));
+    }
+    lines.join("\n")
 }
