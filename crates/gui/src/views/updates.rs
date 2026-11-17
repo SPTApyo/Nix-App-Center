@@ -436,7 +436,12 @@ impl UpdatesModel {
         if let Some(release) = &c.new_release {
             self.content.append(&release_banner(release, sender));
         }
-        self.content.append(&self.source_list(c, sender));
+        match &c.latest {
+            Some(latest) if !c.up_to_date(latest) => {
+                self.content.append(&self.header(c, latest, sender));
+            }
+            _ => self.content.append(&self.source_list(c, sender)),
+        }
         let held = held_apps();
         if !held.is_empty() {
             self.content.append(&held_list(&held, sender));
@@ -456,7 +461,6 @@ impl UpdatesModel {
             return;
         }
 
-        self.content.append(&self.header(c, latest, sender));
         if let Some(note) = method_note(&c.source.method).filter(|_| c.command.is_none()) {
             self.content.append(&util::dim_label(&note));
         }
@@ -518,19 +522,42 @@ impl UpdatesModel {
         } else {
             t("New nixpkgs revision")
         }));
-        title.add_css_class("title-2");
+        title.add_css_class("title-3");
         title.set_xalign(0.0);
         let sub = util::dim_label(&t("Available: {}").replace(
             "{}",
             &revision_line(Some(&latest.rev), Some(latest.last_modified)),
         ));
+        let installed = util::dim_label(&t("Installed: {}").replace(
+            "{}",
+            &revision_line(c.source.rev.as_deref(), c.source.last_modified),
+        ));
         let titles = gtk::Box::new(gtk::Orientation::Vertical, 2);
         titles.set_hexpand(true);
+        titles.set_valign(gtk::Align::Center);
         titles.append(&title);
         titles.append(&sub);
+        titles.append(&installed);
 
-        let hb = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        let hb = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+        hb.add_css_class("card");
+        hb.add_css_class("update-hero");
+        let icon = gtk::Image::from_icon_name("nix-snowflake-symbolic");
+        icon.set_pixel_size(32);
+        icon.set_valign(gtk::Align::Center);
+        hb.append(&icon);
         hb.append(&titles);
+        let again = gtk::Button::from_icon_name("view-refresh-symbolic");
+        again.set_tooltip_text(Some(&t("Check Again")));
+        again.add_css_class("flat");
+        again.set_valign(gtk::Align::Center);
+        again.connect_clicked({
+            let s = sender.input_sender().clone();
+            move |_| {
+                let _ = s.send(UpdatesMsg::Refresh);
+            }
+        });
+        hb.append(&again);
         if c.command.is_some() {
             let btn = gtk::Button::with_mnemonic(&t("_Update"));
             btn.add_css_class("suggested-action");
@@ -599,9 +626,13 @@ fn inputs_section(
         header.append(&all);
     }
     section.append(&header);
-    section.append(&util::dim_label(&t(
-        "The flakes your configuration uses besides nixpkgs: modules, themes, apps from other sources.",
-    )));
+    section.append(&util::dim_label(&if newer.is_empty() {
+        t("The flakes your configuration uses besides nixpkgs: modules, themes, apps from other sources.")
+    } else {
+        t("{n} of the {total} flakes of your configuration have a newer version.")
+            .replace("{n}", &newer.len().to_string())
+            .replace("{total}", &c.inputs.len().to_string())
+    }));
     if let Some((hm, nixpkgs)) = &c.mismatch {
         let warning = util::dim_label(
             &t("Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may warn or break. Change its branch in your flake.nix.")
@@ -612,6 +643,8 @@ fn inputs_section(
         section.append(&warning);
     }
     let list = util::boxed_list();
+    let current = adw::ExpanderRow::new();
+    let mut current_names: Vec<&str> = Vec::new();
     for (input, latest) in &c.inputs {
         let age = |ts: Option<u64>| {
             ts.map(|t| util::format_relative(t as i64).to_lowercase())
@@ -641,7 +674,26 @@ fn inputs_section(
             });
             row.add_suffix(&update);
         }
-        list.append(&row);
+        let fresh = latest
+            .as_ref()
+            .is_some_and(|l| input.rev.as_deref() == Some(l.rev.as_str()));
+        if fresh {
+            current_names.push(&input.name);
+            current.add_row(&row);
+        } else {
+            list.append(&row);
+        }
+    }
+    if !current_names.is_empty() {
+        current.set_title(&esc(&util::plural(
+            "{} source up to date",
+            "{} sources up to date",
+            current_names.len() as i64,
+        )));
+        current.set_subtitle(&esc(&current_names.join(", ")));
+        current.set_subtitle_lines(1);
+        current.add_prefix(&gtk::Image::from_icon_name("object-select-symbolic"));
+        list.append(&current);
     }
     section.append(&list);
     Some(section)
