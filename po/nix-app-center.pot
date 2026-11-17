@@ -378,7 +378,7 @@ msgstr ""
 msgid "System settings need a NixOS configuration with a flake."
 msgstr ""
 
-#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:572
+#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:579
 #: crates/gui/src/views/preferences.rs:135
 msgid "Search"
 msgstr ""
@@ -392,105 +392,109 @@ msgid "_Keyboard Shortcuts"
 msgstr ""
 
 #: crates/gui/src/app.rs:136
-msgid "_Preferences"
+msgid "_System Settings"
 msgstr ""
 
 #: crates/gui/src/app.rs:137
+msgid "_Preferences"
+msgstr ""
+
+#: crates/gui/src/app.rs:138
 msgid "_About Nix App Center"
 msgstr ""
 
-#: crates/gui/src/app.rs:142
+#: crates/gui/src/app.rs:143
 msgid "Main Menu"
 msgstr ""
 
-#: crates/gui/src/app.rs:145
+#: crates/gui/src/app.rs:146
 msgid "Beta"
 msgstr ""
 
-#: crates/gui/src/app.rs:149
+#: crates/gui/src/app.rs:150
 msgid "Nix App Center is still young: report what goes wrong."
 msgstr ""
 
-#: crates/gui/src/app.rs:153 crates/gui/src/views/installed.rs:115
+#: crates/gui/src/app.rs:154 crates/gui/src/views/installed.rs:115
 msgid "_Apply"
 msgstr ""
 
-#: crates/gui/src/app.rs:156
+#: crates/gui/src/app.rs:157
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 
-#: crates/gui/src/app.rs:167 crates/gui/src/components/apply_dialog.rs:416
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:416
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr ""
 
-#: crates/gui/src/app.rs:233
+#: crates/gui/src/app.rs:240
 msgid "Search Nix packages…"
 msgstr ""
 
-#: crates/gui/src/app.rs:305 crates/gui/src/app.rs:581
+#: crates/gui/src/app.rs:312 crates/gui/src/app.rs:588
 msgid "Explore"
 msgstr ""
 
-#: crates/gui/src/app.rs:309 crates/gui/src/app.rs:582
+#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:589
 #: crates/gui/src/components/app_list.rs:527
 msgid "Installed"
 msgstr ""
 
-#: crates/gui/src/app.rs:312 crates/gui/src/app.rs:583
+#: crates/gui/src/app.rs:319 crates/gui/src/app.rs:590
 #: crates/gui/src/views/preferences.rs:119
 msgid "Updates"
 msgstr ""
 
-#: crates/gui/src/app.rs:315 crates/gui/src/app.rs:584
+#: crates/gui/src/app.rs:322 crates/gui/src/app.rs:591
 #: crates/gui/src/views/preferences.rs:280
 msgid "Storage"
 msgstr ""
 
-#: crates/gui/src/app.rs:523
+#: crates/gui/src/app.rs:530
 msgid "Updates Available"
 msgstr ""
 
-#: crates/gui/src/app.rs:525
+#: crates/gui/src/app.rs:532
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/app.rs:570
+#: crates/gui/src/app.rs:577 crates/gui/src/views/system_settings.rs:243
 msgid "General"
 msgstr ""
 
-#: crates/gui/src/app.rs:573
+#: crates/gui/src/app.rs:580
 msgid "Preferences"
 msgstr ""
 
-#: crates/gui/src/app.rs:574
+#: crates/gui/src/app.rs:581
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: crates/gui/src/app.rs:575
+#: crates/gui/src/app.rs:582
 msgid "Quit"
 msgstr ""
 
-#: crates/gui/src/app.rs:579
+#: crates/gui/src/app.rs:586
 msgid "Navigation"
 msgstr ""
 
-#: crates/gui/src/app.rs:585
+#: crates/gui/src/app.rs:592
 msgid "Go Back"
 msgstr ""
 
-#: crates/gui/src/app.rs:586
+#: crates/gui/src/app.rs:593
 msgid "Underlined letter of a button"
 msgstr ""
 
-#: crates/gui/src/app.rs:608
+#: crates/gui/src/app.rs:615
 msgid "Icon"
 msgstr ""
 
-#: crates/gui/src/app.rs:615
+#: crates/gui/src/app.rs:622
 msgid "translator-credits"
 msgstr ""
 
@@ -2355,6 +2359,7 @@ msgstr ""
 
 #: crates/gui/src/views/installed.rs:307 crates/gui/src/views/installed.rs:340
 #: crates/gui/src/views/installed.rs:394
+#: crates/gui/src/views/system_settings.rs:774
 msgid "Remove"
 msgstr ""
 
@@ -2953,6 +2958,130 @@ msgstr ""
 msgid ""
 "You will not be able to roll back to them. The current system and your "
 "current user setup stay."
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:66
+#, rust-format
+msgid "{} pending change"
+msgid_plural "{} pending changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/system_settings.rs:79
+msgid "System Settings"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:93
+msgid "_Discard"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:94
+msgid "_Apply and Rebuild"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:97
+msgid "Write the changed settings to nix-app-center-settings.nix and rebuild"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:138
+msgid "Reading Your Configuration…"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:162
+msgid "_Try Again"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:170
+msgid "_Update Inputs"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:174
+msgid "An option may exist in your repository but not in the locked version"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:182
+msgid "Updating Inputs"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:195
+msgid "Could Not Read the Settings"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:310
+#, rust-format
+msgid "Set here · default: {}"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:332
+msgid "No System Settings"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:333
+msgid "Your configuration declares no options under “my”."
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:354
+msgid "Pending changes"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:368
+#, rust-format
+msgid "Read from {source}. Changes go to nix-app-center-settings.nix."
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:386
+#, rust-format
+msgid "{} setting"
+msgid_plural "{} settings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/system_settings.rs:390
+#, rust-format
+msgid "{} set in another file"
+msgid_plural "{} set in other files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/system_settings.rs:422
+#, rust-format
+msgid "Set in {}"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:424
+msgid ""
+"These values come from your own files. Changing them here would conflict at "
+"rebuild: edit them there."
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:438
+msgid "On"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:439
+msgid "Off"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:441
+#: crates/gui/src/views/system_settings.rs:592
+#: crates/gui/src/views/system_settings.rs:697
+msgid "None"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:491
+msgid "Reset to Default"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:736
+msgid "Edit List"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:743
+msgid "Add"
+msgstr ""
+
+#: crates/gui/src/views/system_settings.rs:881
+msgid "Applying System Settings"
 msgstr ""
 
 #: crates/gui/src/views/updates.rs:194 crates/gui/src/views/updates.rs:215

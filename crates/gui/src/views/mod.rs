@@ -6,6 +6,7 @@ pub mod home;
 pub mod installed;
 pub mod preferences;
 pub mod storage;
+pub mod system_settings;
 pub mod updates;
 
 #[cfg(feature = "dev-gallery")]

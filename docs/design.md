@@ -7,8 +7,9 @@ notes keep the reasons.
 
 - **Try first.** Running a package with nix run is the primary action. Keeping
   it is a deliberate second step.
-- **Nix App Center never overwrites anything.** It owns two generated files. Its
-  only change to a file the user wrote is one import line, added once, after
+- **Nix App Center never overwrites anything.** It owns its generated files
+  (home, system, and the system settings). Its only change to a file the user
+  wrote is one import line per file, added once, after
   showing the exact diff, with explicit consent, and removable later.
 - **No silent magic.** When Nix App Center cannot tell where the configuration
   lives, it shows the snippet to paste and stops there.
@@ -380,6 +381,25 @@ channels and a custom apply command run as before, without the review:
 building a channel system as the user could miss files only root reads, and
 an update moves the channel before anything is built. Preferences turns the
 review off.
+
+## System settings
+
+The main menu opens System Settings: the options a NixOS flake declares under
+my (options.my), read with one nix eval each time the page opens, so a new
+option shows without a change to Nix App Center. Booleans, enums, strings,
+numbers and lists of strings can be edited; other types are shown read-only.
+The sidebar has one entry per option group (my.boot, my.desktop…); each row
+is titled by the first paragraph of the option's description, and enums of up
+to six values show as buttons. Changes wait in a bar at the bottom until
+Apply and Rebuild.
+
+Only the settings changed in the page go to nix-app-center-settings.nix, next
+to the other generated files, as plain assignments. A setting another file
+defines at the same priority (custom.nix, the host) is greyed out with the
+file's name: setting it again would only fail the build with conflicting
+definition values. When the eval fails, for example on an option the locked
+input does not have yet, the page shows Nix's error and offers to update the
+inputs.
 
 ## What is installed
 
