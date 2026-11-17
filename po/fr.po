@@ -383,7 +383,7 @@ msgstr "ODRS n'accepte pas cette application."
 msgid "System settings need a NixOS configuration with a flake."
 msgstr "Les réglages système demandent une configuration NixOS avec un flake."
 
-#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:572
+#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:579
 #: crates/gui/src/views/preferences.rs:135
 msgid "Search"
 msgstr "Rechercher"
@@ -397,107 +397,112 @@ msgid "_Keyboard Shortcuts"
 msgstr "_Raccourcis clavier"
 
 #: crates/gui/src/app.rs:136
+#, fuzzy
+msgid "_System Settings"
+msgstr "_Ne plus régler"
+
+#: crates/gui/src/app.rs:137
 msgid "_Preferences"
 msgstr "_Préférences"
 
-#: crates/gui/src/app.rs:137
+#: crates/gui/src/app.rs:138
 msgid "_About Nix App Center"
 msgstr "À _propos de Nix App Center"
 
-#: crates/gui/src/app.rs:142
+#: crates/gui/src/app.rs:143
 msgid "Main Menu"
 msgstr "Menu principal"
 
-#: crates/gui/src/app.rs:145
+#: crates/gui/src/app.rs:146
 msgid "Beta"
 msgstr "Bêta"
 
-#: crates/gui/src/app.rs:149
+#: crates/gui/src/app.rs:150
 msgid "Nix App Center is still young: report what goes wrong."
 msgstr "Nix App Center est encore jeune : signalez ce qui ne marche pas."
 
-#: crates/gui/src/app.rs:153 crates/gui/src/views/installed.rs:115
+#: crates/gui/src/app.rs:154 crates/gui/src/views/installed.rs:115
 msgid "_Apply"
 msgstr "_Appliquer"
 
-#: crates/gui/src/app.rs:156
+#: crates/gui/src/app.rs:157
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 "Votre configuration a changé : reconstruisez-la pour installer ou retirer "
 "les applications."
 
-#: crates/gui/src/app.rs:167 crates/gui/src/components/apply_dialog.rs:416
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:416
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:239
 msgid "Applying Configuration"
 msgstr "Application de la configuration"
 
-#: crates/gui/src/app.rs:233
+#: crates/gui/src/app.rs:240
 msgid "Search Nix packages…"
 msgstr "Rechercher des paquets Nix…"
 
-#: crates/gui/src/app.rs:305 crates/gui/src/app.rs:581
+#: crates/gui/src/app.rs:312 crates/gui/src/app.rs:588
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:309 crates/gui/src/app.rs:582
+#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:589
 #: crates/gui/src/components/app_list.rs:527
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:312 crates/gui/src/app.rs:583
+#: crates/gui/src/app.rs:319 crates/gui/src/app.rs:590
 #: crates/gui/src/views/preferences.rs:119
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: crates/gui/src/app.rs:315 crates/gui/src/app.rs:584
+#: crates/gui/src/app.rs:322 crates/gui/src/app.rs:591
 #: crates/gui/src/views/preferences.rs:280
 msgid "Storage"
 msgstr "Stockage"
 
-#: crates/gui/src/app.rs:523
+#: crates/gui/src/app.rs:530
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:525
+#: crates/gui/src/app.rs:532
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:570
+#: crates/gui/src/app.rs:577 crates/gui/src/views/system_settings.rs:243
 msgid "General"
 msgstr "Général"
 
-#: crates/gui/src/app.rs:573
+#: crates/gui/src/app.rs:580
 msgid "Preferences"
 msgstr "Préférences"
 
-#: crates/gui/src/app.rs:574
+#: crates/gui/src/app.rs:581
 msgid "Keyboard Shortcuts"
 msgstr "Raccourcis clavier"
 
-#: crates/gui/src/app.rs:575
+#: crates/gui/src/app.rs:582
 msgid "Quit"
 msgstr "Quitter"
 
-#: crates/gui/src/app.rs:579
+#: crates/gui/src/app.rs:586
 msgid "Navigation"
 msgstr "Navigation"
 
-#: crates/gui/src/app.rs:585
+#: crates/gui/src/app.rs:592
 msgid "Go Back"
 msgstr "Revenir en arrière"
 
-#: crates/gui/src/app.rs:586
+#: crates/gui/src/app.rs:593
 msgid "Underlined letter of a button"
 msgstr "Lettre soulignée d'un bouton"
 
-#: crates/gui/src/app.rs:608
+#: crates/gui/src/app.rs:615
 msgid "Icon"
 msgstr "Icône"
 
-#: crates/gui/src/app.rs:615
+#: crates/gui/src/app.rs:622
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -2502,6 +2507,7 @@ msgstr "Terminé."
 
 #: crates/gui/src/views/installed.rs:307 crates/gui/src/views/installed.rs:340
 #: crates/gui/src/views/installed.rs:394
+#: crates/gui/src/views/system_settings.rs:774
 msgid "Remove"
 msgstr "Retirer"
 
@@ -3156,6 +3162,145 @@ msgid ""
 msgstr ""
 "Vous ne pourrez plus y revenir. Le système actuel et votre configuration "
 "utilisateur actuelle restent."
+
+#: crates/gui/src/views/system_settings.rs:66
+#, rust-format
+msgid "{} pending change"
+msgid_plural "{} pending changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/system_settings.rs:79
+#, fuzzy
+msgid "System Settings"
+msgstr "_Ne plus régler"
+
+#: crates/gui/src/views/system_settings.rs:93
+msgid "_Discard"
+msgstr "_Annuler"
+
+#: crates/gui/src/views/system_settings.rs:94
+#, fuzzy
+msgid "_Apply and Rebuild"
+msgstr "_Appliquer les changements"
+
+#: crates/gui/src/views/system_settings.rs:97
+msgid "Write the changed settings to nix-app-center-settings.nix and rebuild"
+msgstr ""
+"Écrire les réglages modifiés dans nix-app-center-settings.nix et reconstruire"
+
+#: crates/gui/src/views/system_settings.rs:138
+#, fuzzy
+msgid "Reading Your Configuration…"
+msgstr "Dans votre configuration"
+
+#: crates/gui/src/views/system_settings.rs:162
+#, fuzzy
+msgid "_Try Again"
+msgstr "Mesurer à nouveau"
+
+#: crates/gui/src/views/system_settings.rs:170
+#, fuzzy
+msgid "_Update Inputs"
+msgstr "_Mettre à jour"
+
+#: crates/gui/src/views/system_settings.rs:174
+msgid "An option may exist in your repository but not in the locked version"
+msgstr ""
+"Une option peut exister dans votre dépôt mais pas dans la version verrouillée"
+
+#: crates/gui/src/views/system_settings.rs:182
+#, fuzzy
+msgid "Updating Inputs"
+msgstr "Mise à jour"
+
+#: crates/gui/src/views/system_settings.rs:195
+#, fuzzy
+msgid "Could Not Read the Settings"
+msgstr "Impossible d'ouvrir l'application."
+
+#: crates/gui/src/views/system_settings.rs:310
+#, rust-format
+msgid "Set here · default: {}"
+msgstr "Modifié ici · défaut : {}"
+
+#: crates/gui/src/views/system_settings.rs:332
+#, fuzzy
+msgid "No System Settings"
+msgstr "_Ne plus régler"
+
+#: crates/gui/src/views/system_settings.rs:333
+msgid "Your configuration declares no options under “my”."
+msgstr "Votre configuration ne déclare aucune option sous « my »."
+
+#: crates/gui/src/views/system_settings.rs:354
+msgid "Pending changes"
+msgstr "Modifications en attente"
+
+#: crates/gui/src/views/system_settings.rs:368
+#, rust-format
+msgid "Read from {source}. Changes go to nix-app-center-settings.nix."
+msgstr ""
+"Lu depuis {source}. Les modifications vont dans nix-app-center-settings.nix."
+
+#: crates/gui/src/views/system_settings.rs:386
+#, fuzzy, rust-format
+msgid "{} setting"
+msgid_plural "{} settings"
+msgstr[0] "Paramètres"
+msgstr[1] "Paramètres"
+
+#: crates/gui/src/views/system_settings.rs:390
+#, rust-format
+msgid "{} set in another file"
+msgid_plural "{} set in other files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/gui/src/views/system_settings.rs:422
+#, fuzzy, rust-format
+msgid "Set in {}"
+msgstr "Génération {}"
+
+#: crates/gui/src/views/system_settings.rs:424
+msgid ""
+"These values come from your own files. Changing them here would conflict at "
+"rebuild: edit them there."
+msgstr ""
+"Ces valeurs viennent de vos propres fichiers. Les changer ici créerait un "
+"conflit au rebuild : modifiez-les là-bas."
+
+#: crates/gui/src/views/system_settings.rs:438
+msgid "On"
+msgstr "Activé"
+
+#: crates/gui/src/views/system_settings.rs:439
+msgid "Off"
+msgstr "Désactivé"
+
+#: crates/gui/src/views/system_settings.rs:441
+#: crates/gui/src/views/system_settings.rs:592
+#: crates/gui/src/views/system_settings.rs:697
+msgid "None"
+msgstr "Aucun"
+
+#: crates/gui/src/views/system_settings.rs:491
+#, fuzzy
+msgid "Reset to Default"
+msgstr "Par défaut"
+
+#: crates/gui/src/views/system_settings.rs:736
+msgid "Edit List"
+msgstr "Modifier la liste"
+
+#: crates/gui/src/views/system_settings.rs:743
+#, fuzzy
+msgid "Add"
+msgstr "Extensions"
+
+#: crates/gui/src/views/system_settings.rs:881
+msgid "Applying System Settings"
+msgstr "Application des réglages système"
 
 #: crates/gui/src/views/updates.rs:194 crates/gui/src/views/updates.rs:215
 msgid "Updating"
