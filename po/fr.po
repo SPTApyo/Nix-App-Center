@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-11-17 22:00+0100\n"
+"POT-Creation-Date: 2026-11-17 22:01+0100\n"
 "PO-Revision-Date: 2026-10-05 12:00+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: French\n"
@@ -383,7 +383,7 @@ msgstr "ODRS n'accepte pas cette application."
 msgid "System settings need a NixOS configuration with a flake."
 msgstr "Les réglages système demandent une configuration NixOS avec un flake."
 
-#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:594
+#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:601
 #: crates/gui/src/views/preferences.rs:367
 #: crates/gui/src/views/preferences.rs:370
 msgid "Search"
@@ -426,88 +426,98 @@ msgstr "Nix App Center est encore jeune : signalez ce qui ne marche pas."
 msgid "_Apply"
 msgstr "_Appliquer"
 
-#: crates/gui/src/app.rs:157
+#: crates/gui/src/app.rs:157 crates/gui/src/app.rs:653
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 "Votre configuration a changé : reconstruisez-la pour installer ou retirer "
 "les applications."
 
-#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:812
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:823
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:326
 msgid "Applying Configuration"
 msgstr "Application de la configuration"
 
-#: crates/gui/src/app.rs:253
+#: crates/gui/src/app.rs:255
 msgid "Search Nix packages…"
 msgstr "Rechercher des paquets Nix…"
 
-#: crates/gui/src/app.rs:325 crates/gui/src/app.rs:603
+#: crates/gui/src/app.rs:327 crates/gui/src/app.rs:610
 msgid "Explore"
 msgstr "Explorer"
 
-#: crates/gui/src/app.rs:329 crates/gui/src/app.rs:604
+#: crates/gui/src/app.rs:331 crates/gui/src/app.rs:611
 #: crates/gui/src/components/app_list.rs:527
 msgid "Installed"
 msgstr "Installées"
 
-#: crates/gui/src/app.rs:332 crates/gui/src/app.rs:605
+#: crates/gui/src/app.rs:334 crates/gui/src/app.rs:612
 #: crates/gui/src/views/preferences.rs:344
 #: crates/gui/src/views/preferences.rs:347
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: crates/gui/src/app.rs:335 crates/gui/src/app.rs:606
+#: crates/gui/src/app.rs:337 crates/gui/src/app.rs:613
 #: crates/gui/src/views/preferences.rs:356
 #: crates/gui/src/views/preferences.rs:359
 msgid "Storage"
 msgstr "Stockage"
 
-#: crates/gui/src/app.rs:545
+#: crates/gui/src/app.rs:552
 msgid "Updates Available"
 msgstr "Mises à jour disponibles"
 
-#: crates/gui/src/app.rs:547
+#: crates/gui/src/app.rs:554
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} application peut être mise à jour."
 msgstr[1] "{} applications peuvent être mises à jour."
 
-#: crates/gui/src/app.rs:592 crates/gui/src/views/system_settings.rs:243
+#: crates/gui/src/app.rs:599 crates/gui/src/views/system_settings.rs:243
 msgid "General"
 msgstr "Général"
 
-#: crates/gui/src/app.rs:595 crates/gui/src/views/preferences.rs:15
+#: crates/gui/src/app.rs:602 crates/gui/src/views/preferences.rs:15
 msgid "Preferences"
 msgstr "Préférences"
 
-#: crates/gui/src/app.rs:596
+#: crates/gui/src/app.rs:603
 msgid "Keyboard Shortcuts"
 msgstr "Raccourcis clavier"
 
-#: crates/gui/src/app.rs:597
+#: crates/gui/src/app.rs:604
 msgid "Quit"
 msgstr "Quitter"
 
-#: crates/gui/src/app.rs:601
+#: crates/gui/src/app.rs:608
 msgid "Navigation"
 msgstr "Navigation"
 
-#: crates/gui/src/app.rs:607
+#: crates/gui/src/app.rs:614
 msgid "Go Back"
 msgstr "Revenir en arrière"
 
-#: crates/gui/src/app.rs:608
+#: crates/gui/src/app.rs:615
 msgid "Underlined letter of a button"
 msgstr "Lettre soulignée d'un bouton"
 
-#: crates/gui/src/app.rs:630
+#: crates/gui/src/app.rs:637
 msgid "Icon"
 msgstr "Icône"
 
-#: crates/gui/src/app.rs:637
+#: crates/gui/src/app.rs:644
 msgid "translator-credits"
 msgstr "SPTApyo"
+
+#: crates/gui/src/app.rs:659
+#, fuzzy, rust-format
+msgid "Adds: {}"
+msgstr "Ajouté : {}"
+
+#: crates/gui/src/app.rs:662
+#, fuzzy, rust-format
+msgid "Removes: {}"
+msgstr "Retiré : {}"
 
 #: crates/gui/src/components/app_list.rs:127
 #: crates/gui/src/views/installed.rs:413 crates/gui/src/views/installed.rs:429
@@ -690,44 +700,53 @@ msgstr ""
 msgid "Stopping after the current step…"
 msgstr "Arrêt après l'étape en cours…"
 
-#: crates/gui/src/components/apply_dialog.rs:490
+#: crates/gui/src/components/apply_dialog.rs:492
+#, rust-format
+msgid ""
+"Only {} free on the disk: the build may run out of space. Storage can free "
+"some."
+msgstr ""
+"Seulement {} de libre sur le disque : la construction risque de manquer de "
+"place. Stockage peut en libérer."
+
+#: crates/gui/src/components/apply_dialog.rs:501
 msgid ""
 "Your own apply command runs as it is: the changes cannot be shown first."
 msgstr ""
 "Votre propre commande d'application s'exécute telle quelle : les changements "
 "ne peuvent pas être montrés avant."
 
-#: crates/gui/src/components/apply_dialog.rs:570
+#: crates/gui/src/components/apply_dialog.rs:581
 msgid "Working…"
 msgstr "En cours…"
 
-#: crates/gui/src/components/apply_dialog.rs:590
+#: crates/gui/src/components/apply_dialog.rs:601
 msgid "The disk is full. Free up space in Storage, then apply again."
 msgstr ""
 "Le disque est plein. Libérez de l'espace dans Stockage, puis appliquez à "
 "nouveau."
 
-#: crates/gui/src/components/apply_dialog.rs:597
+#: crates/gui/src/components/apply_dialog.rs:608
 msgid "Stopped"
 msgstr "Arrêté"
 
-#: crates/gui/src/components/apply_dialog.rs:621
+#: crates/gui/src/components/apply_dialog.rs:632
 msgid "Done"
 msgstr "Terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:622
+#: crates/gui/src/components/apply_dialog.rs:633
 msgid "finished"
 msgstr "terminé"
 
-#: crates/gui/src/components/apply_dialog.rs:637
+#: crates/gui/src/components/apply_dialog.rs:648
 msgid "Failed"
 msgstr "Échec"
 
-#: crates/gui/src/components/apply_dialog.rs:709
+#: crates/gui/src/components/apply_dialog.rs:720
 msgid "Logs"
 msgstr "Journaux"
 
-#: crates/gui/src/components/apply_dialog.rs:724
+#: crates/gui/src/components/apply_dialog.rs:735
 #, rust-format
 msgid ""
 "The package needs {} and nixpkgs may not download it, often because of a "
@@ -738,52 +757,52 @@ msgstr ""
 "souvent à cause d'une licence ou d'un compte. Téléchargez-le vous-même puis "
 "choisissez-le ici : la prochaine application continuera avec."
 
-#: crates/gui/src/components/apply_dialog.rs:733
+#: crates/gui/src/components/apply_dialog.rs:744
 #, fuzzy
 msgid "_Open the Download Page"
 msgstr "_Page de téléchargement"
 
-#: crates/gui/src/components/apply_dialog.rs:737
+#: crates/gui/src/components/apply_dialog.rs:748
 #, fuzzy
 msgid "_Choose the File…"
 msgstr "Choisir une version…"
 
-#: crates/gui/src/components/apply_dialog.rs:745
+#: crates/gui/src/components/apply_dialog.rs:756
 #, rust-format
 msgid "Choose {}"
 msgstr "Choisir {}"
 
-#: crates/gui/src/components/apply_dialog.rs:755
+#: crates/gui/src/components/apply_dialog.rs:766
 msgid "Adding it to the Nix store…"
 msgstr "Ajout au store Nix…"
 
-#: crates/gui/src/components/apply_dialog.rs:764
+#: crates/gui/src/components/apply_dialog.rs:775
 #, fuzzy
 msgid "Added. Apply again to install it."
 msgstr "Ajoutée à votre configuration. Appliquez-la pour installer."
 
-#: crates/gui/src/components/apply_dialog.rs:779
+#: crates/gui/src/components/apply_dialog.rs:790
 msgid "_Undo"
 msgstr "A_nnuler"
 
-#: crates/gui/src/components/apply_dialog.rs:781
+#: crates/gui/src/components/apply_dialog.rs:792
 msgid "Go back to the version running before."
 msgstr "Revenir à la version d'avant."
 
-#: crates/gui/src/components/apply_dialog.rs:829
+#: crates/gui/src/components/apply_dialog.rs:840
 msgid "Review the Changes"
 msgstr "Vérifier les changements"
 
-#: crates/gui/src/components/apply_dialog.rs:836
+#: crates/gui/src/components/apply_dialog.rs:847
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr "Le noyau change : redémarrez l'ordinateur pour utiliser le nouveau."
 
-#: crates/gui/src/components/apply_dialog.rs:841
+#: crates/gui/src/components/apply_dialog.rs:852
 msgid "These changes apply to every user of this computer."
 msgstr ""
 "Ces changements s'appliquent à tous les utilisateurs de cet ordinateur."
 
-#: crates/gui/src/components/apply_dialog.rs:881
+#: crates/gui/src/components/apply_dialog.rs:892
 #: crates/gui/src/components/cache_dialog.rs:63
 #: crates/gui/src/components/consent_dialog.rs:26
 #: crates/gui/src/components/consent_dialog.rs:40
@@ -795,52 +814,52 @@ msgstr ""
 msgid "_Cancel"
 msgstr "_Annuler"
 
-#: crates/gui/src/components/apply_dialog.rs:882
+#: crates/gui/src/components/apply_dialog.rs:893
 msgid "_Apply Changes"
 msgstr "_Appliquer les changements"
 
-#: crates/gui/src/components/apply_dialog.rs:907
+#: crates/gui/src/components/apply_dialog.rs:918
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] "{} mis à jour"
 msgstr[1] "{} mis à jour"
 
-#: crates/gui/src/components/apply_dialog.rs:911
+#: crates/gui/src/components/apply_dialog.rs:922
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] "{} ajouté"
 msgstr[1] "{} ajoutés"
 
-#: crates/gui/src/components/apply_dialog.rs:915
+#: crates/gui/src/components/apply_dialog.rs:926
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] "{} retiré"
 msgstr[1] "{} retirés"
 
-#: crates/gui/src/components/apply_dialog.rs:919
+#: crates/gui/src/components/apply_dialog.rs:930
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] "{} reconstruit"
 msgstr[1] "{} reconstruits"
 
-#: crates/gui/src/components/apply_dialog.rs:927
+#: crates/gui/src/components/apply_dialog.rs:938
 msgid "No package changes, only settings."
 msgstr "Aucun paquet ne change, seulement des réglages."
 
-#: crates/gui/src/components/apply_dialog.rs:940
+#: crates/gui/src/components/apply_dialog.rs:951
 #, rust-format
 msgid "Added: {}"
 msgstr "Ajouté : {}"
 
-#: crates/gui/src/components/apply_dialog.rs:941
+#: crates/gui/src/components/apply_dialog.rs:952
 msgid "Removed"
 msgstr "Retiré"
 
-#: crates/gui/src/components/apply_dialog.rs:943
+#: crates/gui/src/components/apply_dialog.rs:954
 msgid "Rebuilt"
 msgstr "Reconstruit"
 
