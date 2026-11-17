@@ -120,6 +120,13 @@ twenty, in $XDG_DATA_HOME/nix-app-center/logs), and History in Updates
 opens them, so a failure can be read again later. The notification at the
 end opens the task's dialog again.
 
+Some nixpkgs packages cannot download their file themselves (requireFile),
+often an installer behind a license or a login: the build stops and its
+log names the file, its hash type and where to get it. The failed dialog
+then links to that page and offers to choose the downloaded file, which
+goes into the store under the expected name (nix-store --add-fixed); the
+next apply finds it. The name is checked to be a plain file name first.
+
 The CLI has the same commands (history, go-back N), and the NixOS test in
 nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
 applies, removes it, goes back and checks the configuration came back.

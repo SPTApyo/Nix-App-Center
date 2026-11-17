@@ -424,7 +424,7 @@ msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 "आपका कॉन्फ़िगरेशन बदल गया है: ऐप्स इंस्टॉल करने या हटाने के लिए इसे फिर से बिल्ड करें।"
 
-#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:742
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:812
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:326
 msgid "Applying Configuration"
 msgstr "कॉन्फ़िगरेशन लागू किया जा रहा है"
@@ -706,35 +706,67 @@ msgstr "हो गया"
 msgid "finished"
 msgstr "पूरा हुआ"
 
-#: crates/gui/src/components/apply_dialog.rs:627
+#: crates/gui/src/components/apply_dialog.rs:637
 msgid "Failed"
 msgstr "विफल"
 
-#: crates/gui/src/components/apply_dialog.rs:699
+#: crates/gui/src/components/apply_dialog.rs:709
 msgid "Logs"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:709
+#: crates/gui/src/components/apply_dialog.rs:724
+#, rust-format
+msgid ""
+"The package needs {} and nixpkgs may not download it, often because of a "
+"license or a login. Download it yourself, then choose it here: the next "
+"apply goes on with it."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:733
+#, fuzzy
+msgid "_Open the Download Page"
+msgstr "डाउनलोड पेज (_P)"
+
+#: crates/gui/src/components/apply_dialog.rs:737
+#, fuzzy
+msgid "_Choose the File…"
+msgstr "संस्करण चुनें…"
+
+#: crates/gui/src/components/apply_dialog.rs:745
+#, rust-format
+msgid "Choose {}"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:755
+msgid "Adding it to the Nix store…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:764
+#, fuzzy
+msgid "Added. Apply again to install it."
+msgstr "आपके कॉन्फ़िगरेशन में जोड़ा गया। इंस्टॉल करने के लिए इसे लागू करें।"
+
+#: crates/gui/src/components/apply_dialog.rs:779
 msgid "_Undo"
 msgstr "पूर्ववत करें (_U)"
 
-#: crates/gui/src/components/apply_dialog.rs:711
+#: crates/gui/src/components/apply_dialog.rs:781
 msgid "Go back to the version running before."
 msgstr "पहले चल रहे संस्करण पर वापस जाएँ।"
 
-#: crates/gui/src/components/apply_dialog.rs:759
+#: crates/gui/src/components/apply_dialog.rs:829
 msgid "Review the Changes"
 msgstr "बदलावों की समीक्षा करें"
 
-#: crates/gui/src/components/apply_dialog.rs:766
+#: crates/gui/src/components/apply_dialog.rs:836
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr "कर्नेल बदल रहा है: नया उपयोग करने के लिए कंप्यूटर को फिर से शुरू करें।"
 
-#: crates/gui/src/components/apply_dialog.rs:771
+#: crates/gui/src/components/apply_dialog.rs:841
 msgid "These changes apply to every user of this computer."
 msgstr "ये बदलाव इस कंप्यूटर के हर उपयोगकर्ता पर लागू होते हैं।"
 
-#: crates/gui/src/components/apply_dialog.rs:811
+#: crates/gui/src/components/apply_dialog.rs:881
 #: crates/gui/src/components/cache_dialog.rs:63
 #: crates/gui/src/components/consent_dialog.rs:26
 #: crates/gui/src/components/consent_dialog.rs:40
@@ -746,52 +778,52 @@ msgstr "ये बदलाव इस कंप्यूटर के हर उ
 msgid "_Cancel"
 msgstr "रद्द करें (_C)"
 
-#: crates/gui/src/components/apply_dialog.rs:812
+#: crates/gui/src/components/apply_dialog.rs:882
 msgid "_Apply Changes"
 msgstr "बदलाव लागू करें (_A)"
 
-#: crates/gui/src/components/apply_dialog.rs:837
+#: crates/gui/src/components/apply_dialog.rs:907
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] "{} अपडेट हुआ"
 msgstr[1] "{} अपडेट हुए"
 
-#: crates/gui/src/components/apply_dialog.rs:841
+#: crates/gui/src/components/apply_dialog.rs:911
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] "{} जोड़ा गया"
 msgstr[1] "{} जोड़े गए"
 
-#: crates/gui/src/components/apply_dialog.rs:845
+#: crates/gui/src/components/apply_dialog.rs:915
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] "{} हटाया गया"
 msgstr[1] "{} हटाए गए"
 
-#: crates/gui/src/components/apply_dialog.rs:849
+#: crates/gui/src/components/apply_dialog.rs:919
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] "{} फिर से बिल्ड हुआ"
 msgstr[1] "{} फिर से बिल्ड हुए"
 
-#: crates/gui/src/components/apply_dialog.rs:857
+#: crates/gui/src/components/apply_dialog.rs:927
 msgid "No package changes, only settings."
 msgstr "कोई पैकेज नहीं बदलता, केवल सेटिंग्स।"
 
-#: crates/gui/src/components/apply_dialog.rs:870
+#: crates/gui/src/components/apply_dialog.rs:940
 #, rust-format
 msgid "Added: {}"
 msgstr "जोड़ा गया: {}"
 
-#: crates/gui/src/components/apply_dialog.rs:871
+#: crates/gui/src/components/apply_dialog.rs:941
 msgid "Removed"
 msgstr "हटाया गया"
 
-#: crates/gui/src/components/apply_dialog.rs:873
+#: crates/gui/src/components/apply_dialog.rs:943
 msgid "Rebuilt"
 msgstr "फिर से बिल्ड किया गया"
 

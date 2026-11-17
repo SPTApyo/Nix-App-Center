@@ -19,7 +19,7 @@ nix-app-center-core = { path = "../core" }
 relm4 = { version = "0.9", features = ["libadwaita"] }
 # Same gtk4 and libadwaita versions as relm4 0.9 pulls, so the gtk:: and
 # adw:: paths its macros generate resolve.
-gtk = { version = "0.9", package = "gtk4" }
+gtk = { version = "0.9", package = "gtk4", features = ["v4_10"] }
 adw = { version = "0.7", package = "libadwaita", features = ["v1_6"] }
 # Worker to main thread channel (dry builds in nix_editor), the replacement
 # for the removed glib::MainContext::channel.
