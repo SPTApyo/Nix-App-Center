@@ -384,7 +384,8 @@ msgid "System settings need a NixOS configuration with a flake."
 msgstr "Les réglages système demandent une configuration NixOS avec un flake."
 
 #: crates/gui/src/app.rs:129 crates/gui/src/app.rs:579
-#: crates/gui/src/views/preferences.rs:135
+#: crates/gui/src/views/preferences.rs:367
+#: crates/gui/src/views/preferences.rs:370
 msgid "Search"
 msgstr "Rechercher"
 
@@ -450,12 +451,14 @@ msgid "Installed"
 msgstr "Installées"
 
 #: crates/gui/src/app.rs:319 crates/gui/src/app.rs:590
-#: crates/gui/src/views/preferences.rs:119
+#: crates/gui/src/views/preferences.rs:344
+#: crates/gui/src/views/preferences.rs:347
 msgid "Updates"
 msgstr "Mises à jour"
 
 #: crates/gui/src/app.rs:322 crates/gui/src/app.rs:591
-#: crates/gui/src/views/preferences.rs:280
+#: crates/gui/src/views/preferences.rs:356
+#: crates/gui/src/views/preferences.rs:359
 msgid "Storage"
 msgstr "Stockage"
 
@@ -474,7 +477,7 @@ msgstr[1] "{} applications peuvent être mises à jour."
 msgid "General"
 msgstr "Général"
 
-#: crates/gui/src/app.rs:580
+#: crates/gui/src/app.rs:580 crates/gui/src/views/preferences.rs:15
 msgid "Preferences"
 msgstr "Préférences"
 
@@ -1474,13 +1477,13 @@ msgstr "_Ne plus régler"
 
 #: crates/gui/src/components/option_dialog.rs:114
 #: crates/gui/src/components/option_dialog.rs:215
-#: crates/gui/src/views/detail.rs:1367 crates/gui/src/views/preferences.rs:331
+#: crates/gui/src/views/detail.rs:1367 crates/gui/src/views/preferences.rs:417
 msgid "Saved. Apply your configuration to use it."
 msgstr "Enregistré. Appliquez votre configuration pour l'utiliser."
 
 #: crates/gui/src/components/option_dialog.rs:127
 #: crates/gui/src/components/option_dialog.rs:229
-#: crates/gui/src/views/preferences.rs:374
+#: crates/gui/src/views/preferences.rs:460
 msgid "Removed. Apply your configuration to undo it."
 msgstr "Retiré. Appliquez votre configuration pour l'annuler."
 
@@ -2567,11 +2570,12 @@ msgstr "Déclarées dans votre configuration utilisateur."
 msgid "Declared in your system configuration."
 msgstr "Déclarées dans votre configuration système."
 
-#: crates/gui/src/views/preferences.rs:16
-msgid "Configuration"
-msgstr "Configuration"
+#: crates/gui/src/views/preferences.rs:25
+#, fuzzy
+msgid "Corrections"
+msgstr "Plus d'actions"
 
-#: crates/gui/src/views/preferences.rs:18
+#: crates/gui/src/views/preferences.rs:27
 msgid ""
 "Nix App Center finds your configuration by reading its files. Correct it "
 "here when it guesses wrong."
@@ -2579,17 +2583,13 @@ msgstr ""
 "Nix App Center trouve votre configuration en lisant ses fichiers. Corrigez-"
 "la ici s'il se trompe."
 
-#: crates/gui/src/views/preferences.rs:27
+#: crates/gui/src/views/preferences.rs:33
 msgid "NixOS configuration folder (empty: /etc/nixos)"
 msgstr "Dossier de configuration NixOS (vide : /etc/nixos)"
 
-#: crates/gui/src/views/preferences.rs:34
+#: crates/gui/src/views/preferences.rs:40
 msgid "Host (empty: this machine)"
 msgstr "Hôte (vide : cette machine)"
-
-#: crates/gui/src/views/preferences.rs:76
-msgid "Installing"
-msgstr "Installation"
 
 #: crates/gui/src/views/preferences.rs:93
 msgid "Allow Proprietary Apps"
@@ -2613,54 +2613,27 @@ msgstr "Ce qui est mis à jour, ajouté ou retiré, avant que le système bascul
 msgid "Search by Command"
 msgstr "Recherche par commande"
 
-#: crates/gui/src/views/preferences.rs:139
-#: crates/gui/src/views/preferences.rs:158
-msgid "Ready: searching a command also lists the packages that provide it."
-msgstr ""
-"Prête : chercher une commande liste aussi les paquets qui la fournissent."
-
 #: crates/gui/src/views/preferences.rs:141
-msgid ""
-"Lists the packages that provide a command. Needs the nix-index database, "
-"about 100 MB."
-msgstr ""
-"Liste les paquets qui fournissent une commande. Nécessite la base nix-index, "
-"environ 100 Mo."
-
-#: crates/gui/src/views/preferences.rs:145
 msgid "_Download"
 msgstr "_Télécharger"
 
-#: crates/gui/src/views/preferences.rs:146
+#: crates/gui/src/views/preferences.rs:142
 msgid "Download the nix-index database, about 100 MB."
 msgstr "Télécharger la base nix-index, environ 100 Mo."
 
-#: crates/gui/src/views/preferences.rs:152
+#: crates/gui/src/views/preferences.rs:159
 msgid "Downloading the nix-index database…"
 msgstr "Téléchargement de la base nix-index…"
 
-#: crates/gui/src/views/preferences.rs:175
-msgid "Advanced"
-msgstr "Avancé"
-
-#: crates/gui/src/views/preferences.rs:177
-msgid ""
-"For unusual setups only, such as a configuration kept in another folder and "
-"built with your own script. Leave it empty if Apply already works."
-msgstr ""
-"Seulement pour les installations inhabituelles, par exemple une "
-"configuration rangée dans un autre dossier et construite avec votre propre "
-"script. Laissez vide si Appliquer fonctionne déjà."
-
-#: crates/gui/src/views/preferences.rs:181
+#: crates/gui/src/views/preferences.rs:182
 msgid "Apply command (empty: found by itself)"
 msgstr "Commande d'application (vide : trouvée toute seule)"
 
-#: crates/gui/src/views/preferences.rs:192
+#: crates/gui/src/views/preferences.rs:193
 msgid "How It Runs"
 msgstr "Fonctionnement"
 
-#: crates/gui/src/views/preferences.rs:194
+#: crates/gui/src/views/preferences.rs:195
 msgid ""
 "Run by the shell. Start it with sudo to run it as administrator: Nix App "
 "Center asks for the password itself, so tools that call sudo on their own, "
@@ -2672,29 +2645,38 @@ msgstr ""
 "appellent sudo eux-mêmes, comme nh, ne marchent pas ici. La barre de "
 "progression suit nixos-rebuild et les journaux Nix simples."
 
-#: crates/gui/src/views/preferences.rs:200
+#: crates/gui/src/views/preferences.rs:201
 msgid "Other flakes to search (github:owner/repo, comma separated)"
 msgstr ""
 "Autres flakes où chercher (github:propriétaire/dépôt, séparés par des "
 "virgules)"
 
-#: crates/gui/src/views/preferences.rs:225
+#: crates/gui/src/views/preferences.rs:226
 msgid "Flakes Suggested by search.nixos.org"
 msgstr "Flakes proposés par search.nixos.org"
 
-#: crates/gui/src/views/preferences.rs:226
+#: crates/gui/src/views/preferences.rs:227
 msgid "Search their packages too"
 msgstr "Chercher aussi leurs paquets"
 
-#: crates/gui/src/views/preferences.rs:243
+#: crates/gui/src/views/preferences.rs:244
 msgid "The list could not be read."
 msgstr "La liste n'a pas pu être lue."
 
-#: crates/gui/src/views/preferences.rs:282
+#: crates/gui/src/views/preferences.rs:275 crates/gui/src/views/updates.rs:577
+msgid "Other Sources"
+msgstr "Autres sources"
+
+#: crates/gui/src/views/preferences.rs:277
+#, fuzzy
+msgid "Flakes whose packages show up in search, besides nixpkgs."
+msgstr "Ce paquet est marqué non sécurisé dans nixpkgs."
+
+#: crates/gui/src/views/preferences.rs:287
 msgid "Clean Up Automatically"
 msgstr "Nettoyer automatiquement"
 
-#: crates/gui/src/views/preferences.rs:283
+#: crates/gui/src/views/preferences.rs:288
 msgid ""
 "Every week, deletes what nothing uses and generations older than 30 days, "
 "which then leave History. Applies with your configuration."
@@ -2703,94 +2685,161 @@ msgstr ""
 "30 jours, qui quittent alors l'historique. S'applique avec votre "
 "configuration."
 
-#: crates/gui/src/views/preferences.rs:289
+#: crates/gui/src/views/preferences.rs:294
 msgid "Set by your own configuration."
 msgstr "Défini par votre propre configuration."
 
-#: crates/gui/src/views/preferences.rs:351
+#: crates/gui/src/views/preferences.rs:324
+#: crates/gui/src/views/preferences.rs:327
+msgid "Configuration"
+msgstr "Configuration"
+
+#: crates/gui/src/views/preferences.rs:328
+#, fuzzy
+msgid "Where your configuration lives and how it is applied."
+msgstr "Retiré. Appliquez votre configuration pour l'annuler."
+
+#: crates/gui/src/views/preferences.rs:334
+#: crates/gui/src/views/preferences.rs:337
+msgid "Installing"
+msgstr "Installation"
+
+#: crates/gui/src/views/preferences.rs:338
+#, fuzzy
+msgid "Where the apps you add go."
+msgstr "C'est l'application que vous utilisez."
+
+#: crates/gui/src/views/preferences.rs:348
+#, fuzzy
+msgid "How Nix App Center checks and applies updates."
+msgstr ""
+"Nix App Center n'a pas pu joindre nixpkgs pour chercher des mises à jour."
+
+#: crates/gui/src/views/preferences.rs:360
+msgid "Keeping the Nix store small."
+msgstr "Garder le store Nix léger."
+
+#: crates/gui/src/views/preferences.rs:371
+msgid "What search looks through."
+msgstr "Ce que la recherche parcourt."
+
+#: crates/gui/src/views/preferences.rs:382
+#: crates/gui/src/views/preferences.rs:385
+msgid "Advanced"
+msgstr "Avancé"
+
+#: crates/gui/src/views/preferences.rs:386
+msgid ""
+"For unusual setups only, such as a configuration kept in another folder and "
+"built with your own script. Leave it empty if Apply already works."
+msgstr ""
+"Seulement pour les installations inhabituelles, par exemple une "
+"configuration rangée dans un autre dossier et construite avec votre propre "
+"script. Laissez vide si Appliquer fonctionne déjà."
+
+#: crates/gui/src/views/preferences.rs:437
 msgid "Binary Caches"
 msgstr "Caches binaires"
 
-#: crates/gui/src/views/preferences.rs:353
+#: crates/gui/src/views/preferences.rs:439
 msgid "Servers your system downloads apps from, besides cache.nixos.org."
 msgstr ""
 "Serveurs depuis lesquels votre système télécharge les apps, en plus de "
 "cache.nixos.org."
 
-#: crates/gui/src/views/preferences.rs:360
+#: crates/gui/src/views/preferences.rs:446
 msgid "Stop Using It"
 msgstr "Ne plus l'utiliser"
 
-#: crates/gui/src/views/preferences.rs:387
+#: crates/gui/src/views/preferences.rs:474
+msgid "Off: search only looks at package names and descriptions."
+msgstr ""
+"Désactivée : la recherche ne regarde que les noms et descriptions des "
+"paquets."
+
+#: crates/gui/src/views/preferences.rs:476
+msgid "Ready: searching a command also lists the packages that provide it."
+msgstr ""
+"Prête : chercher une commande liste aussi les paquets qui la fournissent."
+
+#: crates/gui/src/views/preferences.rs:478
+msgid ""
+"Lists the packages that provide a command. Needs the nix-index database, "
+"about 100 MB."
+msgstr ""
+"Liste les paquets qui fournissent une commande. Nécessite la base nix-index, "
+"environ 100 Mo."
+
+#: crates/gui/src/views/preferences.rs:492
 #, rust-format
 msgid "NixOS flake in {dir}, host {host}"
 msgstr "Flake NixOS dans {dir}, hôte {host}"
 
-#: crates/gui/src/views/preferences.rs:391
+#: crates/gui/src/views/preferences.rs:496
 #, rust-format
 msgid "NixOS with channels in {}"
 msgstr "NixOS avec canaux dans {}"
 
-#: crates/gui/src/views/preferences.rs:394
+#: crates/gui/src/views/preferences.rs:499
 #, rust-format
 msgid "Home Manager flake in {}"
 msgstr "Flake Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:397
+#: crates/gui/src/views/preferences.rs:502
 #, rust-format
 msgid "Home Manager in {}"
 msgstr "Home Manager dans {}"
 
-#: crates/gui/src/views/preferences.rs:399
+#: crates/gui/src/views/preferences.rs:504
 msgid "No configuration found."
 msgstr "Aucune configuration trouvée."
 
-#: crates/gui/src/views/preferences.rs:403
+#: crates/gui/src/views/preferences.rs:508
 #, rust-format
 msgid "Home Manager module for {}"
 msgstr "Module Home Manager pour {}"
 
-#: crates/gui/src/views/preferences.rs:406
+#: crates/gui/src/views/preferences.rs:511
 #, rust-format
 msgid "Applied with: {}"
 msgstr "Appliquée avec : {}"
 
-#: crates/gui/src/views/preferences.rs:414
+#: crates/gui/src/views/preferences.rs:519
 #, rust-format
 msgid "Configurations: {}"
 msgstr "Configurations : {}"
 
-#: crates/gui/src/views/preferences.rs:418
+#: crates/gui/src/views/preferences.rs:523
 #, rust-format
 msgid "Home Manager users: {}"
 msgstr "Utilisateurs Home Manager : {}"
 
-#: crates/gui/src/views/preferences.rs:420
+#: crates/gui/src/views/preferences.rs:525
 msgid "No Home Manager module."
 msgstr "Pas de module Home Manager."
 
-#: crates/gui/src/views/preferences.rs:421
+#: crates/gui/src/views/preferences.rs:526
 #, rust-format
 msgid "This host does not evaluate: {}"
 msgstr "Cet hôte ne s'évalue pas : {}"
 
-#: crates/gui/src/views/preferences.rs:428
+#: crates/gui/src/views/preferences.rs:533
 msgid "Check with Nix"
 msgstr "Vérifier avec Nix"
 
-#: crates/gui/src/views/preferences.rs:430
+#: crates/gui/src/views/preferences.rs:535
 msgid "Nix says"
 msgstr "Réponse de Nix"
 
-#: crates/gui/src/views/preferences.rs:431
+#: crates/gui/src/views/preferences.rs:536
 msgid "Not checked yet."
 msgstr "Pas encore vérifiée."
 
-#: crates/gui/src/views/preferences.rs:438
+#: crates/gui/src/views/preferences.rs:543
 msgid "Evaluating your configuration…"
 msgstr "Évaluation de votre configuration…"
 
-#: crates/gui/src/views/preferences.rs:448
+#: crates/gui/src/views/preferences.rs:553
 #, rust-format
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix n'a pas pu l'évaluer : {}"
@@ -3411,10 +3460,6 @@ msgstr "Disponible : {}"
 #: crates/gui/src/views/updates.rs:535 crates/gui/src/views/updates.rs:634
 msgid "_Update"
 msgstr "_Mettre à jour"
-
-#: crates/gui/src/views/updates.rs:577
-msgid "Other Sources"
-msgstr "Autres sources"
 
 #: crates/gui/src/views/updates.rs:592
 msgid "Update _All"
