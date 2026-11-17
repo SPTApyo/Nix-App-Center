@@ -621,7 +621,17 @@ fn run(
                             phase.set_label(&t("Done"));
                             detail.set_label(&format!("100 % · {}", t("finished")));
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            let log = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
+                            if let (Some(wanted), Some(body)) = (
+                                nix_app_center_core::required_file(&format!("{log}\n{e}")),
+                                outcome_label.parent().and_downcast::<gtk::Box>(),
+                            ) {
+                                body.insert_child_after(
+                                    &required_file_box(&dialog, wanted),
+                                    Some(&outcome_label),
+                                );
+                            }
                             storage.set_visible(full);
                             target.set(Some(bar.fraction()));
                             phase.set_label(&t("Failed"));
@@ -702,6 +712,66 @@ pub fn present_logs(parent: &impl IsA<gtk::Widget>) {
         .child(&toolbar)
         .build()
         .present(Some(parent));
+}
+
+/// A file the build waits for: where to get it, and a button adding it to
+/// the store once downloaded.
+fn required_file_box(dialog: &adw::Dialog, wanted: nix_app_center_core::RequiredFile) -> gtk::Box {
+    let column = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    column.add_css_class("card");
+    column.add_css_class("required-file");
+    let text = gtk::Label::new(Some(
+        &t("The package needs {} and nixpkgs may not download it, often because of a license or a login. Download it yourself, then choose it here: the next apply goes on with it.")
+            .replace("{}", &wanted.name),
+    ));
+    text.set_wrap(true);
+    text.set_xalign(0.0);
+    let state = crate::util::dim_label("");
+    state.set_visible(false);
+    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    if let Some(url) = wanted.url.clone() {
+        let open = gtk::Button::with_mnemonic(&t("_Open the Download Page"));
+        open.connect_clicked(move |_| crate::util::open_uri(&url));
+        buttons.append(&open);
+    }
+    let choose = gtk::Button::with_mnemonic(&t("_Choose the File…"));
+    choose.add_css_class("suggested-action");
+    let window = dialog.root().and_downcast::<gtk::Window>();
+    column.append(&text);
+    column.append(&buttons);
+    column.append(&state);
+    choose.connect_clicked(move |button| {
+        let picker = gtk::FileDialog::builder()
+            .title(t("Choose {}").replace("{}", &wanted.name))
+            .modal(true)
+            .build();
+        let (button, state, wanted) = (button.clone(), state.clone(), wanted.clone());
+        picker.open(window.as_ref(), gtk::gio::Cancellable::NONE, move |file| {
+            let Some(path) = file.ok().and_then(|f| f.path()) else {
+                return;
+            };
+            button.set_sensitive(false);
+            state.set_visible(true);
+            state.set_label(&t("Adding it to the Nix store…"));
+            gtk::glib::spawn_future_local(async move {
+                let added = gtk::gio::spawn_blocking(move || {
+                    nix_app_center_core::add_required_file(&path, &wanted)
+                        .map_err(|e| e.to_string())
+                })
+                .await
+                .unwrap_or_else(|_| Err(String::new()));
+                match added {
+                    Ok(()) => state.set_label(&t("Added. Apply again to install it.")),
+                    Err(e) => {
+                        state.set_label(&crate::util::failed(&e));
+                        button.set_sensitive(true);
+                    }
+                }
+            });
+        });
+    });
+    buttons.append(&choose);
+    column
 }
 
 /// Goes back to the generation running before the apply.

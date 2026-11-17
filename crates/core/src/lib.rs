@@ -30,8 +30,8 @@ mod paths;
 mod profiles;
 mod progress;
 mod ratings;
-mod resolve;
 mod required_file;
+mod resolve;
 mod reviews;
 mod search;
 mod session_cache;
@@ -100,8 +100,8 @@ pub use profiles::{
 };
 pub use progress::{refusal, Phase, Refusal, StreamEvent};
 pub use ratings::{rating_for, Rating};
-pub use resolve::{report_mapping, resolve_app_id};
 pub use required_file::{add_required_file, required_file, RequiredFile};
+pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{
     act_on_review, featured_review, reviews_for, submit_review, Review, ReviewAction,
 };
