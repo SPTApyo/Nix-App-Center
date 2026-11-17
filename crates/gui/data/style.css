@@ -490,3 +490,28 @@ button.app-tile { padding: 0; }
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
+
+/* System Settings: pending dot, lock chip, enum choices. */
+.changed-dot {
+	min-width: 8px;
+	min-height: 8px;
+	border-radius: 4px;
+	background-color: @accent_bg_color;
+}
+.lock-chip {
+	padding: 3px 10px;
+	border-radius: 999px;
+	background-color: alpha(@window_fg_color, .08);
+	font-size: 0.85em;
+}
+.lock-chip image { -gtk-icon-size: 12px; }
+button.choice {
+	min-height: 44px;
+	border-radius: 12px;
+	font-weight: 600;
+}
+button.choice:checked {
+	background-color: alpha(@accent_bg_color, .18);
+	box-shadow: inset 0 0 0 2px @accent_bg_color;
+	color: @window_fg_color;
+}

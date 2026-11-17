@@ -12,6 +12,7 @@ pub mod go_back;
 pub mod install_options;
 pub mod option_dialog;
 pub mod package_row;
+pub mod sidebar;
 pub mod version_dialog;
 pub mod welcome;
 

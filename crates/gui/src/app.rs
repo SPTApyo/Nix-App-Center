@@ -133,6 +133,7 @@ impl SimpleComponent for AppModel {
         let menu = gtk::gio::Menu::new();
         menu.append(Some(&t("_Welcome Tour")), Some("win.welcome"));
         menu.append(Some(&t("_Keyboard Shortcuts")), Some("win.shortcuts"));
+        menu.append(Some(&t("_System Settings")), Some("win.system-settings"));
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
         menu.append(Some(&t("_About Nix App Center")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
@@ -184,6 +185,12 @@ impl SimpleComponent for AppModel {
             move |_, _| crate::views::preferences::present(&win)
         });
         root.add_action(&prefs);
+        let system = gtk::gio::SimpleAction::new("system-settings", None);
+        system.connect_activate({
+            let win = root.clone();
+            move |_, _| crate::views::system_settings::present(&win)
+        });
+        root.add_action(&system);
         let welcome = gtk::gio::SimpleAction::new("welcome", None);
         welcome.connect_activate({
             let win = root.clone();
