@@ -738,7 +738,19 @@ fn history_section(sender: &ComponentSender<UpdatesModel>) -> Option<gtk::Box> {
     let heading = gtk::Label::new(Some(&t("History")));
     heading.add_css_class("heading");
     heading.set_xalign(0.0);
-    section.append(&heading);
+    heading.set_hexpand(true);
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    head.append(&heading);
+    if !nix_app_center_core::task_logs().is_empty() {
+        let logs = gtk::Button::with_mnemonic(&t("_Logs"));
+        logs.add_css_class("flat");
+        logs.set_tooltip_text(Some(&t(
+            "The logs of the last applies, updates and other tasks",
+        )));
+        logs.connect_clicked(crate::components::apply_dialog::present_logs);
+        head.append(&logs);
+    }
+    section.append(&head);
     section.append(&util::dim_label(&t(
         "Each apply keeps the version before it. Go back to one if something broke; cleaning old generations in Storage removes them from here.",
     )));

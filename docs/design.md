@@ -114,6 +114,12 @@ their own process group and get SIGINT. A step run as root, activating
 above all, cannot be signalled by the user and must not stop halfway: it
 ends, then nothing else runs.
 
+A task started while another runs waits its turn; the header bar counts
+those waiting. Each task's log is saved with its outcome (the newest
+twenty, in $XDG_DATA_HOME/nix-app-center/logs), and History in Updates
+opens them, so a failure can be read again later. The notification at the
+end opens the task's dialog again.
+
 The CLI has the same commands (history, go-back N), and the NixOS test in
 nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
 applies, removes it, goes back and checks the configuration came back.
