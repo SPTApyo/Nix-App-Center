@@ -18,6 +18,22 @@ thread_local! {
     static RUNNING: Cell<bool> = const { Cell::new(false) };
     /// The dialog of the task running now, for the header indicator.
     static ACTIVE: RefCell<Option<Active>> = const { RefCell::new(None) };
+    /// Tasks started while another runs, in order.
+    static QUEUE: RefCell<std::collections::VecDeque<Box<dyn FnOnce()>>> =
+        RefCell::new(std::collections::VecDeque::new());
+    /// The last task's dialog, for its notification.
+    static LAST: RefCell<Option<(adw::Dialog, gtk::Widget)>> = const { RefCell::new(None) };
+}
+
+/// Opens the dialog of the running or last task again.
+pub fn show_last() {
+    LAST.with_borrow(|last| {
+        if let Some((dialog, parent)) = last {
+            if dialog.parent().is_none() {
+                dialog.present(Some(parent));
+            }
+        }
+    });
 }
 
 /// What the header indicator mirrors of the running task.
@@ -71,7 +87,16 @@ pub fn indicator() -> gtk::Button {
             ACTIVE.with_borrow(|a| match a {
                 Some(a) if a.dialog.parent().is_none() => {
                     button.set_visible(true);
-                    label.set_label(&a.phase.label());
+                    let waiting = QUEUE.with_borrow(|q| q.len());
+                    label.set_label(&if waiting == 0 {
+                        a.phase.label().to_string()
+                    } else {
+                        format!(
+                            "{} · {}",
+                            a.phase.label(),
+                            crate::util::plural("{} waiting", "{} waiting", waiting as i64)
+                        )
+                    });
                     match a.target.get() {
                         Some(_) => bar.set_fraction(a.bar.fraction()),
                         None => bar.pulse(),
@@ -263,19 +288,15 @@ fn run(
     after: impl Fn(&Result<ApplyOutcome, String>) -> Option<String> + 'static,
     done: impl Fn(Result<ApplyOutcome, String>) + 'static,
 ) {
-    // One Nix operation at a time: two switches would race.
-    if RUNNING.with(|r| r.replace(true)) {
-        let busy = adw::AlertDialog::new(
-            Some(&t("Another Operation Is Running")),
-            Some(&t(
-                "Wait for the current apply, update or rollback to finish.",
-            )),
-        );
-        busy.add_response("close", &t("_Close"));
-        busy.present(Some(parent));
-        done(Err(t("Another operation is running.")));
+    // One Nix operation at a time: two switches would race. The next waits.
+    if RUNNING.with(Cell::get) {
+        let parent = parent.clone().upcast::<gtk::Widget>();
+        QUEUE.with_borrow_mut(|q| {
+            q.push_back(Box::new(move || run(&parent, spec, job, after, done)));
+        });
         return;
     }
+    RUNNING.with(|r| r.set(true));
     let phase = gtk::Label::new(Some(&t("Preparing…")));
     phase.add_css_class("heading");
     phase.set_xalign(0.0);
@@ -316,7 +337,8 @@ fn run(
         applies,
         stoppable,
     } = spec;
-    let command = gtk::Label::new(Some(&command));
+    let command_text = command;
+    let command = gtk::Label::new(Some(&command_text));
     command.add_css_class("dim-label");
     command.add_css_class("monospace");
     command.set_xalign(0.0);
@@ -471,6 +493,9 @@ fn run(
         );
         let _ = tx.send_blocking(Event::Done(res));
     });
+    LAST.with_borrow_mut(|last| {
+        *last = Some((dialog.clone(), parent.clone().upcast()));
+    });
     ACTIVE.with_borrow_mut(|a| {
         *a = Some(Active {
             dialog: dialog.clone(),
@@ -594,12 +619,76 @@ fn run(
                     outcome.set_label(&message);
                     outcome.set_visible(!matches!(res, Ok(ApplyOutcome::Done(_))));
                     notify_if_away(&dialog, &title, &message);
+                    let log = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
+                    let _ = nix_app_center_core::save_task_log(
+                        &format!("{title} · {}", phase.label()),
+                        &format!("{command_text}\n\n{message}\n\n{log}"),
+                    );
                     done(res);
+                    if let Some(next) = QUEUE.with_borrow_mut(|q| q.pop_front()) {
+                        gtk::glib::idle_add_local_once(next);
+                    }
                     break;
                 }
             }
         }
     });
+}
+
+/// The saved logs of past tasks, newest first; each opens on demand.
+pub fn present_logs(parent: &impl IsA<gtk::Widget>) {
+    let list = crate::util::boxed_list();
+    for log in nix_app_center_core::task_logs() {
+        let row = adw::ExpanderRow::builder()
+            .title(crate::util::esc(&log.title))
+            .subtitle(crate::util::esc(&crate::util::format_relative(
+                log.at as i64,
+            )))
+            .build();
+        let loaded = Cell::new(false);
+        row.connect_expanded_notify(move |row| {
+            if !row.is_expanded() || loaded.replace(true) {
+                return;
+            }
+            let text = std::fs::read_to_string(&log.path).unwrap_or_default();
+            let body = text.split_once('\n').map_or("", |(_, b)| b);
+            let view = gtk::TextView::new();
+            view.buffer().set_text(body);
+            view.set_editable(false);
+            view.set_monospace(true);
+            view.add_css_class("build-log");
+            view.set_top_margin(8);
+            view.set_bottom_margin(8);
+            view.set_left_margin(8);
+            view.set_right_margin(8);
+            row.add_row(
+                &gtk::ScrolledWindow::builder()
+                    .child(&view)
+                    .min_content_height(360)
+                    .build(),
+            );
+        });
+        list.append(&row);
+    }
+    let body = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .child(&list)
+        .vexpand(true)
+        .build();
+    list.set_margin_top(12);
+    list.set_margin_bottom(18);
+    list.set_margin_start(18);
+    list.set_margin_end(18);
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&adw::HeaderBar::new());
+    toolbar.set_content(Some(&body));
+    adw::Dialog::builder()
+        .title(t("Logs"))
+        .content_width(900)
+        .content_height(640)
+        .child(&toolbar)
+        .build()
+        .present(Some(parent));
 }
 
 /// Goes back to the generation running before the apply.
@@ -814,6 +903,7 @@ fn notify_if_away(dialog: &adw::Dialog, title: &str, message: &str) {
         return;
     }
     let n = gtk::gio::Notification::new(title);
+    n.set_default_action("app.show-task");
     n.set_body(Some(message));
     relm4::main_application().send_notification(Some("apply"), &n);
 }
