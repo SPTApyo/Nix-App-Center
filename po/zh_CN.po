@@ -745,7 +745,7 @@ msgstr "这些更改适用于此计算机的所有用户。"
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/components/go_back.rs:51 crates/gui/src/views/detail.rs:1491
 #: crates/gui/src/views/detail.rs:1663 crates/gui/src/views/storage.rs:642
-#: crates/gui/src/views/storage.rs:658 crates/gui/src/views/updates.rs:831
+#: crates/gui/src/views/storage.rs:658 crates/gui/src/views/updates.rs:883
 msgid "_Cancel"
 msgstr "取消(_C)"
 
@@ -981,12 +981,12 @@ msgstr ""
 "新。"
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:749
+#: crates/gui/src/views/updates.rs:801
 msgid "_Release"
 msgstr "解除固定(_R)"
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:751
+#: crates/gui/src/views/updates.rs:803
 msgid "Let the app follow your configuration again."
 msgstr "让应用重新跟随您的配置。"
 
@@ -1276,7 +1276,7 @@ msgid "Version {}"
 msgstr "版本 {}"
 
 #: crates/gui/src/components/details/version_history_row.rs:52
-#: crates/gui/src/views/updates.rs:826
+#: crates/gui/src/views/updates.rs:878
 msgid "Release Notes"
 msgstr "发行说明"
 
@@ -2620,7 +2620,7 @@ msgstr "同时搜索它们的软件包"
 msgid "The list could not be read."
 msgstr "无法读取列表。"
 
-#: crates/gui/src/views/preferences.rs:275 crates/gui/src/views/updates.rs:577
+#: crates/gui/src/views/preferences.rs:275 crates/gui/src/views/updates.rs:604
 msgid "Other Sources"
 msgstr "其他来源"
 
@@ -3221,16 +3221,16 @@ msgstr "修订版本未知"
 msgid "Checking for updates…"
 msgstr "正在检查更新…"
 
-#: crates/gui/src/views/updates.rs:447
+#: crates/gui/src/views/updates.rs:452
 msgid ""
 "Nix App Center cannot tell which nixpkgs branch your configuration follows."
 msgstr "Nix App Center 无法判断您的配置跟随哪个 nixpkgs 分支。"
 
-#: crates/gui/src/views/updates.rs:449
+#: crates/gui/src/views/updates.rs:454
 msgid "Nix App Center could not reach nixpkgs to check for updates."
 msgstr "Nix App Center 无法连接 nixpkgs 检查更新。"
 
-#: crates/gui/src/views/updates.rs:477
+#: crates/gui/src/views/updates.rs:481
 msgid ""
 "Apps update together: they all come from the same nixpkgs revision. To keep "
 "one app as it is, hold its version from its page."
@@ -3238,54 +3238,59 @@ msgstr ""
 "应用会一起更新：它们都来自同一个 nixpkgs 修订版本。若要让某个应用保持现状，请"
 "在其页面上固定其版本。"
 
-#: crates/gui/src/views/updates.rs:485
+#: crates/gui/src/views/updates.rs:489
 #, rust-format
 msgid "nixpkgs {}"
 msgstr "nixpkgs {}"
 
-#: crates/gui/src/views/updates.rs:489
+#: crates/gui/src/views/updates.rs:493
 msgid "Apps in your user profile, updated with nix profile"
 msgstr "您用户配置文件中的应用，通过 nix profile 更新"
 
-#: crates/gui/src/views/updates.rs:491
+#: crates/gui/src/views/updates.rs:495 crates/gui/src/views/updates.rs:531
 #, rust-format
 msgid "Installed: {}"
 msgstr "已安装：{}"
 
-#: crates/gui/src/views/updates.rs:499
+#: crates/gui/src/views/updates.rs:503 crates/gui/src/views/updates.rs:551
 msgid "Check Again"
 msgstr "重新检查"
 
-#: crates/gui/src/views/updates.rs:517
+#: crates/gui/src/views/updates.rs:521
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] "{} 个应用更新"
 
-#: crates/gui/src/views/updates.rs:519
+#: crates/gui/src/views/updates.rs:523
 msgid "New nixpkgs revision"
 msgstr "新的 nixpkgs 修订版本"
 
-#: crates/gui/src/views/updates.rs:523
+#: crates/gui/src/views/updates.rs:527
 #, rust-format
 msgid "Available: {}"
 msgstr "可用：{}"
 
-#: crates/gui/src/views/updates.rs:535 crates/gui/src/views/updates.rs:634
+#: crates/gui/src/views/updates.rs:562 crates/gui/src/views/updates.rs:667
 msgid "_Update"
 msgstr "更新(_U)"
 
-#: crates/gui/src/views/updates.rs:592
+#: crates/gui/src/views/updates.rs:619
 msgid "Update _All"
 msgstr "全部更新(_A)"
 
-#: crates/gui/src/views/updates.rs:603
+#: crates/gui/src/views/updates.rs:630
 msgid ""
 "The flakes your configuration uses besides nixpkgs: modules, themes, apps "
 "from other sources."
 msgstr "您的配置在 nixpkgs 之外使用的 flake：模块、主题以及其他来源的应用。"
 
-#: crates/gui/src/views/updates.rs:607
+#: crates/gui/src/views/updates.rs:632
+#, fuzzy, rust-format
+msgid "{n} of the {total} flakes of your configuration have a newer version."
+msgstr "让应用重新跟随您的配置。"
+
+#: crates/gui/src/views/updates.rs:638
 #, rust-format
 msgid ""
 "Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may "
@@ -3294,37 +3299,43 @@ msgstr ""
 "Home Manager 跟随 {hm}，而 nixpkgs 跟随 {nixpkgs}：Home Manager 可能会报警或"
 "出错。请在 flake.nix 中修改它的分支。"
 
-#: crates/gui/src/views/updates.rs:621
+#: crates/gui/src/views/updates.rs:654
 msgid "Could not check"
 msgstr "无法检查"
 
-#: crates/gui/src/views/updates.rs:623
+#: crates/gui/src/views/updates.rs:656
 #, rust-format
 msgid "Up to date, from {}"
 msgstr "已是最新，来自{}"
 
-#: crates/gui/src/views/updates.rs:625
+#: crates/gui/src/views/updates.rs:658
 #, rust-format
 msgid "New version from {new}, yours is from {old}"
 msgstr "有来自{new}的新版本，您的来自{old}"
 
-#: crates/gui/src/views/updates.rs:667
+#: crates/gui/src/views/updates.rs:689
+#, fuzzy, rust-format
+msgid "{} source up to date"
+msgid_plural "{} sources up to date"
+msgstr[0] "{} 个应用更新"
+
+#: crates/gui/src/views/updates.rs:719
 msgid "Current"
 msgstr "当前"
 
-#: crates/gui/src/views/updates.rs:671
+#: crates/gui/src/views/updates.rs:723
 msgid "Started at boot"
 msgstr "开机时启动"
 
-#: crates/gui/src/views/updates.rs:673
+#: crates/gui/src/views/updates.rs:725
 msgid "Go _Back"
 msgstr "返回(_B)"
 
-#: crates/gui/src/views/updates.rs:686
+#: crates/gui/src/views/updates.rs:738
 msgid "History"
 msgstr "历史"
 
-#: crates/gui/src/views/updates.rs:691
+#: crates/gui/src/views/updates.rs:743
 msgid ""
 "Each apply keeps the version before it. Go back to one if something broke; "
 "cleaning old generations in Storage removes them from here."
@@ -3332,59 +3343,59 @@ msgstr ""
 "每次应用都会保留之前的版本。如果出了问题，可以回到其中一个；在“存储”中清理旧"
 "世代会将它们从这里移除。"
 
-#: crates/gui/src/views/updates.rs:707
+#: crates/gui/src/views/updates.rs:759
 #, rust-format
 msgid "Added {}"
 msgstr "新增：{}"
 
-#: crates/gui/src/views/updates.rs:710
+#: crates/gui/src/views/updates.rs:762
 #, rust-format
 msgid "Removed {}"
 msgstr "已移除：{}"
 
-#: crates/gui/src/views/updates.rs:713
+#: crates/gui/src/views/updates.rs:765
 msgid "Same apps, updated or reconfigured"
 msgstr "应用相同，已更新或重新配置"
 
-#: crates/gui/src/views/updates.rs:716
+#: crates/gui/src/views/updates.rs:768
 msgid "Applied with Nix App Center"
 msgstr "通过 Nix App Center 应用"
 
-#: crates/gui/src/views/updates.rs:717
+#: crates/gui/src/views/updates.rs:769
 msgid "Applied outside Nix App Center"
 msgstr "在 Nix App Center 之外应用"
 
-#: crates/gui/src/views/updates.rs:735
+#: crates/gui/src/views/updates.rs:787
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr "已固定 {age}，不会收到安全更新"
 
-#: crates/gui/src/views/updates.rs:763
+#: crates/gui/src/views/updates.rs:815
 msgid "Held Apps"
 msgstr "已固定的应用"
 
-#: crates/gui/src/views/updates.rs:770
+#: crates/gui/src/views/updates.rs:822
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
 "then apply."
 msgstr "nixpkgs 来自您配置中的“{}”输入。请更新该 flake，然后应用配置。"
 
-#: crates/gui/src/views/updates.rs:773
+#: crates/gui/src/views/updates.rs:825
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr "Nix App Center 无法自行更新此配置。"
 
-#: crates/gui/src/views/updates.rs:780
+#: crates/gui/src/views/updates.rs:832
 #, rust-format
 msgid "NixOS {0} is available."
 msgstr "NixOS {0} 已发布。"
 
-#: crates/gui/src/views/updates.rs:781
+#: crates/gui/src/views/updates.rs:833
 #, rust-format
 msgid "_Switch to NixOS {0}…"
 msgstr "切换到 NixOS {0}…(_S)"
 
-#: crates/gui/src/views/updates.rs:799
+#: crates/gui/src/views/updates.rs:851
 #, rust-format
 msgid ""
 "Nix App Center changes these lines of {file}, a backup next to it first, "
@@ -3394,7 +3405,7 @@ msgstr ""
 "Nix App Center 会先在旁边创建备份，再修改 {file} 中的这几行，然后更新 flake "
 "并应用。如果出错或您取消，flake.nix 和 flake.lock 会恢复原样。"
 
-#: crates/gui/src/views/updates.rs:801
+#: crates/gui/src/views/updates.rs:853
 msgid ""
 "Nix App Center points the nixos channel to the new release, then upgrades "
 "and applies. If you added Home Manager as a channel, switch it too."
@@ -3402,12 +3413,12 @@ msgstr ""
 "Nix App Center 会将 nixos channel 指向新版本，然后升级并应用。如果您以 "
 "channel 方式添加了 Home Manager，也请一并切换。"
 
-#: crates/gui/src/views/updates.rs:804
+#: crates/gui/src/views/updates.rs:856
 #, rust-format
 msgid "Switch to NixOS {}?"
 msgstr "切换到 NixOS {}？"
 
-#: crates/gui/src/views/updates.rs:822
+#: crates/gui/src/views/updates.rs:874
 msgid ""
 "system.stateVersion stays as it is: it is not the release you run, never "
 "change it to upgrade. Read the release notes first: some options change or "
@@ -3416,10 +3427,10 @@ msgstr ""
 "system.stateVersion 保持不变：它不是您正在运行的版本，升级时绝不要修改它。请"
 "先阅读发行说明：有些选项会更改或移除。"
 
-#: crates/gui/src/views/updates.rs:832
+#: crates/gui/src/views/updates.rs:884
 msgid "_Switch"
 msgstr "切换(_S)"
 
-#: crates/gui/src/views/updates.rs:852
+#: crates/gui/src/views/updates.rs:904
 msgid "Everything is up to date"
 msgstr "一切都是最新的"
