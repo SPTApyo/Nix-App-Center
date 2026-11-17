@@ -5,7 +5,7 @@
 use std::time::{Duration, Instant};
 
 use adw::prelude::*;
-use nix_app_center_core::{AppOrigin, Category, GenProfile, HomeDir, HomeKind, StorageReport};
+use nix_app_center_core::{Category, HomeDir, HomeKind, StorageReport};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -42,9 +42,6 @@ pub enum StorageMsg {
     CacheCleared(Result<(), String>),
     /// Whether the store deduplicates by itself.
     Optimised(bool),
-    /// Finds what keeps this app's paths alive.
-    Why(String, Vec<String>),
-    WhyLoaded(String, Vec<nix_app_center_core::Keeper>, Vec<String>),
 }
 
 #[relm4::component(pub)]
@@ -136,6 +133,7 @@ impl SimpleComponent for StorageModel {
                     Ok(()) => t("Cache cleared."),
                     Err(e) => crate::util::failed(&e),
                 });
+                self.rebuild(&sender);
                 let s = sender.input_sender().clone();
                 std::thread::spawn(move || {
                     let _ = s.send(StorageMsg::HomeLoaded(nix_app_center_core::home_usage()));
@@ -162,19 +160,6 @@ impl SimpleComponent for StorageModel {
                 );
             }
             StorageMsg::Optimised(on) => self.optimised = on,
-            StorageMsg::Why(name, paths) => {
-                let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let (keepers, chain) = paths
-                        .first()
-                        .map(|p| nix_app_center_core::why(p))
-                        .unwrap_or_default();
-                    let _ = s.send(StorageMsg::WhyLoaded(name, keepers, chain));
-                });
-            }
-            StorageMsg::WhyLoaded(name, keepers, chain) => {
-                why_dialog(&self.content, &name, &keepers, &chain);
-            }
             StorageMsg::Cleaned => {
                 self.loaded_at = None;
                 sender.input(StorageMsg::Refresh);
@@ -299,12 +284,7 @@ impl StorageModel {
         if let Some(status) = &self.status {
             self.content.append(&util::dim_label(status));
         }
-        let sections = [
-            overview(report, sender),
-            self.cleanups(report, sender),
-            generations(report),
-            apps(report, sender),
-        ];
+        let sections = [overview(report, sender), self.cleanups(report, sender)];
         for (i, sec) in sections.iter().enumerate() {
             util::appear(sec, i * 2);
             self.content.append(sec);
@@ -368,6 +348,13 @@ impl StorageModel {
             let parent = self.content.clone();
             move || confirm_delete_generations(&parent, s.clone())
         }));
+        let history = gtk::Button::with_mnemonic(&t("_History"));
+        history.add_css_class("flat");
+        history.set_valign(gtk::Align::Center);
+        history.set_tooltip_text(Some(&t("See the generations in Updates")));
+        history.set_action_name(Some("app.show-tab"));
+        history.set_action_target_value(Some(&"updates".to_variant()));
+        old.add_suffix(&history);
         list.append(&old);
 
         if !self.optimised {
@@ -390,8 +377,25 @@ impl StorageModel {
 }
 
 /// What keeps an app in the store, and the chain from the system to it.
+/// Finds what keeps `paths` in the store, then explains it.
+pub(crate) fn explain(parent: &impl IsA<gtk::Widget>, name: String, paths: Vec<String>) {
+    let parent = parent.clone().upcast::<gtk::Widget>();
+    gtk::glib::spawn_future_local(async move {
+        let found = gtk::gio::spawn_blocking(move || {
+            paths
+                .first()
+                .map(|p| nix_app_center_core::why(p))
+                .unwrap_or_default()
+        })
+        .await;
+        if let Ok((keepers, chain)) = found {
+            why_dialog(&parent, &name, &keepers, &chain);
+        }
+    });
+}
+
 fn why_dialog(
-    parent: &gtk::Box,
+    parent: &gtk::Widget,
     name: &str,
     keepers: &[nix_app_center_core::Keeper],
     chain: &[String],
@@ -583,140 +587,6 @@ fn overview(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::B
         head.append(&refresh);
     }
     sec
-}
-
-fn generations(r: &StorageReport) -> gtk::Box {
-    let list = util::boxed_list();
-    for (profile, title) in [
-        (GenProfile::System, t("System")),
-        (GenProfile::HomeManager, t("Home Manager")),
-        (GenProfile::User, t("User Profile")),
-    ] {
-        let gens: Vec<_> = r
-            .generations
-            .iter()
-            .filter(|g| g.profile == profile)
-            .collect();
-        if gens.is_empty() {
-            continue;
-        }
-        let old: u64 = gens.iter().filter(|g| !g.current && !g.booted).count() as u64;
-        let exp = adw::ExpanderRow::builder()
-            .title(esc(&title))
-            .subtitle(esc(&format!(
-                "{} · {}",
-                util::plural("{} generation", "{} generations", gens.len() as i64),
-                util::plural("{} old", "{} old", old as i64)
-            )))
-            .build();
-        for g in gens {
-            let mut tags = Vec::new();
-            if g.current {
-                tags.push(t("current"));
-            }
-            if g.same_as_current {
-                tags.push(t("same as current"));
-            }
-            if g.booted {
-                tags.push(t("booted"));
-            }
-            let title = if tags.is_empty() {
-                t("Generation {}").replace("{}", &g.number.to_string())
-            } else {
-                format!(
-                    "{} · {}",
-                    t("Generation {}").replace("{}", &g.number.to_string()),
-                    tags.join(", ")
-                )
-            };
-            let mut sub = vec![util::format_relative(g.date as i64)];
-            if let Some(v) = &g.version {
-                sub.push(format!("NixOS {v}"));
-            }
-            if !g.current && !g.booted && !g.same_as_current {
-                sub.push(t("frees {}").replace("{}", &size(g.exclusive)));
-            }
-            let row = adw::ActionRow::builder()
-                .title(esc(&title))
-                .subtitle(esc(&sub.join(" · ")))
-                .build();
-            exp.add_row(&row);
-        }
-        list.append(&exp);
-    }
-    util::section(
-        &t("Generations"),
-        Some(&t("Each rebuild keeps the previous state so you can roll back. Old ones share most of their files: deleting one frees only what it alone keeps.")),
-        &list,
-    )
-}
-
-fn apps(r: &StorageReport, sender: &ComponentSender<StorageModel>) -> gtk::Box {
-    let list = util::boxed_list();
-    for (origins, title) in [
-        (vec![AppOrigin::System], t("System Apps")),
-        (vec![AppOrigin::User], t("User Apps")),
-        (
-            vec![AppOrigin::Kept, AppOrigin::Tried],
-            t("Nix App Center Apps"),
-        ),
-    ] {
-        let apps: Vec<_> = r
-            .apps
-            .iter()
-            .filter(|a| origins.contains(&a.origin))
-            .collect();
-        if apps.is_empty() {
-            continue;
-        }
-        let exp = adw::ExpanderRow::builder()
-            .title(esc(&title))
-            .subtitle(esc(&util::plural("{} app", "{} apps", apps.len() as i64)))
-            .build();
-        for a in apps {
-            let own = if a.own > 0 && a.own < a.closure {
-                format!(" · {}", t("{} itself").replace("{}", &size(a.own)))
-            } else {
-                String::new()
-            };
-            let detail = t("{} with its dependencies").replace("{}", &size(a.closure))
-                + &own
-                + &match a.origin {
-                    AppOrigin::Kept => format!(" · {}", t("kept by Nix App Center")),
-                    AppOrigin::Tried => format!(" · {}", t("tried")),
-                    _ => String::new(),
-                };
-            let row = a
-                .desktop_file
-                .as_deref()
-                .and_then(|f| util::desktop_row(f, &detail))
-                .unwrap_or_else(|| {
-                    adw::ActionRow::builder()
-                        .title(esc(&a.name))
-                        .subtitle(esc(&detail))
-                        .build()
-                });
-            if !a.paths.is_empty() {
-                let why = gtk::Button::with_mnemonic(&t("_Why?"));
-                why.set_valign(gtk::Align::Center);
-                why.add_css_class("flat");
-                why.set_tooltip_text(Some(&t("What keeps it in the store")));
-                let s = sender.input_sender().clone();
-                let (name, paths) = (a.name.clone(), a.paths.clone());
-                why.connect_clicked(move |_| {
-                    let _ = s.send(StorageMsg::Why(name.clone(), paths.clone()));
-                });
-                row.add_suffix(&why);
-            }
-            exp.add_row(&row);
-        }
-        list.append(&exp);
-    }
-    util::section(
-        &t("Apps"),
-        Some(&t("Sizes include every dependency, so apps sharing libraries add up to more than the store.")),
-        &list,
-    )
 }
 
 /// The biggest home folders; caches can be cleared.
