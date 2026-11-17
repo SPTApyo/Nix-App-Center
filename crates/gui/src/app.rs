@@ -521,6 +521,8 @@ impl SimpleComponent for AppModel {
                 // Popped pages have no parent.
                 self.details.retain(|c| c.widget().parent().is_some());
                 self.categories.retain(|c| c.widget().parent().is_some());
+                // A details page may have kept or removed an app.
+                self._installed.emit(InstalledMsg::Reload);
             }
             AppMsg::Updates(UpdatesOutput::Pending { count, notify }) => {
                 self.updates_page.set_badge_number(count as u32);

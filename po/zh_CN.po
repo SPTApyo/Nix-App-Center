@@ -375,7 +375,7 @@ msgstr "ODRS 不接受此应用。"
 msgid "System settings need a NixOS configuration with a flake."
 msgstr ""
 
-#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:583
+#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:585
 #: crates/gui/src/views/preferences.rs:367
 #: crates/gui/src/views/preferences.rs:370
 msgid "Search"
@@ -414,7 +414,7 @@ msgstr "测试版"
 msgid "Nix App Center is still young: report what goes wrong."
 msgstr "Nix App Center 还很年轻：遇到问题请反馈。"
 
-#: crates/gui/src/app.rs:154 crates/gui/src/views/installed.rs:115
+#: crates/gui/src/app.rs:154 crates/gui/src/views/installed.rs:154
 msgid "_Apply"
 msgstr "应用(_A)"
 
@@ -423,7 +423,7 @@ msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr "您的配置已更改：请重新构建以安装或移除应用。"
 
 #: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:640
-#: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:249
+#: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:326
 msgid "Applying Configuration"
 msgstr "正在应用配置"
 
@@ -431,74 +431,75 @@ msgstr "正在应用配置"
 msgid "Search Nix packages…"
 msgstr "搜索 Nix 软件包…"
 
-#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:592
+#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:594
 msgid "Explore"
 msgstr "探索"
 
-#: crates/gui/src/app.rs:320 crates/gui/src/app.rs:593
+#: crates/gui/src/app.rs:320 crates/gui/src/app.rs:595
 #: crates/gui/src/components/app_list.rs:527
 msgid "Installed"
 msgstr "已安装"
 
-#: crates/gui/src/app.rs:323 crates/gui/src/app.rs:594
+#: crates/gui/src/app.rs:323 crates/gui/src/app.rs:596
 #: crates/gui/src/views/preferences.rs:344
 #: crates/gui/src/views/preferences.rs:347
 msgid "Updates"
 msgstr "更新"
 
-#: crates/gui/src/app.rs:326 crates/gui/src/app.rs:595
+#: crates/gui/src/app.rs:326 crates/gui/src/app.rs:597
 #: crates/gui/src/views/preferences.rs:356
 #: crates/gui/src/views/preferences.rs:359
 msgid "Storage"
 msgstr "存储"
 
-#: crates/gui/src/app.rs:534
+#: crates/gui/src/app.rs:536
 msgid "Updates Available"
 msgstr "有可用更新"
 
-#: crates/gui/src/app.rs:536
+#: crates/gui/src/app.rs:538
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "有 {} 个应用可以更新。"
 
-#: crates/gui/src/app.rs:581 crates/gui/src/views/system_settings.rs:243
+#: crates/gui/src/app.rs:583 crates/gui/src/views/system_settings.rs:243
 msgid "General"
 msgstr "常规"
 
-#: crates/gui/src/app.rs:584 crates/gui/src/views/preferences.rs:15
+#: crates/gui/src/app.rs:586 crates/gui/src/views/preferences.rs:15
 msgid "Preferences"
 msgstr "首选项"
 
-#: crates/gui/src/app.rs:585
+#: crates/gui/src/app.rs:587
 msgid "Keyboard Shortcuts"
 msgstr "键盘快捷键"
 
-#: crates/gui/src/app.rs:586
+#: crates/gui/src/app.rs:588
 msgid "Quit"
 msgstr "退出"
 
-#: crates/gui/src/app.rs:590
+#: crates/gui/src/app.rs:592
 msgid "Navigation"
 msgstr "导航"
 
-#: crates/gui/src/app.rs:596
+#: crates/gui/src/app.rs:598
 msgid "Go Back"
 msgstr "返回"
 
-#: crates/gui/src/app.rs:597
+#: crates/gui/src/app.rs:599
 msgid "Underlined letter of a button"
 msgstr "按钮中带下划线的字母"
 
-#: crates/gui/src/app.rs:619
+#: crates/gui/src/app.rs:621
 msgid "Icon"
 msgstr "图标"
 
-#: crates/gui/src/app.rs:626
+#: crates/gui/src/app.rs:628
 msgid "translator-credits"
 msgstr "SPTApyo"
 
 #: crates/gui/src/components/app_list.rs:127
+#: crates/gui/src/views/installed.rs:413 crates/gui/src/views/installed.rs:429
 msgid "Applications"
 msgstr "应用"
 
@@ -642,7 +643,7 @@ msgstr "请等待当前的应用、更新或回退完成。"
 #: crates/gui/src/components/apply_dialog.rs:274
 #: crates/gui/src/components/cache_dialog.rs:59
 #: crates/gui/src/components/details/attach_dialog.rs:97
-#: crates/gui/src/views/storage.rs:453
+#: crates/gui/src/views/storage.rs:457
 msgid "_Close"
 msgstr "关闭(_C)"
 
@@ -657,6 +658,7 @@ msgstr "正在启动…"
 
 #: crates/gui/src/components/apply_dialog.rs:339
 #: crates/gui/src/components/apply_dialog.rs:352
+#: crates/gui/src/views/installed.rs:501 crates/gui/src/views/installed.rs:541
 msgid "Show _Details"
 msgstr "显示详情(_D)"
 
@@ -742,8 +744,8 @@ msgstr "这些更改适用于此计算机的所有用户。"
 #: crates/gui/src/components/details/nix_editor.rs:126
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/components/go_back.rs:51 crates/gui/src/views/detail.rs:1491
-#: crates/gui/src/views/detail.rs:1663 crates/gui/src/views/storage.rs:772
-#: crates/gui/src/views/storage.rs:788 crates/gui/src/views/updates.rs:831
+#: crates/gui/src/views/detail.rs:1663 crates/gui/src/views/storage.rs:642
+#: crates/gui/src/views/storage.rs:658 crates/gui/src/views/updates.rs:831
 msgid "_Cancel"
 msgstr "取消(_C)"
 
@@ -989,7 +991,6 @@ msgid "Let the app follow your configuration again."
 msgstr "让应用重新跟随您的配置。"
 
 #: crates/gui/src/components/details/infobox.rs:89
-#: crates/gui/src/views/installed.rs:338
 msgid "In Your Configuration"
 msgstr "在您的配置中"
 
@@ -1090,7 +1091,7 @@ msgid ""
 msgstr "您的用户暂时还没有内容。此应用的软件包和用户选项会显示在这里。"
 
 #: crates/gui/src/components/details/nix_editor.rs:87
-#: crates/gui/src/views/installed.rs:397 crates/gui/src/views/storage.rs:196
+#: crates/gui/src/views/storage.rs:181
 msgid "User"
 msgstr "用户"
 
@@ -1109,8 +1110,7 @@ msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:97
 #: crates/gui/src/components/details/nix_editor.rs:108
-#: crates/gui/src/views/installed.rs:402 crates/gui/src/views/storage.rs:191
-#: crates/gui/src/views/storage.rs:591
+#: crates/gui/src/views/storage.rs:176
 msgid "System"
 msgstr "系统"
 
@@ -1804,7 +1804,7 @@ msgstr "开发者身份已验证"
 msgid "Verified"
 msgstr "已验证"
 
-#: crates/gui/src/views/detail.rs:446
+#: crates/gui/src/views/detail.rs:446 crates/gui/src/views/installed.rs:782
 msgid "_Open"
 msgstr "打开(_O)"
 
@@ -1834,7 +1834,7 @@ msgstr "打开一个可以使用此软件包的终端。不会向系统添加任
 msgid "Start the app without installing it. Nothing is added to your system."
 msgstr "无需安装即可启动应用。不会向系统添加任何东西。"
 
-#: crates/gui/src/views/detail.rs:478
+#: crates/gui/src/views/detail.rs:478 crates/gui/src/views/installed.rs:762
 msgid "More Actions"
 msgstr "更多操作"
 
@@ -1936,7 +1936,7 @@ msgstr ""
 "将删除以下文件：\n"
 "{}"
 
-#: crates/gui/src/views/detail.rs:1492 crates/gui/src/views/storage.rs:789
+#: crates/gui/src/views/detail.rs:1492 crates/gui/src/views/storage.rs:659
 msgid "_Delete"
 msgstr "删除(_D)"
 
@@ -2103,11 +2103,12 @@ msgstr "在您的系统配置中"
 msgid "In Your User Configuration"
 msgstr "在您的用户配置中"
 
-#: crates/gui/src/views/detail.rs:2089
+#: crates/gui/src/views/detail.rs:2089 crates/gui/src/views/installed.rs:516
+#: crates/gui/src/views/installed.rs:546
 msgid "_Remove from Configuration"
 msgstr "从配置中移除(_R)"
 
-#: crates/gui/src/views/detail.rs:2091
+#: crates/gui/src/views/detail.rs:2091 crates/gui/src/views/installed.rs:522
 msgid "_Uninstall"
 msgstr "卸载(_U)"
 
@@ -2362,7 +2363,7 @@ msgstr "需要您自己编写的几行"
 msgid "NixOS Configuration"
 msgstr "NixOS 配置"
 
-#: crates/gui/src/views/detail.rs:3072 crates/gui/src/views/storage.rs:592
+#: crates/gui/src/views/detail.rs:3072
 msgid "Home Manager"
 msgstr "Home Manager"
 
@@ -2410,86 +2411,124 @@ msgstr "开发"
 msgid "Editor's Choice"
 msgstr "编辑推荐"
 
-#: crates/gui/src/views/installed.rs:114
+#: crates/gui/src/views/installed.rs:153
 msgid "Your configuration changed. Apply it to uninstall."
 msgstr "您的配置已更改。应用配置即可卸载。"
 
-#: crates/gui/src/views/installed.rs:198
+#: crates/gui/src/views/installed.rs:167
+#, fuzzy
+msgid "Filter installed apps"
+msgstr "打开已安装的应用"
+
+#: crates/gui/src/views/installed.rs:275
 #, fuzzy, rust-format
 msgid "Removing {}"
 msgstr "已移除：{}"
 
-#: crates/gui/src/views/installed.rs:210
+#: crates/gui/src/views/installed.rs:287
 #, rust-format
 msgid "{} uninstalled."
 msgstr "已卸载 {}。"
 
-#: crates/gui/src/views/installed.rs:271
+#: crates/gui/src/views/installed.rs:348
 msgid "Done."
 msgstr "完成。"
 
-#: crates/gui/src/views/installed.rs:278
+#: crates/gui/src/views/installed.rs:355
 #, fuzzy
 msgid "Cleaning Up the Store"
 msgstr "正在清理 store…"
 
-#: crates/gui/src/views/installed.rs:328 crates/gui/src/views/installed.rs:361
+#: crates/gui/src/views/installed.rs:414
+msgid "Tools"
+msgstr ""
+
 #: crates/gui/src/views/installed.rs:415
+#, fuzzy
+msgid "Tried"
+msgstr "试用过"
+
+#: crates/gui/src/views/installed.rs:430
+msgid "Every app on this computer, whoever installed it."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:432
+msgid "No app matches."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:443
+#, fuzzy
+msgid ""
+"No command-line tools kept yet. Open a package and choose “Add to "
+"Configuration”."
+msgstr "还没有保留的软件包。打开一个应用并选择“添加到配置”。"
+
+#: crates/gui/src/views/installed.rs:450
+#, fuzzy
+msgid "Command-Line Tools"
+msgstr "命令"
+
+#: crates/gui/src/views/installed.rs:452
+msgid "Packages without an app window. Open one to see its page or remove it."
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:487 crates/gui/src/views/installed.rs:537
+#, fuzzy
+msgid "Nix App Center"
+msgstr "Nix App Center 应用"
+
+#: crates/gui/src/views/installed.rs:507
+#, fuzzy
+msgid "_Why Is It Here?"
+msgstr "为什么 {} 在这里？"
+
+#: crates/gui/src/views/installed.rs:537 crates/gui/src/views/installed.rs:652
+msgid "Not Applied Yet"
+msgstr ""
+
+#: crates/gui/src/views/installed.rs:586
 #: crates/gui/src/views/system_settings.rs:774
 msgid "Remove"
 msgstr "移除"
 
-#: crates/gui/src/views/installed.rs:333
-msgid ""
-"Remove takes the app out of your configuration; it is uninstalled when you "
-"apply."
-msgstr "“移除”会将应用移出您的配置；应用配置时会卸载它。"
-
-#: crates/gui/src/views/installed.rs:341
-msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
-msgstr "还没有保留的软件包。打开一个应用并选择“添加到配置”。"
-
-#: crates/gui/src/views/installed.rs:367
+#: crates/gui/src/views/installed.rs:592
 msgid "Remove deletes what this try downloaded, keeping what other apps need."
 msgstr "“移除”会删除这次试用下载的内容，并保留其他应用需要的部分。"
 
-#: crates/gui/src/views/installed.rs:374
+#: crates/gui/src/views/installed.rs:599
 msgid "_Free Up Space"
 msgstr "释放空间(_F)"
 
-#: crates/gui/src/views/installed.rs:380
+#: crates/gui/src/views/installed.rs:605
 msgid ""
 "Runs nix-collect-garbage: removes everything nothing uses from the store"
 msgstr "运行 nix-collect-garbage：从 store 中移除所有不再使用的内容"
 
-#: crates/gui/src/views/installed.rs:385
+#: crates/gui/src/views/installed.rs:610
 msgid "Recently Tried"
 msgstr "最近试用"
 
-#: crates/gui/src/views/installed.rs:387
+#: crates/gui/src/views/installed.rs:612
 msgid ""
 "Removing a tried app deletes it from the store and keeps what other apps "
 "need."
 msgstr "移除试用过的应用会将其从 store 中删除，并保留其他应用需要的部分。"
 
-#: crates/gui/src/views/installed.rs:390
+#: crates/gui/src/views/installed.rs:615
 msgid "Nothing tried yet. Run a package from search and it will show up here."
 msgstr "还没有试用过任何应用。从搜索中运行一个软件包，它就会显示在这里。"
 
-#: crates/gui/src/views/installed.rs:398
-msgid "Declared in your user configuration."
-msgstr "已在您的用户配置中声明。"
+#: crates/gui/src/views/installed.rs:647
+#, fuzzy
+msgid "Show Details"
+msgstr "显示详情(_D)"
 
-#: crates/gui/src/views/installed.rs:403
-msgid "Declared in your system configuration."
-msgstr "已在您的系统配置中声明。"
-
-#: crates/gui/src/views/installed.rs:476
+#: crates/gui/src/views/installed.rs:772
 #, rust-format
 msgid "{} removed. Nothing to free: your system still uses it."
 msgstr "已移除 {}。无可释放空间：您的系统仍在使用它。"
 
-#: crates/gui/src/views/installed.rs:478
+#: crates/gui/src/views/installed.rs:774
 #, rust-format
 msgid "{name} removed, {size} freed."
 msgstr "已移除 {name}，释放了 {size}。"
@@ -2752,173 +2791,182 @@ msgstr "正在评估您的配置…"
 msgid "Nix could not evaluate it: {}"
 msgstr "Nix 无法评估它：{}"
 
-#: crates/gui/src/views/storage.rs:136
+#: crates/gui/src/views/storage.rs:133
 msgid "Cache cleared."
 msgstr "缓存已清除。"
 
-#: crates/gui/src/views/storage.rs:157
+#: crates/gui/src/views/storage.rs:155
 msgid "Cleaning Up"
 msgstr "正在清理"
 
-#: crates/gui/src/views/storage.rs:192
+#: crates/gui/src/views/storage.rs:177
 msgid "What your system configuration installs"
 msgstr "您的系统配置安装的内容"
 
-#: crates/gui/src/views/storage.rs:197
+#: crates/gui/src/views/storage.rs:182
 msgid "Your user packages and Home Manager"
 msgstr "您的用户软件包和 Home Manager"
 
-#: crates/gui/src/views/storage.rs:201
+#: crates/gui/src/views/storage.rs:186
 msgid "In Use"
 msgstr "使用中"
 
-#: crates/gui/src/views/storage.rs:202
+#: crates/gui/src/views/storage.rs:187
 msgid "Kept by programs running right now"
 msgstr "正被运行中的程序占用"
 
-#: crates/gui/src/views/storage.rs:206
+#: crates/gui/src/views/storage.rs:191
 msgid "Old Generations"
 msgstr "旧世代"
 
-#: crates/gui/src/views/storage.rs:207
+#: crates/gui/src/views/storage.rs:192
 msgid "Kept so you can roll back"
 msgstr "保留以便回滚"
 
-#: crates/gui/src/views/storage.rs:211
+#: crates/gui/src/views/storage.rs:196
 msgid "Development"
 msgstr "开发"
 
-#: crates/gui/src/views/storage.rs:212
+#: crates/gui/src/views/storage.rs:197
 msgid "Dev shells, build results, and build inputs Nix keeps"
 msgstr "Nix 保留的开发环境、构建结果和构建输入"
 
-#: crates/gui/src/views/storage.rs:216
+#: crates/gui/src/views/storage.rs:201
 msgid "Tried Apps"
 msgstr "试用过的应用"
 
-#: crates/gui/src/views/storage.rs:217
+#: crates/gui/src/views/storage.rs:202
 msgid "Apps you ran with Nix App Center"
 msgstr "您用 Nix App Center 运行过的应用"
 
-#: crates/gui/src/views/storage.rs:219
+#: crates/gui/src/views/storage.rs:204
 msgid "Garbage"
 msgstr "垃圾"
 
-#: crates/gui/src/views/storage.rs:219
+#: crates/gui/src/views/storage.rs:204
 msgid "Nothing uses it anymore"
 msgstr "已不再被任何内容使用"
 
-#: crates/gui/src/views/storage.rs:338
+#: crates/gui/src/views/storage.rs:318
 msgid "Empty Garbage"
 msgstr "清空垃圾"
 
-#: crates/gui/src/views/storage.rs:339
+#: crates/gui/src/views/storage.rs:319
 #, rust-format
 msgid "{} that nothing uses anymore. Safe to delete."
 msgstr "{} 已不再被任何内容使用，可以安全删除。"
 
-#: crates/gui/src/views/storage.rs:346
+#: crates/gui/src/views/storage.rs:326
 msgid "Runs the Nix garbage collector: deletes store paths nothing uses."
 msgstr "运行 Nix 垃圾回收器：删除不再使用的 store 路径。"
 
-#: crates/gui/src/views/storage.rs:348
+#: crates/gui/src/views/storage.rs:328
 msgid "_Clean"
 msgstr "清理(_C)"
 
-#: crates/gui/src/views/storage.rs:360
+#: crates/gui/src/views/storage.rs:340
 msgid "Delete Old Generations"
 msgstr "删除旧世代"
 
-#: crates/gui/src/views/storage.rs:361
+#: crates/gui/src/views/storage.rs:341
 #, rust-format
 msgid ""
 "About {}, and you can no longer roll back to them. The boot menu follows at "
 "the next rebuild."
 msgstr "约 {}，删除后将无法回滚到这些世代。启动菜单会在下次重新构建时更新。"
 
-#: crates/gui/src/views/storage.rs:364
+#: crates/gui/src/views/storage.rs:344
 msgid ""
 "Deletes the old generations: you can no longer boot or roll back to them."
 msgstr "删除旧世代：您将无法再启动或回滚到它们。"
 
-#: crates/gui/src/views/storage.rs:366
+#: crates/gui/src/views/storage.rs:346
 msgid "_Delete…"
 msgstr "删除…(_D)"
 
-#: crates/gui/src/views/storage.rs:375
+#: crates/gui/src/views/storage.rs:351
+#, fuzzy
+msgid "_History"
+msgstr "历史"
+
+#: crates/gui/src/views/storage.rs:354
+msgid "See the generations in Updates"
+msgstr ""
+
+#: crates/gui/src/views/storage.rs:362
 msgid "Deduplicate Files"
 msgstr "文件去重"
 
-#: crates/gui/src/views/storage.rs:376
+#: crates/gui/src/views/storage.rs:363
 msgid ""
 "Replaces identical files in the store with links to a single copy. Can take "
 "a long time on a big store."
 msgstr ""
 "将 store 中相同的文件替换为指向同一副本的链接。store 较大时可能需要很长时间。"
 
-#: crates/gui/src/views/storage.rs:378
+#: crates/gui/src/views/storage.rs:365
 msgid "De_duplicate"
 msgstr "去重(_D)"
 
-#: crates/gui/src/views/storage.rs:388
+#: crates/gui/src/views/storage.rs:375
 msgid "Free Up Space"
 msgstr "释放空间"
 
-#: crates/gui/src/views/storage.rs:402
+#: crates/gui/src/views/storage.rs:406
 #, rust-format
 msgid " ({first} to {last})"
 msgstr "（{first} 至 {last}）"
 
-#: crates/gui/src/views/storage.rs:418
+#: crates/gui/src/views/storage.rs:422
 #, rust-format
 msgid "{} system generation"
 msgid_plural "{} system generations"
 msgstr[0] "{} 个系统世代"
 
-#: crates/gui/src/views/storage.rs:425
+#: crates/gui/src/views/storage.rs:429
 #, rust-format
 msgid "{} Home Manager generation"
 msgid_plural "{} Home Manager generations"
 msgstr[0] "{} 个 Home Manager 世代"
 
-#: crates/gui/src/views/storage.rs:430
+#: crates/gui/src/views/storage.rs:434
 msgid "The system running now"
 msgstr "当前运行的系统"
 
-#: crates/gui/src/views/storage.rs:431
+#: crates/gui/src/views/storage.rs:435
 msgid "The system the computer started with"
 msgstr "计算机启动时使用的系统"
 
-#: crates/gui/src/views/storage.rs:432
+#: crates/gui/src/views/storage.rs:436
 msgid "Your Home Manager setup"
 msgstr "您的 Home Manager 设置"
 
-#: crates/gui/src/views/storage.rs:433
+#: crates/gui/src/views/storage.rs:437
 msgid "Your user profile"
 msgstr "您的用户配置文件"
 
-#: crates/gui/src/views/storage.rs:434
+#: crates/gui/src/views/storage.rs:438
 msgid "A program running now"
 msgstr "正在运行的程序"
 
-#: crates/gui/src/views/storage.rs:440
+#: crates/gui/src/views/storage.rs:444
 msgid "Nothing keeps it anymore: the next clean-up deletes it."
 msgstr "已没有任何东西保留它：下次清理会将其删除。"
 
-#: crates/gui/src/views/storage.rs:442
+#: crates/gui/src/views/storage.rs:446
 msgid "Kept by:"
 msgstr "由以下保留："
 
-#: crates/gui/src/views/storage.rs:446
+#: crates/gui/src/views/storage.rs:450
 msgid "Used by the running system through:"
 msgstr "当前系统通过以下内容使用："
 
-#: crates/gui/src/views/storage.rs:450
+#: crates/gui/src/views/storage.rs:454
 #, rust-format
 msgid "Why Is {} Here?"
 msgstr "为什么 {} 在这里？"
 
-#: crates/gui/src/views/storage.rs:567
+#: crates/gui/src/views/storage.rs:571
 #, rust-format
 msgid ""
 "{store} in {paths} store paths, before hard link sharing. The disk has "
@@ -2927,144 +2975,40 @@ msgstr ""
 "{paths} 个 store 路径共 {store}（未计算硬链接共享）。磁盘剩余 {free}，共 "
 "{disk}。"
 
-#: crates/gui/src/views/storage.rs:574
+#: crates/gui/src/views/storage.rs:578
 msgid "Measure Again"
 msgstr "重新测量"
 
-#: crates/gui/src/views/storage.rs:581
+#: crates/gui/src/views/storage.rs:585
 msgid "Nix Store"
 msgstr "Nix Store"
 
-#: crates/gui/src/views/storage.rs:593
-msgid "User Profile"
-msgstr "用户配置文件"
-
-#: crates/gui/src/views/storage.rs:608
-#, rust-format
-msgid "{} generation"
-msgid_plural "{} generations"
-msgstr[0] "{} 个世代"
-
-#: crates/gui/src/views/storage.rs:609
-#, rust-format
-msgid "{} old"
-msgid_plural "{} old"
-msgstr[0] "{} 个旧的"
-
-#: crates/gui/src/views/storage.rs:615
-msgid "current"
-msgstr "当前"
-
-#: crates/gui/src/views/storage.rs:618
-msgid "same as current"
-msgstr "与当前相同"
-
-#: crates/gui/src/views/storage.rs:621
-msgid "booted"
-msgstr "已启动"
-
-#: crates/gui/src/views/storage.rs:624 crates/gui/src/views/storage.rs:628
-#, rust-format
-msgid "Generation {}"
-msgstr "世代 {}"
-
-#: crates/gui/src/views/storage.rs:637
-#, rust-format
-msgid "frees {}"
-msgstr "可释放 {}"
-
-#: crates/gui/src/views/storage.rs:648
-msgid "Generations"
-msgstr "世代"
-
-#: crates/gui/src/views/storage.rs:649
-msgid ""
-"Each rebuild keeps the previous state so you can roll back. Old ones share "
-"most of their files: deleting one frees only what it alone keeps."
-msgstr ""
-"每次重新构建都会保留之前的状态，以便回滚。旧世代共享大部分文件：删除其中一个"
-"只会释放仅由它保留的部分。"
-
-#: crates/gui/src/views/storage.rs:657
-msgid "System Apps"
-msgstr "系统应用"
-
-#: crates/gui/src/views/storage.rs:658
-msgid "User Apps"
-msgstr "用户应用"
-
-#: crates/gui/src/views/storage.rs:661
-msgid "Nix App Center Apps"
-msgstr "Nix App Center 应用"
-
-#: crates/gui/src/views/storage.rs:674
-#, rust-format
-msgid "{} app"
-msgid_plural "{} apps"
-msgstr[0] "{} 个应用"
-
-#: crates/gui/src/views/storage.rs:678
-#, rust-format
-msgid "{} itself"
-msgstr "{} 本身"
-
-#: crates/gui/src/views/storage.rs:682
-#, rust-format
-msgid "{} with its dependencies"
-msgstr "{}（含依赖项）"
-
-#: crates/gui/src/views/storage.rs:685
-msgid "kept by Nix App Center"
-msgstr "由 Nix App Center 保留"
-
-#: crates/gui/src/views/storage.rs:686
-msgid "tried"
-msgstr "试用过"
-
-#: crates/gui/src/views/storage.rs:700
-msgid "_Why?"
-msgstr "为什么(_W)?"
-
-#: crates/gui/src/views/storage.rs:703
-msgid "What keeps it in the store"
-msgstr "是什么让它留在 store 中"
-
-#: crates/gui/src/views/storage.rs:716
-msgid "Apps"
-msgstr "应用"
-
-#: crates/gui/src/views/storage.rs:717
-msgid ""
-"Sizes include every dependency, so apps sharing libraries add up to more "
-"than the store."
-msgstr "大小包含所有依赖项，因此共享库的应用加起来会超过 store 的大小。"
-
-#: crates/gui/src/views/storage.rs:732
+#: crates/gui/src/views/storage.rs:602
 msgid "Cache"
 msgstr "缓存"
 
-#: crates/gui/src/views/storage.rs:733
+#: crates/gui/src/views/storage.rs:603
 msgid "Data"
 msgstr "数据"
 
-#: crates/gui/src/views/storage.rs:734
+#: crates/gui/src/views/storage.rs:604
 msgid "Settings"
 msgstr "设置"
 
-#: crates/gui/src/views/storage.rs:740
+#: crates/gui/src/views/storage.rs:610
 #, rust-format
 msgid "used by {}"
 msgstr "被 {} 使用"
 
-#: crates/gui/src/views/storage.rs:751
+#: crates/gui/src/views/storage.rs:621
 msgid "Clear…"
 msgstr "清除…"
 
-#: crates/gui/src/views/storage.rs:758
+#: crates/gui/src/views/storage.rs:628
 msgid "Your Files"
 msgstr "您的文件"
 
-#: crates/gui/src/views/storage.rs:759
+#: crates/gui/src/views/storage.rs:629
 #, rust-format
 msgid ""
 "Folders apps keep in your home: {} in all. A cache is rebuilt when needed; "
@@ -3073,27 +3017,27 @@ msgstr ""
 "应用保存在您主目录中的文件夹：共 {}。缓存会在需要时重建；数据和设置属于您，"
 "Nix App Center 永远不会删除它们。"
 
-#: crates/gui/src/views/storage.rs:766
+#: crates/gui/src/views/storage.rs:636
 #, rust-format
 msgid "Clear the “{}” Cache?"
 msgstr "清除“{}”的缓存？"
 
-#: crates/gui/src/views/storage.rs:768
+#: crates/gui/src/views/storage.rs:638
 #, rust-format
 msgid ""
 "This frees {}. The app rebuilds what it needs; close it first if it is "
 "running."
 msgstr "这将释放 {}。应用会重建它所需的内容；如果它正在运行，请先关闭它。"
 
-#: crates/gui/src/views/storage.rs:773
+#: crates/gui/src/views/storage.rs:643
 msgid "C_lear"
 msgstr "清除(_L)"
 
-#: crates/gui/src/views/storage.rs:785
+#: crates/gui/src/views/storage.rs:655
 msgid "Delete Old Generations?"
 msgstr "删除旧世代？"
 
-#: crates/gui/src/views/storage.rs:786
+#: crates/gui/src/views/storage.rs:656
 msgid ""
 "You will not be able to roll back to them. The current system and your "
 "current user setup stay."
