@@ -127,6 +127,12 @@ then links to that page and offers to choose the downloaded file, which
 goes into the store under the expected name (nix-store --add-fixed); the
 next apply finds it. The name is checked to be a plain file name first.
 
+Opening a .deb, .rpm or AppImage with Nix App Center searches nixpkgs and
+Flathub for the app named in the file name, since one of them usually has
+it ready for NixOS. The installer itself is never unpacked or run: its
+libraries expect another layout, and its dependency names do not map to
+nixpkgs.
+
 The CLI has the same commands (history, go-back N), and the NixOS test in
 nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
 applies, removes it, goes back and checks the configuration came back.
