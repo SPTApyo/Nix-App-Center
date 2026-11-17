@@ -30,10 +30,21 @@ pub fn show_last() {
     LAST.with_borrow(|last| {
         if let Some((dialog, parent)) = last {
             if dialog.parent().is_none() {
-                dialog.present(Some(parent));
+                dialog.present(Some(&anchor(parent)));
             }
         }
     });
+}
+
+/// `widget` while it is in a window, else the app's window: the page that
+/// started a task may be closed by the time its dialog shows.
+fn anchor(widget: &gtk::Widget) -> gtk::Widget {
+    if widget.root().is_some() {
+        return widget.clone();
+    }
+    relm4::main_application()
+        .active_window()
+        .map_or_else(|| widget.clone(), |w| w.upcast())
 }
 
 /// What the header indicator mirrors of the running task.
@@ -74,7 +85,7 @@ pub fn indicator() -> gtk::Button {
     button.connect_clicked(|_| {
         ACTIVE.with_borrow(|a| {
             if let Some(a) = a {
-                a.dialog.present(Some(&a.parent));
+                a.dialog.present(Some(&anchor(&a.parent)));
             }
         });
     });
@@ -292,7 +303,9 @@ fn run(
     if RUNNING.with(Cell::get) {
         let parent = parent.clone().upcast::<gtk::Widget>();
         QUEUE.with_borrow_mut(|q| {
-            q.push_back(Box::new(move || run(&parent, spec, job, after, done)));
+            q.push_back(Box::new(move || {
+                run(&anchor(&parent), spec, job, after, done)
+            }));
         });
         return;
     }
