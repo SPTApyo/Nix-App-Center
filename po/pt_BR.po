@@ -762,7 +762,7 @@ msgstr "Estas alterações valem para todos os usuários deste computador."
 #: crates/gui/src/components/details/review_row.rs:113
 #: crates/gui/src/components/go_back.rs:51 crates/gui/src/views/detail.rs:1491
 #: crates/gui/src/views/detail.rs:1663 crates/gui/src/views/storage.rs:642
-#: crates/gui/src/views/storage.rs:658 crates/gui/src/views/updates.rs:831
+#: crates/gui/src/views/storage.rs:658 crates/gui/src/views/updates.rs:883
 msgid "_Cancel"
 msgstr "_Cancelar"
 
@@ -1014,12 +1014,12 @@ msgstr ""
 "atualizações de segurança até que você o libere."
 
 #: crates/gui/src/components/details/infobox.rs:69
-#: crates/gui/src/views/updates.rs:749
+#: crates/gui/src/views/updates.rs:801
 msgid "_Release"
 msgstr "_Liberar"
 
 #: crates/gui/src/components/details/infobox.rs:71
-#: crates/gui/src/views/updates.rs:751
+#: crates/gui/src/views/updates.rs:803
 msgid "Let the app follow your configuration again."
 msgstr "Deixar o aplicativo seguir sua configuração novamente."
 
@@ -1325,7 +1325,7 @@ msgid "Version {}"
 msgstr "Versão {}"
 
 #: crates/gui/src/components/details/version_history_row.rs:52
-#: crates/gui/src/views/updates.rs:826
+#: crates/gui/src/views/updates.rs:878
 msgid "Release Notes"
 msgstr "Notas de lançamento"
 
@@ -2727,7 +2727,7 @@ msgstr "Pesquisar nos pacotes deles também"
 msgid "The list could not be read."
 msgstr "Não foi possível ler a lista."
 
-#: crates/gui/src/views/preferences.rs:275 crates/gui/src/views/updates.rs:577
+#: crates/gui/src/views/preferences.rs:275 crates/gui/src/views/updates.rs:604
 msgid "Other Sources"
 msgstr "Outras fontes"
 
@@ -3350,17 +3350,17 @@ msgstr "Revisão desconhecida"
 msgid "Checking for updates…"
 msgstr "Procurando atualizações…"
 
-#: crates/gui/src/views/updates.rs:447
+#: crates/gui/src/views/updates.rs:452
 msgid ""
 "Nix App Center cannot tell which nixpkgs branch your configuration follows."
 msgstr "O Nix App Center não sabe qual ramo do nixpkgs sua configuração segue."
 
-#: crates/gui/src/views/updates.rs:449
+#: crates/gui/src/views/updates.rs:454
 msgid "Nix App Center could not reach nixpkgs to check for updates."
 msgstr ""
 "O Nix App Center não conseguiu acessar o nixpkgs para procurar atualizações."
 
-#: crates/gui/src/views/updates.rs:477
+#: crates/gui/src/views/updates.rs:481
 msgid ""
 "Apps update together: they all come from the same nixpkgs revision. To keep "
 "one app as it is, hold its version from its page."
@@ -3369,49 +3369,49 @@ msgstr ""
 "nixpkgs. Para manter um aplicativo como está, fixe a versão dele na página "
 "dele."
 
-#: crates/gui/src/views/updates.rs:485
+#: crates/gui/src/views/updates.rs:489
 #, rust-format
 msgid "nixpkgs {}"
 msgstr "nixpkgs {}"
 
-#: crates/gui/src/views/updates.rs:489
+#: crates/gui/src/views/updates.rs:493
 msgid "Apps in your user profile, updated with nix profile"
 msgstr "Aplicativos no seu perfil de usuário, atualizados com nix profile"
 
-#: crates/gui/src/views/updates.rs:491
+#: crates/gui/src/views/updates.rs:495 crates/gui/src/views/updates.rs:531
 #, rust-format
 msgid "Installed: {}"
 msgstr "Instalado: {}"
 
-#: crates/gui/src/views/updates.rs:499
+#: crates/gui/src/views/updates.rs:503 crates/gui/src/views/updates.rs:551
 msgid "Check Again"
 msgstr "Verificar novamente"
 
-#: crates/gui/src/views/updates.rs:517
+#: crates/gui/src/views/updates.rs:521
 #, rust-format
 msgid "{} app update"
 msgid_plural "{} app updates"
 msgstr[0] "{} atualização de aplicativo"
 msgstr[1] "{} atualizações de aplicativos"
 
-#: crates/gui/src/views/updates.rs:519
+#: crates/gui/src/views/updates.rs:523
 msgid "New nixpkgs revision"
 msgstr "Nova revisão do nixpkgs"
 
-#: crates/gui/src/views/updates.rs:523
+#: crates/gui/src/views/updates.rs:527
 #, rust-format
 msgid "Available: {}"
 msgstr "Disponível: {}"
 
-#: crates/gui/src/views/updates.rs:535 crates/gui/src/views/updates.rs:634
+#: crates/gui/src/views/updates.rs:562 crates/gui/src/views/updates.rs:667
 msgid "_Update"
 msgstr "_Atualizar"
 
-#: crates/gui/src/views/updates.rs:592
+#: crates/gui/src/views/updates.rs:619
 msgid "Update _All"
 msgstr "Atualizar _tudo"
 
-#: crates/gui/src/views/updates.rs:603
+#: crates/gui/src/views/updates.rs:630
 msgid ""
 "The flakes your configuration uses besides nixpkgs: modules, themes, apps "
 "from other sources."
@@ -3419,7 +3419,12 @@ msgstr ""
 "Os flakes que sua configuração usa além do nixpkgs: módulos, temas, "
 "aplicativos de outras fontes."
 
-#: crates/gui/src/views/updates.rs:607
+#: crates/gui/src/views/updates.rs:632
+#, fuzzy, rust-format
+msgid "{n} of the {total} flakes of your configuration have a newer version."
+msgstr "Deixar o aplicativo seguir sua configuração novamente."
+
+#: crates/gui/src/views/updates.rs:638
 #, rust-format
 msgid ""
 "Home Manager follows {hm} while nixpkgs follows {nixpkgs}: Home Manager may "
@@ -3428,37 +3433,44 @@ msgstr ""
 "O Home Manager segue {hm} enquanto o nixpkgs segue {nixpkgs}: o Home Manager "
 "pode avisar ou quebrar. Mude o ramo dele no seu flake.nix."
 
-#: crates/gui/src/views/updates.rs:621
+#: crates/gui/src/views/updates.rs:654
 msgid "Could not check"
 msgstr "Não foi possível verificar"
 
-#: crates/gui/src/views/updates.rs:623
+#: crates/gui/src/views/updates.rs:656
 #, rust-format
 msgid "Up to date, from {}"
 msgstr "Atualizado, de {}"
 
-#: crates/gui/src/views/updates.rs:625
+#: crates/gui/src/views/updates.rs:658
 #, rust-format
 msgid "New version from {new}, yours is from {old}"
 msgstr "Nova versão de {new}, a sua é de {old}"
 
-#: crates/gui/src/views/updates.rs:667
+#: crates/gui/src/views/updates.rs:689
+#, fuzzy, rust-format
+msgid "{} source up to date"
+msgid_plural "{} sources up to date"
+msgstr[0] "{} atualização de aplicativo"
+msgstr[1] "{} atualizações de aplicativos"
+
+#: crates/gui/src/views/updates.rs:719
 msgid "Current"
 msgstr "Atual"
 
-#: crates/gui/src/views/updates.rs:671
+#: crates/gui/src/views/updates.rs:723
 msgid "Started at boot"
 msgstr "Iniciada na inicialização"
 
-#: crates/gui/src/views/updates.rs:673
+#: crates/gui/src/views/updates.rs:725
 msgid "Go _Back"
 msgstr "_Voltar"
 
-#: crates/gui/src/views/updates.rs:686
+#: crates/gui/src/views/updates.rs:738
 msgid "History"
 msgstr "Histórico"
 
-#: crates/gui/src/views/updates.rs:691
+#: crates/gui/src/views/updates.rs:743
 msgid ""
 "Each apply keeps the version before it. Go back to one if something broke; "
 "cleaning old generations in Storage removes them from here."
@@ -3466,38 +3478,38 @@ msgstr ""
 "Cada aplicação guarda a versão anterior. Volte para uma se algo quebrou; "
 "limpar gerações antigas em Armazenamento as remove daqui."
 
-#: crates/gui/src/views/updates.rs:707
+#: crates/gui/src/views/updates.rs:759
 #, rust-format
 msgid "Added {}"
 msgstr "Adicionado: {}"
 
-#: crates/gui/src/views/updates.rs:710
+#: crates/gui/src/views/updates.rs:762
 #, rust-format
 msgid "Removed {}"
 msgstr "Removido: {}"
 
-#: crates/gui/src/views/updates.rs:713
+#: crates/gui/src/views/updates.rs:765
 msgid "Same apps, updated or reconfigured"
 msgstr "Mesmos aplicativos, atualizados ou reconfigurados"
 
-#: crates/gui/src/views/updates.rs:716
+#: crates/gui/src/views/updates.rs:768
 msgid "Applied with Nix App Center"
 msgstr "Aplicada com o Nix App Center"
 
-#: crates/gui/src/views/updates.rs:717
+#: crates/gui/src/views/updates.rs:769
 msgid "Applied outside Nix App Center"
 msgstr "Aplicada fora do Nix App Center"
 
-#: crates/gui/src/views/updates.rs:735
+#: crates/gui/src/views/updates.rs:787
 #, rust-format
 msgid "Held {age}, gets no security updates"
 msgstr "Fixado {age}, sem atualizações de segurança"
 
-#: crates/gui/src/views/updates.rs:763
+#: crates/gui/src/views/updates.rs:815
 msgid "Held Apps"
 msgstr "Aplicativos fixados"
 
-#: crates/gui/src/views/updates.rs:770
+#: crates/gui/src/views/updates.rs:822
 #, rust-format
 msgid ""
 "nixpkgs comes from the “{}” input of your configuration. Update that flake, "
@@ -3506,21 +3518,21 @@ msgstr ""
 "O nixpkgs vem da entrada “{}” da sua configuração. Atualize esse flake e "
 "depois aplique."
 
-#: crates/gui/src/views/updates.rs:773
+#: crates/gui/src/views/updates.rs:825
 msgid "Nix App Center cannot update this configuration by itself."
 msgstr "O Nix App Center não consegue atualizar esta configuração sozinho."
 
-#: crates/gui/src/views/updates.rs:780
+#: crates/gui/src/views/updates.rs:832
 #, rust-format
 msgid "NixOS {0} is available."
 msgstr "O NixOS {0} está disponível."
 
-#: crates/gui/src/views/updates.rs:781
+#: crates/gui/src/views/updates.rs:833
 #, rust-format
 msgid "_Switch to NixOS {0}…"
 msgstr "_Mudar para o NixOS {0}…"
 
-#: crates/gui/src/views/updates.rs:799
+#: crates/gui/src/views/updates.rs:851
 #, rust-format
 msgid ""
 "Nix App Center changes these lines of {file}, a backup next to it first, "
@@ -3531,7 +3543,7 @@ msgstr ""
 "lado antes, depois atualiza o flake e aplica. Se algo falhar ou você "
 "cancelar, flake.nix e flake.lock voltam ao que eram."
 
-#: crates/gui/src/views/updates.rs:801
+#: crates/gui/src/views/updates.rs:853
 msgid ""
 "Nix App Center points the nixos channel to the new release, then upgrades "
 "and applies. If you added Home Manager as a channel, switch it too."
@@ -3539,12 +3551,12 @@ msgstr ""
 "O Nix App Center aponta o canal nixos para a nova versão, depois atualiza e "
 "aplica. Se você adicionou o Home Manager como canal, mude-o também."
 
-#: crates/gui/src/views/updates.rs:804
+#: crates/gui/src/views/updates.rs:856
 #, rust-format
 msgid "Switch to NixOS {}?"
 msgstr "Mudar para o NixOS {}?"
 
-#: crates/gui/src/views/updates.rs:822
+#: crates/gui/src/views/updates.rs:874
 msgid ""
 "system.stateVersion stays as it is: it is not the release you run, never "
 "change it to upgrade. Read the release notes first: some options change or "
@@ -3554,10 +3566,10 @@ msgstr ""
 "mude para atualizar. Leia antes as notas de lançamento: algumas opções mudam "
 "ou somem."
 
-#: crates/gui/src/views/updates.rs:832
+#: crates/gui/src/views/updates.rs:884
 msgid "_Switch"
 msgstr "_Mudar"
 
-#: crates/gui/src/views/updates.rs:852
+#: crates/gui/src/views/updates.rs:904
 msgid "Everything is up to date"
 msgstr "Tudo está atualizado"
