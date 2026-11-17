@@ -185,11 +185,25 @@ impl SimpleComponent for InstalledModel {
                     return;
                 }
                 self.rebuild(&sender);
+                let name = self
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.tried.iter().find(|i| i.package.attr == attr))
+                    .map(|i| display_name(&i.package))
+                    .unwrap_or_else(|| attr.clone());
                 let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let res = nix_app_center_core::remove_tried(&attr).map_err(|e| e.to_string());
-                    let _ = s.send(InstalledMsg::Removed(attr, res));
-                });
+                let task_attr = attr.clone();
+                crate::components::apply_dialog::present_task(
+                    &self.content,
+                    &t("Removing {}").replace("{}", &name),
+                    move || {
+                        nix_app_center_core::remove_tried(&task_attr).map_err(|e| e.to_string())
+                    },
+                    move |bytes| freed_text(&name, *bytes),
+                    move |res| {
+                        let _ = s.send(InstalledMsg::Removed(attr.clone(), res));
+                    },
+                );
             }
             InstalledMsg::ProfileRemove(name) => {
                 self.status = Some(match nix_app_center_core::profile_remove(&name) {
@@ -212,11 +226,7 @@ impl SimpleComponent for InstalledModel {
                     }
                 }
                 self.status = Some(match res {
-                    Ok(0) => t("{} removed. Nothing to free: your system still uses it.")
-                        .replace("{}", &name),
-                    Ok(bytes) => t("{name} removed, {size} freed.")
-                        .replace("{name}", &name)
-                        .replace("{size}", &gtk::glib::format_size(bytes)),
+                    Ok(bytes) => freed_text(&name, bytes),
                     Err(e) => crate::util::failed(&e),
                 });
                 self.rebuild(&sender);
@@ -254,17 +264,28 @@ impl SimpleComponent for InstalledModel {
                     return;
                 }
                 self.gc_running = true;
-                self.status = Some(t("Cleaning up the store…"));
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let msg = match nix_app_center_core::garbage_collect() {
-                        Ok(s) if !s.is_empty() => s,
-                        Ok(_) => t("Done."),
-                        Err(e) => crate::util::failed(&e),
-                    };
-                    let _ = s.send(InstalledMsg::GcDone(msg));
-                });
+                let said = |out: &String| {
+                    if out.is_empty() {
+                        t("Done.")
+                    } else {
+                        out.clone()
+                    }
+                };
+                crate::components::apply_dialog::present_task(
+                    &self.content,
+                    &t("Cleaning Up the Store"),
+                    || nix_app_center_core::garbage_collect().map_err(|e| e.to_string()),
+                    said,
+                    move |res| {
+                        let msg = match res {
+                            Ok(out) => said(&out),
+                            Err(e) => crate::util::failed(&e),
+                        };
+                        let _ = s.send(InstalledMsg::GcDone(msg));
+                    },
+                );
             }
             InstalledMsg::GcDone(status) => {
                 self.gc_running = false;
@@ -446,6 +467,17 @@ impl InstalledModel {
             }
         });
         b
+    }
+}
+
+/// What removing a tried app freed.
+fn freed_text(name: &str, bytes: u64) -> String {
+    if bytes == 0 {
+        t("{} removed. Nothing to free: your system still uses it.").replace("{}", name)
+    } else {
+        t("{name} removed, {size} freed.")
+            .replace("{name}", name)
+            .replace("{size}", &gtk::glib::format_size(bytes))
     }
 }
 

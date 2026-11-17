@@ -15,19 +15,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: crates/core/src/config_gen.rs:612
+#: crates/core/src/config_gen.rs:613
 msgid "The build gave an unexpected result."
 msgstr "बिल्ड का परिणाम अपेक्षित नहीं था।"
 
-#: crates/core/src/config_gen.rs:700
+#: crates/core/src/config_gen.rs:701
 msgid "Building as administrator: the changes cannot be shown first."
 msgstr "व्यवस्थापक के रूप में बिल्ड हो रहा है: बदलाव पहले नहीं दिखाए जा सकते।"
 
-#: crates/core/src/config_gen.rs:839 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:880 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "प्रमाणीकरण रद्द कर दिया गया।"
 
-#: crates/core/src/config_gen.rs:842 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:883 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "प्रशासक अधिकार अस्वीकार कर दिए गए।"
 
@@ -376,7 +376,7 @@ msgstr "ODRS ने इस ऐप को स्वीकार नहीं क�
 msgid "System settings need a NixOS configuration with a flake."
 msgstr ""
 
-#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:579
+#: crates/gui/src/app.rs:129 crates/gui/src/app.rs:583
 #: crates/gui/src/views/preferences.rs:367
 #: crates/gui/src/views/preferences.rs:370
 msgid "Search"
@@ -424,80 +424,80 @@ msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 "आपका कॉन्फ़िगरेशन बदल गया है: ऐप्स इंस्टॉल करने या हटाने के लिए इसे फिर से बिल्ड करें।"
 
-#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:416
-#: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:239
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:640
+#: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:249
 msgid "Applying Configuration"
 msgstr "कॉन्फ़िगरेशन लागू किया जा रहा है"
 
-#: crates/gui/src/app.rs:240
+#: crates/gui/src/app.rs:244
 msgid "Search Nix packages…"
 msgstr "Nix पैकेज खोजें…"
 
-#: crates/gui/src/app.rs:312 crates/gui/src/app.rs:588
+#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:592
 msgid "Explore"
 msgstr "खोजें"
 
-#: crates/gui/src/app.rs:316 crates/gui/src/app.rs:589
+#: crates/gui/src/app.rs:320 crates/gui/src/app.rs:593
 #: crates/gui/src/components/app_list.rs:527
 msgid "Installed"
 msgstr "इंस्टॉल किए गए"
 
-#: crates/gui/src/app.rs:319 crates/gui/src/app.rs:590
+#: crates/gui/src/app.rs:323 crates/gui/src/app.rs:594
 #: crates/gui/src/views/preferences.rs:344
 #: crates/gui/src/views/preferences.rs:347
 msgid "Updates"
 msgstr "अपडेट"
 
-#: crates/gui/src/app.rs:322 crates/gui/src/app.rs:591
+#: crates/gui/src/app.rs:326 crates/gui/src/app.rs:595
 #: crates/gui/src/views/preferences.rs:356
 #: crates/gui/src/views/preferences.rs:359
 msgid "Storage"
 msgstr "स्टोरेज"
 
-#: crates/gui/src/app.rs:530
+#: crates/gui/src/app.rs:534
 msgid "Updates Available"
 msgstr "अपडेट उपलब्ध हैं"
 
-#: crates/gui/src/app.rs:532
+#: crates/gui/src/app.rs:536
 #, rust-format
 msgid "{} app can be updated."
 msgid_plural "{} apps can be updated."
 msgstr[0] "{} ऐप अपडेट किया जा सकता है।"
 msgstr[1] "{} ऐप्स अपडेट किए जा सकते हैं।"
 
-#: crates/gui/src/app.rs:577 crates/gui/src/views/system_settings.rs:243
+#: crates/gui/src/app.rs:581 crates/gui/src/views/system_settings.rs:243
 msgid "General"
 msgstr "सामान्य"
 
-#: crates/gui/src/app.rs:580 crates/gui/src/views/preferences.rs:15
+#: crates/gui/src/app.rs:584 crates/gui/src/views/preferences.rs:15
 msgid "Preferences"
 msgstr "प्राथमिकताएँ"
 
-#: crates/gui/src/app.rs:581
+#: crates/gui/src/app.rs:585
 msgid "Keyboard Shortcuts"
 msgstr "कीबोर्ड शॉर्टकट"
 
-#: crates/gui/src/app.rs:582
+#: crates/gui/src/app.rs:586
 msgid "Quit"
 msgstr "बाहर निकलें"
 
-#: crates/gui/src/app.rs:586
+#: crates/gui/src/app.rs:590
 msgid "Navigation"
 msgstr "नेविगेशन"
 
-#: crates/gui/src/app.rs:592
+#: crates/gui/src/app.rs:596
 msgid "Go Back"
 msgstr "वापस जाएँ"
 
-#: crates/gui/src/app.rs:593
+#: crates/gui/src/app.rs:597
 msgid "Underlined letter of a button"
 msgstr "बटन का रेखांकित अक्षर"
 
-#: crates/gui/src/app.rs:615
+#: crates/gui/src/app.rs:619
 msgid "Icon"
 msgstr "आइकन"
 
-#: crates/gui/src/app.rs:622
+#: crates/gui/src/app.rs:626
 msgid "translator-credits"
 msgstr "SPTApyo"
 
@@ -590,125 +590,158 @@ msgstr "कोई पैकेज सेट नहीं"
 msgid "Package Set"
 msgstr "पैकेज सेट"
 
-#: crates/gui/src/components/apply_dialog.rs:33
+#: crates/gui/src/components/apply_dialog.rs:53
+#, fuzzy
+msgid "Show Progress"
+msgstr "कम दिखाएँ (_L)"
+
+#: crates/gui/src/components/apply_dialog.rs:111
 msgid "Another operation is running"
 msgstr "एक और कार्य चल रहा है"
 
-#: crates/gui/src/components/apply_dialog.rs:55
-#: crates/gui/src/components/apply_dialog.rs:118
+#: crates/gui/src/components/apply_dialog.rs:133
+#: crates/gui/src/components/apply_dialog.rs:279
 msgid "Preparing…"
 msgstr "तैयारी हो रही है…"
 
-#: crates/gui/src/components/apply_dialog.rs:57
+#: crates/gui/src/components/apply_dialog.rs:135
 #, rust-format
 msgid "Downloading {done} of {} package"
 msgid_plural "Downloading {done} of {} packages"
 msgstr[0] "{} में से {done} पैकेज डाउनलोड हो रहा है"
 msgstr[1] "{} में से {done} पैकेज डाउनलोड हो रहे हैं"
 
-#: crates/gui/src/components/apply_dialog.rs:62
+#: crates/gui/src/components/apply_dialog.rs:140
 #, rust-format
 msgid "Building {done} of {total}"
 msgstr "{total} में से {done} बिल्ड हो रहे हैं"
 
-#: crates/gui/src/components/apply_dialog.rs:65
+#: crates/gui/src/components/apply_dialog.rs:143
 msgid "Activating the new configuration…"
 msgstr "नया कॉन्फ़िगरेशन सक्रिय किया जा रहा है…"
 
-#: crates/gui/src/components/apply_dialog.rs:77
+#: crates/gui/src/components/apply_dialog.rs:155
 msgid "less than a minute left"
 msgstr "एक मिनट से कम बाकी"
 
-#: crates/gui/src/components/apply_dialog.rs:80
+#: crates/gui/src/components/apply_dialog.rs:158
 #, rust-format
 msgid "about {} min left"
 msgid_plural "about {} min left"
 msgstr[0] "लगभग {} मिनट बाकी"
 msgstr[1] "लगभग {} मिनट बाकी"
 
-#: crates/gui/src/components/apply_dialog.rs:109
+#: crates/gui/src/components/apply_dialog.rs:236
+#, fuzzy
+msgid "The task gave no result."
+msgstr "बिल्ड का परिणाम अपेक्षित नहीं था।"
+
+#: crates/gui/src/components/apply_dialog.rs:269
 msgid "Another Operation Is Running"
 msgstr "एक और कार्य चल रहा है"
 
-#: crates/gui/src/components/apply_dialog.rs:111
+#: crates/gui/src/components/apply_dialog.rs:271
 msgid "Wait for the current apply, update or rollback to finish."
 msgstr "चल रहे लागू करने, अपडेट या वापस जाने के पूरा होने तक प्रतीक्षा करें।"
 
-#: crates/gui/src/components/apply_dialog.rs:114
+#: crates/gui/src/components/apply_dialog.rs:274
 #: crates/gui/src/components/cache_dialog.rs:59
 #: crates/gui/src/components/details/attach_dialog.rs:97
 #: crates/gui/src/views/storage.rs:453
 msgid "_Close"
 msgstr "बंद करें (_C)"
 
-#: crates/gui/src/components/apply_dialog.rs:124
+#: crates/gui/src/components/apply_dialog.rs:276
+#, fuzzy
+msgid "Another operation is running."
+msgstr "एक और कार्य चल रहा है"
+
+#: crates/gui/src/components/apply_dialog.rs:285
 msgid "Starting…"
 msgstr "शुरू हो रहा है…"
 
-#: crates/gui/src/components/apply_dialog.rs:168
-#: crates/gui/src/components/apply_dialog.rs:180
+#: crates/gui/src/components/apply_dialog.rs:339
+#: crates/gui/src/components/apply_dialog.rs:352
 msgid "Show _Details"
 msgstr "विवरण दिखाएँ (_D)"
 
-#: crates/gui/src/components/apply_dialog.rs:170
+#: crates/gui/src/components/apply_dialog.rs:341
 msgid "Show the full build log."
 msgstr "पूरा बिल्ड लॉग दिखाएँ।"
 
-#: crates/gui/src/components/apply_dialog.rs:178
+#: crates/gui/src/components/apply_dialog.rs:350
 msgid "Hide _Details"
 msgstr "विवरण छिपाएँ (_D)"
 
-#: crates/gui/src/components/apply_dialog.rs:205
+#: crates/gui/src/components/apply_dialog.rs:377
 msgid "Open Storage"
 msgstr "स्टोरेज खोलें"
 
-#: crates/gui/src/components/apply_dialog.rs:267
+#: crates/gui/src/components/apply_dialog.rs:386
+msgid "_Stop"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:389
+msgid ""
+"Stop like Ctrl+C. Activating the new system is never cut short: it ends "
+"first."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:397
+msgid "Stopping after the current step…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:455
 msgid ""
 "Your own apply command runs as it is: the changes cannot be shown first."
 msgstr ""
 "आपका अपना लागू करने का कमांड जैसा है वैसा चलता है: बदलाव पहले नहीं दिखाए जा सकते।"
 
-#: crates/gui/src/components/apply_dialog.rs:318
+#: crates/gui/src/components/apply_dialog.rs:532
 msgid "Working…"
 msgstr "काम चल रहा है…"
 
-#: crates/gui/src/components/apply_dialog.rs:333
+#: crates/gui/src/components/apply_dialog.rs:552
 msgid "The disk is full. Free up space in Storage, then apply again."
 msgstr "डिस्क भर गई है। स्टोरेज में जगह खाली करें, फिर दोबारा लागू करें।"
 
-#: crates/gui/src/components/apply_dialog.rs:359
+#: crates/gui/src/components/apply_dialog.rs:559
+msgid "Stopped"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:583
 msgid "Done"
 msgstr "हो गया"
 
-#: crates/gui/src/components/apply_dialog.rs:360
+#: crates/gui/src/components/apply_dialog.rs:584
 msgid "finished"
 msgstr "पूरा हुआ"
 
-#: crates/gui/src/components/apply_dialog.rs:365
+#: crates/gui/src/components/apply_dialog.rs:589
 msgid "Failed"
 msgstr "विफल"
 
-#: crates/gui/src/components/apply_dialog.rs:383
+#: crates/gui/src/components/apply_dialog.rs:607
 msgid "_Undo"
 msgstr "पूर्ववत करें (_U)"
 
-#: crates/gui/src/components/apply_dialog.rs:385
+#: crates/gui/src/components/apply_dialog.rs:609
 msgid "Go back to the version running before."
 msgstr "पहले चल रहे संस्करण पर वापस जाएँ।"
 
-#: crates/gui/src/components/apply_dialog.rs:433
+#: crates/gui/src/components/apply_dialog.rs:657
 msgid "Review the Changes"
 msgstr "बदलावों की समीक्षा करें"
 
-#: crates/gui/src/components/apply_dialog.rs:440
+#: crates/gui/src/components/apply_dialog.rs:664
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr "कर्नेल बदल रहा है: नया उपयोग करने के लिए कंप्यूटर को फिर से शुरू करें।"
 
-#: crates/gui/src/components/apply_dialog.rs:445
+#: crates/gui/src/components/apply_dialog.rs:669
 msgid "These changes apply to every user of this computer."
 msgstr "ये बदलाव इस कंप्यूटर के हर उपयोगकर्ता पर लागू होते हैं।"
 
-#: crates/gui/src/components/apply_dialog.rs:485
+#: crates/gui/src/components/apply_dialog.rs:709
 #: crates/gui/src/components/cache_dialog.rs:63
 #: crates/gui/src/components/consent_dialog.rs:26
 #: crates/gui/src/components/consent_dialog.rs:40
@@ -720,52 +753,52 @@ msgstr "ये बदलाव इस कंप्यूटर के हर उ
 msgid "_Cancel"
 msgstr "रद्द करें (_C)"
 
-#: crates/gui/src/components/apply_dialog.rs:486
+#: crates/gui/src/components/apply_dialog.rs:710
 msgid "_Apply Changes"
 msgstr "बदलाव लागू करें (_A)"
 
-#: crates/gui/src/components/apply_dialog.rs:511
+#: crates/gui/src/components/apply_dialog.rs:735
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] "{} अपडेट हुआ"
 msgstr[1] "{} अपडेट हुए"
 
-#: crates/gui/src/components/apply_dialog.rs:515
+#: crates/gui/src/components/apply_dialog.rs:739
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] "{} जोड़ा गया"
 msgstr[1] "{} जोड़े गए"
 
-#: crates/gui/src/components/apply_dialog.rs:519
+#: crates/gui/src/components/apply_dialog.rs:743
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] "{} हटाया गया"
 msgstr[1] "{} हटाए गए"
 
-#: crates/gui/src/components/apply_dialog.rs:523
+#: crates/gui/src/components/apply_dialog.rs:747
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] "{} फिर से बिल्ड हुआ"
 msgstr[1] "{} फिर से बिल्ड हुए"
 
-#: crates/gui/src/components/apply_dialog.rs:531
+#: crates/gui/src/components/apply_dialog.rs:755
 msgid "No package changes, only settings."
 msgstr "कोई पैकेज नहीं बदलता, केवल सेटिंग्स।"
 
-#: crates/gui/src/components/apply_dialog.rs:544
+#: crates/gui/src/components/apply_dialog.rs:768
 #, rust-format
 msgid "Added: {}"
 msgstr "जोड़ा गया: {}"
 
-#: crates/gui/src/components/apply_dialog.rs:545
+#: crates/gui/src/components/apply_dialog.rs:769
 msgid "Removed"
 msgstr "हटाया गया"
 
-#: crates/gui/src/components/apply_dialog.rs:547
+#: crates/gui/src/components/apply_dialog.rs:771
 msgid "Rebuilt"
 msgstr "फिर से बिल्ड किया गया"
 
@@ -972,7 +1005,7 @@ msgid "Let the app follow your configuration again."
 msgstr "ऐप को फिर से आपके कॉन्फ़िगरेशन का पालन करने दें।"
 
 #: crates/gui/src/components/details/infobox.rs:89
-#: crates/gui/src/views/installed.rs:317
+#: crates/gui/src/views/installed.rs:338
 msgid "In Your Configuration"
 msgstr "आपके कॉन्फ़िगरेशन में"
 
@@ -1076,7 +1109,7 @@ msgstr ""
 "आपके उपयोगकर्ता के लिए अभी कुछ नहीं। इस ऐप के पैकेज और उपयोगकर्ता विकल्प यहाँ आते हैं।"
 
 #: crates/gui/src/components/details/nix_editor.rs:87
-#: crates/gui/src/views/installed.rs:376 crates/gui/src/views/storage.rs:196
+#: crates/gui/src/views/installed.rs:397 crates/gui/src/views/storage.rs:196
 msgid "User"
 msgstr "उपयोगकर्ता"
 
@@ -1095,7 +1128,7 @@ msgstr ""
 
 #: crates/gui/src/components/details/nix_editor.rs:97
 #: crates/gui/src/components/details/nix_editor.rs:108
-#: crates/gui/src/views/installed.rs:381 crates/gui/src/views/storage.rs:191
+#: crates/gui/src/views/installed.rs:402 crates/gui/src/views/storage.rs:191
 #: crates/gui/src/views/storage.rs:591
 msgid "System"
 msgstr "सिस्टम"
@@ -1672,8 +1705,8 @@ msgstr ""
 "Nix App Center आपका Nix कॉन्फ़िगरेशन नहीं ढूँढ पा रहा है। कुछ भी लागू नहीं किया गया।"
 
 #: crates/gui/src/util.rs:43
-msgid "Nothing was changed."
-msgstr "कुछ भी नहीं बदला गया।"
+msgid "Stopped: the running system was kept as it is."
+msgstr ""
 
 #: crates/gui/src/util.rs:46
 #, rust-format
@@ -2424,82 +2457,88 @@ msgstr "संपादक की पसंद"
 msgid "Your configuration changed. Apply it to uninstall."
 msgstr "आपका कॉन्फ़िगरेशन बदल गया है। अनइंस्टॉल करने के लिए इसे लागू करें।"
 
-#: crates/gui/src/views/installed.rs:196
+#: crates/gui/src/views/installed.rs:198
+#, fuzzy, rust-format
+msgid "Removing {}"
+msgstr "हटाया गया: {}"
+
+#: crates/gui/src/views/installed.rs:210
 #, rust-format
 msgid "{} uninstalled."
 msgstr "{} अनइंस्टॉल किया गया।"
 
-#: crates/gui/src/views/installed.rs:215
-#, rust-format
-msgid "{} removed. Nothing to free: your system still uses it."
-msgstr "{} हटाया गया। खाली करने को कुछ नहीं: आपका सिस्टम अभी भी इसका उपयोग करता है।"
-
-#: crates/gui/src/views/installed.rs:217
-#, rust-format
-msgid "{name} removed, {size} freed."
-msgstr "{name} हटाया गया, {size} खाली हुआ।"
-
-#: crates/gui/src/views/installed.rs:257
-msgid "Cleaning up the store…"
-msgstr "store साफ़ किया जा रहा है…"
-
-#: crates/gui/src/views/installed.rs:263
+#: crates/gui/src/views/installed.rs:271
 msgid "Done."
 msgstr "हो गया।"
 
-#: crates/gui/src/views/installed.rs:307 crates/gui/src/views/installed.rs:340
-#: crates/gui/src/views/installed.rs:394
+#: crates/gui/src/views/installed.rs:278
+#, fuzzy
+msgid "Cleaning Up the Store"
+msgstr "store साफ़ किया जा रहा है…"
+
+#: crates/gui/src/views/installed.rs:328 crates/gui/src/views/installed.rs:361
+#: crates/gui/src/views/installed.rs:415
 #: crates/gui/src/views/system_settings.rs:774
 msgid "Remove"
 msgstr "हटाएँ"
 
-#: crates/gui/src/views/installed.rs:312
+#: crates/gui/src/views/installed.rs:333
 msgid ""
 "Remove takes the app out of your configuration; it is uninstalled when you "
 "apply."
 msgstr "हटाएँ ऐप को आपके कॉन्फ़िगरेशन से निकालता है; लागू करने पर यह अनइंस्टॉल हो जाता है।"
 
-#: crates/gui/src/views/installed.rs:320
+#: crates/gui/src/views/installed.rs:341
 msgid "No kept packages yet. Open an app and choose “Add to Configuration”."
 msgstr "अभी तक कोई पैकेज नहीं रखा गया। कोई ऐप खोलें और “कॉन्फ़िगरेशन में जोड़ें” चुनें।"
 
-#: crates/gui/src/views/installed.rs:346
+#: crates/gui/src/views/installed.rs:367
 msgid "Remove deletes what this try downloaded, keeping what other apps need."
 msgstr ""
 "हटाएँ इस आज़माइश में डाउनलोड हुई चीज़ें मिटाता है, और अन्य ऐप्स की ज़रूरत की चीज़ें रखता है।"
 
-#: crates/gui/src/views/installed.rs:353
+#: crates/gui/src/views/installed.rs:374
 msgid "_Free Up Space"
 msgstr "जगह खाली करें (_F)"
 
-#: crates/gui/src/views/installed.rs:359
+#: crates/gui/src/views/installed.rs:380
 msgid ""
 "Runs nix-collect-garbage: removes everything nothing uses from the store"
 msgstr ""
 "nix-collect-garbage चलाता है: store से वह सब हटाता है जिसका कोई उपयोग नहीं करता"
 
-#: crates/gui/src/views/installed.rs:364
+#: crates/gui/src/views/installed.rs:385
 msgid "Recently Tried"
 msgstr "हाल में आज़माए गए"
 
-#: crates/gui/src/views/installed.rs:366
+#: crates/gui/src/views/installed.rs:387
 msgid ""
 "Removing a tried app deletes it from the store and keeps what other apps "
 "need."
 msgstr ""
 "आज़माए गए ऐप को हटाने से वह store से मिट जाता है और अन्य ऐप्स की ज़रूरत की चीज़ें रहती हैं।"
 
-#: crates/gui/src/views/installed.rs:369
+#: crates/gui/src/views/installed.rs:390
 msgid "Nothing tried yet. Run a package from search and it will show up here."
 msgstr "अभी तक कुछ नहीं आज़माया। खोज से कोई पैकेज चलाएँ और वह यहाँ दिखेगा।"
 
-#: crates/gui/src/views/installed.rs:377
+#: crates/gui/src/views/installed.rs:398
 msgid "Declared in your user configuration."
 msgstr "आपके उपयोगकर्ता कॉन्फ़िगरेशन में घोषित।"
 
-#: crates/gui/src/views/installed.rs:382
+#: crates/gui/src/views/installed.rs:403
 msgid "Declared in your system configuration."
 msgstr "आपके सिस्टम कॉन्फ़िगरेशन में घोषित।"
+
+#: crates/gui/src/views/installed.rs:476
+#, rust-format
+msgid "{} removed. Nothing to free: your system still uses it."
+msgstr "{} हटाया गया। खाली करने को कुछ नहीं: आपका सिस्टम अभी भी इसका उपयोग करता है।"
+
+#: crates/gui/src/views/installed.rs:478
+#, rust-format
+msgid "{name} removed, {size} freed."
+msgstr "{name} हटाया गया, {size} खाली हुआ।"
 
 #: crates/gui/src/views/preferences.rs:25
 #, fuzzy

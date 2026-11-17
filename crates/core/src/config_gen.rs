@@ -537,6 +537,7 @@ pub fn run_reviewed(
     if steps.iter().all(Vec::is_empty) {
         return Ok(ApplyOutcome::UnknownLayout);
     }
+    STOP.store(false, std::sync::atomic::Ordering::SeqCst);
     let shared = Shared {
         last: std::sync::Arc::new(std::sync::Mutex::new(String::new())),
         tracker: std::sync::Arc::new(std::sync::Mutex::new(crate::progress::Tracker::default())),
@@ -745,6 +746,29 @@ fn build_then_activate<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'stat
     run_step(&activate, shared)
 }
 
+/// Set by [`stop_running`]: the run ends at the next safe point.
+static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// The process group of the user's own command running now.
+static CHILD: std::sync::Mutex<Option<u32>> = std::sync::Mutex::new(None);
+
+/// Stops the run like Ctrl+C: the user's own command is interrupted now; a
+/// command running as root, such as activating, ends first, then nothing
+/// else runs. True when something was interrupted now.
+pub fn stop_running() -> bool {
+    STOP.store(true, std::sync::atomic::Ordering::SeqCst);
+    let child = *CHILD.lock().unwrap_or_else(|e| e.into_inner());
+    child.is_some_and(|pid| {
+        Command::new("kill")
+            .args(["-INT", "--", &format!("-{pid}")])
+            .status()
+            .is_ok_and(|s| s.success())
+    })
+}
+
+fn stopped() -> bool {
+    STOP.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 fn run_step<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     argv: &[String],
     shared: &Shared<F>,
@@ -761,6 +785,10 @@ fn run_in<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     shared: &Shared<F>,
 ) -> std::io::Result<ApplyOutcome> {
     use std::io::BufRead;
+    use std::os::unix::process::CommandExt;
+    if stopped() {
+        return Ok(ApplyOutcome::Cancelled);
+    }
     let elevated = argv.first().is_some_and(|b| b == "sudo");
     let argv: Vec<String> = match argv.split_first() {
         Some((_, rest)) if elevated && crate::util::is_root() => rest.to_vec(),
@@ -784,14 +812,22 @@ fn run_in<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
         None => return Ok(ApplyOutcome::UnknownLayout),
     };
     let argv = with_progress_log(argv);
-    let mut child = Command::new(&argv[0])
+    let mut command = Command::new(&argv[0]);
+    command
         .args(&argv[1..])
         .current_dir(dir)
         .env("SHELL", "/bin/sh")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()?;
+        .stderr(std::process::Stdio::piped());
+    if !elevated {
+        // Its own group, so a stop reaches what it starts too.
+        command.process_group(0);
+    }
+    let mut child = command.spawn()?;
+    if !elevated {
+        *CHILD.lock().unwrap_or_else(|e| e.into_inner()) = Some(child.id());
+    }
     let pump = |reader: Box<dyn std::io::Read + Send>| {
         let (on_event, last, tracker) = (
             shared.on_event.clone(),
@@ -819,8 +855,13 @@ fn run_in<F: Fn(crate::progress::StreamEvent) + Send + Sync + 'static>(
     };
     let out = pump(Box::new(child.stdout.take().expect("piped stdout")));
     let err = pump(Box::new(child.stderr.take().expect("piped stderr")));
-    let status = child.wait()?;
+    let status = child.wait();
+    *CHILD.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    let status = status?;
     let _ = (out.join(), err.join());
+    if stopped() && !status.success() {
+        return Ok(ApplyOutcome::Cancelled);
+    }
     let last = shared
         .last
         .lock()
@@ -893,6 +934,28 @@ mod tests {
         vec!["sh".into(), "-c".into(), script.into()]
     }
 
+    /// Runs one at a time: a stop reaches every run in progress.
+    fn run_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    #[test]
+    fn a_stop_interrupts_the_command_and_skips_the_rest() {
+        let _g = run_lock();
+        let dir = std::env::temp_dir().join(format!("nix-app-center-stop-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("second-ran");
+        let second = argv(&format!("touch {}", marker.display()));
+        let run = std::thread::spawn(move || run_streaming(&[argv("sleep 30"), second], |_| {}));
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert!(stop_running(), "the sleep must be interrupted");
+        assert_eq!(run.join().unwrap().unwrap(), ApplyOutcome::Cancelled);
+        assert!(!marker.exists(), "no step may run after a stop");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn home_manager_switch_builds_first() {
         let step = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
@@ -909,6 +972,7 @@ mod tests {
 
     #[test]
     fn run_streaming_forwards_lines_and_reports_the_last() {
+        let _g = run_lock();
         let lines = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let sink = lines.clone();
         let res = run_streaming(
@@ -964,6 +1028,7 @@ mod tests {
 
     #[test]
     fn steps_stop_at_the_first_failure() {
+        let _g = run_lock();
         let res = run_streaming(&[argv("exit 3"), argv("touch /nonexistent/never")], |_| {});
         assert!(res.is_err());
         let res = run_streaming(&[argv("true"), argv("echo second")], |_| {});
@@ -972,6 +1037,7 @@ mod tests {
 
     #[test]
     fn run_streaming_fails_with_the_last_error_line() {
+        let _g = run_lock();
         let res = run_streaming(&[argv("echo 'error: boom' >&2; exit 1")], |_| {});
         assert_eq!(res.unwrap_err().to_string(), "error: boom");
     }

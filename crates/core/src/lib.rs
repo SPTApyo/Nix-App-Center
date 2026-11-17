@@ -61,7 +61,9 @@ pub use config_attach::{
     plan_settings as attach_settings_plan, AttachPlan,
 };
 pub use config_gen::default_home_block;
-pub use config_gen::{apply_argv, apply_config, run_reviewed, run_streaming, ApplyOutcome};
+pub use config_gen::{
+    apply_argv, apply_config, run_reviewed, run_streaming, stop_running, ApplyOutcome,
+};
 pub use config_layout::{
     detect as detect_layout, suggested_flakes, verify as verify_layout, Layout, LayoutKind,
     ScopeTarget, Verified,
