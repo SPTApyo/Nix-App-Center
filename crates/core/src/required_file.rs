@@ -43,12 +43,16 @@ pub fn required_file(log: &str) -> Option<RequiredFile> {
 /// # Errors
 /// Copying failed, or nix-store's message.
 pub fn add_required_file(file: &Path, wanted: &RequiredFile) -> std::io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.subsec_nanos());
     let dir = std::env::temp_dir().join(format!(
-        "nix-app-center-file-{}-{}",
-        std::process::id(),
-        crate::now_unix()
+        "nix-app-center-file-{}-{nanos}",
+        std::process::id()
     ));
-    std::fs::create_dir_all(&dir)?;
+    // A new private folder: nothing planted in it can be followed.
+    std::fs::DirBuilder::new().mode(0o700).create(&dir)?;
     let copy = dir.join(&wanted.name);
     let added = std::fs::copy(file, &copy).and_then(|_| {
         Command::new("nix-store")
