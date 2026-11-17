@@ -424,7 +424,7 @@ msgstr ""
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr ""
 
-#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:742
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:812
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:326
 msgid "Applying Configuration"
 msgstr ""
@@ -703,35 +703,64 @@ msgstr ""
 msgid "finished"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:627
+#: crates/gui/src/components/apply_dialog.rs:637
 msgid "Failed"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:699
+#: crates/gui/src/components/apply_dialog.rs:709
 msgid "Logs"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:709
+#: crates/gui/src/components/apply_dialog.rs:724
+#, rust-format
+msgid ""
+"The package needs {} and nixpkgs may not download it, often because of a "
+"license or a login. Download it yourself, then choose it here: the next "
+"apply goes on with it."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:733
+msgid "_Open the Download Page"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:737
+msgid "_Choose the File…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:745
+#, rust-format
+msgid "Choose {}"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:755
+msgid "Adding it to the Nix store…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:764
+msgid "Added. Apply again to install it."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:779
 msgid "_Undo"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:711
+#: crates/gui/src/components/apply_dialog.rs:781
 msgid "Go back to the version running before."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:759
+#: crates/gui/src/components/apply_dialog.rs:829
 msgid "Review the Changes"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:766
+#: crates/gui/src/components/apply_dialog.rs:836
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:771
+#: crates/gui/src/components/apply_dialog.rs:841
 msgid "These changes apply to every user of this computer."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:811
+#: crates/gui/src/components/apply_dialog.rs:881
 #: crates/gui/src/components/cache_dialog.rs:63
 #: crates/gui/src/components/consent_dialog.rs:26
 #: crates/gui/src/components/consent_dialog.rs:40
@@ -743,52 +772,52 @@ msgstr ""
 msgid "_Cancel"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:812
+#: crates/gui/src/components/apply_dialog.rs:882
 msgid "_Apply Changes"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:837
+#: crates/gui/src/components/apply_dialog.rs:907
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:841
+#: crates/gui/src/components/apply_dialog.rs:911
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:845
+#: crates/gui/src/components/apply_dialog.rs:915
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:849
+#: crates/gui/src/components/apply_dialog.rs:919
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/gui/src/components/apply_dialog.rs:857
+#: crates/gui/src/components/apply_dialog.rs:927
 msgid "No package changes, only settings."
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:870
+#: crates/gui/src/components/apply_dialog.rs:940
 #, rust-format
 msgid "Added: {}"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:871
+#: crates/gui/src/components/apply_dialog.rs:941
 msgid "Removed"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:873
+#: crates/gui/src/components/apply_dialog.rs:943
 msgid "Rebuilt"
 msgstr ""
 

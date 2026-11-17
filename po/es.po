@@ -432,7 +432,7 @@ msgstr ""
 "Su configuración cambió: reconstrúyala para instalar o quitar las "
 "aplicaciones."
 
-#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:742
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:812
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:326
 msgid "Applying Configuration"
 msgstr "Aplicando la configuración"
@@ -716,35 +716,67 @@ msgstr "Hecho"
 msgid "finished"
 msgstr "terminado"
 
-#: crates/gui/src/components/apply_dialog.rs:627
+#: crates/gui/src/components/apply_dialog.rs:637
 msgid "Failed"
 msgstr "Falló"
 
-#: crates/gui/src/components/apply_dialog.rs:699
+#: crates/gui/src/components/apply_dialog.rs:709
 msgid "Logs"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:709
+#: crates/gui/src/components/apply_dialog.rs:724
+#, rust-format
+msgid ""
+"The package needs {} and nixpkgs may not download it, often because of a "
+"license or a login. Download it yourself, then choose it here: the next "
+"apply goes on with it."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:733
+#, fuzzy
+msgid "_Open the Download Page"
+msgstr "_Página de descarga"
+
+#: crates/gui/src/components/apply_dialog.rs:737
+#, fuzzy
+msgid "_Choose the File…"
+msgstr "Elegir una versión…"
+
+#: crates/gui/src/components/apply_dialog.rs:745
+#, rust-format
+msgid "Choose {}"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:755
+msgid "Adding it to the Nix store…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:764
+#, fuzzy
+msgid "Added. Apply again to install it."
+msgstr "Añadida a su configuración. Aplíquela para instalar."
+
+#: crates/gui/src/components/apply_dialog.rs:779
 msgid "_Undo"
 msgstr "_Deshacer"
 
-#: crates/gui/src/components/apply_dialog.rs:711
+#: crates/gui/src/components/apply_dialog.rs:781
 msgid "Go back to the version running before."
 msgstr "Volver a la versión que se ejecutaba antes."
 
-#: crates/gui/src/components/apply_dialog.rs:759
+#: crates/gui/src/components/apply_dialog.rs:829
 msgid "Review the Changes"
 msgstr "Revisar los cambios"
 
-#: crates/gui/src/components/apply_dialog.rs:766
+#: crates/gui/src/components/apply_dialog.rs:836
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr "El kernel cambia: reinicie el equipo para usar el nuevo."
 
-#: crates/gui/src/components/apply_dialog.rs:771
+#: crates/gui/src/components/apply_dialog.rs:841
 msgid "These changes apply to every user of this computer."
 msgstr "Estos cambios se aplican a todos los usuarios de este equipo."
 
-#: crates/gui/src/components/apply_dialog.rs:811
+#: crates/gui/src/components/apply_dialog.rs:881
 #: crates/gui/src/components/cache_dialog.rs:63
 #: crates/gui/src/components/consent_dialog.rs:26
 #: crates/gui/src/components/consent_dialog.rs:40
@@ -756,52 +788,52 @@ msgstr "Estos cambios se aplican a todos los usuarios de este equipo."
 msgid "_Cancel"
 msgstr "_Cancelar"
 
-#: crates/gui/src/components/apply_dialog.rs:812
+#: crates/gui/src/components/apply_dialog.rs:882
 msgid "_Apply Changes"
 msgstr "_Aplicar los cambios"
 
-#: crates/gui/src/components/apply_dialog.rs:837
+#: crates/gui/src/components/apply_dialog.rs:907
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] "{} actualizado"
 msgstr[1] "{} actualizados"
 
-#: crates/gui/src/components/apply_dialog.rs:841
+#: crates/gui/src/components/apply_dialog.rs:911
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] "{} añadido"
 msgstr[1] "{} añadidos"
 
-#: crates/gui/src/components/apply_dialog.rs:845
+#: crates/gui/src/components/apply_dialog.rs:915
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] "{} quitado"
 msgstr[1] "{} quitados"
 
-#: crates/gui/src/components/apply_dialog.rs:849
+#: crates/gui/src/components/apply_dialog.rs:919
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] "{} recompilado"
 msgstr[1] "{} recompilados"
 
-#: crates/gui/src/components/apply_dialog.rs:857
+#: crates/gui/src/components/apply_dialog.rs:927
 msgid "No package changes, only settings."
 msgstr "Ningún paquete cambia, solo ajustes."
 
-#: crates/gui/src/components/apply_dialog.rs:870
+#: crates/gui/src/components/apply_dialog.rs:940
 #, rust-format
 msgid "Added: {}"
 msgstr "Añadido: {}"
 
-#: crates/gui/src/components/apply_dialog.rs:871
+#: crates/gui/src/components/apply_dialog.rs:941
 msgid "Removed"
 msgstr "Quitado"
 
-#: crates/gui/src/components/apply_dialog.rs:873
+#: crates/gui/src/components/apply_dialog.rs:943
 msgid "Rebuilt"
 msgstr "Recompilado"
 

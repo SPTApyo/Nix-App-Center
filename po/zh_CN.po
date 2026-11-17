@@ -422,7 +422,7 @@ msgstr "应用(_A)"
 msgid "Your configuration changed: rebuild it to install or remove the apps."
 msgstr "您的配置已更改：请重新构建以安装或移除应用。"
 
-#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:742
+#: crates/gui/src/app.rs:168 crates/gui/src/components/apply_dialog.rs:812
 #: crates/gui/src/views/detail.rs:1956 crates/gui/src/views/installed.rs:326
 msgid "Applying Configuration"
 msgstr "正在应用配置"
@@ -699,35 +699,67 @@ msgstr "完成"
 msgid "finished"
 msgstr "已完成"
 
-#: crates/gui/src/components/apply_dialog.rs:627
+#: crates/gui/src/components/apply_dialog.rs:637
 msgid "Failed"
 msgstr "失败"
 
-#: crates/gui/src/components/apply_dialog.rs:699
+#: crates/gui/src/components/apply_dialog.rs:709
 msgid "Logs"
 msgstr ""
 
-#: crates/gui/src/components/apply_dialog.rs:709
+#: crates/gui/src/components/apply_dialog.rs:724
+#, rust-format
+msgid ""
+"The package needs {} and nixpkgs may not download it, often because of a "
+"license or a login. Download it yourself, then choose it here: the next "
+"apply goes on with it."
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:733
+#, fuzzy
+msgid "_Open the Download Page"
+msgstr "下载页面(_P)"
+
+#: crates/gui/src/components/apply_dialog.rs:737
+#, fuzzy
+msgid "_Choose the File…"
+msgstr "选择版本…"
+
+#: crates/gui/src/components/apply_dialog.rs:745
+#, rust-format
+msgid "Choose {}"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:755
+msgid "Adding it to the Nix store…"
+msgstr ""
+
+#: crates/gui/src/components/apply_dialog.rs:764
+#, fuzzy
+msgid "Added. Apply again to install it."
+msgstr "已添加到您的配置。应用配置即可安装。"
+
+#: crates/gui/src/components/apply_dialog.rs:779
 msgid "_Undo"
 msgstr "撤销(_U)"
 
-#: crates/gui/src/components/apply_dialog.rs:711
+#: crates/gui/src/components/apply_dialog.rs:781
 msgid "Go back to the version running before."
 msgstr "回到之前运行的版本。"
 
-#: crates/gui/src/components/apply_dialog.rs:759
+#: crates/gui/src/components/apply_dialog.rs:829
 msgid "Review the Changes"
 msgstr "查看更改"
 
-#: crates/gui/src/components/apply_dialog.rs:766
+#: crates/gui/src/components/apply_dialog.rs:836
 msgid "The kernel changes: restart the computer to use the new one."
 msgstr "内核有变化：重启计算机以使用新内核。"
 
-#: crates/gui/src/components/apply_dialog.rs:771
+#: crates/gui/src/components/apply_dialog.rs:841
 msgid "These changes apply to every user of this computer."
 msgstr "这些更改适用于此计算机的所有用户。"
 
-#: crates/gui/src/components/apply_dialog.rs:811
+#: crates/gui/src/components/apply_dialog.rs:881
 #: crates/gui/src/components/cache_dialog.rs:63
 #: crates/gui/src/components/consent_dialog.rs:26
 #: crates/gui/src/components/consent_dialog.rs:40
@@ -739,48 +771,48 @@ msgstr "这些更改适用于此计算机的所有用户。"
 msgid "_Cancel"
 msgstr "取消(_C)"
 
-#: crates/gui/src/components/apply_dialog.rs:812
+#: crates/gui/src/components/apply_dialog.rs:882
 msgid "_Apply Changes"
 msgstr "应用更改(_A)"
 
-#: crates/gui/src/components/apply_dialog.rs:837
+#: crates/gui/src/components/apply_dialog.rs:907
 #, rust-format
 msgid "{} updated"
 msgid_plural "{} updated"
 msgstr[0] "{} 个已更新"
 
-#: crates/gui/src/components/apply_dialog.rs:841
+#: crates/gui/src/components/apply_dialog.rs:911
 #, rust-format
 msgid "{} added"
 msgid_plural "{} added"
 msgstr[0] "{} 个新增"
 
-#: crates/gui/src/components/apply_dialog.rs:845
+#: crates/gui/src/components/apply_dialog.rs:915
 #, rust-format
 msgid "{} removed"
 msgid_plural "{} removed"
 msgstr[0] "{} 个已移除"
 
-#: crates/gui/src/components/apply_dialog.rs:849
+#: crates/gui/src/components/apply_dialog.rs:919
 #, rust-format
 msgid "{} rebuilt"
 msgid_plural "{} rebuilt"
 msgstr[0] "{} 个已重新构建"
 
-#: crates/gui/src/components/apply_dialog.rs:857
+#: crates/gui/src/components/apply_dialog.rs:927
 msgid "No package changes, only settings."
 msgstr "没有软件包变化，只有设置变化。"
 
-#: crates/gui/src/components/apply_dialog.rs:870
+#: crates/gui/src/components/apply_dialog.rs:940
 #, rust-format
 msgid "Added: {}"
 msgstr "新增：{}"
 
-#: crates/gui/src/components/apply_dialog.rs:871
+#: crates/gui/src/components/apply_dialog.rs:941
 msgid "Removed"
 msgstr "已移除"
 
-#: crates/gui/src/components/apply_dialog.rs:873
+#: crates/gui/src/components/apply_dialog.rs:943
 msgid "Rebuilt"
 msgstr "已重新构建"
 
