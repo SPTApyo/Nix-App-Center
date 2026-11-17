@@ -531,6 +531,11 @@ fn current_links(dirs: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
+/// Free bytes on the store's file system.
+pub fn store_free_space() -> u64 {
+    disk().1
+}
+
 /// (size, free) of the store's file system.
 fn disk() -> (u64, u64) {
     let out = Command::new("df")

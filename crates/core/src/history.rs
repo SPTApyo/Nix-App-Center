@@ -288,6 +288,18 @@ pub fn restore(point: &Point) -> std::io::Result<bool> {
 
 /// What changed in the apps Nix App Center kept from `older` to `newer`:
 /// (added, removed).
+/// What the next apply adds and removes, against the running generation;
+/// `None` when another tool made it, so nothing was recorded.
+pub fn pending_changes() -> Option<(Vec<String>, Vec<String>)> {
+    let applied = history().into_iter().find(|p| p.current)?.kept?;
+    let now: Vec<String> = crate::load_manifest()
+        .packages()
+        .into_iter()
+        .map(|p| p.attr)
+        .collect();
+    Some(kept_diff(&applied, &now))
+}
+
 pub fn kept_diff(older: &[String], newer: &[String]) -> (Vec<String>, Vec<String>) {
     let added = newer
         .iter()
