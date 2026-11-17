@@ -1,28 +1,34 @@
 //! Preferences: the detected configuration and its overrides, installing,
-//! updates and search. Saved on change.
+//! updates, storage, search and advanced setups, one sidebar page each.
+//! Saved on change.
 
 use adw::prelude::*;
 use nix_app_center_core::{Layout, LayoutKind};
 
+use crate::components::sidebar::{self, Section};
 use crate::i18n::t;
 use crate::util::esc;
 
 pub fn present(parent: &impl IsA<gtk::Widget>) {
     let settings = nix_app_center_core::load_settings();
-    let dialog = adw::PreferencesDialog::new();
-    let page = adw::PreferencesPage::new();
+    let dialog = adw::Dialog::builder()
+        .title(t("Preferences"))
+        .content_width(1040)
+        .content_height(760)
+        .build();
+    let overlay = adw::ToastOverlay::new();
 
+    let found = adw::PreferencesGroup::builder()
+        .title(t("Detected"))
+        .build();
     let config = adw::PreferencesGroup::builder()
-        .title(t("Configuration"))
+        .title(t("Corrections"))
         .description(t(
             "Nix App Center finds your configuration by reading its files. Correct it here when it guesses wrong.",
         ))
         .build();
-    let detected = adw::ActionRow::builder()
-        .title(t("Detected"))
-        .subtitle(esc(&describe(&nix_app_center_core::detect_layout())))
-        .subtitle_selectable(true)
-        .build();
+    let detected = adw::ActionRow::builder().subtitle_selectable(true).build();
+    show_detected(&detected, &nix_app_center_core::detect_layout());
     let dir = adw::EntryRow::builder()
         .title(t("NixOS configuration folder (empty: /etc/nixos)"))
         .show_apply_button(true)
@@ -43,7 +49,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             let mut s = nix_app_center_core::load_settings();
             edit(&mut s);
             let _ = nix_app_center_core::save_settings(&s);
-            detected.set_subtitle(&esc(&describe(&nix_app_center_core::detect_layout())));
+            show_detected(&detected, &nix_app_center_core::detect_layout());
         }
     };
     dir.connect_apply({
@@ -62,19 +68,13 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     });
 
     let (check, verdict) = nix_check_rows();
-    for w in [
-        detected.upcast_ref::<gtk::Widget>(),
-        dir.upcast_ref(),
-        host.upcast_ref(),
-        check.upcast_ref(),
-        verdict.upcast_ref(),
-    ] {
-        config.add(w);
-    }
+    found.add(&detected);
+    found.add(&check);
+    found.add(&verdict);
+    config.add(&dir);
+    config.add(&host);
 
-    let installing = adw::PreferencesGroup::builder()
-        .title(t("Installing"))
-        .build();
+    let installing = adw::PreferencesGroup::new();
     let everyone = adw::SwitchRow::builder()
         .title(t("Install for Everyone"))
         .subtitle(t(
@@ -116,7 +116,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
         let _ = nix_app_center_core::save_settings(&s);
     });
 
-    let updates = adw::PreferencesGroup::builder().title(t("Updates")).build();
+    let updates = adw::PreferencesGroup::new();
     let auto = adw::SwitchRow::builder()
         .title(t("Check for Updates Automatically"))
         .subtitle(t(
@@ -132,51 +132,52 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     updates.add(&auto);
     updates.add(&review);
 
-    let search = adw::PreferencesGroup::builder().title(t("Search")).build();
-    let by_command = adw::ActionRow::builder()
+    let search = adw::PreferencesGroup::new();
+    let by_command = adw::SwitchRow::builder()
         .title(t("Search by Command"))
-        .subtitle(esc(&if nix_app_center_core::locate_ready() {
-            t("Ready: searching a command also lists the packages that provide it.")
-        } else {
-            t("Lists the packages that provide a command. Needs the nix-index database, about 100 MB.")
-        }))
+        .subtitle(esc(&command_status(settings.search_by_command)))
+        .active(settings.search_by_command)
         .build();
-    if !nix_app_center_core::locate_ready() {
-        let download = gtk::Button::with_mnemonic(&t("_Download"));
-        download.set_tooltip_text(Some(&t("Download the nix-index database, about 100 MB.")));
-        download.set_valign(gtk::Align::Center);
-        download.connect_clicked({
-            let row = by_command.clone();
-            move |btn| {
-                btn.set_sensitive(false);
-                row.set_subtitle(&esc(&t("Downloading the nix-index database…")));
-                let (btn, row) = (btn.clone(), row.clone());
-                gtk::glib::spawn_future_local(async move {
-                    let res = gtk::gio::spawn_blocking(nix_app_center_core::download_locate_db).await;
-                    match res {
-                        Ok(Ok(())) => {
-                            row.set_subtitle(&esc(&t("Ready: searching a command also lists the packages that provide it.")));
-                            btn.set_visible(false);
-                        }
-                        Ok(Err(e)) => {
-                            row.set_subtitle(&esc(&crate::util::failed(&e)));
-                            btn.set_sensitive(true);
-                        }
-                        Err(_) => btn.set_sensitive(true),
+    let download = gtk::Button::with_mnemonic(&t("_Download"));
+    download.set_tooltip_text(Some(&t("Download the nix-index database, about 100 MB.")));
+    download.set_valign(gtk::Align::Center);
+    download.set_visible(settings.search_by_command && !nix_app_center_core::locate_ready());
+    by_command.connect_active_notify({
+        let download = download.clone();
+        move |row| {
+            let mut s = nix_app_center_core::load_settings();
+            s.search_by_command = row.is_active();
+            let _ = nix_app_center_core::save_settings(&s);
+            row.set_subtitle(&esc(&command_status(row.is_active())));
+            download.set_visible(row.is_active() && !nix_app_center_core::locate_ready());
+        }
+    });
+    download.connect_clicked({
+        let row = by_command.clone();
+        move |btn| {
+            btn.set_sensitive(false);
+            row.set_subtitle(&esc(&t("Downloading the nix-index database…")));
+            let (btn, row) = (btn.clone(), row.clone());
+            gtk::glib::spawn_future_local(async move {
+                let res = gtk::gio::spawn_blocking(nix_app_center_core::download_locate_db).await;
+                match res {
+                    Ok(Ok(())) => {
+                        row.set_subtitle(&esc(&command_status(true)));
+                        btn.set_visible(false);
                     }
-                });
-            }
-        });
-        by_command.add_suffix(&download);
-    }
+                    Ok(Err(e)) => {
+                        row.set_subtitle(&esc(&crate::util::failed(&e)));
+                        btn.set_sensitive(true);
+                    }
+                    Err(_) => btn.set_sensitive(true),
+                }
+            });
+        }
+    });
+    by_command.add_suffix(&download);
     search.add(&by_command);
 
-    let advanced = adw::PreferencesGroup::builder()
-        .title(t("Advanced"))
-        .description(t(
-            "For unusual setups only, such as a configuration kept in another folder and built with your own script. Leave it empty if Apply already works.",
-        ))
-        .build();
+    let advanced = adw::PreferencesGroup::new();
     let command = adw::EntryRow::builder()
         .title(t("Apply command (empty: found by itself)"))
         .show_apply_button(true)
@@ -270,14 +271,18 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
             });
         }
     });
+    let sources = adw::PreferencesGroup::builder()
+        .title(t("Other Sources"))
+        .description(t(
+            "Flakes whose packages show up in search, besides nixpkgs.",
+        ))
+        .build();
+    sources.add(&flakes);
+    sources.add(&suggested);
     advanced.add(&command);
-    advanced.add(&flakes);
-    advanced.add(&suggested);
     advanced.add(&warning);
 
-    page.add(&config);
-    page.add(&installing);
-    let storage = adw::PreferencesGroup::builder().title(t("Storage")).build();
+    let storage = adw::PreferencesGroup::new();
     let cleanup = adw::SwitchRow::builder()
         .title(t("Clean Up Automatically"))
         .subtitle(t("Every week, deletes what nothing uses and generations older than 30 days, which then leave History. Applies with your configuration."))
@@ -298,14 +303,95 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     storage.add(&cleanup);
     storage.set_visible(nix_app_center_core::detect_layout().is_usable());
 
-    page.add(&updates);
-    page.add(&storage);
-    page.add(&search);
-    page.add(&advanced);
-    if let Some(caches) = caches_group() {
-        page.add(&caches);
+    let page = |title: &str, summary: &str, groups: &[&adw::PreferencesGroup]| {
+        let page = adw::PreferencesPage::new();
+        page.add(&sidebar::header(title, summary));
+        for g in groups {
+            page.add(*g);
+        }
+        page.upcast::<gtk::Widget>()
+    };
+    let section = |key: &str, title: String, icon: &'static str, page: gtk::Widget| Section {
+        key: key.into(),
+        title,
+        icon,
+        page,
+        suffix: None,
+    };
+    let mut sections = vec![
+        section(
+            "config",
+            t("Configuration"),
+            "emblem-system-symbolic",
+            page(
+                &t("Configuration"),
+                &t("Where your configuration lives and how it is applied."),
+                &[&found, &config],
+            ),
+        ),
+        section(
+            "installing",
+            t("Installing"),
+            "system-software-install-symbolic",
+            page(
+                &t("Installing"),
+                &t("Where the apps you add go."),
+                &[&installing],
+            ),
+        ),
+        section(
+            "updates",
+            t("Updates"),
+            "software-update-available-symbolic",
+            page(
+                &t("Updates"),
+                &t("How Nix App Center checks and applies updates."),
+                &[&updates],
+            ),
+        ),
+    ];
+    if storage.is_visible() {
+        sections.push(section(
+            "storage",
+            t("Storage"),
+            "drive-harddisk-symbolic",
+            page(
+                &t("Storage"),
+                &t("Keeping the Nix store small."),
+                &[&storage],
+            ),
+        ));
     }
-    dialog.add(&page);
+    sections.push(section(
+        "search",
+        t("Search"),
+        "system-search-symbolic",
+        page(
+            &t("Search"),
+            &t("What search looks through."),
+            &[&search, &sources],
+        ),
+    ));
+    let caches = caches_group();
+    let mut advanced_groups = vec![&advanced];
+    if let Some(c) = &caches {
+        advanced_groups.push(c);
+    }
+    sections.push(section(
+        "advanced",
+        t("Advanced"),
+        "applications-engineering-symbolic",
+        page(
+            &t("Advanced"),
+            &t("For unusual setups only, such as a configuration kept in another folder and built with your own script. Leave it empty if Apply already works."),
+            &advanced_groups,
+        ),
+    ));
+    overlay.set_child(Some(&sidebar::body(sections, None)));
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&adw::HeaderBar::new());
+    toolbar.set_content(Some(&overlay));
+    dialog.set_child(Some(&toolbar));
     dialog.present(Some(parent));
 }
 
@@ -324,18 +410,18 @@ fn offer_cache(widget: &impl IsA<gtk::Widget>, flake: String) {
         let Some(cache) = cache else {
             return;
         };
-        let dialog = widget.ancestor(adw::PreferencesDialog::static_type());
+        let overlay = widget.ancestor(adw::ToastOverlay::static_type());
         let shown = flake.trim_start_matches("github:").to_string();
         crate::components::cache_dialog::present(&widget, &shown, cache, move |saved| {
             let text = match saved {
                 Ok(()) => t("Saved. Apply your configuration to use it."),
                 Err(e) => crate::util::failed(&e),
             };
-            if let Some(d) = dialog
+            if let Some(o) = overlay
                 .as_ref()
-                .and_then(|d| d.downcast_ref::<adw::PreferencesDialog>())
+                .and_then(|o| o.downcast_ref::<adw::ToastOverlay>())
             {
-                d.add_toast(adw::Toast::new(&text));
+                o.add_toast(adw::Toast::new(&text));
             }
         });
     });
@@ -367,8 +453,8 @@ fn caches_group() -> Option<adw::PreferencesGroup> {
                 group2.remove(&row2);
                 group2.set_visible(!nix_app_center_core::trusted_caches().is_empty());
                 if let Some(d) = group2
-                    .ancestor(adw::PreferencesDialog::static_type())
-                    .and_downcast::<adw::PreferencesDialog>()
+                    .ancestor(adw::ToastOverlay::static_type())
+                    .and_downcast::<adw::ToastOverlay>()
                 {
                     d.add_toast(adw::Toast::new(&t(
                         "Removed. Apply your configuration to undo it.",
@@ -380,6 +466,25 @@ fn caches_group() -> Option<adw::PreferencesGroup> {
         group.add(&row);
     }
     Some(group)
+}
+
+/// Whether search by command is on, and ready.
+fn command_status(on: bool) -> String {
+    if !on {
+        t("Off: search only looks at package names and descriptions.")
+    } else if nix_app_center_core::locate_ready() {
+        t("Ready: searching a command also lists the packages that provide it.")
+    } else {
+        t("Lists the packages that provide a command. Needs the nix-index database, about 100 MB.")
+    }
+}
+
+/// The detected layout: what it is as the title, how it applies below.
+fn show_detected(row: &adw::ActionRow, layout: &Layout) {
+    let text = describe(layout);
+    let (first, rest) = text.split_once('\n').unwrap_or((&text, ""));
+    row.set_title(&esc(first));
+    row.set_subtitle(&esc(rest));
 }
 
 pub(crate) fn describe(layout: &Layout) -> String {
