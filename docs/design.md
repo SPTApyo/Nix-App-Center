@@ -637,7 +637,7 @@ nix-collect-garbage --delete-old as root: root only reaches its own profiles
 and the system's, not the user's Home Manager and profile generations the
 figure counts, and the store is walked once.
 
-Why? on an app asks nix-store --query --roots for its paths and groups the
+Why Is It Here?, in the Installed tab, asks nix-store --query --roots for its paths and groups the
 roots: generations by number, the running system, the user profile, running
 programs. nix why-depends then shows the chain from /run/current-system.
 
