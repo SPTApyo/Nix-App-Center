@@ -132,7 +132,12 @@ pub(crate) fn commit(m: &Manifest) -> std::io::Result<()> {
     }
     config_gen::sync_config(&m.kept)?;
     save_manifest(m)?;
-    std::fs::write(pending_path(), "")
+    mark_pending()
+}
+
+/// Marks the configuration as changed since the last apply.
+pub(crate) fn mark_pending() -> std::io::Result<()> {
+    crate::paths::write_atomic(&pending_path(), b"")
 }
 
 fn pending_path() -> PathBuf {
