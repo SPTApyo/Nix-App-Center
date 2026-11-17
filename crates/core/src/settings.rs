@@ -32,6 +32,9 @@ pub struct Settings {
     /// Keep proprietary apps without asking for each one.
     #[serde(default)]
     pub allow_all_unfree: bool,
+    /// Search also lists the packages providing a command.
+    #[serde(default = "yes")]
+    pub search_by_command: bool,
 }
 
 fn yes() -> bool {
@@ -52,6 +55,7 @@ impl Default for Settings {
             extra_flakes: Vec::new(),
             review_changes: true,
             allow_all_unfree: false,
+            search_by_command: true,
         }
     }
 }

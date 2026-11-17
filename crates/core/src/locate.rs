@@ -44,6 +44,9 @@ fn parse_locate(stdout: &str) -> Vec<Package> {
 
 /// Packages providing the command `cmd`; empty without nix-locate.
 pub fn locate_binary(cmd: &str) -> Vec<Package> {
+    if !crate::settings::load_settings().search_by_command {
+        return Vec::new();
+    }
     let arg = format!("/bin/{cmd}");
     let args = ["--minimal", "--at-root", "--whole-name", &arg];
     let output = if crate::launch::in_path("nix-locate") {

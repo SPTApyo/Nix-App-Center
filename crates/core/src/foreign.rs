@@ -160,9 +160,56 @@ pub fn remove_foreign(item: &Installed) -> std::io::Result<()> {
     }
 }
 
+/// The app name in an installer's file name, to look it up in nixpkgs and
+/// Flathub: `name_1.2_amd64.deb`, `name-1.2-3.x86_64.rpm`,
+/// `Name-1.2-x86_64.AppImage`. `None` for other files.
+pub fn installer_name(file_name: &str) -> Option<String> {
+    let lower = file_name.to_lowercase();
+    let stem = [".deb", ".rpm", ".appimage"].iter().find_map(|ext| {
+        lower
+            .strip_suffix(ext)
+            .map(|_| &file_name[..file_name.len() - ext.len()])
+    })?;
+    // Debian puts an underscore before the version; the others a dash.
+    let name = match stem.split_once('_') {
+        Some((name, _)) if lower.ends_with(".deb") => name,
+        _ => {
+            let b = stem.as_bytes();
+            let cut = (0..b.len())
+                .find(|&i| b[i] == b'-' && b.get(i + 1).is_some_and(u8::is_ascii_digit))
+                .unwrap_or(b.len());
+            &stem[..cut]
+        }
+    };
+    let name = name.trim_matches(['-', '_', '.']);
+    (!name.is_empty()).then(|| name.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_the_app_name_of_an_installer() {
+        assert_eq!(
+            installer_name("CiscoPacketTracer_900_Ubuntu_64bit.deb").as_deref(),
+            Some("CiscoPacketTracer")
+        );
+        assert_eq!(
+            installer_name("obsidian_1.8.9_amd64.deb").as_deref(),
+            Some("obsidian")
+        );
+        assert_eq!(
+            installer_name("google-chrome-stable-131.0-1.x86_64.rpm").as_deref(),
+            Some("google-chrome-stable")
+        );
+        assert_eq!(
+            installer_name("Joplin-3.1.24.AppImage").as_deref(),
+            Some("Joplin")
+        );
+        assert_eq!(installer_name("notes.txt"), None);
+        assert_eq!(installer_name("_1.0.deb"), None);
+    }
 
     #[test]
     fn removing_an_appimage_deletes_both_files() {

@@ -7,8 +7,9 @@ notes keep the reasons.
 
 - **Try first.** Running a package with nix run is the primary action. Keeping
   it is a deliberate second step.
-- **Nix App Center never overwrites anything.** It owns two generated files. Its
-  only change to a file the user wrote is one import line, added once, after
+- **Nix App Center never overwrites anything.** It owns its generated files
+  (home, system, and the system settings). Its only change to a file the user
+  wrote is one import line per file, added once, after
   showing the exact diff, with explicit consent, and removable later.
 - **No silent magic.** When Nix App Center cannot tell where the configuration
   lives, it shows the snippet to paste and stops there.
@@ -104,6 +105,39 @@ another are greyed out. Going back to a generation with another kernel or
 initrd than /run/booted-system says a restart finishes it, and from a
 specialisation, that the default configuration of the generation starts.
 Records of generations that are gone are dropped at the next apply.
+
+Closing the progress dialog lets the task go on; a progress bar takes the
+place of the Apply button and opens the dialog again. Removing a tried app
+and cleaning up the store use the same dialog. Stop works like Ctrl+C: the
+steps run as the user (building, downloading, updating a flake) start in
+their own process group and get SIGINT. A step run as root, activating
+above all, cannot be signalled by the user and must not stop halfway: it
+ends, then nothing else runs.
+
+A task started while another runs waits its turn; the header bar counts
+those waiting. Each task's log is saved with its outcome (the newest
+twenty, in $XDG_DATA_HOME/nix-app-center/logs), and History in Updates
+opens them, so a failure can be read again later. Before an apply, less
+than 5 GB free on the store's disk shows a warning with a way to Storage:
+a fixed floor, since what a build needs is not known in advance. The
+notification at the end opens the task's dialog again. The Apply button's
+tooltip lists the apps the next apply adds or removes, against what the
+running generation recorded.
+
+Some nixpkgs packages cannot download their file themselves (requireFile),
+often an installer behind a license or a login: the build stops and its
+log names the file, its hash type and where to get it. The failed dialog
+then links to that page and offers to choose the downloaded file, which
+goes into the store under the expected name (nix-store --add-fixed); the
+next apply finds it. The name is checked to be a plain file name first.
+
+Opening a .deb, .rpm or AppImage with Nix App Center searches nixpkgs and
+Flathub for the app named in the file name, since one of them usually has
+it ready for NixOS. The installer itself is never unpacked or run: its
+libraries expect another layout, and its dependency names do not map to
+nixpkgs.
+
+The daily update check waits while the connection is metered.
 
 The CLI has the same commands (history, go-back N), and the NixOS test in
 nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
@@ -387,6 +421,25 @@ building a channel system as the user could miss files only root reads, and
 an update moves the channel before anything is built. Preferences turns the
 review off.
 
+## System settings
+
+The main menu opens System Settings: the options a NixOS flake declares under
+my (options.my), read with one nix eval each time the page opens, so a new
+option shows without a change to Nix App Center. Booleans, enums, strings,
+numbers and lists of strings can be edited; other types are shown read-only.
+The sidebar has one entry per option group (my.boot, my.desktop…); each row
+is titled by the first paragraph of the option's description, and enums of up
+to six values show as buttons. Changes wait in a bar at the bottom until
+Apply and Rebuild.
+
+Only the settings changed in the page go to nix-app-center-settings.nix, next
+to the other generated files, as plain assignments. A setting another file
+defines at the same priority (custom.nix, the host) is greyed out with the
+file's name: setting it again would only fail the build with conflicting
+definition values. When the eval fails, for example on an option the locked
+input does not have yet, the page shows Nix's error and offers to update the
+inputs.
+
 ## What is installed
 
 One index answers for tiles, search rows and app pages
@@ -615,7 +668,7 @@ nix-collect-garbage --delete-old as root: root only reaches its own profiles
 and the system's, not the user's Home Manager and profile generations the
 figure counts, and the store is walked once.
 
-Why? on an app asks nix-store --query --roots for its paths and groups the
+Why Is It Here?, in the Installed tab, asks nix-store --query --roots for its paths and groups the
 roots: generations by number, the running system, the user profile, running
 programs. nix why-depends then shows the chain from /run/current-system.
 

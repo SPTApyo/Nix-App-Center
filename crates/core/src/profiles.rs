@@ -200,7 +200,12 @@ fn store_name(path: &Path) -> Option<(String, String)> {
     let rest = path.strip_prefix("/nix/store").ok()?;
     let dir = rest.components().next()?.as_os_str().to_str()?;
     let name = dir.get(33..)?;
-    Some(split_name(name))
+    let (pname, version) = split_name(name);
+    // A wrapped app links its desktop file from the unwrapped package.
+    let pname = pname
+        .strip_suffix("-unwrapped")
+        .map_or(pname.clone(), String::from);
+    Some((pname, version))
 }
 
 /// Splits `name-version` like Nix: the version starts at the first dash
@@ -264,6 +269,10 @@ mod tests {
             "/nix/store/0d9e9b832d03ac387417e16ce1febf73-vlc-3.0.23/share/applications/vlc.desktop",
         );
         assert_eq!(store_name(p), Some(("vlc".into(), "3.0.23".into())));
+        let wrapped = Path::new(
+            "/nix/store/3in7isbac905vq9xfmgpz532aahyrs8f-bottles-unwrapped-63.2/share/applications/b.desktop",
+        );
+        assert_eq!(store_name(wrapped), Some(("bottles".into(), "63.2".into())));
         assert_eq!(
             store_name(Path::new("/usr/share/applications/x.desktop")),
             None

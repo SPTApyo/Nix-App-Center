@@ -198,9 +198,11 @@ SEARCH_TOGGLE = "click:47,48"
 BACK = "click:47,48"
 FIRST_RESULT = "click:600,170"
 TAB_INSTALLED = "click:443,48"
-# Installed tab: Remove buttons of the first kept and first tried rows.
-KEPT_REMOVE = "click:846,159"
-TRIED_REMOVE = "click:846,304"
+# Installed tab: its page switcher, the first tool, the first tried row's Remove.
+PAGE_TOOLS = "click:292,111"
+PAGE_TRIED = "click:381,111"
+KEPT_TOOL = "click:160,229"
+TRIED_REMOVE = "click:846,232"
 TAB_UPDATES = "click:566,48"
 TAB_STORAGE = "click:690,48"
 # Details page of a CLI tool ("Try in a Shell" primary): menu arrow and entries.
@@ -276,12 +278,23 @@ def scenario(env, s):
     s.do("wait:5000")
     s.shot("installed")
 
-    s.do(KEPT_REMOVE)
+    # A tool without an app window is removed from its page.
+    s.do(PAGE_TOOLS)
+    s.do("wait:500")
+    s.do(KEPT_TOOL)
+    s.do("wait:3000")
+    s.shot("installed-tool")
+    s.do(MENU)
+    s.do(MENU_KEEP_TOGGLE)
     wait_for(lambda: "hello" not in env.kept(), 10, "hello removed from kept.json")
     assert "hello" not in home.read_text(), "nix-app-center-home.nix must drop hello"
+    s.do(BACK)
+    s.do("wait:2000")
     s.shot("removed")
 
-    # The banner pushed the list down.
+    s.do(PAGE_TRIED)
+    s.do("wait:500")
+    s.shot("installed-tried")
     s.do(TRIED_REMOVE)
     wait_for(lambda: '"hello"' not in env.tried(), 180, "hello removed from tried.json")
     s.do("wait:1000")

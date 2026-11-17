@@ -29,7 +29,9 @@ To install an app you added another way, open it, then Installation Options…
 in its menu. The trash button next to the main button removes the app, whatever
 installed it.
 
-The Installed tab lists them all, with what you tried and can clean up.
+The Installed tab lists every app in one list, tagged with where it comes
+from (Nix App Center, System, User), with a filter field. Tools holds the
+command-line packages you kept, Tried the apps you ran with Try.
 
 ## Proprietary and insecure apps
 
@@ -65,8 +67,9 @@ Back switches to it, and the apps you added with Nix App Center go back too.
 ## Storage
 
 The Storage tab shows what fills the Nix store. Free Up Space removes what
-nothing uses anymore. Why? on an app says what keeps it in the store: old
-generations, the running system or a running program. Clean Up Automatically,
+nothing uses anymore. Why Is It Here?, in an app's menu in the Installed tab,
+says what keeps it in the store: old generations, the running system or a
+running program. The generations themselves are listed in Updates, History. Clean Up Automatically,
 in Preferences, deletes unused paths and generations older than 30 days every
 week.
 

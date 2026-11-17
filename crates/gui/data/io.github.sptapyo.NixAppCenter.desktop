@@ -12,4 +12,4 @@ Terminal=false
 Categories=System;PackageManager;GTK;
 Keywords[fr]=nix;nixpkgs;paquet;installer;logithèque;
 StartupNotify=true
-MimeType=x-scheme-handler/nixpkg;
+MimeType=x-scheme-handler/nixpkg;application/vnd.debian.binary-package;application/x-rpm;application/x-redhat-package-manager;application/vnd.appimage;application/x-iso9660-appimage;

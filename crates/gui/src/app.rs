@@ -133,6 +133,7 @@ impl SimpleComponent for AppModel {
         let menu = gtk::gio::Menu::new();
         menu.append(Some(&t("_Welcome Tour")), Some("win.welcome"));
         menu.append(Some(&t("_Keyboard Shortcuts")), Some("win.shortcuts"));
+        menu.append(Some(&t("_System Settings")), Some("win.system-settings"));
         menu.append(Some(&t("_Preferences")), Some("win.preferences"));
         menu.append(Some(&t("_About Nix App Center")), Some("win.about"));
         let menu_btn = gtk::MenuButton::builder()
@@ -173,17 +174,29 @@ impl SimpleComponent for AppModel {
         gtk::glib::timeout_add_seconds_local(2, {
             let apply = apply.clone();
             move || {
-                apply.set_visible(nix_app_center_core::apply_pending());
+                let pending = nix_app_center_core::apply_pending();
+                let show = pending && !crate::components::apply_dialog::is_running();
+                if show && !apply.is_visible() {
+                    apply.set_tooltip_text(Some(&pending_text()));
+                }
+                apply.set_visible(show);
                 gtk::glib::ControlFlow::Continue
             }
         });
         header.pack_end(&apply);
+        header.pack_end(&crate::components::apply_dialog::indicator());
         let prefs = gtk::gio::SimpleAction::new("preferences", None);
         prefs.connect_activate({
             let win = root.clone();
             move |_, _| crate::views::preferences::present(&win)
         });
         root.add_action(&prefs);
+        let system = gtk::gio::SimpleAction::new("system-settings", None);
+        system.connect_activate({
+            let win = root.clone();
+            move |_, _| crate::views::system_settings::present(&win)
+        });
+        root.add_action(&system);
         let welcome = gtk::gio::SimpleAction::new("welcome", None);
         welcome.connect_activate({
             let win = root.clone();
@@ -208,6 +221,15 @@ impl SimpleComponent for AppModel {
             }
         });
         app.add_action(&show_tab);
+        let show_task = gtk::gio::SimpleAction::new("show-task", None);
+        show_task.connect_activate({
+            let win = root.clone();
+            move |_, _| {
+                win.present();
+                crate::components::apply_dialog::show_last();
+            }
+        });
+        app.add_action(&show_task);
         for (i, tab) in ["explorer", "installed", "updates", "storage"]
             .iter()
             .enumerate()
@@ -372,7 +394,12 @@ impl SimpleComponent for AppModel {
             gtk::glib::idle_add_local_once(move || crate::components::welcome::present(&win));
         }
         let now = nix_app_center_core::now_unix();
-        if settings.auto_check_updates && now.saturating_sub(settings.last_update_check) > 86_400 {
+        // A metered connection waits for one that is not.
+        let metered = gtk::gio::NetworkMonitor::default().is_network_metered();
+        if settings.auto_check_updates
+            && !metered
+            && now.saturating_sub(settings.last_update_check) > 86_400
+        {
             let su = updates.sender().clone();
             gtk::glib::timeout_add_seconds_local_once(30, move || {
                 let _ = su.send(UpdatesMsg::Background);
@@ -510,6 +537,8 @@ impl SimpleComponent for AppModel {
                 // Popped pages have no parent.
                 self.details.retain(|c| c.widget().parent().is_some());
                 self.categories.retain(|c| c.widget().parent().is_some());
+                // A details page may have kept or removed an app.
+                self._installed.emit(InstalledMsg::Reload);
             }
             AppMsg::Updates(UpdatesOutput::Pending { count, notify }) => {
                 self.updates_page.set_badge_number(count as u32);
@@ -617,4 +646,20 @@ fn about_dialog() -> adw::AboutDialog {
         d.set_translator_credits(&credits);
     }
     d
+}
+
+/// The Apply button's tooltip: what the next apply adds and removes.
+fn pending_text() -> String {
+    let base = t("Your configuration changed: rebuild it to install or remove the apps.");
+    let Some((added, removed)) = nix_app_center_core::pending_changes() else {
+        return base;
+    };
+    let mut lines = vec![base];
+    if !added.is_empty() {
+        lines.push(t("Adds: {}").replace("{}", &added.join(", ")));
+    }
+    if !removed.is_empty() {
+        lines.push(t("Removes: {}").replace("{}", &removed.join(", ")));
+    }
+    lines.join("\n")
 }

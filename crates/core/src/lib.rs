@@ -30,6 +30,7 @@ mod paths;
 mod profiles;
 mod progress;
 mod ratings;
+mod required_file;
 mod resolve;
 mod reviews;
 mod search;
@@ -37,6 +38,7 @@ mod session_cache;
 mod settings;
 mod storage;
 mod system_settings;
+mod task_log;
 mod tried;
 mod updates;
 mod user_profile;
@@ -61,7 +63,9 @@ pub use config_attach::{
     plan_settings as attach_settings_plan, AttachPlan,
 };
 pub use config_gen::default_home_block;
-pub use config_gen::{apply_argv, apply_config, run_reviewed, run_streaming, ApplyOutcome};
+pub use config_gen::{
+    apply_argv, apply_config, run_reviewed, run_streaming, stop_running, ApplyOutcome,
+};
 pub use config_layout::{
     detect as detect_layout, suggested_flakes, verify as verify_layout, Layout, LayoutKind,
     ScopeTarget, Verified,
@@ -69,9 +73,9 @@ pub use config_layout::{
 pub use detail::{closure_size, detail, PackageDetail};
 pub use enabled::{config_allows, declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
-pub use foreign::{appimage_files, remove_foreign};
+pub use foreign::{appimage_files, installer_name, remove_foreign};
 pub use history::{
-    go_back_steps, history, kept_diff, needs_restart, record as record_history,
+    go_back_steps, history, kept_diff, needs_restart, pending_changes, record as record_history,
     restore as restore_history, running_specialisation, Point as HistoryPoint,
     Scope as HistoryScope,
 };
@@ -96,6 +100,7 @@ pub use profiles::{
 };
 pub use progress::{refusal, Phase, Refusal, StreamEvent};
 pub use ratings::{rating_for, Rating};
+pub use required_file::{add_required_file, required_file, RequiredFile};
 pub use resolve::{report_mapping, resolve_app_id};
 pub use reviews::{
     act_on_review, featured_review, reviews_for, submit_review, Review, ReviewAction,
@@ -110,13 +115,14 @@ pub use session_cache::{
 pub use settings::{load_settings, save_settings, Settings};
 pub use storage::{
     auto_cleanup, auto_optimise_on, clear_cache, home_usage, optimise_command, set_auto_cleanup,
-    storage_report, AppOrigin, AppSize, AutoCleanup, Category, GenProfile, Generation, HomeDir,
-    HomeKind, StorageReport,
+    storage_report, store_free_space, AppOrigin, AppSize, AutoCleanup, Category, GenProfile,
+    Generation, HomeDir, HomeKind, StorageReport,
 };
 pub use system_settings::{
     load_settings as load_system_settings, update_inputs_steps,
     write_settings as write_system_settings, Setting, SettingKind,
 };
+pub use task_log::{save_task_log, task_logs, TaskLog};
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
     app_updates, current_source, flake_inputs, input_latest, inputs_update_command, installable,

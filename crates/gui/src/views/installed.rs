@@ -1,11 +1,11 @@
-//! Installed tab: kept apps, tried apps (removable from the store), and the
-//! apps the system and user profiles hold, read only.
+//! Installed tab: every app on the machine in one list tagged by origin,
+//! the command-line tools kept, and the apps tried (removable from the store).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use adw::prelude::*;
-use nix_app_center_core::{Package, ProfileApp, Scope};
+use nix_app_center_core::{Package, ProfileApp};
 use relm4::prelude::*;
 
 use crate::i18n::t;
@@ -16,6 +16,8 @@ use crate::util::{self, esc};
 pub struct Item {
     package: Package,
     icon: Option<Vec<u8>>,
+    /// The AppStream summary, for apps that have one.
+    summary: Option<String>,
     /// The package's own desktop file.
     desktop_file: Option<PathBuf>,
     tried_at: Option<u64>,
@@ -30,9 +32,31 @@ pub struct Data {
     profile: Vec<ProfileApp>,
     sizes: std::collections::HashMap<PathBuf, u64>,
     elements: Vec<nix_app_center_core::ProfileElement>,
+    /// What is installed, and how: for the status icons.
+    index: Vec<nix_app_center_core::Installed>,
+    /// The configuration changed since the last apply.
+    pending: bool,
 }
 
 impl Data {
+    /// Whether the rebuild already installed a kept package.
+    /// Without pending changes everything kept was applied; with them, the
+    /// index tells, though an attribute named unlike its package is missed.
+    fn applied(&self, item: &Item) -> bool {
+        !self.pending
+            || nix_app_center_core::find_installed(&self.index, &item.package.attr, "", None)
+                .is_some()
+    }
+
+    /// The kept packages no profile app stands for: command-line tools,
+    /// plus apps the next apply installs.
+    fn unmatched(&self) -> Vec<&Item> {
+        self.kept
+            .iter()
+            .filter(|i| !self.profile.iter().any(|a| stands_for(a, i)))
+            .collect()
+    }
+
     /// The `nix profile` element holding `store_path`, never Home Manager's.
     fn removable(&self, store_path: &Path) -> Option<&str> {
         let path = store_path.to_string_lossy();
@@ -53,7 +77,18 @@ impl Data {
     }
 }
 
+/// The page the switcher shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Page {
+    Apps,
+    Tools,
+    Tried,
+}
+
 pub struct InstalledModel {
+    page: Page,
+    query: String,
+    tabs: Vec<(Page, gtk::ToggleButton)>,
     data: Option<Data>,
     removing: HashSet<String>,
     applying: bool,
@@ -76,6 +111,10 @@ pub enum InstalledMsg {
     Applied(Result<nix_app_center_core::ApplyOutcome, String>),
     Gc,
     GcDone(String),
+    Show(Page),
+    Query(String),
+    /// Explains what keeps these store paths.
+    Why(String, Vec<String>),
 }
 
 #[relm4::component(pub)]
@@ -124,7 +163,45 @@ impl SimpleComponent for InstalledModel {
             .spacing(24)
             .build();
 
+        let search = gtk::SearchEntry::builder()
+            .placeholder_text(t("Filter installed apps"))
+            .hexpand(true)
+            .build();
+        search.connect_search_changed({
+            let s = sender.input_sender().clone();
+            move |e| {
+                let _ = s.send(InstalledMsg::Query(e.text().to_string()));
+            }
+        });
+        let switcher = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        switcher.add_css_class("linked");
+        let mut tabs: Vec<(Page, gtk::ToggleButton)> = Vec::new();
+        for page in [Page::Apps, Page::Tools, Page::Tried] {
+            let button = gtk::ToggleButton::new();
+            button.set_active(page == Page::Apps);
+            if let Some((_, first)) = tabs.first() {
+                button.set_group(Some(first));
+            }
+            let s = sender.input_sender().clone();
+            button.connect_toggled(move |b| {
+                if b.is_active() {
+                    let _ = s.send(InstalledMsg::Show(page));
+                }
+            });
+            switcher.append(&button);
+            tabs.push((page, button));
+        }
+        let controls = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        controls.append(&switcher);
+        controls.append(&search);
+        let column = gtk::Box::new(gtk::Orientation::Vertical, 24);
+        column.append(&controls);
+        column.append(&content);
+
         let model = InstalledModel {
+            page: Page::Apps,
+            query: String::new(),
+            tabs,
             data: None,
             removing: HashSet::new(),
             applying: false,
@@ -134,7 +211,7 @@ impl SimpleComponent for InstalledModel {
             content: content.clone(),
         };
         let widgets = view_output!();
-        widgets.clamp.set_child(Some(&content));
+        widgets.clamp.set_child(Some(&column));
         if let Some(scroller) = widgets.clamp.parent().and_downcast::<gtk::ScrolledWindow>() {
             util::smooth_scroll(&scroller);
         }
@@ -185,11 +262,25 @@ impl SimpleComponent for InstalledModel {
                     return;
                 }
                 self.rebuild(&sender);
+                let name = self
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.tried.iter().find(|i| i.package.attr == attr))
+                    .map(|i| display_name(&i.package))
+                    .unwrap_or_else(|| attr.clone());
                 let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let res = nix_app_center_core::remove_tried(&attr).map_err(|e| e.to_string());
-                    let _ = s.send(InstalledMsg::Removed(attr, res));
-                });
+                let task_attr = attr.clone();
+                crate::components::apply_dialog::present_task(
+                    &self.content,
+                    &t("Removing {}").replace("{}", &name),
+                    move || {
+                        nix_app_center_core::remove_tried(&task_attr).map_err(|e| e.to_string())
+                    },
+                    move |bytes| freed_text(&name, *bytes),
+                    move |res| {
+                        let _ = s.send(InstalledMsg::Removed(attr.clone(), res));
+                    },
+                );
             }
             InstalledMsg::ProfileRemove(name) => {
                 self.status = Some(match nix_app_center_core::profile_remove(&name) {
@@ -212,11 +303,7 @@ impl SimpleComponent for InstalledModel {
                     }
                 }
                 self.status = Some(match res {
-                    Ok(0) => t("{} removed. Nothing to free: your system still uses it.")
-                        .replace("{}", &name),
-                    Ok(bytes) => t("{name} removed, {size} freed.")
-                        .replace("{name}", &name)
-                        .replace("{size}", &gtk::glib::format_size(bytes)),
+                    Ok(bytes) => freed_text(&name, bytes),
                     Err(e) => crate::util::failed(&e),
                 });
                 self.rebuild(&sender);
@@ -254,22 +341,44 @@ impl SimpleComponent for InstalledModel {
                     return;
                 }
                 self.gc_running = true;
-                self.status = Some(t("Cleaning up the store…"));
                 self.rebuild(&sender);
                 let s = sender.input_sender().clone();
-                std::thread::spawn(move || {
-                    let msg = match nix_app_center_core::garbage_collect() {
-                        Ok(s) if !s.is_empty() => s,
-                        Ok(_) => t("Done."),
-                        Err(e) => crate::util::failed(&e),
-                    };
-                    let _ = s.send(InstalledMsg::GcDone(msg));
-                });
+                let said = |out: &String| {
+                    if out.is_empty() {
+                        t("Done.")
+                    } else {
+                        out.clone()
+                    }
+                };
+                crate::components::apply_dialog::present_task(
+                    &self.content,
+                    &t("Cleaning Up the Store"),
+                    || nix_app_center_core::garbage_collect().map_err(|e| e.to_string()),
+                    said,
+                    move |res| {
+                        let msg = match res {
+                            Ok(out) => said(&out),
+                            Err(e) => crate::util::failed(&e),
+                        };
+                        let _ = s.send(InstalledMsg::GcDone(msg));
+                    },
+                );
             }
             InstalledMsg::GcDone(status) => {
                 self.gc_running = false;
                 self.status = Some(status);
                 self.rebuild(&sender);
+            }
+            InstalledMsg::Show(page) => {
+                self.page = page;
+                self.rebuild(&sender);
+            }
+            InstalledMsg::Query(query) => {
+                self.query = query;
+                self.rebuild(&sender);
+            }
+            InstalledMsg::Why(name, paths) => {
+                crate::views::storage::explain(&self.content, name, paths);
             }
         }
     }
@@ -293,43 +402,180 @@ impl InstalledModel {
             return;
         };
 
-        let kept_attrs: HashSet<String> = data
-            .kept
-            .iter()
-            .map(|i| i.package.attr.to_lowercase())
+        let apps = self.app_rows(data, sender);
+        let tools: Vec<&Item> = data
+            .unmatched()
+            .into_iter()
+            .filter(|i| !is_app(i) || data.applied(i))
             .collect();
-        let rows: Vec<gtk::Widget> = data
-            .kept
-            .iter()
-            .map(|i| {
-                let row = self.item_row(i, &i.package.version, sender);
-                row.add_suffix(&self.action_button(
-                    &t("Remove"),
-                    false,
-                    InstalledMsg::Unkeep(i.package.attr.clone()),
-                    sender,
+        for (page, button) in &self.tabs {
+            let (label, count) = match page {
+                Page::Apps => (t("Applications"), apps.len()),
+                Page::Tools => (t("Tools"), tools.len()),
+                Page::Tried => (t("Tried"), data.tried.len()),
+            };
+            button.set_label(&format!("{label}  {count}"));
+        }
+        let query = self.query.to_lowercase();
+        let wanted = |text: &str| query.is_empty() || text.to_lowercase().contains(&query);
+        match self.page {
+            Page::Apps => {
+                let rows: Vec<gtk::Widget> = apps
+                    .into_iter()
+                    .filter(|(name, _)| wanted(name))
+                    .map(|(_, row)| row.upcast())
+                    .collect();
+                self.content.append(&section(
+                    &t("Applications"),
+                    Some(&t("Every app on this computer, whoever installed it.")),
+                    rows,
+                    &t("No app matches."),
+                    None,
                 ));
-                row.set_tooltip_text(Some(&t("Remove takes the app out of your configuration; it is uninstalled when you apply.")));
-                row.upcast()
-            })
-            .collect();
-        self.content.append(&section(
-            &t("In Your Configuration"),
-            None,
-            rows,
-            &t("No kept packages yet. Open an app and choose “Add to Configuration”."),
-            None,
-        ));
+            }
+            Page::Tools => {
+                let tools: Vec<&Item> = tools
+                    .into_iter()
+                    .filter(|i| wanted(&i.package.attr))
+                    .collect();
+                let body: gtk::Widget = if tools.is_empty() {
+                    util::dim_label(&t(
+                        "No command-line tools kept yet. Open a package and choose “Add to Configuration”.",
+                    ))
+                    .upcast()
+                } else {
+                    self.tools_grid(&tools, data, sender).upcast()
+                };
+                self.content.append(&util::section(
+                    &t("Command-Line Tools"),
+                    Some(&t(
+                        "Packages without an app window. Open one to see its page or remove it.",
+                    )),
+                    &body,
+                ));
+            }
+            Page::Tried => self.tried_page(data, &wanted, sender),
+        }
+    }
 
+    /// Every app, kept or not, by name, each tagged with where it comes from.
+    fn app_rows(
+        &self,
+        data: &Data,
+        sender: &ComponentSender<Self>,
+    ) -> Vec<(String, adw::ActionRow)> {
+        use gtk::gio::prelude::AppInfoExt;
+        let mut rows: Vec<(String, adw::ActionRow)> = Vec::new();
+        let mut placed: HashSet<String> = HashSet::new();
+        for a in &data.profile {
+            let Some(info) = gtk::gio::DesktopAppInfo::from_filename(&a.desktop_file)
+                .filter(|i| i.should_show())
+            else {
+                continue;
+            };
+            let kept = data.kept.iter().find(|i| stands_for(a, i));
+            // The desktop file describes what really runs.
+            let subtitle = info
+                .description()
+                .map(|d| d.to_string())
+                .filter(|d| !d.is_empty())
+                .unwrap_or_else(|| a.version.clone() + &data.size_suffix([&a.store_path]));
+            let Some(row) = util::desktop_row(&a.desktop_file, &subtitle) else {
+                continue;
+            };
+            if kept.is_some() {
+                add_tags(&row, &[t("Nix App Center")]);
+            }
+            let stem = a
+                .desktop_file
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned());
+            let status =
+                nix_app_center_core::find_installed(&data.index, &a.pname, "", stem.as_deref());
+            row.add_suffix(&util::installed_pill(status, 16));
+            row.add_suffix(&open_button(a.desktop_file.clone()));
+            let mut actions: Vec<Action> = Vec::new();
+            if let Some(i) = kept {
+                placed.insert(i.package.attr.clone());
+                actions.push((
+                    t("Show _Details"),
+                    false,
+                    InstalledMsg::Open(i.package.clone()),
+                ));
+            }
+            actions.push((
+                t("_Why Is It Here?"),
+                false,
+                InstalledMsg::Why(
+                    info.name().to_string(),
+                    vec![a.store_path.to_string_lossy().to_string()],
+                ),
+            ));
+            if let Some(i) = kept {
+                actions.push((
+                    t("_Remove from Configuration"),
+                    true,
+                    InstalledMsg::Unkeep(i.package.attr.clone()),
+                ));
+            } else if let Some(name) = data.removable(&a.store_path) {
+                actions.push((
+                    t("_Uninstall"),
+                    true,
+                    InstalledMsg::ProfileRemove(name.to_string()),
+                ));
+            }
+            row.add_suffix(&menu(actions, sender));
+            rows.push((format!("{} {}", info.name(), a.pname), row));
+        }
+        for item in data
+            .unmatched()
+            .into_iter()
+            .filter(|i| is_app(i) && !data.applied(i) && !placed.contains(&i.package.attr))
+        {
+            let subtitle = item.summary.as_deref().unwrap_or(&item.package.version);
+            let row = self.item_row(item, subtitle, sender);
+            add_tags(&row, &[t("Nix App Center"), t("Not Applied Yet")]);
+            row.add_suffix(&menu(
+                vec![
+                    (
+                        t("Show _Details"),
+                        false,
+                        InstalledMsg::Open(item.package.clone()),
+                    ),
+                    (
+                        t("_Remove from Configuration"),
+                        true,
+                        InstalledMsg::Unkeep(item.package.attr.clone()),
+                    ),
+                ],
+                sender,
+            ));
+            rows.push((
+                format!("{} {}", display_name(&item.package), item.package.attr),
+                row,
+            ));
+        }
+        rows.sort_by_key(|(name, _)| name.to_lowercase());
+        rows
+    }
+
+    /// Apps run with Try, each removable from the store.
+    fn tried_page(
+        &self,
+        data: &Data,
+        wanted: &dyn Fn(&str) -> bool,
+        sender: &ComponentSender<Self>,
+    ) {
         let rows: Vec<gtk::Widget> = data
             .tried
             .iter()
+            .filter(|i| wanted(&display_name(&i.package)) || wanted(&i.package.attr))
             .map(|i| {
                 let when = i
                     .tried_at
                     .map(|ts| util::format_relative(ts as i64))
                     .unwrap_or_default();
-                let row = self.item_row(i, &when, sender);
+                let row = self.item_row(i, &(when + &data.size_suffix(&i.paths)), sender);
                 let busy = self.removing.contains(&i.package.attr);
                 if busy {
                     let spinner = gtk::Spinner::new();
@@ -369,43 +615,49 @@ impl InstalledModel {
             &t("Nothing tried yet. Run a package from search and it will show up here."),
             gc,
         ));
+    }
 
-        for (scope, title, subtitle) in [
-            (
-                Scope::User,
-                t("User"),
-                t("Declared in your user configuration."),
-            ),
-            (
-                Scope::System,
-                t("System"),
-                t("Declared in your system configuration."),
-            ),
-        ] {
-            let rows: Vec<gtk::Widget> = data
-                .profile
-                .iter()
-                .filter(|a| a.scope == scope && !kept_attrs.contains(&a.pname.to_lowercase()))
-                .filter_map(|a| {
-                    let sub = a.version.clone() + &data.size_suffix([&a.store_path]);
-                    let row = util::desktop_row(&a.desktop_file, &sub)?;
-                    match data.removable(&a.store_path) {
-                        Some(name) => row.add_suffix(&self.action_button(
-                            &t("Remove"),
-                            false,
-                            InstalledMsg::ProfileRemove(name.to_string()),
-                            sender,
-                        )),
-                        None => row.add_css_class("dim-label"),
-                    }
-                    Some(row.upcast())
-                })
-                .collect();
-            if !rows.is_empty() {
-                self.content
-                    .append(&section(&title, Some(&subtitle), rows, "", None));
+    /// Kept packages without an app identity, as compact buttons.
+    fn tools_grid(
+        &self,
+        tools: &[&Item],
+        data: &Data,
+        sender: &ComponentSender<Self>,
+    ) -> gtk::FlowBox {
+        let flow = gtk::FlowBox::builder()
+            .selection_mode(gtk::SelectionMode::None)
+            .homogeneous(true)
+            .min_children_per_line(2)
+            .max_children_per_line(3)
+            .column_spacing(4)
+            .row_spacing(4)
+            .build();
+        flow.add_css_class("card");
+        flow.add_css_class("tools-grid");
+        for item in tools {
+            let line = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+            line.append(&gtk::Image::from_icon_name("utilities-terminal-symbolic"));
+            let label = gtk::Label::new(Some(&item.package.attr));
+            label.add_css_class("monospace");
+            label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            label.set_xalign(0.0);
+            line.append(&label);
+            let button = gtk::Button::builder()
+                .child(&line)
+                .tooltip_text(t("Show Details"))
+                .build();
+            button.add_css_class("flat");
+            if !data.applied(item) {
+                line.add_css_class("dim-label");
+                button.set_tooltip_text(Some(&t("Not Applied Yet")));
             }
+            let (s, pkg) = (sender.input_sender().clone(), item.package.clone());
+            button.connect_clicked(move |_| {
+                let _ = s.send(InstalledMsg::Open(pkg.clone()));
+            });
+            flow.append(&button);
         }
+        flow
     }
 
     fn item_row(
@@ -447,6 +699,96 @@ impl InstalledModel {
         });
         b
     }
+}
+
+/// A menu entry: label, destructive, message sent.
+type Action = (String, bool, InstalledMsg);
+
+/// True when the profile app `a` is the kept package `item`: by pname, or
+/// by desktop file name (steam ships steam.desktop from steam-unwrapped).
+fn stands_for(a: &ProfileApp, item: &Item) -> bool {
+    let attr = item.package.attr.rsplit('.').next().unwrap_or_default();
+    let stem = a
+        .desktop_file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default();
+    a.pname.eq_ignore_ascii_case(attr) || stem.eq_ignore_ascii_case(attr)
+}
+
+/// True for a kept package with an app identity.
+fn is_app(item: &Item) -> bool {
+    item.icon.is_some() || item.desktop_file.is_some()
+}
+
+/// Small tags under a row's title, such as where the app comes from.
+fn add_tags(row: &adw::ActionRow, tags: &[String]) {
+    let line = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    line.set_valign(gtk::Align::Center);
+    for tag in tags {
+        let label = gtk::Label::new(Some(tag));
+        label.add_css_class("chip");
+        line.append(&label);
+    }
+    row.add_suffix(&line);
+}
+
+/// The "more" button, holding `actions`.
+fn menu(actions: Vec<Action>, sender: &ComponentSender<InstalledModel>) -> gtk::MenuButton {
+    let list = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    let popover = gtk::Popover::builder().child(&list).build();
+    for (label, destructive, msg) in actions {
+        let button = gtk::Button::with_mnemonic(&label);
+        button.add_css_class("flat");
+        if destructive {
+            button.add_css_class("error");
+        }
+        if let Some(l) = button.child().and_downcast::<gtk::Label>() {
+            l.set_xalign(0.0);
+        }
+        let (s, p) = (sender.input_sender().clone(), popover.clone());
+        let msg = std::cell::Cell::new(Some(msg));
+        button.connect_clicked(move |_| {
+            p.popdown();
+            if let Some(m) = msg.take() {
+                let _ = s.send(m);
+            }
+        });
+        list.append(&button);
+    }
+    let more = gtk::MenuButton::builder()
+        .icon_name("view-more-symbolic")
+        .valign(gtk::Align::Center)
+        .tooltip_text(t("More Actions"))
+        .popover(&popover)
+        .build();
+    more.add_css_class("flat");
+    more
+}
+
+/// What removing a tried app freed.
+fn freed_text(name: &str, bytes: u64) -> String {
+    if bytes == 0 {
+        t("{} removed. Nothing to free: your system still uses it.").replace("{}", name)
+    } else {
+        t("{name} removed, {size} freed.")
+            .replace("{name}", name)
+            .replace("{size}", &gtk::glib::format_size(bytes))
+    }
+}
+
+/// Starts the app of a desktop file.
+fn open_button(file: PathBuf) -> gtk::Button {
+    let open = gtk::Button::with_mnemonic(&t("_Open"));
+    open.set_valign(gtk::Align::Center);
+    open.connect_clicked(move |_| {
+        use gtk::gio::prelude::AppInfoExt;
+        let context = gtk::gdk::Display::default().map(|d| d.app_launch_context());
+        if let Some(app) = gtk::gio::DesktopAppInfo::from_filename(&file) {
+            let _ = app.launch(&[], context.as_ref());
+        }
+    });
+    open
 }
 
 fn display_name(p: &Package) -> String {
@@ -530,6 +872,8 @@ fn load_data() -> Data {
     Data {
         sizes: nix_app_center_core::store_sizes(&paths),
         elements: nix_app_center_core::profile_elements(),
+        index: nix_app_center_core::installed_index(),
+        pending: nix_app_center_core::apply_pending(),
         kept,
         tried,
         profile,
@@ -548,6 +892,7 @@ fn with_icons(entries: Vec<(Package, Option<u64>, Vec<String>)>) -> Vec<Item> {
                 std::thread::spawn(move || {
                     let meta = nix_app_center_core::cached_app_meta(&package, 1280);
                     Item {
+                        summary: meta.summary.clone(),
                         icon: meta
                             .icon_url
                             .as_deref()
