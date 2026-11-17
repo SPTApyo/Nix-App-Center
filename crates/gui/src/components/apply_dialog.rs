@@ -485,6 +485,17 @@ fn run(
     let (answer_tx, answer_rx) = async_channel::bounded::<bool>(1);
     let settings = nix_app_center_core::load_settings();
     let ask = settings.review_changes;
+    let free = nix_app_center_core::store_free_space();
+    // shortcut: a fixed 5 GB floor, not an estimate of what the build needs.
+    if applies && free > 0 && free < 5 << 30 {
+        let low = crate::util::dim_label(
+            &t("Only {} free on the disk: the build may run out of space. Storage can free some.")
+                .replace("{}", &gtk::glib::format_size(free)),
+        );
+        low.add_css_class("warning");
+        progress.append(&low);
+        storage.set_visible(true);
+    }
     if applies && ask && settings.apply_command.is_some() {
         progress.append(&crate::util::dim_label(&t(
             "Your own apply command runs as it is: the changes cannot be shown first.",

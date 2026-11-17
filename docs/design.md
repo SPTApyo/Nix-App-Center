@@ -117,8 +117,12 @@ ends, then nothing else runs.
 A task started while another runs waits its turn; the header bar counts
 those waiting. Each task's log is saved with its outcome (the newest
 twenty, in $XDG_DATA_HOME/nix-app-center/logs), and History in Updates
-opens them, so a failure can be read again later. The notification at the
-end opens the task's dialog again.
+opens them, so a failure can be read again later. Before an apply, less
+than 5 GB free on the store's disk shows a warning with a way to Storage:
+a fixed floor, since what a build needs is not known in advance. The
+notification at the end opens the task's dialog again. The Apply button's
+tooltip lists the apps the next apply adds or removes, against what the
+running generation recorded.
 
 Some nixpkgs packages cannot download their file themselves (requireFile),
 often an installer behind a license or a login: the build stops and its
@@ -132,6 +136,8 @@ Flathub for the app named in the file name, since one of them usually has
 it ready for NixOS. The installer itself is never unpacked or run: its
 libraries expect another layout, and its dependency names do not map to
 nixpkgs.
+
+The daily update check waits while the connection is metered.
 
 The CLI has the same commands (history, go-back N), and the NixOS test in
 nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
