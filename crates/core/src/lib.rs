@@ -75,7 +75,7 @@ pub use enabled::{config_allows, declared_in, enabled_modules};
 pub use flathub::{flathub_installs, Addon, DevApp, Release};
 pub use foreign::{appimage_files, installer_name, remove_foreign};
 pub use history::{
-    go_back_steps, history, kept_diff, needs_restart, record as record_history,
+    go_back_steps, history, kept_diff, needs_restart, pending_changes, record as record_history,
     restore as restore_history, running_specialisation, Point as HistoryPoint,
     Scope as HistoryScope,
 };
@@ -115,8 +115,8 @@ pub use session_cache::{
 pub use settings::{load_settings, save_settings, Settings};
 pub use storage::{
     auto_cleanup, auto_optimise_on, clear_cache, home_usage, optimise_command, set_auto_cleanup,
-    storage_report, AppOrigin, AppSize, AutoCleanup, Category, GenProfile, Generation, HomeDir,
-    HomeKind, StorageReport,
+    storage_report, store_free_space, AppOrigin, AppSize, AutoCleanup, Category, GenProfile,
+    Generation, HomeDir, HomeKind, StorageReport,
 };
 pub use system_settings::{
     load_settings as load_system_settings, update_inputs_steps,
