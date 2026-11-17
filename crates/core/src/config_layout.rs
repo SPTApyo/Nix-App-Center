@@ -329,14 +329,14 @@ fn detect_files() -> Layout {
     let hm = hm_dir();
 
     let flake = nixos.join("flake.nix");
-    if flake.is_file() {
-        let src = read(&flake);
+    let flake_src = flake.is_file().then(|| read(&flake));
+    if let Some(src) = &flake_src {
         // The environment variable beats the settings.
         let chosen = std::env::var_os("NIX_APP_CENTER_CONFIG_DIR")
             .is_none()
             .then(|| crate::settings::load_settings().host)
             .flatten();
-        if let Some(host) = chosen.or_else(|| first_nixos_host(&src)) {
+        if let Some(host) = chosen.or_else(|| first_nixos_host(src)) {
             let hm_user = hm_user_in_dir(&nixos);
             return nixos_flake_layout(nixos, host, hm_user);
         }
@@ -345,6 +345,11 @@ fn detect_files() -> Layout {
     if nixos.join("configuration.nix").is_file() {
         let hm_user = hm_user_in_dir(&nixos);
         return nixos_legacy_layout(nixos, hm_user);
+    }
+
+    if let Some(host) = flake_src.and_then(|src| host_outside_flake(&src, hostname())) {
+        let hm_user = hm_user_in_dir(&nixos);
+        return nixos_flake_layout(nixos, host, hm_user);
     }
 
     if hm.join("flake.nix").is_file() {
@@ -427,6 +432,15 @@ pub fn verify(layout: &Layout) -> Result<Verified, String> {
 /// else the first `nixosConfigurations` entry.
 pub(crate) fn first_nixos_host(flake_src: &str) -> Option<String> {
     pick_host(nixos_hosts(flake_src), hostname().as_deref())
+}
+
+/// The host of a flake naming none in flake.nix: this machine's name, as
+/// nixos-rebuild assumes. `None` when the flake only holds Home Manager.
+fn host_outside_flake(flake_src: &str, this: Option<String>) -> Option<String> {
+    if flake_src.contains("homeConfigurations") {
+        return None;
+    }
+    this
 }
 
 /// The host named like this machine, ignoring case, else the first one.
@@ -756,6 +770,58 @@ mod tests {
         assert_eq!(layout.kind, LayoutKind::NixosLegacy { dir });
         assert_eq!(layout.apply, ["sudo", "nixos-rebuild", "switch"]);
         assert!(layout.system.is_some());
+    }
+
+    const FLAKE_PARTS: &str =
+        "outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } { imports = [ ./hosts.nix ]; };";
+
+    #[test]
+    fn hosts_declared_outside_flake_nix_use_the_machine_name() {
+        let _g = crate::env_lock();
+        let dir = fixture("flake-parts");
+        write(&dir, "flake.nix", FLAKE_PARTS);
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &dir);
+
+        let layout = detect();
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
+
+        let host = hostname().expect("the test machine has a hostname");
+        assert_eq!(
+            layout.apply.last().map(String::as_str),
+            Some(format!("{}#{host}", dir.display()).as_str())
+        );
+        assert_eq!(layout.kind, LayoutKind::NixosFlake { dir, host });
+    }
+
+    #[test]
+    fn configuration_nix_wins_over_a_flake_naming_no_host() {
+        let _g = crate::env_lock();
+        let dir = fixture("flake-and-legacy");
+        write(&dir, "flake.nix", FLAKE_PARTS);
+        write(&dir, "configuration.nix", "{ imports = [ ]; }");
+        std::env::set_var("NIX_APP_CENTER_CONFIG_DIR", &dir);
+
+        let layout = detect();
+        std::env::remove_var("NIX_APP_CENTER_CONFIG_DIR");
+
+        assert_eq!(layout.kind, LayoutKind::NixosLegacy { dir });
+    }
+
+    #[test]
+    fn no_machine_name_for_a_home_manager_only_flake() {
+        let me = || Some("laptop".to_string());
+        assert_eq!(
+            host_outside_flake(FLAKE_PARTS, me()).as_deref(),
+            Some("laptop")
+        );
+        assert_eq!(
+            host_outside_flake(
+                "outputs = { ... }: { homeConfigurations.alice = x; };",
+                me()
+            ),
+            None
+        );
+        assert_eq!(host_outside_flake(FLAKE_PARTS, None), None);
     }
 
     #[test]
