@@ -169,6 +169,8 @@ The layout is detected by scanning text, never by parsing Nix
 (crates/core/src/config_layout.rs): NixOS flake, NixOS with channels, Home
 Manager as a flake or standalone, or unknown. The host is the
 nixosConfigurations entry named like the machine, whatever its case.
+A flake that declares its hosts in another file, as flake-parts setups do,
+gets the machine's name, the host nixos-rebuild assumes too.
 Preferences can override the folder and the host, and check the result with
 Nix itself. NIX_APP_CENTER_CONFIG_DIR overrides the folder too; the tests use
 it so they never touch /etc/nixos.
@@ -308,6 +310,8 @@ The layout is detected by scanning text, never by parsing Nix
 (crates/core/src/config_layout.rs): NixOS flake, NixOS with channels, Home
 Manager as a flake or standalone, or unknown. The host is the
 nixosConfigurations entry named like the machine, whatever its case.
+A flake that declares its hosts in another file, as flake-parts setups do,
+gets the machine's name, the host nixos-rebuild assumes too.
 Preferences can override the folder and the host, and check the result with
 Nix itself. NIX_APP_CENTER_CONFIG_DIR overrides the folder too; the tests use
 it so they never touch /etc/nixos.
