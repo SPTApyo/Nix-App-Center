@@ -21,7 +21,7 @@ pub enum AttachPlan {
         /// The patched content.
         patched: String,
     },
-    /// No top-level `imports` list: lines for the user to paste.
+    /// No list to patch: lines for the user to paste.
     Manual {
         site: PathBuf,
         snippet: String,
@@ -105,7 +105,8 @@ pub fn plan(layout: &Layout) -> AttachPlan {
         return AttachPlan::AlreadyAttached;
     }
 
-    match splice_imports(&src, &missing) {
+    let keys = list_keys(&site);
+    match splice_imports(&src, keys, &missing) {
         Some(patched) => AttachPlan::Patch {
             backup: backup_path(&site),
             diff: unified_diff(&site, &src, &patched),
@@ -116,7 +117,8 @@ pub fn plan(layout: &Layout) -> AttachPlan {
         None => AttachPlan::Manual {
             site,
             snippet: format!(
-                "imports = [\n{}\n];",
+                "{} = [\n{}\n];",
+                keys[0],
                 missing
                     .iter()
                     .map(|l| format!("  {l}"))
@@ -174,10 +176,20 @@ fn backup_path(site: &Path) -> PathBuf {
     site.with_file_name(name)
 }
 
-/// `src` with `lines` inserted before the `]` of its `imports` (or flake
-/// `modules`) list. `None` without one.
-fn splice_imports(src: &str, lines: &[String]) -> Option<String> {
-    let open = find_list_bracket(src, "imports").or_else(|| find_list_bracket(src, "modules"))?;
+/// The lists NixOS modules go in at `site`. In a flake.nix only `modules`:
+/// its own `imports` holds flake-parts modules.
+fn list_keys(site: &Path) -> &'static [&'static str] {
+    if site.file_name().is_some_and(|n| n == "flake.nix") {
+        &["modules"]
+    } else {
+        &["imports", "modules"]
+    }
+}
+
+/// `src` with `lines` inserted before the `]` of the first list named by
+/// `keys`. `None` without one.
+fn splice_imports(src: &str, keys: &[&str], lines: &[String]) -> Option<String> {
+    let open = keys.iter().find_map(|key| find_list_bracket(src, key))?;
     let close = matching_bracket(src, open)?;
 
     // Indent like the last entry.
@@ -336,7 +348,12 @@ mod tests {
     #[test]
     fn flake_without_configuration_nix_gets_a_modules_line() {
         let flake = "{\n  outputs = { c, ... }: {\n    nixosConfigurations.pc = c.extendModules {\n      modules = [\n        ./hardware-configuration.nix\n        ./custom.nix\n      ];\n    };\n  };\n}\n";
-        let patched = splice_imports(flake, &["./nix-app-center-system.nix".to_string()]).unwrap();
+        let patched = splice_imports(
+            flake,
+            list_keys(Path::new("flake.nix")),
+            &["./nix-app-center-system.nix".to_string()],
+        )
+        .unwrap();
         assert!(
             patched.contains("        ./custom.nix\n        ./nix-app-center-system.nix\n      ];"),
             "{patched}"
@@ -470,7 +487,52 @@ mod tests {
         let AttachPlan::Manual { snippet, .. } = &p else {
             panic!("Nix App Center must not guess where to write; got {p:?}");
         };
+        assert!(snippet.starts_with("imports = [\n"), "{snippet}");
         assert!(snippet.contains("./nix-app-center-home.nix"));
+    }
+
+    const FLAKE_PARTS: &str = "{\n  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } {\n    imports = [\n      ./modules/flake/hosts.nix\n    ];\n  };\n}\n";
+
+    fn flake_layout(dir: &Path, flake: &str) -> Layout {
+        std::fs::remove_file(dir.join("configuration.nix")).unwrap();
+        std::fs::write(dir.join("flake.nix"), flake).unwrap();
+        let mut layout = layout_for(dir);
+        for scope in [&mut layout.home, &mut layout.system].into_iter().flatten() {
+            scope.import_site = dir.join("flake.nix");
+        }
+        layout
+    }
+
+    #[test]
+    fn a_flake_parts_imports_list_is_left_alone() {
+        let dir = fixture("flake-parts");
+        let layout = flake_layout(&dir, FLAKE_PARTS);
+
+        let p = plan(&layout);
+        let AttachPlan::Manual { snippet, .. } = &p else {
+            panic!("flake-parts imports are not NixOS modules; got {p:?}");
+        };
+        assert!(snippet.starts_with("modules = [\n"), "{snippet}");
+        assert!(snippet.contains("./nix-app-center-system.nix"));
+    }
+
+    #[test]
+    fn a_flake_gets_its_modules_list_not_its_imports() {
+        let dir = fixture("flake-both");
+        let flake = FLAKE_PARTS.replace(
+            "    ];\n  };",
+            "    ];\n    flake.nixosConfigurations.pc = inputs.nixpkgs.lib.nixosSystem {\n      modules = [\n        ./pc.nix\n      ];\n    };\n  };",
+        );
+        let layout = flake_layout(&dir, &flake);
+
+        let AttachPlan::Patch { patched, .. } = plan(&layout) else {
+            panic!("expected a patch of the modules list");
+        };
+        assert!(
+            patched.contains("        ./pc.nix\n        ./nix-app-center-home.nix\n        ./nix-app-center-system.nix\n      ];"),
+            "{patched}"
+        );
+        assert!(patched.contains("      ./modules/flake/hosts.nix\n    ];"));
     }
 
     #[test]
@@ -484,7 +546,12 @@ mod tests {
     #[test]
     fn a_one_line_list_is_broken_before_its_bracket() {
         let src = "{ ... }:\n{\n  imports = [ ./hardware-configuration.nix ];\n}\n";
-        let patched = splice_imports(src, &["./nix-app-center-system.nix".to_string()]).unwrap();
+        let patched = splice_imports(
+            src,
+            &["imports"],
+            &["./nix-app-center-system.nix".to_string()],
+        )
+        .unwrap();
         assert_eq!(
             patched,
             "{ ... }:\n{\n  imports = [ ./hardware-configuration.nix\n    ./nix-app-center-system.nix\n  ];\n}\n"
@@ -496,7 +563,12 @@ mod tests {
     #[test]
     fn ignores_imports_inside_a_comment() {
         let src = "{\n  # imports = [ ./vieux.nix ];\n  imports = [\n    ./vrai.nix\n  ];\n}\n";
-        let patched = splice_imports(src, &["./nix-app-center-home.nix".to_string()]).unwrap();
+        let patched = splice_imports(
+            src,
+            &["imports"],
+            &["./nix-app-center-home.nix".to_string()],
+        )
+        .unwrap();
         assert!(patched.contains("./vrai.nix"));
         assert!(patched.contains("./nix-app-center-home.nix"));
         // The commented line stays commented, and untouched.

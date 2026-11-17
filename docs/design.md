@@ -176,7 +176,8 @@ it so they never touch /etc/nixos.
 Nix App Center writes nix-app-center-home.nix and nix-app-center-system.nix from
 its manifest, kept.json. On NixOS both are imported from the imports list of
 configuration.nix; a flake without configuration.nix gets them in the
-modules list of flake.nix. When Home Manager is a NixOS module, the home file
+modules list of flake.nix, never in its own imports list, which holds
+flake-parts modules. When Home Manager is a NixOS module, the home file
 wraps its content in home-manager.users.NAME; without Home Manager it fills
 users.users.NAME.packages. In a git repository the files are added with
 git add --intent-to-add, or a flake would not see them.
@@ -314,7 +315,8 @@ it so they never touch /etc/nixos.
 Nix App Center writes nix-app-center-home.nix and nix-app-center-system.nix from
 its manifest, kept.json. On NixOS both are imported from the imports list of
 configuration.nix; a flake without configuration.nix gets them in the
-modules list of flake.nix. When Home Manager is a NixOS module, the home file
+modules list of flake.nix, never in its own imports list, which holds
+flake-parts modules. When Home Manager is a NixOS module, the home file
 wraps its content in home-manager.users.NAME; without Home Manager it fills
 users.users.NAME.packages. In a git repository the files are added with
 git add --intent-to-add, or a flake would not see them.
