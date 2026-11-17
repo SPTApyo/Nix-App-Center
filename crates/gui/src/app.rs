@@ -174,11 +174,15 @@ impl SimpleComponent for AppModel {
         gtk::glib::timeout_add_seconds_local(2, {
             let apply = apply.clone();
             move || {
-                apply.set_visible(nix_app_center_core::apply_pending());
+                apply.set_visible(
+                    nix_app_center_core::apply_pending()
+                        && !crate::components::apply_dialog::is_running(),
+                );
                 gtk::glib::ControlFlow::Continue
             }
         });
         header.pack_end(&apply);
+        header.pack_end(&crate::components::apply_dialog::indicator());
         let prefs = gtk::gio::SimpleAction::new("preferences", None);
         prefs.connect_activate({
             let win = root.clone();
