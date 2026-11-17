@@ -21,12 +21,20 @@ fn main() {
     app.run::<AppModel>(());
 }
 
-/// Opens the app page of each `nixpkg://ATTR` link, as nixsoftware.org sends.
+/// Opens the app page of each `nixpkg://ATTR` link, as nixsoftware.org
+/// sends; an installer (.deb, .rpm, AppImage) searches its app instead,
+/// since nixpkgs or Flathub usually has it ready for NixOS.
 fn open_links(app: &gtk::Application, files: &[gtk::gio::File], _hint: &str) {
     app.activate();
     let Some(tx) = search_provider::APP_SENDER.get() else {
         return;
     };
+    if let Some(name) = files
+        .iter()
+        .find_map(|f| nix_app_center_core::installer_name(&f.basename()?.to_string_lossy()))
+    {
+        let _ = tx.send(AppMsg::Search(name));
+    }
     for pkg in files
         .iter()
         .filter_map(|f| nix_app_center_core::Package::from_uri(&f.uri()))
