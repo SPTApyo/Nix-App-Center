@@ -219,6 +219,15 @@ impl SimpleComponent for AppModel {
             }
         });
         app.add_action(&show_tab);
+        let show_task = gtk::gio::SimpleAction::new("show-task", None);
+        show_task.connect_activate({
+            let win = root.clone();
+            move |_, _| {
+                win.present();
+                crate::components::apply_dialog::show_last();
+            }
+        });
+        app.add_action(&show_task);
         for (i, tab) in ["explorer", "installed", "updates", "storage"]
             .iter()
             .enumerate()
