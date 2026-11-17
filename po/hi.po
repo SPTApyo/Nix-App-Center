@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-10-31 16:20+0100\n"
+"POT-Creation-Date: 2026-11-17 22:00+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Hindi\n"
@@ -42,15 +42,15 @@ msgid ""
 msgstr ""
 "आपके ऐप की सूची (kept.json) खराब है। इसे ठीक करें या हटाएँ, फिर दोबारा कोशिश करें।"
 
-#: crates/core/src/manifest.rs:247 crates/core/src/manifest.rs:278
+#: crates/core/src/manifest.rs:252 crates/core/src/manifest.rs:283
 msgid "This option cannot be set here."
 msgstr "यह विकल्प यहाँ सेट नहीं किया जा सकता।"
 
-#: crates/core/src/manifest.rs:407
+#: crates/core/src/manifest.rs:412
 msgid "The nixpkgs revision in use is unknown."
 msgstr "उपयोग में nixpkgs संशोधन अज्ञात है।"
 
-#: crates/core/src/manifest.rs:419
+#: crates/core/src/manifest.rs:424
 msgid "This is not a nixpkgs revision."
 msgstr "यह nixpkgs संशोधन नहीं है।"
 
@@ -370,6 +370,11 @@ msgstr "ODRS तक नहीं पहुँचा जा सकता।"
 #: crates/core/src/reviews.rs:164
 msgid "ODRS did not accept this app."
 msgstr "ODRS ने इस ऐप को स्वीकार नहीं किया।"
+
+#: crates/core/src/system_settings.rs:160
+#: crates/core/src/system_settings.rs:224
+msgid "System settings need a NixOS configuration with a flake."
+msgstr ""
 
 #: crates/gui/src/app.rs:129 crates/gui/src/app.rs:572
 #: crates/gui/src/views/preferences.rs:135

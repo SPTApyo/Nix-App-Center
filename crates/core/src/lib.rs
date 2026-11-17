@@ -36,6 +36,7 @@ mod search;
 mod session_cache;
 mod settings;
 mod storage;
+mod system_settings;
 mod tried;
 mod updates;
 mod user_profile;
@@ -56,7 +57,8 @@ pub use categories::{
 };
 pub use changes::{parse as parse_changes, Change, ChangeSet, Kind as ChangeKind};
 pub use config_attach::{
-    commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan,
+    commit as attach_commit, detach, is_attached, plan as attach_plan,
+    plan_settings as attach_settings_plan, AttachPlan,
 };
 pub use config_gen::default_home_block;
 pub use config_gen::{apply_argv, apply_config, run_reviewed, run_streaming, ApplyOutcome};
@@ -99,6 +101,8 @@ pub use reviews::{
     act_on_review, featured_review, reviews_for, submit_review, Review, ReviewAction,
 };
 pub use search::{results_meta, search, search_apps, ResultMeta, SearchResult};
+/// A setting's value, as JSON.
+pub use serde_json::Value as SettingValue;
 pub use session_cache::{
     cached_app_meta, cached_bytes_if_present, cached_fetch_bytes, forget_app_meta, known_icon_url,
     remember_icon_url,
@@ -108,6 +112,10 @@ pub use storage::{
     auto_cleanup, auto_optimise_on, clear_cache, home_usage, optimise_command, set_auto_cleanup,
     storage_report, AppOrigin, AppSize, AutoCleanup, Category, GenProfile, Generation, HomeDir,
     HomeKind, StorageReport,
+};
+pub use system_settings::{
+    load_settings as load_system_settings, update_inputs_steps,
+    write_settings as write_system_settings, Setting, SettingKind,
 };
 pub use tried::{garbage_collect, load_tried, record_tried, remove_tried, TriedEntry, TriedLog};
 pub use updates::{
