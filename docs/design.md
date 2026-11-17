@@ -106,6 +106,14 @@ initrd than /run/booted-system says a restart finishes it, and from a
 specialisation, that the default configuration of the generation starts.
 Records of generations that are gone are dropped at the next apply.
 
+Closing the progress dialog lets the task go on; a progress bar takes the
+place of the Apply button and opens the dialog again. Removing a tried app
+and cleaning up the store use the same dialog. Stop works like Ctrl+C: the
+steps run as the user (building, downloading, updating a flake) start in
+their own process group and get SIGINT. A step run as root, activating
+above all, cannot be signalled by the user and must not stop halfway: it
+ends, then nothing else runs.
+
 The CLI has the same commands (history, go-back N), and the NixOS test in
 nix/test-apply.nix runs them with a real nixos-rebuild: it keeps an app,
 applies, removes it, goes back and checks the configuration came back.
