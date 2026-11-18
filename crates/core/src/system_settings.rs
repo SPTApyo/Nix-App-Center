@@ -1,5 +1,6 @@
-//! The machine settings a NixOS flake declares under `options.my`, read in
-//! one nix eval, and the file Nix App Center writes the changed ones to.
+//! The machine settings a NixOS configuration declares itself (options of
+//! its own files, whatever their name), read in one eval, and the file Nix
+//! App Center writes the changed ones to.
 
 use crate::config_layout::{detect, local_overrides, Layout, LayoutKind};
 use serde::Deserialize;
@@ -10,12 +11,18 @@ use std::path::PathBuf;
 /// The generated file holding the settings changed in Nix App Center.
 pub(crate) const SETTINGS_FILE: &str = "nix-app-center-settings.nix";
 
-/// Applied to the host: every visible, writable `my.*` option, with its
-/// kind, value, default, enum values and who defines it. Submodule options
-/// are split into their own fields, three levels deep.
-const EVAL: &str = r#"c:
+/// Applied to the roots of the user's own files, then to the host: every
+/// visible, writable option declared only there, with its kind, value,
+/// default, enum values and who defines it. Without roots (no flake), own
+/// files are those outside /nix. Submodule options are split into their
+/// own fields, three levels deep.
+const EVAL: &str = r#"roots: c:
 let
   lib = c.pkgs.lib;
+  under = r: f: lib.hasPrefix "${r}/" "${f}/";
+  ownFile = d: let f = toString d; in
+    if roots == null then !(lib.hasPrefix "/nix/" f) else lib.any (r: under r f) roots;
+  declared = o: (o.declarations or [ ]) != [ ] && lib.all ownFile o.declarations;
   own = "nix-app-center-settings.nix";
   try = v: let r = builtins.tryEval (builtins.deepSeq v v); in if r.success then r.value else null;
   shallow = v: let r = builtins.tryEval v; in if r.success then r.value else null;
@@ -70,7 +77,7 @@ let
     in
     entry 0 elsewhere priority o (shallow o.value) (if mine == null then null else mine.value);
 in
-lib.concatMap top (lib.filter shown (lib.collect lib.isOption (c.options.my or { })))
+lib.concatMap top (lib.filter (o: shown o && declared o) (lib.collect lib.isOption c.options))
 "#;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -161,10 +168,10 @@ fn plain_name(name: &str) -> bool {
     })
 }
 
-/// The settings file of a NixOS flake layout.
+/// The settings file of a NixOS layout, next to the system file.
 pub(crate) fn settings_file(layout: &Layout) -> Option<PathBuf> {
     match layout.kind {
-        LayoutKind::NixosFlake { .. } => layout
+        LayoutKind::NixosFlake { .. } | LayoutKind::NixosLegacy { .. } => layout
             .system
             .as_ref()
             .map(|s| s.nix_app_center_file.with_file_name(SETTINGS_FILE)),
@@ -172,24 +179,37 @@ pub(crate) fn settings_file(layout: &Layout) -> Option<PathBuf> {
     }
 }
 
-/// The `my.*` settings of the configuration. Blocking, several seconds.
+/// The settings the configuration declares itself. Blocking, seconds.
 ///
 /// # Errors
 /// Nix's message, as printed.
 pub fn load_settings() -> Result<Vec<Setting>, String> {
     let layout = detect();
-    let LayoutKind::NixosFlake { dir, host } = &layout.kind else {
-        return Err(
-            crate::util::n_("System settings need a NixOS configuration with a flake.").into(),
-        );
-    };
-    let out = crate::util::nix()
-        .args(["eval", "--json"])
-        .arg(format!("{}#nixosConfigurations.\"{host}\"", dir.display()))
-        .args(["--apply", EVAL])
-        .args(local_overrides(dir))
-        .output()
-        .map_err(|e| e.to_string())?;
+    let out = match &layout.kind {
+        LayoutKind::NixosFlake { dir, host } => {
+            let roots = flake_roots(dir)?;
+            crate::util::nix()
+                .args(["eval", "--json"])
+                .arg(format!("{}#nixosConfigurations.\"{host}\"", dir.display()))
+                .args(["--apply", &format!("({EVAL}) {}", nix_list(&roots))])
+                .args(local_overrides(dir))
+                .output()
+        }
+        LayoutKind::NixosLegacy { dir } => {
+            let config = dir.join("configuration.nix").display().to_string();
+            let config = nix_value(&Value::String(config)).unwrap_or_default();
+            std::process::Command::new("nix-instantiate")
+                .args(["--eval", "--strict", "--json", "--expr"])
+                .arg(format!(
+                    "({EVAL}) null (import <nixpkgs/nixos> {{ configuration = /. + {config}; }})"
+                ))
+                .output()
+        }
+        _ => {
+            return Err(crate::util::n_("System settings need a NixOS configuration.").into());
+        }
+    }
+    .map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(nix_error(&out.stderr));
     }
@@ -218,6 +238,47 @@ fn replaced_files(file: &str) -> BTreeMap<String, Vec<String>> {
             ))
         })
         .collect()
+}
+
+/// The store paths of the flake in `dir` and of its local inputs: the
+/// files the user writes. Fetches nothing the eval would not.
+fn flake_roots(dir: &std::path::Path) -> Result<Vec<String>, String> {
+    let overrides = local_overrides(dir);
+    let out = crate::util::nix()
+        .args(["flake", "archive", "--json", "--dry-run"])
+        .arg(dir)
+        .args(&overrides)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(nix_error(&out.stderr));
+    }
+    let tree: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
+    let local: Vec<&str> = overrides
+        .chunks(3)
+        .filter_map(|c| c.get(1))
+        .map(String::as_str)
+        .collect();
+    Ok(roots_of(&tree, &local))
+}
+
+/// The paths of `tree` (`nix flake archive --json`) and of its inputs
+/// named in `local`.
+fn roots_of(tree: &Value, local: &[&str]) -> Vec<String> {
+    std::iter::once(&tree["path"])
+        .chain(local.iter().map(|name| &tree["inputs"][*name]["path"]))
+        .filter_map(Value::as_str)
+        .map(String::from)
+        .collect()
+}
+
+/// `items` as a Nix list of strings.
+fn nix_list(items: &[String]) -> String {
+    let items: Vec<String> = items
+        .iter()
+        .filter_map(|s| nix_value(&Value::String(s.clone())))
+        .collect();
+    format!("[ {} ]", items.join(" "))
 }
 
 /// Nix's last error, whole: it spans several lines.
@@ -281,7 +342,7 @@ pub fn write_settings(
     let layout = detect();
     let (Some(path), Some(system)) = (settings_file(&layout), layout.system.as_ref()) else {
         return Err(std::io::Error::other(crate::util::n_(
-            "System settings need a NixOS configuration with a flake.",
+            "System settings need a NixOS configuration.",
         )));
     };
     let kept = crate::manifest::load_manifest().kept;
@@ -385,6 +446,25 @@ mod tests {
         .unwrap();
         assert!(plain.editable(), "a plain definition is replaced");
         assert_eq!(plain.overridden(), ["custom.nix"]);
+    }
+
+    #[test]
+    fn roots_are_the_flake_and_its_local_inputs() {
+        let tree = json!({
+            "path": "/nix/store/a-source",
+            "inputs": {
+                "mine": { "path": "/nix/store/b-source", "inputs": {} },
+                "nixpkgs": { "path": "/nix/store/c-source", "inputs": {} }
+            }
+        });
+        assert_eq!(
+            roots_of(&tree, &["mine", "gone"]),
+            ["/nix/store/a-source", "/nix/store/b-source"]
+        );
+        assert_eq!(
+            nix_list(&["/x".into(), "a\"${b}".into()]),
+            "[ \"/x\" \"a\\\"\\${b}\" ]"
+        );
     }
 
     #[test]

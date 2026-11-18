@@ -423,11 +423,18 @@ review off.
 
 ## System settings
 
-The main menu opens System Settings: the options a NixOS flake declares under
-my (options.my), read with one nix eval each time the page opens, so a new
-option shows without a change to Nix App Center. Booleans, enums, strings,
-numbers and lists of strings can be edited; other types are shown read-only.
-The sidebar has one entry per option group (my.boot, my.desktop…); each row
+The main menu opens System Settings: the options the NixOS configuration
+declares itself, whatever their name (my.*, custom.*…), read with one eval
+each time the page opens, so a new option shows without a change to Nix App
+Center. An option is the user's when every file declaring it belongs to the
+configuration: with a flake, under the store path of the flake or of an input
+overridden from a local folder (nix flake archive --json gives them); without
+a flake, outside /nix, since nixpkgs and channels live there. A module of
+another flake imported as an attribute set counts as the file importing it:
+the module system gives no other location. Booleans, enums, strings, numbers
+and lists of strings can be edited; other types are shown read-only. The
+sidebar has one entry per group of the namespace most options share (my.boot,
+my.desktop…), and one per other namespace (programs…); each row
 is titled by the first paragraph of the option's description, and enums of up
 to six values show as buttons. Changes wait in a bar at the bottom until
 Apply and Rebuild.

@@ -33,7 +33,7 @@ Where everything lives, and which file to open first for a given change.
 | Details page | crates/gui/src/views/detail.rs, crates/gui/src/components/details/ |
 | Reviews and ratings | crates/core/src/reviews.rs, crates/core/src/ratings.rs |
 | NixOS and Home Manager options, flake modules | crates/core/src/options.rs, crates/gui/src/components/option_dialog.rs |
-| System Settings (options.my) | crates/core/src/system_settings.rs, crates/gui/src/views/system_settings.rs |
+| System Settings (options the configuration declares) | crates/core/src/system_settings.rs, crates/gui/src/views/system_settings.rs |
 | App shell, tabs, About | crates/gui/src/app.rs |
 | Styles and animations | crates/gui/data/style.css |
 | Nix package, NixOS module | nix/package.nix, nix/module.nix, nix/test.nix, default.nix |

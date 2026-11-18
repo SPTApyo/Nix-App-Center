@@ -68,8 +68,9 @@ impl Page {
             pending.len() as i64,
         ));
         self.bar_detail.set_text(&titles.join(" · "));
+        let root = root_of(&settings);
         for (section, dot) in self.dots.borrow().iter() {
-            dot.set_visible(pending.iter().any(|n| section_of(n) == *section));
+            dot.set_visible(pending.iter().any(|n| section_of(n, &root) == *section));
         }
     }
 }
@@ -198,12 +199,31 @@ fn show_error(page: &Page, error: &str) {
     page.overlay.set_child(Some(&status));
 }
 
-/// `boot` for `my.boot.loader`; empty for `my.desktop`.
-fn section_of(name: &str) -> String {
+/// The namespace most settings share, such as `my`.
+fn root_of(settings: &[Setting]) -> String {
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for s in settings {
+        *counts
+            .entry(s.name.split('.').next().unwrap_or(""))
+            .or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .max_by_key(|(_, n)| *n)
+        .map(|(r, _)| r.to_string())
+        .unwrap_or_default()
+}
+
+/// Under `root` (`my`): `boot` for `my.boot.loader`, empty for
+/// `my.desktop`. Elsewhere its namespace: `programs` for
+/// `programs.niri.enable`.
+fn section_of(name: &str, root: &str) -> String {
     let parts: Vec<&str> = name.split('.').collect();
     match parts.as_slice() {
-        [_, section, _, ..] => section.to_string(),
-        _ => String::new(),
+        [first, section, _, ..] if *first == root => section.to_string(),
+        [first, _] if *first == root => String::new(),
+        [first, ..] => first.to_string(),
+        [] => String::new(),
     }
 }
 
@@ -332,15 +352,18 @@ fn show(page: &Page, settings: &[Setting]) {
         let empty = adw::StatusPage::builder()
             .icon_name("preferences-system-symbolic")
             .title(t("No System Settings"))
-            .description(t("Your configuration declares no options under “my”."))
+            .description(t(
+                "Your configuration declares no options of its own. Declare one in your files (options.<name> = lib.mkOption …) and it shows here.",
+            ))
             .build();
         page.overlay.set_child(Some(&empty));
         page.refresh();
         return;
     }
     let mut sections: Vec<(String, Vec<&Setting>)> = Vec::new();
+    let root = root_of(settings);
     for setting in settings {
-        let key = section_of(&setting.name);
+        let key = section_of(&setting.name, &root);
         match sections.iter_mut().find(|(k, _)| *k == key) {
             Some((_, list)) => list.push(setting),
             None => sections.push((key, vec![setting])),
@@ -365,13 +388,19 @@ fn show(page: &Page, settings: &[Setting]) {
             suffix: Some(dot.upcast()),
         });
     }
-    let footer = match nix_app_center_core::detect_layout().kind {
-        LayoutKind::NixosFlake { dir, host } => Some(sidebar::footer(
-            &t("Read from {source}. Changes go to nix-app-center-settings.nix.")
-                .replace("{source}", &format!("{}#{host}", dir.display())),
-        )),
+    let source = match nix_app_center_core::detect_layout().kind {
+        LayoutKind::NixosFlake { dir, host } => Some(format!("{}#{host}", dir.display())),
+        LayoutKind::NixosLegacy { dir } => {
+            Some(dir.join("configuration.nix").display().to_string())
+        }
         _ => None,
     };
+    let footer = source.map(|source| {
+        sidebar::footer(
+            &t("Read from {source}. Changes go to nix-app-center-settings.nix.")
+                .replace("{source}", &source),
+        )
+    });
     let body = sidebar::body(entries, footer);
     page.overlay.set_child(Some(&body));
     page.refresh();
@@ -931,8 +960,10 @@ mod tests {
         assert_eq!(humanize("wakeOnLan"), "Wake on LAN");
         assert_eq!(humanize("ai"), "AI");
         assert_eq!(humanize("efiMountPoint"), "EFI mount point");
-        assert_eq!(section_of("my.boot.loader"), "boot");
-        assert_eq!(section_of("my.desktop"), "");
+        assert_eq!(section_of("my.boot.loader", "my"), "boot");
+        assert_eq!(section_of("my.desktop", "my"), "");
+        assert_eq!(section_of("programs.niri.enable", "my"), "programs");
+        assert_eq!(section_of("custom.gaming.enable", "custom"), "gaming");
     }
 
     #[test]
