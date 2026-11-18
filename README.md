@@ -44,6 +44,7 @@
 - **Versions**: hold an app at any version nixpkgs shipped, or take a newer one from unstable.
 - **Search**: packages of nixpkgs and of other flakes, NixOS and Home Manager options you can set, search by command, and results in the GNOME Shell overview.
 - **Rich pages**: Flathub metadata (screenshots, ratings, age ratings) when the app exists there, else [nixsoftware.org](https://nixsoftware.org)'s, reviews, similar apps, build options.
+- **System settings**: the options your NixOS configuration declares (my.*, custom.*…) as a settings page. Changes go to a file of Nix App Center's own, and replace what your files set without editing them.
 - **Updates and Storage**: what a nixpkgs update changes for your apps, and where the store space goes, with clean-ups.
 - **Interface in English, French, Spanish, Portuguese (Brazil), Chinese (Simplified), Hindi and Arabic.** Only French is reviewed by a native speaker so far: corrections are welcome.
 

@@ -339,9 +339,14 @@ fn home_body(kept: &[KeptEntry], packages: &str) -> String {
     out
 }
 
-/// System scope body: app regions, then the apps for every user.
-fn system_body(kept: &[KeptEntry]) -> String {
-    let mut out = imports_list(&regions(kept, |e| e.system_nix.as_ref()));
+/// System scope body: the settings file when `settings`, app regions, then
+/// the apps for every user.
+fn system_body(kept: &[KeptEntry], settings: bool) -> String {
+    let mut imports = regions(kept, |e| e.system_nix.as_ref());
+    if settings {
+        imports.insert(0, format!("./{}", crate::system_settings::SETTINGS_FILE));
+    }
+    let mut out = imports_list(&imports);
     if kept.iter().any(|e| e.system_wide) {
         if !out.is_empty() {
             out.push('\n');
@@ -417,8 +422,10 @@ pub(crate) fn render_home(kept: &[KeptEntry], shape: &HomeShape) -> String {
 }
 
 /// `nix-app-center-system.nix`, written even when empty since it is imported.
-pub(crate) fn render_system(kept: &[KeptEntry]) -> String {
-    let mut body = system_body(kept);
+/// It imports the system settings file when `settings`, so that file needs
+/// no line of its own in the user's files.
+pub(crate) fn render_system(kept: &[KeptEntry], settings: bool) -> String {
+    let mut body = system_body(kept, settings);
     let modules: Vec<&KeptEntry> = overlaid(kept, |e| e.system_nix.as_ref()).collect();
     let overlay = overlay(modules.clone());
     if !overlay.is_empty() {
@@ -454,9 +461,10 @@ pub(crate) fn sync_to(layout: &Layout, kept: &[KeptEntry]) -> std::io::Result<()
         ));
     }
     if let Some(system) = &layout.system {
+        let settings = crate::system_settings::settings_file(layout).is_some_and(|f| f.exists());
         files.push((
             system.nix_app_center_file.clone(),
-            render_system(kept).into_bytes(),
+            render_system(kept, settings).into_bytes(),
         ));
     }
     // Skip unchanged files: no needless password prompt.
@@ -1161,7 +1169,7 @@ mod tests {
             allow_unfree: true,
             ..promue("steam", Some(""), Some("programs.steam.enable = true;"))
         };
-        let system = render_system(std::slice::from_ref(&steam));
+        let system = render_system(std::slice::from_ref(&steam), false);
         assert!(
             system.contains("nixpkgs-unfree = import pkgs.path {"),
             "{system}"
@@ -1249,7 +1257,7 @@ mod tests {
         let mut vlc = pinned("vlc", &"0123456789abcdef".repeat(3)[..40]);
         vlc.system_wide = true;
         let kept = [simple("firefox"), vlc];
-        let system = render_system(&kept);
+        let system = render_system(&kept, false);
         assert!(
             system.contains("environment.systemPackages = with pkgs; ["),
             "{system}"
@@ -1271,7 +1279,7 @@ mod tests {
         let home = render_home(&kept, &HomeShape::HomeManager);
         assert!(!home.contains("steam"), "the module installs it: {home}");
         assert!(home.contains("firefox"));
-        let system = render_system(&kept);
+        let system = render_system(&kept, false);
         assert!(system.contains("# nix-app-center:begin steam"));
         assert!(system.contains("programs.steam.enable = true;"));
     }
@@ -1357,7 +1365,7 @@ mod tests {
                 Some("networking.firewall.allowedTCPPorts = [ 8080 ];"),
             ),
         ];
-        let out = render_system(&kept);
+        let out = render_system(&kept, false);
         assert!(out.contains("# nix-app-center:begin quickshare"));
         assert!(out.contains("networking.firewall.allowedTCPPorts = [ 8080 ];"));
         assert!(
@@ -1367,8 +1375,23 @@ mod tests {
     }
 
     #[test]
+    fn the_system_file_imports_the_settings_file_in_its_one_list() {
+        assert!(!render_system(&[], false).contains("settings"));
+        let promoted = KeptEntry {
+            system_nix: Some("services.x.enable = true;".into()),
+            ..KeptEntry::simple(Package::from_attr("x"))
+        };
+        let out = render_system(&[promoted], true);
+        assert_eq!(out.matches("imports = [").count(), 1, "{out}");
+        assert!(
+            out.contains("imports = [\n    ./nix-app-center-settings.nix\n"),
+            "{out}"
+        );
+    }
+
+    #[test]
     fn empty_files_are_still_valid_nix() {
-        assert!(render_system(&[]).contains("{ pkgs, lib, config, ... }:"));
+        assert!(render_system(&[], false).contains("{ pkgs, lib, config, ... }:"));
         let gaming = KeptEntry {
             system_wide: true,
             ..KeptEntry::simple(Package {
@@ -1376,7 +1399,7 @@ mod tests {
                 ..Package::from_attr("star-citizen")
             })
         };
-        let out = render_system(&[gaming]);
+        let out = render_system(&[gaming], false);
         assert!(out.contains("inputs ? { }"));
         assert!(out.contains(
             "inputs.nix-gaming.packages.${pkgs.stdenv.hostPlatform.system}.star-citizen"
@@ -1388,7 +1411,7 @@ mod tests {
                 ..Package::from_attr("a; }; system.activationScripts.x = \"rm\"; {")
             })
         };
-        assert!(!render_system(&[evil]).contains("activationScripts"));
+        assert!(!render_system(&[evil], false).contains("activationScripts"));
         let extra = KeptEntry {
             system_wide: true,
             ..KeptEntry::simple(Package {
@@ -1396,7 +1419,7 @@ mod tests {
                 ..Package::from_attr("osu-lazer-bin")
             })
         };
-        let out = render_system(&[extra]);
+        let out = render_system(&[extra], false);
         assert!(out.contains("(builtins.getFlake \"github:fufexan/nix-gaming/aaaa"));
         assert!(!out.contains("inputs ? { }"));
         assert!(

@@ -68,8 +68,9 @@ impl Page {
             pending.len() as i64,
         ));
         self.bar_detail.set_text(&titles.join(" · "));
+        let root = root_of(&settings);
         for (section, dot) in self.dots.borrow().iter() {
-            dot.set_visible(pending.iter().any(|n| section_of(n) == *section));
+            dot.set_visible(pending.iter().any(|n| section_of(n, &root) == *section));
         }
     }
 }
@@ -198,12 +199,31 @@ fn show_error(page: &Page, error: &str) {
     page.overlay.set_child(Some(&status));
 }
 
-/// `boot` for `my.boot.loader`; empty for `my.desktop`.
-fn section_of(name: &str) -> String {
+/// The namespace most settings share, such as `my`.
+fn root_of(settings: &[Setting]) -> String {
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for s in settings {
+        *counts
+            .entry(s.name.split('.').next().unwrap_or(""))
+            .or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .max_by_key(|(_, n)| *n)
+        .map(|(r, _)| r.to_string())
+        .unwrap_or_default()
+}
+
+/// Under `root` (`my`): `boot` for `my.boot.loader`, empty for
+/// `my.desktop`. Elsewhere its namespace: `programs` for
+/// `programs.niri.enable`.
+fn section_of(name: &str, root: &str) -> String {
     let parts: Vec<&str> = name.split('.').collect();
     match parts.as_slice() {
-        [_, section, _, ..] => section.to_string(),
-        _ => String::new(),
+        [first, section, _, ..] if *first == root => section.to_string(),
+        [first, _] if *first == root => String::new(),
+        [first, ..] => first.to_string(),
+        [] => String::new(),
     }
 }
 
@@ -304,11 +324,13 @@ fn subtitle(setting: &Setting, body: &str, changed: bool) -> String {
         lines.push(esc(body));
     }
     if changed {
-        let default = setting.default.as_deref().unwrap_or("–");
-        lines.push(format!(
-            "<b>{}</b>",
-            esc(&t("Set here · default: {}").replace("{}", default))
-        ));
+        let note = if setting.overridden().is_empty() {
+            let default = setting.default.as_deref().unwrap_or("–");
+            t("Set here · default: {}").replace("{}", default)
+        } else {
+            t("Set here · replaces {}").replace("{}", &setting.overridden().join(", "))
+        };
+        lines.push(format!("<b>{}</b>", esc(&note)));
     }
     lines.push(format!(
         "<span font_family=\"monospace\" size=\"small\">{}</span>",
@@ -330,15 +352,18 @@ fn show(page: &Page, settings: &[Setting]) {
         let empty = adw::StatusPage::builder()
             .icon_name("preferences-system-symbolic")
             .title(t("No System Settings"))
-            .description(t("Your configuration declares no options under “my”."))
+            .description(t(
+                "Your configuration declares no options of its own. Declare one in your files (options.<name> = lib.mkOption …) and it shows here.",
+            ))
             .build();
         page.overlay.set_child(Some(&empty));
         page.refresh();
         return;
     }
     let mut sections: Vec<(String, Vec<&Setting>)> = Vec::new();
+    let root = root_of(settings);
     for setting in settings {
-        let key = section_of(&setting.name);
+        let key = section_of(&setting.name, &root);
         match sections.iter_mut().find(|(k, _)| *k == key) {
             Some((_, list)) => list.push(setting),
             None => sections.push((key, vec![setting])),
@@ -363,13 +388,19 @@ fn show(page: &Page, settings: &[Setting]) {
             suffix: Some(dot.upcast()),
         });
     }
-    let footer = match nix_app_center_core::detect_layout().kind {
-        LayoutKind::NixosFlake { dir, host } => Some(sidebar::footer(
-            &t("Read from {source}. Changes go to nix-app-center-settings.nix.")
-                .replace("{source}", &format!("{}#{host}", dir.display())),
-        )),
+    let source = match nix_app_center_core::detect_layout().kind {
+        LayoutKind::NixosFlake { dir, host } => Some(format!("{}#{host}", dir.display())),
+        LayoutKind::NixosLegacy { dir } => {
+            Some(dir.join("configuration.nix").display().to_string())
+        }
         _ => None,
     };
+    let footer = source.map(|source| {
+        sidebar::footer(
+            &t("Read from {source}. Changes go to nix-app-center-settings.nix.")
+                .replace("{source}", &source),
+        )
+    });
     let body = sidebar::body(entries, footer);
     page.overlay.set_child(Some(&body));
     page.refresh();
@@ -381,7 +412,7 @@ fn section_page(page: &Page, key: &str, settings: &[&Setting]) -> adw::Preferenc
     let elsewhere: Vec<&Setting> = settings
         .iter()
         .copied()
-        .filter(|s| !s.elsewhere.is_empty())
+        .filter(|s| !s.overridden().is_empty())
         .collect();
     let mut summary = crate::util::plural("{} setting", "{} settings", settings.len() as i64);
     if !elsewhere.is_empty() {
@@ -395,7 +426,7 @@ fn section_page(page: &Page, key: &str, settings: &[&Setting]) -> adw::Preferenc
     prefs.add(&sidebar::header(&section_title(key), &summary));
 
     let mut main: Option<adw::PreferencesGroup> = None;
-    for setting in settings.iter().filter(|s| s.elsewhere.is_empty()) {
+    for setting in settings.iter().filter(|s| s.overridden().is_empty()) {
         if setting.kind == SettingKind::Enum
             && setting.values.len() <= CHOICE_BUTTONS
             && setting.editable()
@@ -414,18 +445,22 @@ fn section_page(page: &Page, key: &str, settings: &[&Setting]) -> adw::Preferenc
     if !elsewhere.is_empty() {
         let mut files: Vec<&str> = elsewhere
             .iter()
-            .flat_map(|s| s.elsewhere.iter().map(String::as_str))
+            .flat_map(|s| s.overridden().iter().map(String::as_str))
             .collect();
         files.sort_unstable();
         files.dedup();
         let group = adw::PreferencesGroup::builder()
             .title(esc(&t("Set in {}").replace("{}", &files.join(", "))))
             .description(esc(&t(
-                "These values come from your own files. Changing them here would conflict at rebuild: edit them there.",
+                "Your own files set these. A value changed here replaces theirs, and your files stay as they are. Locked ones are forced there: edit them in the file.",
             )))
             .build();
         for setting in elsewhere {
-            group.add(&locked_row(setting));
+            if setting.editable() {
+                group.add(&row(page, setting));
+            } else {
+                group.add(&locked_row(setting));
+            }
         }
         prefs.add(&group);
     }
@@ -456,14 +491,24 @@ fn locked_row(setting: &Setting) -> gtk::Widget {
         .title(esc(&title))
         .subtitle(subtitle(setting, &body, false))
         .build();
+    row.add_suffix(&file_chip(&setting.elsewhere, true));
+    row.add_suffix(&value_label(setting));
+    row.upcast()
+}
+
+/// The files setting a value too; a lock when they force it.
+fn file_chip(files: &[String], locked: bool) -> gtk::Box {
     let chip = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     chip.add_css_class("lock-chip");
     chip.set_valign(gtk::Align::Center);
-    chip.append(&gtk::Image::from_icon_name("changes-prevent-symbolic"));
-    chip.append(&gtk::Label::new(Some(&setting.elsewhere.join(", "))));
-    row.add_suffix(&chip);
-    row.add_suffix(&value_label(setting));
-    row.upcast()
+    let icon = if locked {
+        "changes-prevent-symbolic"
+    } else {
+        "document-edit-symbolic"
+    };
+    chip.append(&gtk::Image::from_icon_name(icon));
+    chip.append(&gtk::Label::new(Some(&files.join(", "))));
+    chip
 }
 
 fn value_label(setting: &Setting) -> gtk::Label {
@@ -528,7 +573,17 @@ fn row(page: &Page, setting: &Setting) -> gtk::Widget {
     let (reset, set) = setter(page, setting, slot.clone());
     let (row, show_value) = editor(setting, &value, &set);
     *slot.borrow_mut() = Some(row.clone());
-    let default = default_value(setting);
+    // Reset gives the other file's value back, when known.
+    let default = if setting.overridden().is_empty() {
+        default_value(setting)
+    } else if !setting.elsewhere.is_empty() {
+        setting.value.clone()
+    } else {
+        None
+    };
+    if !setting.overridden().is_empty() {
+        row.add_suffix(&file_chip(setting.overridden(), false));
+    }
     reset.connect_clicked(move |_| {
         if let Some(d) = &default {
             show_value(d);
@@ -838,10 +893,18 @@ fn strings(value: &SettingValue) -> Vec<String> {
 fn save_and_apply(page: &Page) {
     page.bar.set_sensitive(false);
     let snapshot = page.values.borrow().clone();
+    let replaces: BTreeMap<String, Vec<String>> = page
+        .settings
+        .borrow()
+        .iter()
+        .filter(|s| snapshot.contains_key(&s.name) && !s.overridden().is_empty())
+        .map(|s| (s.name.clone(), s.overridden().to_vec()))
+        .collect();
     let page = page.clone();
     gtk::glib::spawn_future_local(async move {
         let res = gtk::gio::spawn_blocking(move || {
-            nix_app_center_core::write_system_settings(&snapshot).map_err(|e| e.to_string())
+            nix_app_center_core::write_system_settings(&snapshot, &replaces)
+                .map_err(|e| e.to_string())
         })
         .await
         .unwrap_or_else(|_| Err(String::new()));
@@ -853,7 +916,7 @@ fn save_and_apply(page: &Page) {
         *page.saved.borrow_mut() = page.values.borrow().clone();
         page.refresh();
         let layout = nix_app_center_core::detect_layout();
-        match nix_app_center_core::attach_settings_plan(&layout) {
+        match nix_app_center_core::attach_plan(&layout) {
             nix_app_center_core::AttachPlan::AlreadyAttached => run_apply(&page),
             plan => {
                 let p = page.clone();
@@ -897,8 +960,10 @@ mod tests {
         assert_eq!(humanize("wakeOnLan"), "Wake on LAN");
         assert_eq!(humanize("ai"), "AI");
         assert_eq!(humanize("efiMountPoint"), "EFI mount point");
-        assert_eq!(section_of("my.boot.loader"), "boot");
-        assert_eq!(section_of("my.desktop"), "");
+        assert_eq!(section_of("my.boot.loader", "my"), "boot");
+        assert_eq!(section_of("my.desktop", "my"), "");
+        assert_eq!(section_of("programs.niri.enable", "my"), "programs");
+        assert_eq!(section_of("custom.gaming.enable", "custom"), "gaming");
     }
 
     #[test]
@@ -913,6 +978,8 @@ mod tests {
             own: None,
             elsewhere: Vec::new(),
             nullable: false,
+            priority: 1500,
+            replaces: Vec::new(),
         };
         let s = setting(
             "my.boot.osProber",
