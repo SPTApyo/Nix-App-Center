@@ -79,16 +79,6 @@ pub fn plan(layout: &Layout) -> AttachPlan {
     plan_for(layout, &required_imports(layout))
 }
 
-/// The attach plan of the system settings file. Writes nothing.
-pub fn plan_settings(layout: &Layout) -> AttachPlan {
-    let needed: Vec<(PathBuf, String)> = crate::system_settings::settings_file(layout)
-        .zip(layout.system.as_ref())
-        .map(|(file, system)| (system.import_site.clone(), import_line(&file)))
-        .into_iter()
-        .collect();
-    plan_for(layout, &needed)
-}
-
 /// The plan adding the lines of `needed` missing from its first file.
 fn plan_for(layout: &Layout, needed: &[(PathBuf, String)]) -> AttachPlan {
     if !layout.is_usable() {
@@ -455,20 +445,6 @@ mod tests {
         let backup =
             std::fs::read_to_string(dir.join("configuration.nix.nix-app-center-bak")).unwrap();
         assert_eq!(backup, CONFIG, "the backup must come before the change");
-    }
-
-    #[test]
-    fn the_settings_file_attaches_on_its_own() {
-        let dir = fixture("settings");
-        let layout = layout_for(&dir);
-        let AttachPlan::Patch { added, .. } = plan_settings(&layout) else {
-            panic!("expected a patch");
-        };
-        assert_eq!(added, ["./nix-app-center-settings.nix"]);
-        commit(&plan(&layout)).unwrap();
-        assert!(matches!(plan_settings(&layout), AttachPlan::Patch { .. }));
-        commit(&plan_settings(&layout)).unwrap();
-        assert_eq!(plan_settings(&layout), AttachPlan::AlreadyAttached);
     }
 
     #[test]

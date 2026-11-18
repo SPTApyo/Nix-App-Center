@@ -433,10 +433,20 @@ to six values show as buttons. Changes wait in a bar at the bottom until
 Apply and Rebuild.
 
 Only the settings changed in the page go to nix-app-center-settings.nix, next
-to the other generated files, as plain assignments. A setting another file
-defines at the same priority (custom.nix, the host) is greyed out with the
-file's name: setting it again would only fail the build with conflicting
-definition values. When the eval fails, for example on an option the locked
+to the other generated files. nix-app-center-system.nix imports it, so it
+needs no line in the user's files: once Nix App Center is attached, saving
+settings never asks to edit them again.
+
+A setting another file defines with a plain assignment (custom.nix, the host)
+can still be changed: the page writes it with lib.mkForce and a "# replaces
+custom.nix" comment, and the user's file stays as it is. The comment is how
+the page knows what it replaces later, since the module system drops the
+definitions a forced one beats. Reset removes the line and the file's value
+comes back. A setting the file already forces (lib.mkForce or a lower
+priority) stays greyed out with the file's name: forcing it twice would fail
+the build. Editing the user's file in place was ruled out: it is hand
+written, and rewriting it safely needs the position of each definition,
+which the module system does not give. When the eval fails, for example on an option the locked
 input does not have yet, the page shows Nix's error and offers to update the
 inputs.
 

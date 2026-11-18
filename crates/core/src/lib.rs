@@ -59,8 +59,7 @@ pub use categories::{
 };
 pub use changes::{parse as parse_changes, Change, ChangeSet, Kind as ChangeKind};
 pub use config_attach::{
-    commit as attach_commit, detach, is_attached, plan as attach_plan,
-    plan_settings as attach_settings_plan, AttachPlan,
+    commit as attach_commit, detach, is_attached, plan as attach_plan, AttachPlan,
 };
 pub use config_gen::default_home_block;
 pub use config_gen::{

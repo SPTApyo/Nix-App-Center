@@ -37,7 +37,7 @@ pub fn present(
                apps have no real effect.\n\n\
                To fix this, Nix App Center needs to add the lines below to\n{site}\n\
                A backup will be written to\n{backup}\n\n\
-               This is the only change Nix App Center will ever make to your files.",
+               It is only needed once.",
             )
             .replace("{site}", &site.display().to_string())
             .replace("{backup}", &backup.display().to_string()),
