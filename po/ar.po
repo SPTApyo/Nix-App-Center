@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nix-app-center 0.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/SPTApyo/nix-app-center/issues\n"
-"POT-Creation-Date: 2026-11-17 22:01+0100\n"
+"POT-Creation-Date: 2026-11-18 01:12+0100\n"
 "PO-Revision-Date: 2026-10-14 19:30+0200\n"
 "Last-Translator: SPTApyo\n"
 "Language-Team: Arabic\n"
@@ -16,19 +16,19 @@ msgstr ""
 "Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
 "&& n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
 
-#: crates/core/src/config_gen.rs:613
+#: crates/core/src/config_gen.rs:621
 msgid "The build gave an unexpected result."
 msgstr "أعطى البناء نتيجة غير متوقعة."
 
-#: crates/core/src/config_gen.rs:701
+#: crates/core/src/config_gen.rs:709
 msgid "Building as administrator: the changes cannot be shown first."
 msgstr "البناء بصلاحيات المسؤول: لا يمكن عرض التغييرات مسبقًا."
 
-#: crates/core/src/config_gen.rs:880 crates/core/src/paths.rs:67
+#: crates/core/src/config_gen.rs:888 crates/core/src/paths.rs:67
 msgid "Authentication was cancelled."
 msgstr "أُلغيت المصادقة."
 
-#: crates/core/src/config_gen.rs:883 crates/core/src/paths.rs:71
+#: crates/core/src/config_gen.rs:891 crates/core/src/paths.rs:71
 msgid "Administrator rights were refused."
 msgstr "رُفضت صلاحيات المدير."
 
@@ -373,8 +373,8 @@ msgstr "لا يمكن الوصول إلى ODRS."
 msgid "ODRS did not accept this app."
 msgstr "لم يقبل ODRS هذا التطبيق."
 
-#: crates/core/src/system_settings.rs:160
-#: crates/core/src/system_settings.rs:224
+#: crates/core/src/system_settings.rs:183
+#: crates/core/src/system_settings.rs:284
 msgid "System settings need a NixOS configuration with a flake."
 msgstr ""
 
@@ -960,7 +960,7 @@ msgid ""
 "A backup will be written to\n"
 "{backup}\n"
 "\n"
-"This is the only change Nix App Center will ever make to your files."
+"It is only needed once."
 msgstr ""
 "كتب Nix App Center ملفاته الخاصة، لكن لا شيء يستوردها بعد، لذا لا أثر فعليًا "
 "للتطبيقات التي احتفظت بها.\n"
@@ -970,7 +970,7 @@ msgstr ""
 "ستُكتب نسخة احتياطية في\n"
 "{backup}\n"
 "\n"
-"هذا هو التغيير الوحيد الذي سيُجريه Nix App Center على ملفاتك."
+"يلزم ذلك مرة واحدة فقط."
 
 #: crates/gui/src/components/details/attach_dialog.rs:49
 #, rust-format
@@ -2630,7 +2630,7 @@ msgid "Not Applied Yet"
 msgstr ""
 
 #: crates/gui/src/views/installed.rs:586
-#: crates/gui/src/views/system_settings.rs:774
+#: crates/gui/src/views/system_settings.rs:800
 msgid "Remove"
 msgstr "أزل"
 
@@ -3260,30 +3260,35 @@ msgstr "جارٍ التحديث"
 msgid "Could Not Read the Settings"
 msgstr "تعذّر فتح التطبيق."
 
-#: crates/gui/src/views/system_settings.rs:310
+#: crates/gui/src/views/system_settings.rs:309
 #, rust-format
 msgid "Set here · default: {}"
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:332
+#: crates/gui/src/views/system_settings.rs:311
+#, rust-format
+msgid "Set here · replaces {}"
+msgstr "مُعدَّل هنا · يحل محل {}"
+
+#: crates/gui/src/views/system_settings.rs:334
 #, fuzzy
 msgid "No System Settings"
 msgstr "أ_وقف الضبط"
 
-#: crates/gui/src/views/system_settings.rs:333
+#: crates/gui/src/views/system_settings.rs:335
 msgid "Your configuration declares no options under “my”."
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:354
+#: crates/gui/src/views/system_settings.rs:356
 msgid "Pending changes"
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:368
+#: crates/gui/src/views/system_settings.rs:370
 #, rust-format
 msgid "Read from {source}. Changes go to nix-app-center-settings.nix."
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:386
+#: crates/gui/src/views/system_settings.rs:388
 #, fuzzy, rust-format
 msgid "{} setting"
 msgid_plural "{} settings"
@@ -3294,7 +3299,7 @@ msgstr[3] "الإعدادات"
 msgstr[4] "الإعدادات"
 msgstr[5] "الإعدادات"
 
-#: crates/gui/src/views/system_settings.rs:390
+#: crates/gui/src/views/system_settings.rs:392
 #, rust-format
 msgid "{} set in another file"
 msgid_plural "{} set in other files"
@@ -3305,46 +3310,48 @@ msgstr[3] ""
 msgstr[4] ""
 msgstr[5] ""
 
-#: crates/gui/src/views/system_settings.rs:422
+#: crates/gui/src/views/system_settings.rs:424
 #, fuzzy, rust-format
 msgid "Set in {}"
 msgstr "الجيل {}"
 
-#: crates/gui/src/views/system_settings.rs:424
+#: crates/gui/src/views/system_settings.rs:426
 msgid ""
-"These values come from your own files. Changing them here would conflict at "
-"rebuild: edit them there."
+"Your own files set these. A value changed here replaces theirs, and your "
+"files stay as they are. Locked ones are forced there: edit them in the file."
 msgstr ""
+"تحدد ملفاتك الخاصة هذه الإعدادات. القيمة التي تغيّرها هنا تحل محل قيمتها، "
+"وتبقى ملفاتك كما هي. الإعدادات المقفلة مفروضة هناك: عدّلها في الملف."
 
-#: crates/gui/src/views/system_settings.rs:438
+#: crates/gui/src/views/system_settings.rs:444
 msgid "On"
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:439
+#: crates/gui/src/views/system_settings.rs:445
 msgid "Off"
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:441
-#: crates/gui/src/views/system_settings.rs:592
-#: crates/gui/src/views/system_settings.rs:697
+#: crates/gui/src/views/system_settings.rs:447
+#: crates/gui/src/views/system_settings.rs:618
+#: crates/gui/src/views/system_settings.rs:723
 msgid "None"
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:491
+#: crates/gui/src/views/system_settings.rs:507
 #, fuzzy
 msgid "Reset to Default"
 msgstr "الافتراضي"
 
-#: crates/gui/src/views/system_settings.rs:736
+#: crates/gui/src/views/system_settings.rs:762
 msgid "Edit List"
 msgstr ""
 
-#: crates/gui/src/views/system_settings.rs:743
+#: crates/gui/src/views/system_settings.rs:769
 #, fuzzy
 msgid "Add"
 msgstr "الإضافات"
 
-#: crates/gui/src/views/system_settings.rs:881
+#: crates/gui/src/views/system_settings.rs:915
 msgid "Applying System Settings"
 msgstr ""
 
